@@ -98,18 +98,37 @@ impl Diagnostics {
 
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
-            files.iter().map(|x| x.split('/').map(|y| y.to_owned()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>()
+            files.iter().filter_map(|x| {
+                let path = x.splitn(2, ';').collect::<Vec<&str>>();
+                if path.len() == 2 {
+                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
+                } else if path.len() == 1 {
+                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
+                }
+                else {
+                    None
+                }
+            }).collect::<Vec<(Vec<String>, Vec<String>)>>()
         });
 
         self.0 = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter().filter_map(|packed_file| {
+
+            // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
+            let mut ignored_fields = vec![];
             if let Some(ref files_to_ignore) = files_to_ignore {
-                if files_to_ignore.contains(&packed_file.get_path().to_vec()) {
-                    return None;
+                for (file_to_ignore, fields) in files_to_ignore {
+                    if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                        return None;
+                    } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
+                        ignored_fields = fields.to_vec();
+                        break;
+                    }
                 }
             }
+
             match packed_file.get_packed_file_type_by_path() {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema),
-                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
+                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,
             }
         }).collect();
@@ -129,7 +148,8 @@ impl Diagnostics {
         packed_file: &DecodedPackedFile,
         path: &[String],
         dependencies: &Dependencies,
-        _schema: &Option<Schema>
+        _schema: &Option<Schema>,
+        ignored_fields: &[String]
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
@@ -162,6 +182,10 @@ impl Diagnostics {
                 let mut row_keys_are_empty = true;
                 let mut local_keys = vec![];
                 for (column, field) in table.get_ref_definition().get_fields_processed().iter().enumerate() {
+                    if ignored_fields.contains(&field.get_name().to_owned()) {
+                        continue;
+                    }
+
                     let cell_data = cells[column].data_to_string();
 
                     // Dependency checks.
@@ -189,7 +213,7 @@ impl Diagnostics {
                                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                         column_number: column as u32,
                                         row_number: row as i64,
-                                        message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, table.get_ref_definition().get_fields_processed()[column].get_name()),
+                                        message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
                                         report_type: TableDiagnosticReportType::InvalidReference,
                                         level: DiagnosticLevel::Error,
                                     });
@@ -216,7 +240,7 @@ impl Diagnostics {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                             column_number: column as u32,
                             row_number: row as i64,
-                            message: format!("Empty key for column \"{}\".", table.get_ref_definition().get_fields_processed()[column].get_name()),
+                            message: format!("Empty key for column \"{}\".", field.get_name()),
                             report_type: TableDiagnosticReportType::EmptyKeyField,
                             level: DiagnosticLevel::Warning,
                         });
@@ -300,59 +324,73 @@ impl Diagnostics {
     }
 
     /// This function takes care of checking the loc tables of your mod for errors.
-    fn check_loc(packed_file: &DecodedPackedFile, path: &[String]) ->Option<DiagnosticType> {
+    fn check_loc(
+        packed_file: &DecodedPackedFile,
+        path: &[String],
+        ignored_fields: &[String]
+    ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::Loc(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
 
             // Check all the columns with reference data.
             let mut keys = vec![];
+            let fields = table.get_ref_definition().get_fields_processed();
+            let field_key_name = fields[0].get_name().to_owned();
+            let field_text_name = fields[1].get_name().to_owned();
+
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
-                if key.is_empty() && data.is_empty() {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Empty row.".to_string(),
-                        report_type: TableDiagnosticReportType::EmptyRow,
-                        level: DiagnosticLevel::Warning,
-                    });
-                }
+                if !ignored_fields.contains(&field_key_name) && !ignored_fields.contains(&field_text_name) {
+                    if key.is_empty() && data.is_empty() {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Empty row.".to_string(),
+                            report_type: TableDiagnosticReportType::EmptyRow,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
 
-                if key.is_empty() && !data.is_empty() {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Empty key.".to_string(),
-                        report_type: TableDiagnosticReportType::EmptyKeyField,
-                        level: DiagnosticLevel::Warning,
-                    });
+                    if key.is_empty() && !data.is_empty() {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Empty key.".to_string(),
+                            report_type: TableDiagnosticReportType::EmptyKeyField,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 1,
-                        row_number: row as i64,
-                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
-                        report_type: TableDiagnosticReportType::InvalidEscape,
-                        level: DiagnosticLevel::Warning,
-                    });
+                if !ignored_fields.contains(&field_text_name) {
+                    if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 1,
+                            row_number: row as i64,
+                            message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
+                            report_type: TableDiagnosticReportType::InvalidEscape,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
                 }
 
-                let local_keys = vec![key, data];
-                if keys.contains(&local_keys) {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Duplicated row.".to_string(),
-                        report_type: TableDiagnosticReportType::DuplicatedRow,
-                        level: DiagnosticLevel::Warning,
-                    });
-                }
-                else {
-                    keys.push(local_keys);
+                if !ignored_fields.contains(&field_key_name) {
+                    let local_keys = vec![key, data];
+                    if keys.contains(&local_keys) {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Duplicated row.".to_string(),
+                            report_type: TableDiagnosticReportType::DuplicatedRow,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
+                    else {
+                        keys.push(local_keys);
+                    }
                 }
             }
 
@@ -424,19 +462,35 @@ impl Diagnostics {
 
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
-            files.iter().map(|x| x.split('/').map(|y| y.to_owned()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>()
+            files.iter().filter_map(|x| {
+                let path = x.splitn(2, ';').collect::<Vec<&str>>();
+                if path.len() == 2 {
+                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
+                } else if path.len() == 1 {
+                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
+                }
+                else {
+                    None
+                }
+            }).collect::<Vec<(Vec<String>, Vec<String>)>>()
         });
 
         for packed_file in pack_file.get_ref_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect()) {
+            let mut ignored_fields = vec![];
             if let Some(ref files_to_ignore) = files_to_ignore {
-                if files_to_ignore.contains(&packed_file.get_path().to_vec()) {
-                    continue;
+                for (file_to_ignore, fields) in files_to_ignore {
+                    if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                        continue;
+                    } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
+                        ignored_fields = fields.to_vec();
+                        break;
+                    }
                 }
             }
 
             let diagnostic = match packed_file.get_packed_file_type_by_path() {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema),
-                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
+                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,
             };
 

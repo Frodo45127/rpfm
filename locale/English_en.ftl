@@ -655,7 +655,22 @@ dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a Pack
 
 context_menu_open_packfile_settings = Open PackFile Settings
 pfs_diagnostics_files_to_ignore_label = <p><b><i>PackedFiles to Ignore on Diagnostics Check</i></b></p>
-pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other checks (like reference checks) but they will not be analyzed.</p><p><b>One path per line.</b></p>
+pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other things (like providing reference data) but they will not be analyzed.</p><p><b>One path per line.</b> The following are valid examples</p>
+    <ul>
+        <li>
+        <i><b>db/land_units_tables</b></i> => All tables in that folder will be ignored.
+        </li>
+        <li>
+        <i><b>db/land_units_tables/table1</b></i> => That exact table will be ignored.
+        </li>
+        <li>
+        <i><b>db/land_units_tables/table2;field1,field2</b></i> => Only those two fields of that specific table will be ignored.
+        </li>
+        <li>
+        <i><b>db/land_units_tables;field1,field2</b></i> => Only those two fields of all tables in that folder will be ignored.
+        </li>
+    </ul>
+    <br/>
 
 pfs_disable_autosaves_label = <p><b><i>Disable Autosaves for this PackFile</i></b></p>
 pfs_disable_autosaves_description_label = <p></p>
