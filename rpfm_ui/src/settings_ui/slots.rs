@@ -25,6 +25,7 @@ use qt_core::SlotNoArgs;
 use std::collections::BTreeMap;
 use std::fs::remove_dir_all;
 use std::rc::Rc;
+use std::process::Command as SystemCommand;
 
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 use rpfm_lib::common::*;
@@ -146,12 +147,20 @@ impl SettingsUISlots {
 
         let clear_schemas = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             match get_schemas_path() {
-                Ok(path) => match remove_dir_all(&path) {
-                    Ok(_) => {
-                        let _ = init_config_path();
-                        show_dialog(&ui.dialog, tr("schemas_cleared"), true);
+                Ok(path) => {
+
+                    // On windows, remove the read-only flags before doing anything else, or this will fail.
+                    if cfg!(target_os = "windows") {
+                        let path = path.to_string_lossy().to_string() + "\\*.*";
+                        let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
                     }
-                    Err(error) => show_dialog(&ui.dialog, error, false),
+                    match remove_dir_all(&path) {
+                        Ok(_) => {
+                            let _ = init_config_path();
+                            show_dialog(&ui.dialog, tr("schemas_cleared"), true);
+                        }
+                        Err(error) => show_dialog(&ui.dialog, error, false),
+                    }
                 }
                 Err(error) => show_dialog(&ui.dialog, error, false)
             }

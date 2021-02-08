@@ -24,6 +24,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Write};
+use std::process::Command as SystemCommand;
 
 use rpfm_macros::GetRef;
 
@@ -433,6 +434,11 @@ impl Template {
 
                 // If it fails to open, it means either we don't have the .git folder, or we don't have a folder at all.
                 // In either case, recreate it and redownload the schemas repo. No more steps are needed here.
+                // On windows, remove the read-only flags before doing anything else, or this will fail.
+                if cfg!(target_os = "windows") {
+                    let path = template_path.to_string_lossy().to_string() + "\\*.*";
+                    let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
+                }
                 let _ = std::fs::remove_dir_all(&template_path);
                 DirBuilder::new().recursive(true).create(&template_path)?;
                 match Repository::clone(TEMPLATE_REPO, &template_path) {
@@ -490,6 +496,13 @@ impl Template {
         // - If we're not in the branch: covered by the branch switch.
         // - If the branches diverged: this one... the cleanest way to deal with it should be redownload the repo.
         else if analysis.0.is_normal() || analysis.0.is_none() || analysis.0.is_unborn() {
+
+            // On windows, remove the read-only flags before doing anything else, or this will fail.
+            if cfg!(target_os = "windows") {
+                let path = template_path.to_string_lossy().to_string() + "\\*.*";
+                let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
+            }
+
             let _ = std::fs::remove_dir_all(&template_path);
             Self::update()
         }

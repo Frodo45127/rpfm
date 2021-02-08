@@ -75,6 +75,7 @@ use std::collections::BTreeMap;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
 use std::io::{BufReader, Write};
+use std::process::Command as SystemCommand;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -650,6 +651,11 @@ impl Schema {
 
                 // If it fails to open, it means either we don't have the .git folder, or we don't have a folder at all.
                 // In either case, recreate it and redownload the schemas repo. No more steps are needed here.
+                // On windows, remove the read-only flags before doing anything else, or this will fail.
+                if cfg!(target_os = "windows") {
+                    let path = schema_path.to_string_lossy().to_string() + "\\*.*";
+                    let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
+                }
                 let _ = std::fs::remove_dir_all(&schema_path);
                 DirBuilder::new().recursive(true).create(&schema_path)?;
                 match Repository::clone(SCHEMA_REPO, &schema_path) {
@@ -707,6 +713,12 @@ impl Schema {
         // - If we're not in the branch: covered by the branch switch.
         // - If the branches diverged: this one... the cleanest way to deal with it should be redownload the repo.
         else if analysis.0.is_normal() || analysis.0.is_none() || analysis.0.is_unborn() {
+
+            // On windows, remove the read-only flags before doing anything else, or this will fail.
+            if cfg!(target_os = "windows") {
+                let path = schema_path.to_string_lossy().to_string() + "\\*.*";
+                let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
+            }
             let _ = std::fs::remove_dir_all(&schema_path);
             Self::update_schema_repo()
         }
