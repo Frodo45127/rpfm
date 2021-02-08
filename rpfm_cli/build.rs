@@ -27,3 +27,7 @@ fn main() {
     res.set("ProductName","Rusted PackFile Manager");
     if let Err(error) = res.compile() { println!("Error: {}", error); }
 }
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+}
