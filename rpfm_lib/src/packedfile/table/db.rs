@@ -540,8 +540,15 @@ impl DB {
 
         // First check if the data is already cached, to speed up things.
         let mut vanilla_references = if !table_name.is_empty() {
-            let mut cache = dependencies.get_ref_cached_data().write().unwrap();
-            match cache.get(table_name) {
+
+            // Wait to have the lock, because this can trigger crashes due to locks.
+            let cache = loop {
+                if let Ok(ref cache) = dependencies.get_ref_cached_data().read() {
+                    break cache.get(table_name).cloned();
+                }
+            };
+
+            match cache {
                 Some(cached_data) => cached_data.clone(),
                 None => {
                     let cached_data = table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
@@ -571,7 +578,14 @@ impl DB {
                             } else { None }
                         } else { None }
                     }).collect::<BTreeMap<i32, DependencyData>>();
-                    cache.insert(table_name.to_owned(), cached_data.clone());
+
+                    // Wait to have the lock, because this can trigger crashes due to multiple threads trying to write to the cache at the same time.
+                    loop {
+                        if let Ok(ref mut cache) = dependencies.get_ref_cached_data().write() {
+                            cache.insert(table_name.to_owned(), cached_data.clone());
+                            break;
+                        }
+                    }
                     cached_data
                 }
             }
