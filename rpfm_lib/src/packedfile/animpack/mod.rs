@@ -34,8 +34,6 @@ use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 
 pub const EXTENSION: &str = ".animpack";
 
-pub const DEFAULT_PATH: [&str; 3] = ["animations", "animation_tables", "animation_tables.animpack"];
-
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
