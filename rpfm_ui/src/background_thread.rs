@@ -34,7 +34,6 @@ use rpfm_lib::dependencies::Dependencies;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
-use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
@@ -855,44 +854,6 @@ pub fn background_loop() {
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::PackedFileNotFound.into())),
-                }
-            }
-
-            // When we want to unpack an AnimPack...
-            Command::AnimPackUnpack(path) => {
-                let data = match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(packed_file_data) => {
-                                match packed_file_data {
-                                    DecodedPackedFile::AnimPack(data) => data.clone(),
-                                    _ => { CENTRAL_COMMAND.send_message_rust(Response::Unknown); continue },
-                                }
-                            }
-                            Err(error) => { CENTRAL_COMMAND.send_message_rust(Response::Error(error)); continue },
-                        }
-                    }
-                    None => { CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))); continue },
-                };
-
-                match data.unpack(&mut pack_file_decoded) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
-            // When we want to generate a dummy AnimPack...
-            Command::GenerateDummyAnimPack => {
-                match AnimPack::repack_anim_table(&mut pack_file_decoded) {
-                    Ok(anim_pack) => {
-                        let anim_pack = DecodedPackedFile::AnimPack(anim_pack);
-                        let packed_file = PackedFile::new_from_decoded(&anim_pack, &animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>());
-                        match pack_file_decoded.add_packed_file(&packed_file, true) {
-                            Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecString(result)),
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
-                    }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 

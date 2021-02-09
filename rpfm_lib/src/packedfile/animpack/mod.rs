@@ -26,12 +26,11 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::convert::TryFrom;
 
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::{Error, Result};
 
 use crate::common::{decoder::Decoder, encoder::Encoder};
-use crate::packfile::{PackFileInfo, PackFile, PathType};
+use crate::packfile::{PackFileInfo, PathType};
 use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
-use crate::packedfile::table::animtable;
 
 pub const EXTENSION: &str = ".animpack";
 
@@ -60,22 +59,6 @@ pub struct AnimPacked {
 
 /// Implementation of `AnimPack`.
 impl AnimPack {
-
-    /// This function creates a valid AnimPack. With `valid` I mean with the animtable inside. The game crashes otherwise.
-    pub fn repack_anim_table(pack_file: &mut PackFile) -> Result<Self> {
-        let path = animtable::PATH.iter().map(|x| (*x).to_owned()).collect::<Vec<String>>();
-        match pack_file.get_ref_mut_packed_file_by_path(&path) {
-            Some(ref mut anim_table) => {
-                Ok(Self {
-                    packed_files: vec![AnimPacked {
-                        path,
-                        data: anim_table.encode_and_return()?.get_raw_data()?.to_vec(),
-                    }],
-                })
-            }
-            None => Err(ErrorKind::NoAnimTableInPackFile.into())
-        }
-    }
 
     /// This function creates a `AnimPack` from a `&[u8]`.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
@@ -125,15 +108,6 @@ impl AnimPack {
 
     pub fn get_anim_packed_paths_all(&self) -> Vec<Vec<String>> {
         self.packed_files.iter().map(|x| x.path.to_vec()).collect()
-    }
-
-    /// This function unpacks the entire AnimPack into the current PackFile.
-    pub fn unpack(&self, pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
-        let packed_files = self.packed_files.iter()
-            .map(From::from)
-            .collect::<Vec<PackedFile>>();
-        let packed_files = packed_files.iter().collect::<Vec<&PackedFile>>();
-        pack_file.add_packed_files(&packed_files, true)
     }
 
     pub fn add_packed_files(&mut self, packed_files: &[PackedFile]) -> Result<Vec<PathType>> {

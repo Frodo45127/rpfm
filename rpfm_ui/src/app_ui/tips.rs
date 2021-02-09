@@ -75,7 +75,6 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     //-----------------------------------------------//
     // `Special Stuff` menu tips.
     //-----------------------------------------------//
-    let repack_animpack = qtr("tt_repack_animpack");
     let generate_pak_file = qtr("tt_generate_pak_file");
     let optimize_packfile = qtr("tt_optimize_packfile");
     let patch_siege_ai_tip = qtr("tt_patch_siege_ai");
@@ -83,11 +82,9 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.special_stuff_troy_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_three_k_generate_pak_file.set_status_tip(&generate_pak_file);
     app_ui.special_stuff_three_k_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_wh2_repack_animtable.set_status_tip(&repack_animpack);
     app_ui.special_stuff_wh2_generate_pak_file.set_status_tip(&generate_pak_file);
     app_ui.special_stuff_wh2_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_wh2_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);
-    app_ui.special_stuff_wh_repack_animtable.set_status_tip(&repack_animpack);
     app_ui.special_stuff_wh_generate_pak_file.set_status_tip(&generate_pak_file);
     app_ui.special_stuff_wh_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_wh_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);

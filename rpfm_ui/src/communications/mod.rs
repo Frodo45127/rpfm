@@ -282,12 +282,6 @@ pub enum Command {
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
 
-    /// This command is used to unpack an AnimPack into the current PackFile. Requires the path of the PackedFile to unpack.
-    AnimPackUnpack(Vec<String>),
-
-    /// This command is used to create a dummy AnimPack, so the game loads it's anim files from loose files instead of from the big animpack.
-    GenerateDummyAnimPack,
-
     /// This command is used to load a template into the currently open PackFile.
     /// The data it contains is:
     /// - Template.

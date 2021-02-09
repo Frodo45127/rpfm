@@ -568,14 +568,12 @@ impl AppUI {
                 },
                 KEY_WARHAMMER_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
-                    app_ui.special_stuff_wh2_repack_animtable.set_enabled(true);
                     app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh2_generate_pak_file.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
-                    app_ui.special_stuff_wh_repack_animtable.set_enabled(true);
                     app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
                     app_ui.special_stuff_wh_generate_pak_file.set_enabled(true);
@@ -627,13 +625,11 @@ impl AppUI {
             app_ui.special_stuff_three_k_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer 2 actions...
-            app_ui.special_stuff_wh2_repack_animtable.set_enabled(false);
             app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh2_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh2_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer actions...
-            app_ui.special_stuff_wh_repack_animtable.set_enabled(false);
             app_ui.special_stuff_wh_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh_optimize_packfile.set_enabled(false);
             app_ui.special_stuff_wh_generate_pak_file.set_enabled(false);
