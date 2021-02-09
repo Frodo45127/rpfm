@@ -28,6 +28,7 @@ use qt_widgets::QTreeView;
 
 use qt_gui::QStandardItemModel;
 
+use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QRegExp;
@@ -1277,6 +1278,7 @@ impl AppUI {
 
                 let mut tab = PackedFileView::default();
                 tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
+                tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
                 if !is_external {
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_vec());
