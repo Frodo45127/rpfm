@@ -54,7 +54,7 @@ use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::MYMOD_BASE_PATH;
 use rpfm_lib::template::Template;
-use rpfm_lib::updater::APIResponse;
+use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 
 use super::AppUI;
 use super::NewPackedFile;
@@ -69,6 +69,7 @@ use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder:
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
+use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::utils::{create_grid_layout, show_dialog};
@@ -1040,7 +1041,9 @@ impl AppUI {
             match response {
                 Response::Success => {
                     let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
-                    dialog.set_text(&qtr("update_success_main_program"));
+
+                    let changelog_path = RPFM_PATH.join(CHANGELOG_FILE);
+                    dialog.set_text(&qtre("update_success_main_program", &[&changelog_path.to_string_lossy()]));
                     restart_button.set_enabled(true);
                     close_button.set_enabled(true);
 

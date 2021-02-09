@@ -31,6 +31,8 @@ const REPO_NAME: &str = "rpfm";
 
 const UPDATE_FOLDER_PREFIX: &str = "updates";
 
+pub const CHANGELOG_FILE: &str = "Changelog.md";
+
 pub const STABLE: &str = "Stable";
 pub const BETA: &str = "Beta";
 

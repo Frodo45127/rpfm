@@ -310,7 +310,7 @@ pub fn background_loop() {
             Command::NewPackedFile(path, new_packed_file) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let decoded = match new_packed_file {
-                        NewPackedFile::AnimPack(name) => {
+                        NewPackedFile::AnimPack(_) => {
                             let packed_file = AnimPack::new();
                             DecodedPackedFile::AnimPack(packed_file)
                         },
