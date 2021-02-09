@@ -78,6 +78,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_rename: QBox<SlotOfBool>,
     pub contextual_menu_copy_path: QBox<SlotOfBool>,
 
+    pub contextual_menu_new_packed_file_anim_pack: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_db: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_loc: QBox<SlotOfBool>,
     pub contextual_menu_new_packed_file_text: QBox<SlotOfBool>,
@@ -185,6 +186,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -237,6 +239,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(enabled);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
@@ -249,6 +252,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -275,6 +279,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(true);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(true);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(true);
@@ -301,6 +306,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -327,6 +333,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -352,6 +359,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -378,6 +386,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_new_packed_file_anim_pack.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
@@ -884,6 +893,13 @@ impl PackFileContentsSlots {
             }
         }));
 
+        // What happens when we trigger the "Create AnimPack" Action.
+        let contextual_menu_new_packed_file_anim_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::AnimPack);
+        }));
+
         // What happens when we trigger the "Create DB PackedFile" Action.
         let contextual_menu_new_packed_file_db = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
@@ -1255,6 +1271,7 @@ impl PackFileContentsSlots {
             contextual_menu_rename,
             contextual_menu_copy_path,
 
+            contextual_menu_new_packed_file_anim_pack,
             contextual_menu_new_packed_file_db,
             contextual_menu_new_packed_file_loc,
             contextual_menu_new_packed_file_text,

@@ -134,6 +134,7 @@ new_file_default = new_file
 new_db_file = New DB PackedFile
 new_loc_file = New Loc PackedFile
 new_txt_file = New Text PackedFile
+new_animpack_file = New AnimPack
 new_packedfile_name = New PackedFile's Name
 
 packedfile_filter = Type here to filter the tables of the list. Works with Regex too!
@@ -273,6 +274,7 @@ tt_context_menu_add_folder = Add a folder to the currently open PackFile. Existi
 tt_context_menu_add_from_packfile = Add files from another PackFile to the currently open PackFile. Existing files are not overwriten!
 tt_context_menu_check_tables = Check all the DB Tables of the currently open PackFile for dependency errors.
 tt_context_menu_new_folder = Open the dialog to create an empty folder. Due to how the PackFiles are done, these are NOT KEPT ON SAVING if they stay empty.
+tt_context_menu_new_packed_file_anim_pack = Open the dialog to create an AnimPack.
 tt_context_menu_new_packed_file_db = Open the dialog to create a DB Table (used by the game for... most of the things).
 tt_context_menu_new_packed_file_loc = Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.
 tt_context_menu_new_packed_file_text = Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',....
@@ -334,10 +336,11 @@ context_menu_add_from_packfile = Add from &PackFile
 context_menu_select_packfile = Select PackFile
 context_menu_extract_packfile = Extract PackFile
 
-context_menu_new_folder = &Create Folder
-context_menu_new_packed_file_db = Create &DB
-context_menu_new_packed_file_loc = &Create Loc
-context_menu_new_packed_file_text = Create &Text
+context_menu_new_folder = Create Folder
+context_menu_new_packed_file_anim_pack = Create AnimPack
+context_menu_new_packed_file_db = Create DB
+context_menu_new_packed_file_loc = Create Loc
+context_menu_new_packed_file_text = Create Text
 context_menu_new_queek_packed_file = New Queek File
 
 context_menu_mass_import_tsv = Mass-Import TSV

@@ -267,6 +267,9 @@ pub struct AppUI {
 #[derive(Clone, Debug)]
 pub enum NewPackedFile {
 
+    /// Name of the PackedFile.
+    AnimPack(String),
+
     /// Name of the PackedFile, Name of the Table, Version of the Table.
     DB(String, String, i32),
 

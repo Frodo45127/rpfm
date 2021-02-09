@@ -60,6 +60,10 @@ pub struct AnimPacked {
 /// Implementation of `AnimPack`.
 impl AnimPack {
 
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// This function creates a `AnimPack` from a `&[u8]`.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
         let mut anim_packeds = vec![];

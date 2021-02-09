@@ -80,11 +80,12 @@ const SHORTCUTS_MENU_BAR_ABOUT: [(&str, &str); 6] = [
 ];
 
 /// List of shortcuts for the PackFile Contents Contextual Menu.
-const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 24] = [
+const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 25] = [
     ("add_file", "Ctrl+A"),
     ("add_folder", "Ctrl+Shift+A"),
     ("add_from_packfile", "Ctrl+Alt+A"),
     ("create_folder", "Ctrl+F"),
+    ("create_animpack", ""),
     ("create_db", "Ctrl+D"),
     ("create_loc", "Ctrl+L"),
     ("create_text", "Ctrl+T"),

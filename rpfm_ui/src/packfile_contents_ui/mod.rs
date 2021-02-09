@@ -68,6 +68,7 @@ pub struct PackFileContentsUI {
     pub context_menu_add_folder: QPtr<QAction>,
     pub context_menu_add_from_packfile: QPtr<QAction>,
     pub context_menu_new_folder: QPtr<QAction>,
+    pub context_menu_new_packed_file_anim_pack: QPtr<QAction>,
     pub context_menu_new_packed_file_db: QPtr<QAction>,
     pub context_menu_new_packed_file_loc: QPtr<QAction>,
     pub context_menu_new_packed_file_text: QPtr<QAction>,
@@ -171,6 +172,7 @@ impl PackFileContentsUI {
         let context_menu_add_folder = menu_add.add_action_q_string(&qtr("context_menu_add_folder"));
         let context_menu_add_from_packfile = menu_add.add_action_q_string(&qtr("context_menu_add_from_packfile"));
         let context_menu_new_folder = menu_create.add_action_q_string(&qtr("context_menu_new_folder"));
+        let context_menu_new_packed_file_anim_pack = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_anim_pack"));
         let context_menu_new_packed_file_db = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_db"));
         let context_menu_new_packed_file_loc = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_loc"));
         let context_menu_new_packed_file_text = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_text"));
@@ -202,6 +204,7 @@ impl PackFileContentsUI {
         context_menu_add_folder.set_enabled(false);
         context_menu_add_from_packfile.set_enabled(false);
         context_menu_new_folder.set_enabled(false);
+        context_menu_new_packed_file_anim_pack.set_enabled(false);
         context_menu_new_packed_file_db.set_enabled(false);
         context_menu_new_packed_file_loc.set_enabled(false);
         context_menu_new_packed_file_text.set_enabled(false);
@@ -244,8 +247,9 @@ impl PackFileContentsUI {
             context_menu_add_from_packfile,
 
             context_menu_new_folder,
-            context_menu_new_packed_file_loc,
+            context_menu_new_packed_file_anim_pack,
             context_menu_new_packed_file_db,
+            context_menu_new_packed_file_loc,
             context_menu_new_packed_file_text,
             context_menu_new_queek_packed_file,
 

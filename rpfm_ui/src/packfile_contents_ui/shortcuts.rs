@@ -39,6 +39,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_add_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["add_folder"])));
     ui.context_menu_add_from_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["add_from_packfile"])));
     ui.context_menu_new_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_folder"])));
+    ui.context_menu_new_packed_file_anim_pack.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_animpack"])));
     ui.context_menu_new_packed_file_db.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_db"])));
     ui.context_menu_new_packed_file_loc.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_loc"])));
     ui.context_menu_new_packed_file_text.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_text"])));
@@ -65,6 +66,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_add_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_add_from_packfile.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.context_menu_new_packed_file_anim_pack.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_db.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_loc.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_text.set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -91,6 +93,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_add_folder);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_add_from_packfile);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_folder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_anim_pack);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_db);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_loc);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_text);

@@ -34,6 +34,7 @@ use rpfm_lib::dependencies::Dependencies;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
+use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
@@ -309,6 +310,10 @@ pub fn background_loop() {
             Command::NewPackedFile(path, new_packed_file) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let decoded = match new_packed_file {
+                        NewPackedFile::AnimPack(name) => {
+                            let packed_file = AnimPack::new();
+                            DecodedPackedFile::AnimPack(packed_file)
+                        },
                         NewPackedFile::DB(_, table, version) => {
                             match schema.get_ref_versioned_file_db(&table) {
                                 Ok(versioned_file) => {

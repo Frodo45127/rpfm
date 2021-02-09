@@ -46,7 +46,7 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
-use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
+use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
@@ -1745,6 +1745,7 @@ impl AppUI {
 
                     // First we make sure the name is correct, and fix it if needed.
                     match new_packed_file {
+                        NewPackedFile::AnimPack(ref mut name) |
                         NewPackedFile::Loc(ref mut name) |
                         NewPackedFile::Text(ref mut name, _) |
                         NewPackedFile::DB(ref mut name, _, _) => {
@@ -1755,6 +1756,9 @@ impl AppUI {
                             }
 
                             // Fix their name termination if needed.
+                            if let PackedFileType::AnimPack = packed_file_type {
+                                if !name.ends_with(animpack::EXTENSION) { name.push_str(animpack::EXTENSION); }
+                            }
                             if let PackedFileType::Loc = packed_file_type {
                                 if !name.ends_with(loc::EXTENSION) { name.push_str(loc::EXTENSION); }
                             }
@@ -1774,6 +1778,7 @@ impl AppUI {
 
                     // If we reach this place, we got all alright.
                     match new_packed_file {
+                        NewPackedFile::AnimPack(ref name) |
                         NewPackedFile::Loc(ref name) |
                         NewPackedFile::Text(ref name, _) |
                         NewPackedFile::DB(ref name, _, _) => {
@@ -1982,6 +1987,7 @@ impl AppUI {
         // Create and configure the "New PackedFile" Dialog.
         let dialog = QDialog::new_1a(&app_ui.main_window);
         match packed_file_type {
+            PackedFileType::AnimPack => dialog.set_window_title(&qtr("new_animpack_file")),
             PackedFileType::DB => dialog.set_window_title(&qtr("new_db_file")),
             PackedFileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
             PackedFileType::Text(_) => dialog.set_window_title(&qtr("new_txt_file")),
@@ -2053,6 +2059,7 @@ impl AppUI {
         if dialog.exec() == 1 {
             let packed_file_name = name_line_edit.text().to_std_string();
             match packed_file_type {
+                PackedFileType::AnimPack => Some(Ok(NewPackedFile::AnimPack(packed_file_name))),
                 PackedFileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
                     CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));

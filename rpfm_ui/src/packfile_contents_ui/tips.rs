@@ -27,6 +27,7 @@ pub unsafe fn set_tips(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_add_folder.set_status_tip(&qtr("tt_context_menu_add_folder"));
     ui.context_menu_add_from_packfile.set_status_tip(&qtr("tt_context_menu_add_from_packfile"));
     ui.context_menu_new_folder.set_status_tip(&qtr("tt_context_menu_new_folder"));
+    ui.context_menu_new_packed_file_anim_pack.set_status_tip(&qtr("tt_context_menu_new_packed_file_anim_pack"));
     ui.context_menu_new_packed_file_db.set_status_tip(&qtr("tt_context_menu_new_packed_file_db"));
     ui.context_menu_new_packed_file_loc.set_status_tip(&qtr("tt_context_menu_new_packed_file_loc"));
     ui.context_menu_new_packed_file_text.set_status_tip(&qtr("tt_context_menu_new_packed_file_text"));
