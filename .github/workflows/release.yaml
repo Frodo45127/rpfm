@@ -159,16 +159,19 @@ jobs:
           cp D:\Craft\bin\zstd.dll D:\deploy\rpfm-release-assets\
 
           # Here we copy files generated from the compilation.
+          cp D:/a/rpfm/rpfm/target/release/rpfm.exe D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/target/release/rpfm.pbd D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\rpfm-release-assets
-          cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\rpfm-release-assets
-          cp D:/a/rpfm/rpfm/target/release/rpfm_mod_checker.exe D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.pdb D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/target/release/rpfm_mod_checker.exe D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.pdb D:\deploy\rpfm-release-assets
 
           # Here we copy assets from the repo.
           mkdir img
           mkdir locale
           cp D:/a/rpfm/rpfm/LICENSE D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/CHANGELOG.md D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/img/* D:\deploy\rpfm-release-assets\img\
           cp D:/a/rpfm/rpfm/locale/* D:\deploy\rpfm-release-assets\locale\
           7z a rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
