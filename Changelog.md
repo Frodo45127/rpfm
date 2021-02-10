@@ -15,6 +15,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented `Autosave Amount` setting.
 - Implemented `Clear autosave folder` button on settings.
 - Implemented `Clear schema folder` button on settings.
+- Implemented `New AnimPack` feature.
+- Implemented `Restart` button on update dialog.
+- New  `rpfm.exe` executable to launch RPFM UI with self-restarting capabilities.
+- Added changelog link to the "RPFM updated successfully" dialog.
 
 ### Changed
 - Removed automatic diagnostics checks (were causing too many issues to be maintainable).
@@ -31,6 +35,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
     + Delete rows
     + Rewrite selection
 - Improved Schema/Template updater to be more reliable.
+- Reworked AnimPack View.
+- UpdateXXXX folders are now deleted after an update.
+- Added icon to the cli tool.
+- Improved diagnostics' blacklisting logic to allow blacklisting of entire folders, and of particular columns.
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -46,6 +54,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed a bug that caused the column indexes used in `Rewrite selection` to be incorrect.
 - Fixed a bug that caused the `Delete` funtion on tables to not delete properly a row if it had hidden columns.
 - Fixed a bug that caused local schema changes to be lost in a schema update.
+- Fixed a rare CTD/hang when performing a diagnostics check.
+- Fixed `Access is Denied` issue when clearing the schemas folder.
+- Fixed an issue that caused RPFM to fail to clean up the schemas folder when trying to update the schemas.
+- Fixed a bug that caused the TabBar Context Menu to popup when it shouldn't.
 
 ## [2.3.4] - 2020-11-22
 ### Added
