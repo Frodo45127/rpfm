@@ -160,7 +160,7 @@ jobs:
 
           # Here we copy files generated from the compilation.
           cp D:/a/rpfm/rpfm/target/release/rpfm.exe D:\deploy\rpfm-release-assets
-          cp D:/a/rpfm/rpfm/target/release/rpfm.pbd D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/target/release/rpfm.pdb D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.pdb D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_mod_checker.exe D:\deploy\rpfm-release-assets
