@@ -84,7 +84,7 @@ pub fn add_folders(
         })
         .collect::<Vec<(PathBuf, Vec<String>)>>();
 
-	packfile.add_from_folders(&folder_paths, true)?;
+	packfile.add_from_folders(&folder_paths, &None, true)?;
 	let result = packfile.save(None);
 
     if config.verbosity_level > 0 {

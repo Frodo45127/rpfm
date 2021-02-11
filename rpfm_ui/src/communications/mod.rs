@@ -180,7 +180,7 @@ pub enum Command {
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
-    AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
+    AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>, Option<Vec<PathBuf>>)),
 
     /// This command is used when we want to decode a PackedFile to be shown on the UI.
     DecodePackedFile(Vec<String>),
@@ -205,12 +205,6 @@ pub enum Command {
 
     /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path.
     ExtractPackedFiles(Vec<PathType>, PathBuf),
-
-    /// This command is used during the "MyMod Export" function, when every PackedFile is exported from the opened PackFile. Pass the PathBuf for the MyMod folder
-    ExportMyMod(PathBuf),
-
-    /// This command is used during the "MyMod Import" function, which adds the entirety of the MyMod folder into the PackFile, with respect to the .rpfm-ignore file. Pass the PathBuf for the MyMod folder
-    //ImportMyMod(PathBuf),
 
     /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
     RenamePackedFiles(Vec<(PathType, String)>),
@@ -248,8 +242,9 @@ pub enum Command {
     /// This command is used when we want to replace all matches in a Global Search.
     GlobalSearchReplaceAll(GlobalSearch),
 
-    /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile.
-    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>),
+    /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile,
+    /// and the list of paths to ignore, if any.
+    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>, Option<Vec<PathBuf>>),
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.

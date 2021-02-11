@@ -16,6 +16,7 @@ The reason they're here and not in the main file is because I don't want to polu
 that one, as it's mostly meant for initialization and configuration.
 !*/
 
+use qt_widgets::QTreeView;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
@@ -25,6 +26,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 
 use qt_core::CaseSensitivity;
+use qt_core::QBox;
 use qt_core::QRegExp;
 use qt_core::QString;
 use qt_core::SlotNoArgs;
@@ -33,7 +35,10 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_error::ErrorKind;
+
 use rpfm_lib::packfile::PathType;
+use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -43,6 +48,7 @@ use crate::locale::{qtr, qtre};
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::{create_grid_layout, show_dialog};
+use crate::ui_state::op_mode::OperationalMode;
 use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
@@ -57,15 +63,16 @@ impl PackFileContentsUI {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
-        paths_packedfile: &[Vec<String>]
+        paths_packedfile: &[Vec<String>],
+        paths_to_ignore: Option<Vec<PathBuf>>
     ) {
         app_ui.main_window.set_enabled(false);
 
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec())));
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore)));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
-            Response::Success => {
-                let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+            Response::VecPathType(paths) => {
+                let paths = paths.iter().map(From::from).collect::<Vec<TreePathType>>();
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
@@ -94,11 +101,12 @@ impl PackFileContentsUI {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
-        paths_packedfile: &[Vec<String>]
+        paths_packedfile: &[Vec<String>],
+        paths_to_ignore: Option<Vec<PathBuf>>
     ) {
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send));
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
             Response::VecPathType(paths_packedfile) => {
@@ -269,5 +277,77 @@ impl PackFileContentsUI {
 
         // In any other case, we return None.
         else { None }
+    }
+
+    pub unsafe fn extract_packed_files(
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<Self>,
+        paths_to_extract: Option<Vec<PathType>>
+    ) {
+
+        // Get the currently selected paths (and visible) paths, or the ones received from the function.
+        let items_to_extract = match paths_to_extract {
+            Some(paths) => paths,
+            None => {
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                selected_items.iter().map(From::from).collect::<Vec<PathType>>()
+            }
+        };
+
+        let extraction_path = match UI_STATE.get_operational_mode() {
+
+            // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
+            OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+
+                    // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
+                    let mut mod_name = mod_name.to_owned();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+
+                    let mut assets_folder = mymods_base_path.to_path_buf();
+                    assets_folder.push(&game_folder_name);
+                    assets_folder.push(&mod_name);
+                    assets_folder
+                }
+
+                // If there is no MyMod path configured, report it.
+                else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
+            }
+
+            // In normal mode, we ask the user to provide us with a path.
+            OperationalMode::Normal => {
+                let extraction_path = QFileDialog::get_existing_directory_2a(
+                    &app_ui.main_window,
+                    &qtr("context_menu_extract_packfile"),
+                );
+
+                if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
+                else { return }
+            }
+        };
+
+        // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
+        // TODO: Make this more... optimal.
+        if let Err(error) = UI_STATE.get_open_packedfiles()
+            .iter()
+            .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
+            show_dialog(&app_ui.main_window, error, false);
+        }
+
+        else {
+            CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(items_to_extract, extraction_path));
+            app_ui.main_window.set_enabled(false);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
+                Response::String(result) => show_dialog(&app_ui.main_window, result, true),
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+            app_ui.main_window.set_enabled(true);
+        }
     }
 }

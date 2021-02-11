@@ -355,25 +355,29 @@ pub fn background_loop() {
             }
 
             // When we want to add one or more PackedFiles to our PackFile...
-            Command::AddPackedFiles((source_paths, destination_paths)) => {
-                let mut broke = false;
+            Command::AddPackedFiles((source_paths, destination_paths, paths_to_ignore)) => {
+                let mut added_paths = vec![];
                 for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
-                    if let Err(error) = pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
-                        CENTRAL_COMMAND.send_message_rust(Response::Error(error));
-                        broke = true;
-                        break;
+
+                    // Skip ignored paths.
+                    if let Some(ref paths_to_ignore) = paths_to_ignore {
+                        if paths_to_ignore.iter().any(|x| source_path.starts_with(x)) {
+                            continue;
+                        }
+                    }
+
+                    match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
+                        Ok(path) => added_paths.push(PathType::File(path.to_vec())),
+                        Err(_error) => todo!("To do later."),
                     }
                 }
 
-                // If nothing failed, send back success.
-                if !broke {
-                    CENTRAL_COMMAND.send_message_rust(Response::Success);
-                }
+                CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
             }
 
             // In case we want to add one or more entire folders to our PackFile...
-            Command::AddPackedFilesFromFolder(paths) => {
-                match pack_file_decoded.add_from_folders(&paths, true) {
+            Command::AddPackedFilesFromFolder(paths, paths_to_ignore) => {
+                match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true) {
                     Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
 
@@ -536,33 +540,6 @@ pub fn background_loop() {
                 match pack_file_decoded.extract_packed_files_by_type(&item_types, &path) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(tre("files_extracted_success", &[&result.to_string()]))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
-            // Export every PackedFile, with respect to the .rpfm-ignore file
-            Command::ExportMyMod(mymod_folder) => {
-                // first, read the .rpfm-ignore file?
-                /*let rpfm_ignore_contents = match pack_file_decoded.get_rpfm_ignore() {
-                    Some(rpfm_ignore) => {
-                        rpfm_ignore
-                        //rpfm_ignore_txt.set_contents(rpfm_ignore);
-                        //CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt));
-                    }
-                    None => {}//CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt)),
-                };*/
-
-                // grab all packed files in the packfile
-                let packed_file_vec = pack_file_decoded.get_packed_files_all();
-
-                // loop through all packed files
-                for mut packed_file in packed_file_vec {
-                    //let packed_file = &packed_file_vec[i];
-
-                    // TODO make sure the packed file is propa to export, re: rpfm-ignore
-                    match packed_file.extract_packed_file(&mymod_folder) {
-                        Ok(_result) => {},
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                    }
                 }
             }
 

@@ -73,7 +73,7 @@ use crate::QString;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
-use crate::utils::{create_grid_layout, show_dialog, show_debug_dialog};
+use crate::utils::{create_grid_layout, show_dialog};
 
 
 //-------------------------------------------------------------------------------//
@@ -559,7 +559,7 @@ impl AppUI {
 
             // If there is a "MyMod" path set in the settings...
             if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
-               if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
+                if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
                 else { app_ui.mymod_new.set_enabled(false); }
             }
             else { app_ui.mymod_new.set_enabled(false); }

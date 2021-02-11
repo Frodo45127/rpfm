@@ -456,6 +456,9 @@ pub enum ErrorKind {
     /// Error for when trying to remove a non-existant MyMod PackFile.
     MyModPackFileDoesntExist,
 
+    /// Error for when trying to do something only MyMods can do.
+    PackFileIsNotAMyMod,
+
     //-----------------------------------------------------//
     //                 Special Errors
     //-----------------------------------------------------//
@@ -857,6 +860,7 @@ impl Display for ErrorKind {
             ErrorKind::MyModDeleteWithoutMyModSelected => write!(f, "<p>You can't delete the selected MyMod if there is no MyMod selected.</p>"),
             ErrorKind::MyModPackFileDeletedFolderNotFound => write!(f, "<p>The Mod's PackFile has been deleted, but his assets folder is nowhere to be found.</p>"),
             ErrorKind::MyModPackFileDoesntExist => write!(f, "<p>The PackFile of the selected MyMod doesn't exists, so it can't be installed or removed.</p>"),
+            ErrorKind::PackFileIsNotAMyMod => write!(f, "<p>This action is only available for MyMods.</p>"),
 
             //-----------------------------------------------------//
             //                 Special Errors

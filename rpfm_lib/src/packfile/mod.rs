@@ -724,6 +724,7 @@ impl PackFile {
     pub fn add_from_folders(
         &mut self,
         paths_as_folder_and_destination: &[(PathBuf, Vec<String>)],
+        paths_to_ignore: &Option<Vec<PathBuf>>,
         overwrite: bool,
     ) -> Result<Vec<Vec<String>>> {
 
@@ -732,6 +733,13 @@ impl PackFile {
             match get_files_from_subdir(path) {
                 Ok(file_paths) => {
                     for file_path in &file_paths {
+
+                        if let Some(paths_to_ignore) = paths_to_ignore {
+
+                            if paths_to_ignore.iter().any(|x| file_path.starts_with(x)) {
+                                continue;
+                            }
+                        }
 
                         // The stupid C: letter in paths causes problems when we're on windows.
                         let drain_fix = if cfg!(target_os = "windows") { 1 } else { 0 };
