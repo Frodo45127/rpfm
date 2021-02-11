@@ -545,12 +545,8 @@ impl PackedFileDecoderView {
         hex_raw_data.pop();
         hex_raw_data.retain(|c| c != ',');
 
-        // Note: this works on BYTES, NOT CHARACTERS. Which means some characters may use multiple bytes,
-        // and if you pass these functions a range thats not a character, they panic!
-        // For reference, everything is one byte except the thin whitespace that's three bytes.
-        (2..hex_raw_data.len() - 1).rev().step_by(3).filter(|x| x % 4 != 0).for_each(|x| hex_raw_data.replace_range(x - 1..x, " "));
-        if hex_raw_data.len() > 70 {
-            (70..hex_raw_data.len() - 1).rev().filter(|x| x % 72 == 0).for_each(|x| hex_raw_data.replace_range(x - 1..x, "\n"));
+        if hex_raw_data.len() > 46 {
+            (46..hex_raw_data.len() - 1).rev().filter(|x| x % 48 == 0).for_each(|x| hex_raw_data.replace_range(x - 1..x, "\n"));
         }
 
         let qhex_raw_data = QString::from_std_str(&hex_raw_data);
