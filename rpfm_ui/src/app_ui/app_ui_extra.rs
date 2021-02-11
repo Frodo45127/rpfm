@@ -1759,61 +1759,6 @@ impl AppUI {
         Self::update_views_names(app_ui);
     }
 
-    pub unsafe fn open_rpfm_ignore(
-        &mut self,
-        pack_file_contents_ui: &PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        //slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
-    ) {
-
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        if !UI_STATE.get_packfile_contents_read_only() {
-            // Close all preview views except the file we're opening. The path used for the notes is reserved.
-            let path = vec!["rpfm_ignore.rpfm_reserved".to_owned()];
-            let name = qtr("rpfm_ignore");
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.get_ref_path();
-                let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
-                    self.tab_bar_packed_file.remove_tab(index);
-                }
-            }
-
-            // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                if index == -1 {
-                    let icon_type = IconType::PackFile(true);
-                    let icon = icon_type.get_icon_from_path();
-                    self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
-                }
-
-                self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                return;
-            }
-
-            // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = PackedFileView::default();
-            tab.set_is_preview(false);
-            let icon_type = IconType::PackFile(true);
-            let icon = icon_type.get_icon_from_path();
-            tab.set_path(&path);
-            /*
-            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
-                Ok((slots, _)) => {
-                    slot_holder.borrow_mut().push(slots);
-
-                    // Add the manager to the 'Currently open' list and make it visible.
-                    self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                    self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    UI_STATE.set_open_packedfiles().push(tab);
-                },
-                Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
-            }*/
-        }
-    }
-
     /// This function is the one that takes care of the creation of different PackedFiles.
     pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_file_type: PackedFileType) {
 

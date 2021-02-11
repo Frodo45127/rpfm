@@ -47,7 +47,6 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.mymod_delete_selected.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_delete_selected"])));
     app_ui.mymod_import.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_import"])));
     app_ui.mymod_export.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_export"])));
-    app_ui.mymod_rpfm_ignore.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_rpfm_ignore"])));
 
     app_ui.view_toggle_packfile_contents.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_packfile_contents"])));
     app_ui.view_toggle_global_search_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_global_search_panel"])));
@@ -104,7 +103,6 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.mymod_delete_selected.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.mymod_import.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.mymod_export.set_shortcut_context(ShortcutContext::ApplicationShortcut);
-    app_ui.mymod_rpfm_ignore.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.view_toggle_packfile_contents.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.view_toggle_global_search_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);

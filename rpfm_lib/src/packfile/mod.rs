@@ -2808,6 +2808,7 @@ impl Default for PackFileSettings {
         let settings_number = BTreeMap::new();
 
         settings_text.insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+        settings_text.insert("import_files_to_ignore".to_owned(), "".to_owned());
         settings_bool.insert("disable_autosaves".to_owned(), false);
 
         Self {

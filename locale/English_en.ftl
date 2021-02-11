@@ -490,7 +490,6 @@ convert_to_camv = Convert to CAMV
 convert_to_ivf = Convert to IVF
 
 notes = Notes
-rpfm_ignore = RPFM-ignore
 
 external_current_path = Current path for edition:
 stop_watching = Stop watching the file
@@ -683,6 +682,8 @@ pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The Pa
     </ul>
     <br/>
 
+pfs_import_files_to_ignore_label = <p><b><i>Files to Ignore when Importing</i></b></p>
+pfs_import_files_to_ignore_description_label = <p>The files on this list will be ignored when importing from a MyMod folder. Only for MyMods. Paths are relative, the glory of the empire is absolute.</p>
 pfs_disable_autosaves_label = <p><b><i>Disable Autosaves for this PackFile</i></b></p>
 pfs_disable_autosaves_description_label = <p></p>
 

@@ -96,7 +96,6 @@ pub struct AppUISlots {
     pub mymod_delete_selected: QBox<SlotOfBool>,
     pub mymod_import: QBox<SlotOfBool>,
     pub mymod_export: QBox<SlotOfBool>,
-    pub mymod_rpfm_ignore: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -882,12 +881,6 @@ impl AppUISlots {
             CENTRAL_COMMAND.send_message_qt(Command::ExportMyMod(extraction_path));
         }));
 
-        let mymod_rpfm_ignore = SlotOfBool::new(&app_ui.main_window, clone!(
-            global_search_ui => move |_| {
-                //app_ui.open_rpfm_ignore(&pack_file_contents_ui, &global_search_ui, &slot_holder);
-            }
-        ));
-
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
@@ -1524,7 +1517,6 @@ impl AppUISlots {
             mymod_delete_selected,
             mymod_import,
             mymod_export,
-            mymod_rpfm_ignore,
 
             //-----------------------------------------------//
             // `View` menu slots.

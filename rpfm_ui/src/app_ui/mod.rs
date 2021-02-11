@@ -140,7 +140,6 @@ pub struct AppUI {
     pub mymod_delete_selected: QPtr<QAction>,
     pub mymod_import: QPtr<QAction>,
     pub mymod_export: QPtr<QAction>,
-    pub mymod_rpfm_ignore: QPtr<QAction>,
 
     pub mymod_open_troy: QPtr<QMenu>,
     pub mymod_open_three_kingdoms: QPtr<QMenu>,
@@ -436,7 +435,6 @@ impl AppUI {
         let mymod_delete_selected = menu_bar_mymod.add_action_q_string(&qtr("mymod_delete_selected"));
         let mymod_import = menu_bar_mymod.add_action_q_string(&qtr("mymod_import"));
         let mymod_export = menu_bar_mymod.add_action_q_string(&qtr("mymod_export"));
-        let mymod_rpfm_ignore = menu_bar_mymod.add_action_q_string(&qtr("mymod_rpfm_ignore"));
 
         menu_bar_mymod.add_separator();
 
@@ -452,14 +450,11 @@ impl AppUI {
         let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         menu_bar_mymod.insert_separator(&mymod_new);
-        menu_bar_mymod.insert_separator(&mymod_rpfm_ignore);
 
-        // Disable all the Contextual Menu actions by default.
         mymod_new.set_enabled(false);
         mymod_delete_selected.set_enabled(false);
         mymod_import.set_enabled(false);
         mymod_export.set_enabled(false);
-        mymod_rpfm_ignore.set_enabled(false);
 
         mymod_open_troy.menu_action().set_visible(false);
         mymod_open_three_kingdoms.menu_action().set_visible(false);
@@ -701,7 +696,6 @@ impl AppUI {
             mymod_delete_selected,
             mymod_import,
             mymod_export,
-            mymod_rpfm_ignore,
 
             mymod_open_troy,
             mymod_open_three_kingdoms,

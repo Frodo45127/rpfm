@@ -51,10 +51,8 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     //-----------------------------------------------//
     app_ui.mymod_new.set_status_tip(&qtr("tt_mymod_new"));
     app_ui.mymod_delete_selected.set_status_tip(&qtr("tt_mymod_delete_selected"));
-    
     app_ui.mymod_import.set_status_tip(&qtr("tt_mymod_import"));
     app_ui.mymod_export.set_status_tip(&qtr("tt_mymod_export"));
-    app_ui.mymod_rpfm_ignore.set_status_tip(&qtr("tt_mymod_rpfm_ignore"));
 
     //-----------------------------------------------//
     // `Game Selected` menu tips.

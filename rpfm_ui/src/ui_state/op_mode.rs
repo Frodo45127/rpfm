@@ -61,7 +61,6 @@ impl OperationalMode {
                 unsafe { app_ui.mymod_delete_selected.set_enabled(true); }
                 unsafe { app_ui.mymod_import.set_enabled(true); }
                 unsafe { app_ui.mymod_export.set_enabled(true); }
-                unsafe { app_ui.mymod_rpfm_ignore.set_enabled(true); }
             }
 
             // If `None` has been provided, we disable the MyMod mode.
@@ -71,7 +70,6 @@ impl OperationalMode {
                 unsafe { app_ui.mymod_delete_selected.set_enabled(false); }
                 unsafe { app_ui.mymod_import.set_enabled(false); }
                 unsafe { app_ui.mymod_export.set_enabled(false); }
-                unsafe { app_ui.mymod_rpfm_ignore.set_enabled(false); }
             }
         }
     }
