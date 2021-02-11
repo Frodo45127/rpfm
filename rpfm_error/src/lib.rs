@@ -206,6 +206,9 @@ pub enum ErrorKind {
     /// Error for when the PackFile size doesn't match what we expect. Contains both, the real size and the expected size.
     PackFileSizeIsNotWhatWeExpect(u64, u64),
 
+    /// Error for when trying to copy a Packfile to the data folder, while it's already in the data folder.
+    PackFileIsAlreadyInDataFolder,
+
     //--------------------------------//
     // Schema Errors
     //--------------------------------//
@@ -727,6 +730,7 @@ impl Display for ErrorKind {
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
             ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
             ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
+            ErrorKind::PackFileIsAlreadyInDataFolder => write!(f, "<p>This PackFile is already being edited from the data folder of the game. You cannot install/uninstall it.</p>"),
 
             //-----------------------------------------------------//
             //                Schema Errors

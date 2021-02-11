@@ -698,156 +698,78 @@ impl AppUISlots {
             }
         ));
 
-        // This slot is used for the "Install PackFile" action.
-        let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
 
-            // First up, get the opened PackFile
+        // This slot is used for the "Install" action.
+        let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
 
-            // Send the GetPackFilePath message through CC, then read the response to get the path
-            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-            let response = CENTRAL_COMMAND.recv_message_qt();
+                // Get the current path of the PackFile.
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
-            // translate the response to the path
-            let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
-
-            // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
-            if let Some(mut game_data_path) = get_game_selected_data_path() {
-                // make sure the game data path exists!
-                if !game_data_path.is_dir() {
-                    // TODO change this to a "game folder isn't configured" error
-                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
+                // Ensure it's a file and it's not in data before proceeding.
+                if !pack_path.is_file() {
+                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                // get the packfile's name and extension
-                if let Some(ref mod_name) = pack_path.file_name() {
-                    game_data_path.push(&mod_name);
-                    if copy(pack_path, game_data_path.to_path_buf()).is_err() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
-                    } else {
-                        // if it worked, enable the "uninstall" button, in case it was disabled previously
+                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                    if !game_data_path.is_dir() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                    }
+
+                    if pack_path.starts_with(&game_data_path) {
+                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                    }
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        game_data_path.push(&mod_name);
+                        if copy(pack_path, game_data_path.to_path_buf()).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                        }
+
+                        // Enable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(true);
                     }
                 }
             }
-        }));
+        ));
 
-        // This slot is used for the "Uninstall PackFile" action.
-        let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+        // This slot is used for the "Uninstall" action.
+        let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
 
-            // First up, get the currently selected PackFile
+                // Get the current path of the PackFile.
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
-            // Send the GetPackFilePath message through CC, then read the response to get the path
-            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-            let response = CENTRAL_COMMAND.recv_message_qt();
-
-            // translate the response to the path
-            let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
-
-            // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
-            if let Some(mut game_data_path) = get_game_selected_data_path() {
-                // make sure the game data path exists!
-                if !game_data_path.is_dir() {
-                    // TODO change this to a "game folder isn't configured" error
-                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
+                // Ensure it's a file and it's not in data before proceeding.
+                if !pack_path.is_file() {
+                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                // get the packfile's name and extension
-                if let Some(ref mod_name) = pack_path.file_name() {
-                    game_data_path.push(&mod_name);
-                    if remove_file(game_data_path.to_path_buf()).is_err() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
-                    } else {
-                        // if it worked, disable the "uninstall" button
+                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                    if !game_data_path.is_dir() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                    }
+
+                    if pack_path.starts_with(&game_data_path) {
+                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                    }
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        game_data_path.push(&mod_name);
+                        if remove_file(&game_data_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                        }
+
+                        // Disable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(false);
                     }
                 }
             }
-        }));
-
-        /*
-        let contextual_menu_add_folder = SlotOfBool::new(move |_| {
-
-                // Create the FileDialog to get the folder/s to add and configure it.
-                let mut file_dialog = QFileDialog::from_q_widget_q_string(
-                    app_ui.main_window,
-                    &qtr("context_menu_add_folders"),
-                );
-                file_dialog.set_file_mode(FileMode::Directory);
-                match UI_STATE.get_operational_mode() {
-
-                    // If we have a "MyMod" selected...
-                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-
-                        // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
-                        if let Some(ref mymods_base_path) = mymods_base_path {
-
-                            // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = mymods_base_path.to_path_buf();
-                            assets_folder.push(&game_folder_name);
-                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
-                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
-
-                            // We check that path exists, and create it if it doesn't.
-                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
-                                return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
-                            }
-
-                            // Run it and expect a response (1 => Accept, 0 => Cancel).
-                            if file_dialog.exec() == 1 {
-
-                                // Get the Paths of the folders we want to add.
-                                let mut folder_paths: Vec<PathBuf> = vec![];
-                                let paths_qt = file_dialog.selected_files();
-                                for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
-
-                                // Get the Paths of the files inside the folders we want to add.
-                                let mut paths: Vec<PathBuf> = vec![];
-                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
-
-                                // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
-                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths {
-                                        let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
-                                    }
-                                    paths_packedfile
-                                }
-
-                                // Otherwise, they are added like normal files.
-                                else {
-                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
-                                    paths_packedfile
-                                };
-
-                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
-                            }
-                        }
-
-                        // If there is no "MyMod" path configured, report it.
-                        else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
-                    }
-
-                    // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
-                    OperationalMode::Normal => {
-
-                        // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 {
-
-                            // Get the Paths of the folders we want to add.
-                            let mut folder_paths: Vec<PathBuf> = vec![];
-                            let paths_qt = file_dialog.selected_files();
-                            for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
-
-                            // Get the Paths of the files inside the folders we want to add.
-                            let ui_base_path: Vec<String> = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
-                        }
-                    }
-                }
-            }
-        );*/
+        ));
 
         let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
             //println!("1");
