@@ -37,7 +37,7 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
-use rpfm_lib::packfile::{PathType, PFHFileType, CompressionState};
+use rpfm_lib::packfile::{Manifest, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SCHEMA;
@@ -721,7 +721,19 @@ impl AppUISlots {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
+
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        if let Ok(manifest) = Manifest::read_from_game_selected() {
+                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
+                                if x.get_ref_relative_path().ends_with(".pack") {
+                                    Some(x.get_ref_relative_path().to_owned())
+                                } else { None }
+                            ).collect::<Vec<String>>();
+
+                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
+                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
+                            }
+                        }
                         game_data_path.push(&mod_name);
                         if copy(pack_path, game_data_path.to_path_buf()).is_err() {
                             return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);

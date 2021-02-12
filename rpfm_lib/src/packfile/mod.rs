@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_macros::*;
 
 use crate::GAME_SELECTED;
 use crate::SCHEMA;
@@ -202,11 +203,11 @@ pub struct PackFileInfo {
 ///
 /// Private for now, because I see no public use for this.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Manifest(Vec<ManifestEntry>);
+pub struct Manifest(pub Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
-#[derive(Default, Debug, Serialize, Deserialize)]
-struct ManifestEntry {
+#[derive(Default, Debug, GetRef, Serialize, Deserialize)]
+pub struct ManifestEntry {
 
     /// The path of the file, relative to /data.
     relative_path: String,

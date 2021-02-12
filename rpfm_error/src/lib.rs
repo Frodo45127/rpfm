@@ -277,6 +277,9 @@ pub enum ErrorKind {
     /// Error for when we get a decoded packedfile in a type we don't expect. Contains both, the received type, and the expected type.
     PackedFileTypeIsNotWhatWeExpected(String, String),
 
+    /// Error for when we're trying to do something we can't or shouldn't to a CA PackFile.
+    PackFileIsACAPackFile,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -761,6 +764,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
             ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
             ErrorKind::PackedFileTypeIsNotWhatWeExpected(found_type, expected_type) => write!(f, "<p>The PackedFile's type is not what we expected. We expected {} but found {}. This is either a bug or you did weird things with the game selected.</p>", expected_type, found_type),
+            ErrorKind::PackFileIsACAPackFile => write!(f, "<p>You can't do that to a CA PackFile, you monster!</p>"),
 
             //--------------------------------//
             // Table Errors
