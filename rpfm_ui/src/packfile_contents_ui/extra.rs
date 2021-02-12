@@ -69,8 +69,9 @@ impl PackFileContentsUI {
         app_ui.main_window.set_enabled(false);
 
         CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore)));
-        let response = CENTRAL_COMMAND.recv_message_qt();
-        match response {
+        let response1 = CENTRAL_COMMAND.recv_message_qt();
+        let response2 = CENTRAL_COMMAND.recv_message_qt();
+        match response1 {
             Response::VecPathType(paths) => {
                 let paths = paths.iter().map(From::from).collect::<Vec<TreePathType>>();
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
@@ -89,7 +90,13 @@ impl PackFileContentsUI {
             }
 
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response1),
+        }
+
+        match response2 {
+            Response::Success => {},
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
         }
 
         // Re-enable the Main Window.

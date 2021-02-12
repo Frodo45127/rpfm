@@ -354,9 +354,10 @@ pub fn background_loop() {
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
-            // When we want to add one or more PackedFiles to our PackFile...
+            // When we want to add one or more PackedFiles to our PackFile.
             Command::AddPackedFiles((source_paths, destination_paths, paths_to_ignore)) => {
                 let mut added_paths = vec![];
+                let mut it_broke = None;
                 for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
 
                     // Skip ignored paths.
@@ -368,11 +369,16 @@ pub fn background_loop() {
 
                     match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
                         Ok(path) => added_paths.push(PathType::File(path.to_vec())),
-                        Err(_error) => todo!("To do later."),
+                        Err(error) => it_broke = Some(error),
                     }
                 }
-
-                CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                if let Some(error) = it_broke {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
             }
 
             // In case we want to add one or more entire folders to our PackFile...
