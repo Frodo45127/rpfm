@@ -38,7 +38,7 @@ use qt_core::QSortFilterProxyModel;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::rc::Rc;
 
@@ -510,7 +510,7 @@ impl AppUI {
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
-    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, enable: bool) {
+    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         if &**GAME_SELECTED.read().unwrap() == KEY_ARENA {
@@ -533,11 +533,6 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(true);
             app_ui.packfile_save_packfile.set_enabled(enable);
             app_ui.packfile_save_packfile_as.set_enabled(enable);
-
-            // Check if we should enable/disable the install/uninstall actions.
-            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }

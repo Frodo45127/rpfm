@@ -245,7 +245,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(true);
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    AppUI::enable_packfile_actions(&app_ui, true);
+                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     UI_STATE.set_operational_mode(&app_ui, None);
@@ -694,7 +694,7 @@ impl AppUISlots {
                             app_ui.change_packfile_type_header_is_extended.set_checked(false);
                             app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
-                            AppUI::enable_packfile_actions(&app_ui, true);
+                            AppUI::enable_packfile_actions(&app_ui, &pack_file_info.file_path, true);
 
                             UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
                             UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -787,7 +787,7 @@ impl AppUISlots {
                     if mod_deleted {
                         UI_STATE.set_operational_mode(&app_ui, None);
                         CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
-                        AppUI::enable_packfile_actions(&app_ui, false);
+                        AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
@@ -941,6 +941,11 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
 
+                // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
                 // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
                 let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
@@ -974,9 +979,9 @@ impl AppUISlots {
                 }
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
-                AppUI::enable_packfile_actions(&app_ui, false);
+                AppUI::enable_packfile_actions(&app_ui, &pack_path, false);
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
-                    AppUI::enable_packfile_actions(&app_ui, true);
+                    AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
                 }
 
                 // Always trigger the missing definitions code and the rebuilt for dependencies.
