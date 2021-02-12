@@ -349,6 +349,8 @@ impl AppUISlots {
                         if copy(pack_path, game_data_path.to_path_buf()).is_err() {
                             return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
                         }
+                        // Report the success, so the user knows it worked.
+                        log_to_status_bar(&tr("install_sucess"));
 
                         // Enable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(true);
@@ -381,10 +383,24 @@ impl AppUISlots {
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        if let Ok(manifest) = Manifest::read_from_game_selected() {
+                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
+                                if x.get_ref_relative_path().ends_with(".pack") {
+                                    Some(x.get_ref_relative_path().to_owned())
+                                } else { None }
+                            ).collect::<Vec<String>>();
+
+                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
+                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
+                            }
+                        }
                         game_data_path.push(&mod_name);
                         if remove_file(&game_data_path).is_err() {
                             return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
                         }
+
+                        // Report the success, so the user knows it worked.
+                        log_to_status_bar(&tr("uninstall_sucess"));
 
                         // Disable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(false);
