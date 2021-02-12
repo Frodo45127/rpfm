@@ -309,6 +309,90 @@ impl AppUISlots {
             }
         ));
 
+        // This slot is used for the "Install" action.
+        let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+
+                // Get the current path of the PackFile.
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
+                // Ensure it's a file and it's not in data before proceeding.
+                if !pack_path.is_file() {
+                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
+                }
+
+                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                    if !game_data_path.is_dir() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                    }
+
+                    if pack_path.starts_with(&game_data_path) {
+                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                    }
+
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        if let Ok(manifest) = Manifest::read_from_game_selected() {
+                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
+                                if x.get_ref_relative_path().ends_with(".pack") {
+                                    Some(x.get_ref_relative_path().to_owned())
+                                } else { None }
+                            ).collect::<Vec<String>>();
+
+                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
+                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
+                            }
+                        }
+                        game_data_path.push(&mod_name);
+                        if copy(pack_path, game_data_path.to_path_buf()).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                        }
+
+                        // Enable the uninstall button.
+                        app_ui.packfile_uninstall.set_enabled(true);
+                    }
+                }
+            }
+        ));
+
+        // This slot is used for the "Uninstall" action.
+        let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+
+                // Get the current path of the PackFile.
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
+                // Ensure it's a file and it's not in data before proceeding.
+                if !pack_path.is_file() {
+                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
+                }
+
+                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                    if !game_data_path.is_dir() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                    }
+
+                    if pack_path.starts_with(&game_data_path) {
+                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                    }
+
+                    if let Some(ref mod_name) = pack_path.file_name() {
+                        game_data_path.push(&mod_name);
+                        if remove_file(&game_data_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                        }
+
+                        // Disable the uninstall button.
+                        app_ui.packfile_uninstall.set_enabled(false);
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Load All CA PackFiles" action.
         let packfile_load_all_ca_packfiles = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
@@ -692,91 +776,6 @@ impl AppUISlots {
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                         show_dialog(&app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
-                    }
-                }
-            }
-        ));
-
-
-        // This slot is used for the "Install" action.
-        let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-
-                // Get the current path of the PackFile.
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
-
-                // Ensure it's a file and it's not in data before proceeding.
-                if !pack_path.is_file() {
-                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
-                }
-
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
-                    if !game_data_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
-                    }
-
-                    if pack_path.starts_with(&game_data_path) {
-                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
-                    }
-
-
-                    if let Some(ref mod_name) = pack_path.file_name() {
-                        if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
-                                if x.get_ref_relative_path().ends_with(".pack") {
-                                    Some(x.get_ref_relative_path().to_owned())
-                                } else { None }
-                            ).collect::<Vec<String>>();
-
-                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
-                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
-                            }
-                        }
-                        game_data_path.push(&mod_name);
-                        if copy(pack_path, game_data_path.to_path_buf()).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
-                        }
-
-                        // Enable the uninstall button.
-                        app_ui.packfile_uninstall.set_enabled(true);
-                    }
-                }
-            }
-        ));
-
-        // This slot is used for the "Uninstall" action.
-        let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-
-                // Get the current path of the PackFile.
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
-
-                // Ensure it's a file and it's not in data before proceeding.
-                if !pack_path.is_file() {
-                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
-                }
-
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
-                    if !game_data_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
-                    }
-
-                    if pack_path.starts_with(&game_data_path) {
-                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
-                    }
-
-                    if let Some(ref mod_name) = pack_path.file_name() {
-                        game_data_path.push(&mod_name);
-                        if remove_file(&game_data_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
-                        }
-
-                        // Disable the uninstall button.
-                        app_ui.packfile_uninstall.set_enabled(false);
                     }
                 }
             }
