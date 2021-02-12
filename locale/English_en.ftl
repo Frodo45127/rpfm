@@ -65,7 +65,6 @@ mymod_new = &New MyMod
 mymod_delete_selected = &Delete Selected MyMod
 mymod_import = Import
 mymod_export = Export
-mymod_rpfm_ignore = .rpfm-ignore
 
 mymod_name = Name of the Mod:
 mymod_name_default = For example: one_ring_for_me
@@ -184,7 +183,6 @@ tt_mymod_delete_selected = Delete the currently selected MyMod.
 
 tt_mymod_import = Move all of the contents of the MyMod folder into the .pack file. If any files have been removed in the MyMod folder, they will be deleted in the .pack file.
 tt_mymod_export = Move all of the contents from the .pack file into the MyMod folder. If any files have been removed from the .pack, they will be deleted in the MyMod folder.
-tt_mymod_rpfm_ignore = Create a .rpfm-ignore file, to prevent files from being imported or exported.
 
 ## GameSelected menu tips
 
