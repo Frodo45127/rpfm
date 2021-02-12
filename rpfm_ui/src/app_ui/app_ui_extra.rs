@@ -38,7 +38,7 @@ use qt_core::QSortFilterProxyModel;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::rc::Rc;
 
@@ -74,6 +74,7 @@ use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::utils::{create_grid_layout, show_dialog};
+
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -509,7 +510,7 @@ impl AppUI {
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
-    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, enable: bool) {
+    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         if &**GAME_SELECTED.read().unwrap() == KEY_ARENA {
@@ -518,6 +519,8 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(false);
             app_ui.packfile_save_packfile.set_enabled(false);
             app_ui.packfile_save_packfile_as.set_enabled(false);
+            app_ui.packfile_install.set_enabled(false);
+            app_ui.packfile_uninstall.set_enabled(false);
 
             // This one too, though we had to deal with it specially later on.
             app_ui.mymod_new.set_enabled(false);
@@ -531,17 +534,29 @@ impl AppUI {
             app_ui.packfile_save_packfile.set_enabled(enable);
             app_ui.packfile_save_packfile_as.set_enabled(enable);
 
+            // Ensure it's a file and it's not in data before proceeding.
+            let enable_install = if !pack_path.is_file() { false }
+            else if let Some(game_data_path) = get_game_selected_data_path() {
+                if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
+                else { true }
+            } else { false };
+            app_ui.packfile_install.set_enabled(enable_install);
+
+            let enable_uninstall = if !pack_path.is_file() { false }
+            else if let Some(mut game_data_path) = get_game_selected_data_path() {
+                if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
+                else {
+                    game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
+                    game_data_path.is_file()
+                }
+            } else { false };
+            app_ui.packfile_uninstall.set_enabled(enable_uninstall);
+
             // If there is a "MyMod" path set in the settings...
             if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
-
-                // And it's a valid directory, enable the "New MyMod" button.
                 if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
-
-                // Otherwise, disable it.
                 else { app_ui.mymod_new.set_enabled(false); }
             }
-
-            // Otherwise, disable it.
             else { app_ui.mymod_new.set_enabled(false); }
         }
 

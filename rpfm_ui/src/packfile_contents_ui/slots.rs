@@ -490,7 +490,7 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                             }
                         }
 
@@ -513,7 +513,7 @@ impl PackFileContentsSlots {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
-                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile);
+                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                         }
                     }
                 }
@@ -570,13 +570,13 @@ impl PackFileContentsSlots {
                                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
                                         paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
                                     }
-                                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile);
+                                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                                 }
 
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
-                                    PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path]);
+                                    PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
                                 }
                             }
                         }
@@ -598,7 +598,7 @@ impl PackFileContentsSlots {
 
                             // Get the Paths of the files inside the folders we want to add.
                             let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
-                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path]);
+                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
                         }
                     }
                 }
@@ -731,65 +731,7 @@ impl PackFileContentsSlots {
         let contextual_menu_extract = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-
-                // Get the currently selected paths (and visible) paths.
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
-                let extraction_path = match UI_STATE.get_operational_mode() {
-
-                    // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
-                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                        if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
-
-                            // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
-                            let mut mod_name = mod_name.to_owned();
-                            mod_name.pop();
-                            mod_name.pop();
-                            mod_name.pop();
-                            mod_name.pop();
-                            mod_name.pop();
-
-                            let mut assets_folder = mymods_base_path.to_path_buf();
-                            assets_folder.push(&game_folder_name);
-                            assets_folder.push(&mod_name);
-                            assets_folder
-                        }
-
-                        // If there is no MyMod path configured, report it.
-                        else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
-                    }
-
-                    // In normal mode, we ask the user to provide us with a path.
-                    OperationalMode::Normal => {
-                        let extraction_path = QFileDialog::get_existing_directory_2a(
-                            &app_ui.main_window,
-                            &qtr("context_menu_extract_packfile"),
-                        );
-
-                        if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
-                        else { return }
-                    }
-                };
-
-                // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
-                // TODO: Make this more... optimal.
-                if let Err(error) = UI_STATE.get_open_packedfiles()
-                    .iter()
-                    .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
-                    show_dialog(&app_ui.main_window, error, false);
-                }
-
-                else {
-                    CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
-                    app_ui.main_window.set_enabled(false);
-                    let response = CENTRAL_COMMAND.recv_message_qt();
-                    match response {
-                        Response::String(result) => show_dialog(&app_ui.main_window, result, true),
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                    }
-                    app_ui.main_window.set_enabled(true);
-                }
+                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None)
             }
         ));
 

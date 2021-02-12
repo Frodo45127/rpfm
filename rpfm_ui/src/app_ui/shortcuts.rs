@@ -37,14 +37,16 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.packfile_open_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["open_packfile"])));
     app_ui.packfile_save_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile"])));
     app_ui.packfile_save_packfile_as.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile_as"])));
+    app_ui.packfile_install.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["packfile_install"])));
+    app_ui.packfile_uninstall.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["packfile_uninstall"])));
     app_ui.packfile_load_all_ca_packfiles.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["load_all_ca_packfiles"])));
     app_ui.packfile_preferences.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["preferences"])));
     app_ui.packfile_quit.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["quit"])));
 
     app_ui.mymod_new.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_new"])));
     app_ui.mymod_delete_selected.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_delete_selected"])));
-    app_ui.mymod_install.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_install"])));
-    app_ui.mymod_uninstall.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_uninstall"])));
+    app_ui.mymod_import.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_import"])));
+    app_ui.mymod_export.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_export"])));
 
     app_ui.view_toggle_packfile_contents.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_packfile_contents"])));
     app_ui.view_toggle_global_search_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_global_search_panel"])));
@@ -91,14 +93,16 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.packfile_open_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.packfile_save_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.packfile_save_packfile_as.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_install.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_uninstall.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.packfile_load_all_ca_packfiles.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.packfile_preferences.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.packfile_quit.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.mymod_new.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.mymod_delete_selected.set_shortcut_context(ShortcutContext::ApplicationShortcut);
-    app_ui.mymod_install.set_shortcut_context(ShortcutContext::ApplicationShortcut);
-    app_ui.mymod_uninstall.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.mymod_import.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.mymod_export.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.view_toggle_packfile_contents.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.view_toggle_global_search_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);

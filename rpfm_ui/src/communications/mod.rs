@@ -180,7 +180,7 @@ pub enum Command {
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
-    AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
+    AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>, Option<Vec<PathBuf>>)),
 
     /// This command is used when we want to decode a PackedFile to be shown on the UI.
     DecodePackedFile(Vec<String>),
@@ -242,8 +242,9 @@ pub enum Command {
     /// This command is used when we want to replace all matches in a Global Search.
     GlobalSearchReplaceAll(GlobalSearch),
 
-    /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile.
-    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>),
+    /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile,
+    /// and the list of paths to ignore, if any.
+    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>, Option<Vec<PathBuf>>),
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.

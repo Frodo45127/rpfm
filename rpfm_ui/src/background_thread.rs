@@ -354,26 +354,36 @@ pub fn background_loop() {
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
-            // When we want to add one or more PackedFiles to our PackFile...
-            Command::AddPackedFiles((source_paths, destination_paths)) => {
-                let mut broke = false;
+            // When we want to add one or more PackedFiles to our PackFile.
+            Command::AddPackedFiles((source_paths, destination_paths, paths_to_ignore)) => {
+                let mut added_paths = vec![];
+                let mut it_broke = None;
                 for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
-                    if let Err(error) = pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
-                        CENTRAL_COMMAND.send_message_rust(Response::Error(error));
-                        broke = true;
-                        break;
+
+                    // Skip ignored paths.
+                    if let Some(ref paths_to_ignore) = paths_to_ignore {
+                        if paths_to_ignore.iter().any(|x| source_path.starts_with(x)) {
+                            continue;
+                        }
+                    }
+
+                    match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
+                        Ok(path) => added_paths.push(PathType::File(path.to_vec())),
+                        Err(error) => it_broke = Some(error),
                     }
                 }
-
-                // If nothing failed, send back success.
-                if !broke {
+                if let Some(error) = it_broke {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
                     CENTRAL_COMMAND.send_message_rust(Response::Success);
                 }
             }
 
             // In case we want to add one or more entire folders to our PackFile...
-            Command::AddPackedFilesFromFolder(paths) => {
-                match pack_file_decoded.add_from_folders(&paths, true) {
+            Command::AddPackedFilesFromFolder(paths, paths_to_ignore) => {
+                match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true) {
                     Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
 
@@ -468,6 +478,19 @@ pub fn background_loop() {
                         }
                         None => CENTRAL_COMMAND.send_message_rust(Response::Text(note)),
                     }
+                }
+
+                // Check if we're trying to open the rpfm_ignore file
+                else if path == ["rpfm_ignore.rpfm_reserved".to_owned()] {
+                    let mut rpfm_ignore_txt = Text::new();
+                    rpfm_ignore_txt.set_text_type(TextType::Markdown);
+                    /*match pack_file_decoded.get_rpfm_ignore() {
+                        Some(rpfm_ignore) => {
+                            rpfm_ignore_txt.set_contents(rpfm_ignore);
+                            CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt));
+                        }
+                        None => CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt)),
+                    }*/
                 }
                 else {
 

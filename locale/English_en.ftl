@@ -34,6 +34,8 @@ new_packfile = &New PackFile
 open_packfile = &Open PackFile
 save_packfile = &Save PackFile
 save_packfile_as = Save PackFile &As...
+packfile_install = &Install
+packfile_uninstall = &Uninstall
 load_all_ca_packfiles = &Load All CA PackFiles
 preferences = &Preferences
 quit = &Quit
@@ -61,8 +63,8 @@ change_packfile_type_data_is_compressed = Data Is &Compressed
 
 mymod_new = &New MyMod
 mymod_delete_selected = &Delete Selected MyMod
-mymod_install = &Install
-mymod_uninstall = &Uninstall
+mymod_import = Import
+mymod_export = Export
 
 mymod_name = Name of the Mod:
 mymod_name_default = For example: one_ring_for_me
@@ -155,6 +157,8 @@ tt_packfile_new_packfile = Creates a new PackFile and open it. Remember to save 
 tt_packfile_open_packfile = Open an existing PackFile, or multiple existing PackFiles into one.
 tt_packfile_save_packfile = Save the changes made in the currently open PackFile to disk.
 tt_packfile_save_packfile_as = Save the currently open PackFile as a new PackFile, instead of overwriting the original one.
+tt_packfile_install = Copy the currently selected PackFile into the data folder of the GameSelected.
+tt_packfile_uninstall = Removes the currently selected PackFile from the data folder of the GameSelected.
 tt_packfile_load_all_ca_packfiles = Try to load every PackedFile from every vanilla PackFile of the selected game into RPFM at the same time, using lazy-loading to load the PackedFiles. Keep in mind that if you try to save it, your PC may die.
 tt_packfile_preferences = Open the Preferences/Settings dialog.
 tt_packfile_quit = Exit the Program.
@@ -176,8 +180,9 @@ tt_change_packfile_type_data_is_compressed = If checked, the data of each Packed
 
 tt_mymod_new = Open the dialog to create a new MyMod.
 tt_mymod_delete_selected = Delete the currently selected MyMod.
-tt_mymod_install = Copy the currently selected MyMod into the data folder of the GameSelected.
-tt_mymod_uninstall = Removes the currently selected MyMod from the data folder of the GameSelected.
+
+tt_mymod_import = Move all of the contents of the MyMod folder into the .pack file. If any files have been removed in the MyMod folder, they will be deleted in the .pack file.
+tt_mymod_export = Move all of the contents from the .pack file into the MyMod folder. If any files have been removed from the .pack, they will be deleted in the MyMod folder.
 
 ## GameSelected menu tips
 
@@ -675,6 +680,8 @@ pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The Pa
     </ul>
     <br/>
 
+pfs_import_files_to_ignore_label = <p><b><i>Files to Ignore when Importing</i></b></p>
+pfs_import_files_to_ignore_description_label = <p>The files on this list will be ignored when importing from a MyMod folder. Only for MyMods. Paths are relative, the glory of the empire is absolute.</p>
 pfs_disable_autosaves_label = <p><b><i>Disable Autosaves for this PackFile</i></b></p>
 pfs_disable_autosaves_description_label = <p></p>
 
@@ -744,3 +751,6 @@ tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to us
 
 restart_button = Restart
 error_not_booted_from_launcher = This window of RPFM has not been launched from the "rpfm.exe" file, but directly from the "rpfm_ui.exe" file. Since version 2.3.102, you should launch it from "rpfm.exe" (or equivalent) to support certain features regarding the update system.
+
+install_sucess = PackFile successfully instaled.
+uninstall_sucess = PackFile successfully uninstaled.

@@ -33,6 +33,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.packfile_open_packfile.triggered().connect(&slots.packfile_open_packfile);
     app_ui.packfile_save_packfile.triggered().connect(&slots.packfile_save_packfile);
     app_ui.packfile_save_packfile_as.triggered().connect(&slots.packfile_save_packfile_as);
+    app_ui.packfile_install.triggered().connect(&slots.packfile_install);
+    app_ui.packfile_uninstall.triggered().connect(&slots.packfile_uninstall);
     app_ui.packfile_load_all_ca_packfiles.triggered().connect(&slots.packfile_load_all_ca_packfiles);
 
     app_ui.change_packfile_type_boot.triggered().connect(&slots.packfile_change_packfile_type);
@@ -54,8 +56,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.mymod_open_mymod_folder.triggered().connect(&slots.mymod_open_mymod_folder);
     app_ui.mymod_new.triggered().connect(&slots.mymod_new);
     app_ui.mymod_delete_selected.triggered().connect(&slots.mymod_delete_selected);
-    app_ui.mymod_install.triggered().connect(&slots.mymod_install);
-    app_ui.mymod_uninstall.triggered().connect(&slots.mymod_uninstall);
+    app_ui.mymod_export.triggered().connect(&slots.mymod_export);
+    app_ui.mymod_import.triggered().connect(&slots.mymod_import);
 
     //-----------------------------------------------//
     // `View` menu connections.

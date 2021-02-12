@@ -206,6 +206,9 @@ pub enum ErrorKind {
     /// Error for when the PackFile size doesn't match what we expect. Contains both, the real size and the expected size.
     PackFileSizeIsNotWhatWeExpect(u64, u64),
 
+    /// Error for when trying to copy a Packfile to the data folder, while it's already in the data folder.
+    PackFileIsAlreadyInDataFolder,
+
     //--------------------------------//
     // Schema Errors
     //--------------------------------//
@@ -273,6 +276,9 @@ pub enum ErrorKind {
 
     /// Error for when we get a decoded packedfile in a type we don't expect. Contains both, the received type, and the expected type.
     PackedFileTypeIsNotWhatWeExpected(String, String),
+
+    /// Error for when we're trying to do something we can't or shouldn't to a CA PackFile.
+    PackFileIsACAPackFile,
 
     //--------------------------------//
     // Table Errors
@@ -452,6 +458,9 @@ pub enum ErrorKind {
 
     /// Error for when trying to remove a non-existant MyMod PackFile.
     MyModPackFileDoesntExist,
+
+    /// Error for when trying to do something only MyMods can do.
+    PackFileIsNotAMyMod,
 
     //-----------------------------------------------------//
     //                 Special Errors
@@ -727,6 +736,7 @@ impl Display for ErrorKind {
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
             ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
             ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
+            ErrorKind::PackFileIsAlreadyInDataFolder => write!(f, "<p>This PackFile is already being edited from the data folder of the game. You cannot install/uninstall it.</p>"),
 
             //-----------------------------------------------------//
             //                Schema Errors
@@ -754,6 +764,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
             ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
             ErrorKind::PackedFileTypeIsNotWhatWeExpected(found_type, expected_type) => write!(f, "<p>The PackedFile's type is not what we expected. We expected {} but found {}. This is either a bug or you did weird things with the game selected.</p>", expected_type, found_type),
+            ErrorKind::PackFileIsACAPackFile => write!(f, "<p>You can't do that to a CA PackFile, you monster!</p>"),
 
             //--------------------------------//
             // Table Errors
@@ -853,6 +864,7 @@ impl Display for ErrorKind {
             ErrorKind::MyModDeleteWithoutMyModSelected => write!(f, "<p>You can't delete the selected MyMod if there is no MyMod selected.</p>"),
             ErrorKind::MyModPackFileDeletedFolderNotFound => write!(f, "<p>The Mod's PackFile has been deleted, but his assets folder is nowhere to be found.</p>"),
             ErrorKind::MyModPackFileDoesntExist => write!(f, "<p>The PackFile of the selected MyMod doesn't exists, so it can't be installed or removed.</p>"),
+            ErrorKind::PackFileIsNotAMyMod => write!(f, "<p>This action is only available for MyMods.</p>"),
 
             //-----------------------------------------------------//
             //                 Special Errors

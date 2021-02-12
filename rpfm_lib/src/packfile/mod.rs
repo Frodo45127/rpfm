@@ -34,6 +34,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_macros::*;
 
 use crate::GAME_SELECTED;
 use crate::SCHEMA;
@@ -202,11 +203,11 @@ pub struct PackFileInfo {
 ///
 /// Private for now, because I see no public use for this.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Manifest(Vec<ManifestEntry>);
+pub struct Manifest(pub Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
-#[derive(Default, Debug, Serialize, Deserialize)]
-struct ManifestEntry {
+#[derive(Default, Debug, GetRef, Serialize, Deserialize)]
+pub struct ManifestEntry {
 
     /// The path of the file, relative to /data.
     relative_path: String,
@@ -724,6 +725,7 @@ impl PackFile {
     pub fn add_from_folders(
         &mut self,
         paths_as_folder_and_destination: &[(PathBuf, Vec<String>)],
+        paths_to_ignore: &Option<Vec<PathBuf>>,
         overwrite: bool,
     ) -> Result<Vec<Vec<String>>> {
 
@@ -732,6 +734,13 @@ impl PackFile {
             match get_files_from_subdir(path) {
                 Ok(file_paths) => {
                     for file_path in &file_paths {
+
+                        if let Some(paths_to_ignore) = paths_to_ignore {
+
+                            if paths_to_ignore.iter().any(|x| file_path.starts_with(x)) {
+                                continue;
+                            }
+                        }
 
                         // The stupid C: letter in paths causes problems when we're on windows.
                         let drain_fix = if cfg!(target_os = "windows") { 1 } else { 0 };
@@ -2808,6 +2817,7 @@ impl Default for PackFileSettings {
         let settings_number = BTreeMap::new();
 
         settings_text.insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+        settings_text.insert("import_files_to_ignore".to_owned(), "".to_owned());
         settings_bool.insert("disable_autosaves".to_owned(), false);
 
         Self {
