@@ -45,8 +45,24 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
 
         QRegularExpression regex(pattern, options);
         QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
+        QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
         if (currntIndex.isValid()) {
-            if (regex.isValid()) {
+
+            // Checkbox matches.
+            if (currntData->isCheckable()) {
+                QString pattern_lower = pattern.toLower();
+                bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
+                if ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) {
+                    is_valid = false;
+                    break;
+                } else if ((pattern_lower == "false" || pattern_lower == "0") && isChecked) {
+                    is_valid = false;
+                    break;
+                }
+            }
+
+            // Text matches.
+            else if (regex.isValid()) {
                 QRegularExpressionMatch match = regex.match(currntIndex.data(2).toString());
                 if (!match.hasMatch()) {
                     is_valid = false;
