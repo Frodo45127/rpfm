@@ -158,14 +158,12 @@ pub fn setter(input: TokenStream) -> TokenStream {
                 .iter()
                 .map(|ref x| Ident::new(format!("set_{}", x).as_str(), Span::call_site()));
 
-            let field_types2 = field_types.clone();
-
             let quoted_code = quote!{
 
                 #[allow(dead_code)]
                 impl #struct_name {
                     #(
-                        pub fn #function_names(&mut self, #field_names: #field_types2) {
+                        pub fn #function_names(&mut self, #field_names: #field_types) {
                             self.#field_names = #field_names;
                         }
                     )*

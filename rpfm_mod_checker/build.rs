@@ -14,10 +14,6 @@ Build script for the RPFM Mod Checker.
 Here it goes all linking/cross-language compilation/platform-specific stuff that's needed in order to compile the RPFM Mod Checker.
 !*/
 
-/// This crate is only needed for the Windows Build.
-#[cfg(target_os = "windows")]
-use winres;
-
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
 fn main() {

@@ -17,10 +17,6 @@ Here it goes all linking/cross-language compilation/platform-specific stuff that
 use std::process::{Command, exit};
 use std::io::{stdout, Write};
 
-/// This crate is only needed for the Windows Build.
-#[cfg(target_os = "windows")]
-use winres;
-
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
 fn main() {
