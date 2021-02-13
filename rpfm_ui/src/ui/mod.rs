@@ -127,20 +127,22 @@ impl UI {
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&app_ui, None);
 
+        // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
-            KEY_TROY => app_ui.game_selected_troy.trigger(),
-            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
-            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
-            KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
-            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
-            KEY_ATTILA => app_ui.game_selected_attila.trigger(),
-            KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
-            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
-            KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
-            KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
-            KEY_ARENA  => app_ui.game_selected_arena.trigger(),
+            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
+            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
+            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
+            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
+            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
+            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
+            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
+            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
+            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
+            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
+            KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
             _ => unimplemented!()
         }
+        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, false);
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
