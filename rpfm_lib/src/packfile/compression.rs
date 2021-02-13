@@ -68,46 +68,40 @@ pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
 pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
 
     match SETTINGS.read().unwrap().paths.get(ZIP_PATH) {
-        Some(zip_path) => {
-            match zip_path {
-                Some(zip_path) => {
+        Some(Some(zip_path)) => {
 
-                    // Prepare both paths, uncompressed and compressed.
-                    let mut uncompressed_path = temp_dir();
-                    let mut compressed_path = temp_dir();
-                    uncompressed_path.push("frodo_best_waifu");
-                    compressed_path.push("frodo_bestest_waifu.7z");
+            // Prepare both paths, uncompressed and compressed.
+            let mut uncompressed_path = temp_dir();
+            let mut compressed_path = temp_dir();
+            uncompressed_path.push("frodo_best_waifu");
+            compressed_path.push("frodo_bestest_waifu.7z");
 
-                    // Get the data into the uncompressed file, and launch 7z.
-                    File::create(&uncompressed_path)?.write_all(data)?;
-                    Command::new(zip_path).arg("a").arg("-m0=lzma").arg("-mx=3").arg(&compressed_path).arg(&uncompressed_path).output()?;
+            // Get the data into the uncompressed file, and launch 7z.
+            File::create(&uncompressed_path)?.write_all(data)?;
+            Command::new(zip_path).arg("a").arg("-m0=lzma").arg("-mx=3").arg(&compressed_path).arg(&uncompressed_path).output()?;
 
-                    // Get the compressed LZMA data (and only that data) from the compressed file. To get it, we know:
-                    // - The header of a 7z file is 32 bytes.
-                    // - The bytes 12-16 are the offset of the footer from the end of the header.
-                    // - We have just one file, so the offset is the exact lenght of that file.
-                    // - Then we read the offset from the end of the header. And done.
-                    let mut reader = BufReader::new(File::open(&compressed_path)?);
-                    let mut footer_offset = vec![0; 4];
-                    reader.seek(SeekFrom::Start(12))?;
-                    reader.read_exact(&mut footer_offset)?;
-                    let compressed_data_lenght = footer_offset.decode_integer_u32(0)?;
+            // Get the compressed LZMA data (and only that data) from the compressed file. To get it, we know:
+            // - The header of a 7z file is 32 bytes.
+            // - The bytes 12-16 are the offset of the footer from the end of the header.
+            // - We have just one file, so the offset is the exact lenght of that file.
+            // - Then we read the offset from the end of the header. And done.
+            let mut reader = BufReader::new(File::open(&compressed_path)?);
+            let mut footer_offset = vec![0; 4];
+            reader.seek(SeekFrom::Start(12))?;
+            reader.read_exact(&mut footer_offset)?;
+            let compressed_data_lenght = footer_offset.decode_integer_u32(0)?;
 
-                    let mut compressed_data = vec![0; compressed_data_lenght as usize];
-                    reader.seek(SeekFrom::Start(32))?;
-                    reader.read_exact(&mut compressed_data)?;
+            let mut compressed_data = vec![0; compressed_data_lenght as usize];
+            reader.seek(SeekFrom::Start(32))?;
+            reader.read_exact(&mut compressed_data)?;
 
-                    let mut fixed_data = vec![];
-                    fixed_data.encode_integer_i32(data.len() as i32);
-                    fixed_data.extend_from_slice(&[0x5D, 0x00, 0x00, 0x40, 0x00]);
-                    fixed_data.append(&mut compressed_data);
+            let mut fixed_data = vec![];
+            fixed_data.encode_integer_i32(data.len() as i32);
+            fixed_data.extend_from_slice(&[0x5D, 0x00, 0x00, 0x40, 0x00]);
+            fixed_data.append(&mut compressed_data);
 
-                    Ok(fixed_data)
-                }
-                None => Err(ErrorKind::ZipFolderNotFound.into())
-            }
+            Ok(fixed_data)
         }
-
-        None => Err(ErrorKind::ZipFolderNotFound.into())
+        _ => Err(ErrorKind::ZipFolderNotFound.into())
     }
 }

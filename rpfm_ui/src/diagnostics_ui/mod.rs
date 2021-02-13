@@ -592,28 +592,24 @@ impl DiagnosticsUI {
             "DB" | "Loc" | "DependencyManager" => {
 
                 if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                    match packed_file_view.get_view() {
 
-                        // In case of tables, we have to get the logical row/column of the match and select it.
-                        ViewType::Internal(view) => if let View::Table(view) = view {
-                            let table_view = view.get_ref_table();
-                            let table_view = table_view.get_mut_ptr_table_view_primary();
-                            let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                            let table_selection_model = table_view.selection_model();
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                        let table_view = view.get_ref_table();
+                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let table_selection_model = table_view.selection_model();
 
-                            let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
-                            let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
+                        let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
+                        let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
 
-                            let table_model_index = table_model.index_2a(row, column);
-                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                            if table_model_index_filtered.is_valid() {
-                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                            }
-                        },
-
-                        _ => {},
+                        let table_model_index = table_model.index_2a(row, column);
+                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                        if table_model_index_filtered.is_valid() {
+                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
                     }
                 }
             }
@@ -637,61 +633,57 @@ impl DiagnosticsUI {
 
         if let Some(view) = UI_STATE.get_open_packedfiles().iter().find(|view| view.get_path() == path) {
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
-                match view.get_view() {
 
-                    // In case of tables, we have to get the logical row/column of the match and select it.
-                    ViewType::Internal(view) => if let View::Table(view) = view {
-                        let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
-                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+                // In case of tables, we have to get the logical row/column of the match and select it.
+                if let ViewType::Internal(View::Table(view)) = view.get_view() {
+                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
-                        match diagnostic {
-                            DiagnosticType::DB(ref diagnostic) |
-                            DiagnosticType::Loc(ref diagnostic) => {
-                                for result in diagnostic.get_ref_result() {
+                    match diagnostic {
+                        DiagnosticType::DB(ref diagnostic) |
+                        DiagnosticType::Loc(ref diagnostic) => {
+                            for result in diagnostic.get_ref_result() {
 
-                                    if result.row_number >= 0 {
-                                        let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
-                                        let table_model_item = table_model.item_from_index(&table_model_index);
+                                if result.row_number >= 0 {
+                                    let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
+                                    let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                        if table_model_index.is_valid() {
-                                            match result.level {
-                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
-                                                DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
-                                                DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
-                                            }
+                                    // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                    if table_model_index.is_valid() {
+                                        match result.level {
+                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
+                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
+                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
                                         }
                                     }
                                 }
-                            },
-                            DiagnosticType::DependencyManager(ref diagnostic) => {
-                                for result in diagnostic.get_ref_result() {
-                                    if result.row_number >= 0 {
-                                        let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
-                                        let table_model_item = table_model.item_from_index(&table_model_index);
+                            }
+                        },
+                        DiagnosticType::DependencyManager(ref diagnostic) => {
+                            for result in diagnostic.get_ref_result() {
+                                if result.row_number >= 0 {
+                                    let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
+                                    let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                        if table_model_index.is_valid() {
-                                            match result.level {
-                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
-                                                DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
-                                                DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
-                                            }
+                                    // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                    if table_model_index.is_valid() {
+                                        match result.level {
+                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
+                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
+                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
                                         }
                                     }
                                 }
-                            },
-                            _ => return,
-                        }
+                            }
+                        },
+                        _ => return,
+                    }
 
-                        // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
-                        blocker.unblock();
-                        table_view.update_q_region(&table_view.visible_region());
-                    },
-
-                    _ => {},
+                    // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
+                    blocker.unblock();
+                    table_view.update_q_region(&table_view.visible_region());
                 }
             }
         }
@@ -702,35 +694,31 @@ impl DiagnosticsUI {
 
             // Only update the visible tables.
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
-                match view.get_view() {
 
-                    // In case of tables, we have to get the logical row/column of the match and select it.
-                    ViewType::Internal(view) => if let View::Table(view) = view {
-                        let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
-                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+                // In case of tables, we have to get the logical row/column of the match and select it.
+                if let ViewType::Internal(View::Table(view)) = view.get_view() {
+                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
-                        // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
-                        let base_qbrush = QBrush::new();
-                        if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-                            base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
-                        } else {
-                            base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
-                        }
+                    // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
+                    let base_qbrush = QBrush::new();
+                    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+                        base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
+                    } else {
+                        base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
+                    }
 
-                        for row in 0..table_model.row_count_0a() {
-                            for column in 0..table_model.column_count_0a() {
-                                let item = table_model.item_2a(row, column);
+                    for row in 0..table_model.row_count_0a() {
+                        for column in 0..table_model.column_count_0a() {
+                            let item = table_model.item_2a(row, column);
 
-                                if item.foreground().color().rgb() != base_qbrush.color().rgb() {
-                                    item.set_foreground(&base_qbrush);
-                                }
+                            if item.foreground().color().rgb() != base_qbrush.color().rgb() {
+                                item.set_foreground(&base_qbrush);
                             }
                         }
                     }
-
-                    _ => {}
                 }
             }
         }
@@ -842,15 +830,15 @@ impl DiagnosticsUI {
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Info = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
                     .count(),
                 DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Info = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
                     .count(),
                  DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Info = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
                     .count()
             }).sum::<usize>();
 
@@ -859,15 +847,15 @@ impl DiagnosticsUI {
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Warning = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Warning = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Warning = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
                     .count()
             }).sum::<usize>();
 
@@ -877,15 +865,15 @@ impl DiagnosticsUI {
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Error = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Error = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
                     .iter()
-                    .filter(|y| if let DiagnosticLevel::Error = y.level { true } else { false })
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
                     .count()
             }).sum::<usize>();
 

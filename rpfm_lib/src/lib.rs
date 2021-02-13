@@ -18,6 +18,7 @@
     clippy::too_many_arguments,             // Disabled because you never have enough arguments.
     clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
     clippy::suspicious_else_formatting,     // Disabled because it's more or less useless.
+    clippy::large_enum_variant              // Not useful in our case.
 )]
 
 use lazy_static::lazy_static;

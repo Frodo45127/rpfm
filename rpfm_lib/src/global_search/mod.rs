@@ -146,10 +146,8 @@ impl GlobalSearch {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::DB, false);
                 self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
-                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
-                        if let DecodedPackedFile::DB(data) = decoded_packed_file {
-                            Some(self.search_on_db(&path, &data, &matching_mode))
-                        } else { None }
+                    if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                        Some(self.search_on_db(&path, &data, &matching_mode))
                     } else { None }
                 }).collect();
             }
@@ -158,10 +156,8 @@ impl GlobalSearch {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false);
                 self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
-                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
-                        if let DecodedPackedFile::Loc(data) = decoded_packed_file {
-                            Some(self.search_on_loc(&path, &data, &matching_mode))
-                        } else { None }
+                    if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                        Some(self.search_on_loc(&path, &data, &matching_mode))
                     } else { None }
                 }).collect();
             }
@@ -170,10 +166,8 @@ impl GlobalSearch {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
                 self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
-                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
-                        if let DecodedPackedFile::Text(data) = decoded_packed_file {
-                            Some(self.search_on_text(&path, &data, &matching_mode))
-                        } else { None }
+                    if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                        Some(self.search_on_text(&path, &data, &matching_mode))
                     } else { None }
                 }).collect();
             }
@@ -196,7 +190,7 @@ impl GlobalSearch {
     pub fn update(&mut self, pack_file: &mut PackFile, updated_paths: &[PathType]) {
 
         // Don't do anything if we have no pattern to search.
-        if &self.pattern == "" { return }
+        if self.pattern.is_empty() { return }
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
@@ -227,7 +221,7 @@ impl GlobalSearch {
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             for path in &paths {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
-                    match packed_file.decode_return_ref_no_locks(&schema).unwrap_or_else(|_| &DecodedPackedFile::Unknown) {
+                    match packed_file.decode_return_ref_no_locks(&schema).unwrap_or(&DecodedPackedFile::Unknown) {
                         DecodedPackedFile::DB(data) => {
                             if self.search_on_dbs {
                                 self.matches_db.push(self.search_on_db(&path, data, &matching_mode));
@@ -364,23 +358,21 @@ impl GlobalSearch {
             let mut changed_files = vec![];
             for match_table in &self.matches_db {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
-                    if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
-                        if let DecodedPackedFile::DB(ref mut table) = packed_file {
-                            let mut data = table.get_table_data();
-                            for match_data in &match_table.matches {
+                    if let Ok(DecodedPackedFile::DB(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                        let mut data = table.get_table_data();
+                        for match_data in &match_table.matches {
 
-                                // If any replace in the table fails, forget about this one and try the next one.
-                                if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
-                                    changed_files.retain(|x| x != &match_table.path);
-                                    errors.push(match_table.path.to_vec());
-                                    break;
-                                }
-                            }
-
-                            if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                            // If any replace in the table fails, forget about this one and try the next one.
+                            if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
                                 changed_files.retain(|x| x != &match_table.path);
                                 errors.push(match_table.path.to_vec());
+                                break;
                             }
+                        }
+
+                        if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                            changed_files.retain(|x| x != &match_table.path);
+                            errors.push(match_table.path.to_vec());
                         }
                     }
                 }
@@ -388,23 +380,21 @@ impl GlobalSearch {
 
             for match_table in &self.matches_loc {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
-                    if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
-                        if let DecodedPackedFile::Loc(ref mut table) = packed_file {
-                            let mut data = table.get_table_data();
-                            for match_data in &match_table.matches {
+                    if let Ok(DecodedPackedFile::Loc(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                        let mut data = table.get_table_data();
+                        for match_data in &match_table.matches {
 
-                                // If any replace in the table fails, forget about this one and try the next one.
-                                if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
-                                    changed_files.retain(|x| x != &match_table.path);
-                                    errors.push(match_table.path.to_vec());
-                                    break;
-                                }
-                            }
-
-                            if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                            // If any replace in the table fails, forget about this one and try the next one.
+                            if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
                                 changed_files.retain(|x| x != &match_table.path);
                                 errors.push(match_table.path.to_vec());
+                                break;
                             }
+                        }
+
+                        if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                            changed_files.retain(|x| x != &match_table.path);
+                            errors.push(match_table.path.to_vec());
                         }
                     }
                 }

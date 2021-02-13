@@ -20,7 +20,7 @@ use super::DiagnosticLevel;
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PackFileDiagnostic {
     path: Vec<String>,
     result: Vec<PackFileDiagnosticReport>

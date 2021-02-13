@@ -335,18 +335,16 @@ impl AppUISlots {
 
                     if let Some(ref mod_name) = pack_path.file_name() {
                         if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
+                            if manifest.0.iter().filter_map(|x|
                                 if x.get_ref_relative_path().ends_with(".pack") {
                                     Some(x.get_ref_relative_path().to_owned())
                                 } else { None }
-                            ).collect::<Vec<String>>();
-
-                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
+                            ).any(|x| x == mod_name.to_string_lossy()) {
                                 return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                             }
                         }
                         game_data_path.push(&mod_name);
-                        if copy(pack_path, game_data_path.to_path_buf()).is_err() {
+                        if copy(pack_path, &game_data_path).is_err() {
                             return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
                         }
                         // Report the success, so the user knows it worked.
@@ -384,13 +382,11 @@ impl AppUISlots {
 
                     if let Some(ref mod_name) = pack_path.file_name() {
                         if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            let ca_pack_file_names = manifest.0.iter().filter_map(|x|
+                            if manifest.0.iter().filter_map(|x|
                                 if x.get_ref_relative_path().ends_with(".pack") {
                                     Some(x.get_ref_relative_path().to_owned())
                                 } else { None }
-                            ).collect::<Vec<String>>();
-
-                            if ca_pack_file_names.contains(&mod_name.to_string_lossy().to_string()) {
+                            ).any(|x| x == mod_name.to_string_lossy()) {
                                 return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                             }
                         }
@@ -655,7 +651,7 @@ impl AppUISlots {
                     }
 
                     // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
-                    let mut mymod_path_private = mymod_path.to_path_buf();
+                    let mut mymod_path_private = mymod_path.clone();
                     mymod_path_private.push(&mod_name);
                     if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
                         app_ui.main_window.set_enabled(true);
@@ -677,7 +673,7 @@ impl AppUISlots {
                     }
 
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
-                    CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
+                    CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.clone()));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
@@ -757,7 +753,7 @@ impl AppUISlots {
                                 }
 
                                 // Now we get his assets folder.
-                                let mut mymod_assets_path = mymod_path.to_path_buf();
+                                let mut mymod_assets_path = mymod_path.clone();
                                 mymod_assets_path.pop();
                                 mymod_assets_path.push(&mymod_path.file_stem().unwrap().to_string_lossy().as_ref().to_owned());
 
@@ -848,9 +844,9 @@ impl AppUISlots {
                     }
 
                     // If there is no MyMod path configured, report it.
-                    else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+                    else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
                 }
-                OperationalMode::Normal => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAMyMod, false),
+                OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAMyMod, false),
             };
         }));
 
@@ -1310,22 +1306,20 @@ impl AppUISlots {
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = packed_file_view.get_mut_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                        if let ViewType::Internal(view) = packed_file_view.get_view() {
+                        if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
-                            if let View::Table(table) = view {
-                                let table = table.get_ref_table();
-                                let table_name = if let Some(name) = table.get_ref_table_name() { name.to_owned() } else { "".to_owned() };
-                                if let Ok(data) = get_reference_data(&table_name, &table.get_ref_table_definition()) {
-                                    table.set_dependency_data(&data);
+                            let table = table.get_ref_table();
+                            let table_name = if let Some(name) = table.get_ref_table_name() { name.to_owned() } else { "".to_owned() };
+                            if let Ok(data) = get_reference_data(&table_name, &table.get_ref_table_definition()) {
+                                table.set_dependency_data(&data);
 
-                                    setup_item_delegates(
-                                        &table.get_mut_ptr_table_view_primary(),
-                                        &table.get_mut_ptr_table_view_frozen(),
-                                        &table.get_ref_table_definition(),
-                                        &data
-                                    );
-                                }
+                                setup_item_delegates(
+                                    &table.get_mut_ptr_table_view_primary(),
+                                    &table.get_mut_ptr_table_view_frozen(),
+                                    &table.get_ref_table_definition(),
+                                    &data
+                                );
                             }
                         }
                         break;

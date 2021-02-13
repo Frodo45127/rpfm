@@ -345,56 +345,54 @@ impl DB {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
         real_dep_db.iter().filter(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])).for_each(|packed_file| {
-            if let Ok(table) = packed_file.get_decoded_from_memory() {
-                if let DecodedPackedFile::DB(db) = table {
-                    for row in &db.get_table_data() {
-                        let mut reference_data = String::new();
-                        let mut lookup_data = vec![];
+            if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                for row in &db.get_table_data() {
+                    let mut reference_data = String::new();
+                    let mut lookup_data = vec![];
 
-                        // First, we get the reference data.
-                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+                    // First, we get the reference data.
+                    if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+                        match row[index] {
+                            DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::StringU8(ref entry) |
+                            DecodedData::StringU16(ref entry) |
+                            DecodedData::OptionalStringU8(ref entry) |
+                            DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                            _ => {}
+                        }
+                    }
+
+                    // Then, we get the lookup data.
+                    for column in ref_lookup_columns {
+                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                             match row[index] {
-                                DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                                 DecodedData::StringU8(ref entry) |
                                 DecodedData::StringU16(ref entry) |
                                 DecodedData::OptionalStringU8(ref entry) |
-                                DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                                DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
                                 _ => {}
                             }
                         }
+                    }
 
-                        // Then, we get the lookup data.
-                        for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
-                                match row[index] {
-                                    DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::StringU8(ref entry) |
-                                    DecodedData::StringU16(ref entry) |
-                                    DecodedData::OptionalStringU8(ref entry) |
-                                    DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
-                                    _ => {}
-                                }
-                            }
-                        }
+                    references.data.insert(reference_data, lookup_data.join(" "));
 
-                        references.data.insert(reference_data, lookup_data.join(" "));
-
-                        if !data_found {
-                            data_found = true;
-                        }
+                    if !data_found {
+                        data_found = true;
                     }
                 }
             }
         });
-        return data_found;
+        data_found
     }
 
     /// This function returns the dependency/lookup data of a column from the fake dependency database.
@@ -453,7 +451,7 @@ impl DB {
                 }
             }
         });
-        return data_found;
+        data_found
     }
 
     /// This function returns the dependency/lookup data of a column from our own `PackFile`.
@@ -473,56 +471,54 @@ impl DB {
         packfile.get_ref_packed_files_by_path_start(&["db".to_owned(), format!("{}_tables", ref_table)]).iter()
             .filter(|x| !files_to_ignore.contains(&x.get_path().to_vec()))
             .for_each(|packed_file| {
-            if let Ok(table) = packed_file.get_decoded_from_memory() {
-                if let DecodedPackedFile::DB(db) = table {
-                    for row in &db.get_table_data() {
-                        let mut reference_data = String::new();
-                        let mut lookup_data = vec![];
+            if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                for row in &db.get_table_data() {
+                    let mut reference_data = String::new();
+                    let mut lookup_data = vec![];
 
-                        // First, we get the reference data.
-                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+                    // First, we get the reference data.
+                    if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+                        match row[index] {
+                            DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::StringU8(ref entry) |
+                            DecodedData::StringU16(ref entry) |
+                            DecodedData::OptionalStringU8(ref entry) |
+                            DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                            _ => {}
+                        }
+                    }
+
+                    // Then, we get the lookup data.
+                    for column in ref_lookup_columns {
+                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                             match row[index] {
-                                DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                                 DecodedData::StringU8(ref entry) |
                                 DecodedData::StringU16(ref entry) |
                                 DecodedData::OptionalStringU8(ref entry) |
-                                DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                                DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
                                 _ => {}
                             }
                         }
+                    }
 
-                        // Then, we get the lookup data.
-                        for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
-                                match row[index] {
-                                    DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::StringU8(ref entry) |
-                                    DecodedData::StringU16(ref entry) |
-                                    DecodedData::OptionalStringU8(ref entry) |
-                                    DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
-                                    _ => {}
-                                }
-                            }
-                        }
+                    references.data.insert(reference_data, lookup_data.join(" "));
 
-                        references.data.insert(reference_data, lookup_data.join(" "));
-
-                        if !data_found {
-                            data_found = true;
-                        }
+                    if !data_found {
+                        data_found = true;
                     }
                 }
             }
         });
-        return data_found;
+        data_found
     }
 
     /// This function returns the dependency/lookup data of each column of a DB Table.
@@ -549,7 +545,7 @@ impl DB {
             };
 
             match cache {
-                Some(cached_data) => cached_data.clone(),
+                Some(cached_data) => cached_data,
                 None => {
                     let cached_data = table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
                         if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
@@ -618,11 +614,9 @@ impl DB {
     /// This function is used to check if a table is outdated or not.
     pub fn is_outdated(&self, dependencies: &[PackedFile]) -> bool {
         if let Some(vanilla_db) = dependencies.iter().find(|x| x.get_path().starts_with(&["db".to_owned(), self.get_table_name()])) {
-            if let Ok(table) = vanilla_db.get_decoded_from_memory() {
-                if let DecodedPackedFile::DB(db) = table {
-                    if db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
-                        return true;
-                    }
+            if let Ok(DecodedPackedFile::DB(db)) = vanilla_db.get_decoded_from_memory() {
+                if db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
+                    return true;
                 }
             }
         }

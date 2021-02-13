@@ -87,7 +87,7 @@ impl PackFileExtraView {
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
-        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path.to_path_buf()));
+        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path.clone()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
             Response::PackFileInfo(_) => {},
@@ -107,7 +107,7 @@ impl PackFileExtraView {
         tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         tree_view.set_expands_on_double_click(false);
         //tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf()), None));
+        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.clone()), None));
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_line_edit = QLineEdit::from_q_widget(pack_file_view.get_mut_widget());

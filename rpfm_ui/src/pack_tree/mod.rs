@@ -262,13 +262,11 @@ pub enum TreePathType {
 /// Keep in mind this means two *equal* `TreePathTypes` are not equal, but of the same type.
 impl PartialEq for TreePathType {
     fn eq(&self, other: &TreePathType) -> bool {
-        match (self, other) {
+        matches!((self, other),
             (&TreePathType::File(_), &TreePathType::File(_)) |
             (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
             (&TreePathType::PackFile, &TreePathType::PackFile) |
-            (&TreePathType::None, &TreePathType::None) => true,
-            _ => false,
-        }
+            (&TreePathType::None, &TreePathType::None))
     }
 }
 
@@ -752,7 +750,7 @@ impl PackTree for QBox<QTreeView> {
             TreePathType::File(path) | TreePathType::Folder(path) => {
 
                 // First, we go down the tree to the row we have to take.
-                let is_file = if let TreePathType::File(_) = item_type { true } else  { false };
+                let is_file = matches!(item_type, TreePathType::File(_));
                 let mut item = model.item_1a(0);
                 let item_status = get_status_item_from_item(item);
                 item_status.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);

@@ -253,18 +253,12 @@ impl VersionedFileV1 {
 
     /// This function returns true if the provided `VersionedFile` is a Dependency Manager Definition. Otherwise, it returns false.
     pub fn is_dep_manager(&self) -> bool {
-        match *self {
-            Self::DepManager(_) => true,
-            _ => false,
-        }
+        matches!(*self, Self::DepManager(_))
     }
 
     /// This function returns true if the provided `VersionedFile` is a Loc Definition. Otherwise, it returns false.
     pub fn is_loc(&self) -> bool {
-        match *self {
-            Self::Loc(_) => true,
-            _ => false,
-        }
+        matches!(*self, Self::Loc(_))
     }
 }
 
@@ -323,18 +317,19 @@ impl From<&DefinitionV1> for DefinitionV2 {
 
 impl From<&FieldV1> for FieldV2 {
     fn from(legacy_field: &FieldV1) -> Self {
-        let mut field = Self::default();
-        field.name = legacy_field.name.to_owned();
-        field.field_type = From::from(&legacy_field.field_type);
-        field.is_key = legacy_field.is_key;
-        field.default_value = legacy_field.default_value.clone();
-        field.max_length = legacy_field.max_length;
-        field.is_filename = legacy_field.is_filename;
-        field.filename_relative_path = legacy_field.filename_relative_path.clone();
-        field.is_reference = legacy_field.is_reference.clone();
-        field.lookup = legacy_field.lookup.clone();
-        field.description = legacy_field.description.to_owned();
-        field
+        Self {
+            name: legacy_field.name.to_owned(),
+            field_type: From::from(&legacy_field.field_type),
+            is_key: legacy_field.is_key,
+            default_value: legacy_field.default_value.clone(),
+            max_length: legacy_field.max_length,
+            is_filename: legacy_field.is_filename,
+            filename_relative_path: legacy_field.filename_relative_path.clone(),
+            is_reference: legacy_field.is_reference.clone(),
+            lookup: legacy_field.lookup.clone(),
+            description: legacy_field.description.to_owned(),
+            ..Default::default()
+        }
     }
 }
 

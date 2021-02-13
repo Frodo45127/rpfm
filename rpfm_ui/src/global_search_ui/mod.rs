@@ -398,10 +398,12 @@ impl GlobalSearchUI {
     ) {
 
         // Create the global search and populate it with all the settings for the search.
-        let mut global_search = GlobalSearch::default();
-        global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
-        global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
-        global_search.use_regex = global_search_ui.global_search_use_regex_checkbox.is_checked();
+        let mut global_search = GlobalSearch {
+            pattern: global_search_ui.global_search_search_line_edit.text().to_std_string(),
+            case_sensitive: global_search_ui.global_search_case_sensitive_checkbox.is_checked(),
+            use_regex: global_search_ui.global_search_use_regex_checkbox.is_checked(),
+            ..Default::default()
+        };
 
         // If we don't have text to search, return.
         if global_search.pattern.is_empty() { return; }
@@ -671,29 +673,25 @@ impl GlobalSearchUI {
         // If it's a table, focus on the matched cell.
         if is_match {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                match packed_file_view.get_view() {
 
-                    // In case of tables, we have to get the logical row/column of the match and select it.
-                    ViewType::Internal(view) => if let View::Table(view) = view {
-                        let parent = gidhora.parent();
-                        let table_view = view.get_ref_table();
-                        let table_view = table_view.get_mut_ptr_table_view_primary();
-                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let table_selection_model = table_view.selection_model();
+                // In case of tables, we have to get the logical row/column of the match and select it.
+                if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                    let parent = gidhora.parent();
+                    let table_view = view.get_ref_table();
+                    let table_view = table_view.get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let table_selection_model = table_view.selection_model();
 
-                        let row = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
-                        let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
+                    let row = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                    let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
 
-                        let table_model_index = table_model.index_2a(row, column);
-                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                        if table_model_index_filtered.is_valid() {
-                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                        }
-                    },
-
-                    _ => {},
+                    let table_model_index = table_model.index_2a(row, column);
+                    let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                    if table_model_index_filtered.is_valid() {
+                        table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                        table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    }
                 }
             }
         }

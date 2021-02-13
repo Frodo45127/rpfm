@@ -115,12 +115,12 @@ impl PackedFileAnimFragmentView {
         layout.add_widget_5a(&table_2, 2, 0, 1, 3);
 
         let table_data = data.get_ref_table_data().get(0).unwrap();
-        let table_data_1 = if let Some(data) = table_data.get(0) {
-            if let DecodedData::SequenceU32(data) = data { data.clone() } else { unimplemented!() }
+        let table_data_1 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(0) {
+            data.clone()
         } else { unimplemented!() };
 
-        let table_data_2 = if let Some(data) = table_data.get(3) {
-            if let DecodedData::SequenceU32(data) = data { data.clone() } else { unimplemented!() }
+        let table_data_2 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(3) {
+            data.clone()
         } else { unimplemented!() };
 
         let table_view_1 = TableView::new_view(
@@ -183,16 +183,12 @@ impl PackedFileAnimFragmentView {
                 self.integer_2.set_text(&QString::from_std_str(&data[2].data_to_string()));
 
                 // Each table view, we just load them.
-                if let Some(data) = data.get(0) {
-                    if let DecodedData::SequenceU32(data) = data {
-                        self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
-                    }
+                if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
+                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
                 }
 
-                if let Some(data) = data.get(3) {
-                    if let DecodedData::SequenceU32(data) = data {
-                        self.table_view_2.reload_view(TableType::AnimFragment(From::from(data.clone())));
-                    }
+                if let Some(DecodedData::SequenceU32(data)) = data.get(3) {
+                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(data.clone())));
                 }
 
                 Ok(())

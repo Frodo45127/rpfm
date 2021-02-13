@@ -537,8 +537,7 @@ impl AppUI {
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
             else if let Some(game_data_path) = get_game_selected_data_path() {
-                if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
-                else { true }
+                game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
@@ -921,7 +920,6 @@ impl AppUI {
         app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
-        let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| *folder_name).collect::<Vec<&str>>();
         if let Some(ref mymod_base_path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list {
@@ -929,7 +927,8 @@ impl AppUI {
 
                         // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
+                        let is_supported = SUPPORTED_GAMES.iter().filter_map(|(folder_name, x)| if x.supports_editing { Some(folder_name) } else { None }).any(|x| *x == &*game_folder_name);
+                        if game_folder.path().is_dir() && is_supported {
                             let game_submenu = match &*game_folder_name {
                                 KEY_TROY => &app_ui.mymod_open_troy,
                                 KEY_THREE_KINGDOMS => &app_ui.mymod_open_three_kingdoms,
@@ -1966,7 +1965,7 @@ impl AppUI {
             AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
             // Create the PackFile.
-            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), post_message.to_owned(), sections, options, params));
+            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description, author, post_message, sections, options, params));
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => Ok(Some(name)),
@@ -2213,7 +2212,7 @@ impl AppUI {
     ) {
 
         let mut indexes = indexes.to_vec();
-        indexes.sort();
+        indexes.sort_unstable();
         indexes.dedup();
         indexes.reverse();
 

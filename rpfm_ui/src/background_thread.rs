@@ -970,7 +970,7 @@ pub fn background_loop() {
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
                 diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
-                let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
+                let packed_files_info = diagnostics.get_update_paths_packed_file_info(&pack_file_decoded, &path_types);
                 CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
             }
 

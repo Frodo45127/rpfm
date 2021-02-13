@@ -21,7 +21,6 @@ use serde_derive::{Serialize, Deserialize};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
-use std::iter::FromIterator;
 
 use rpfm_error::Result;
 use rpfm_lib::config::get_config_path;
@@ -180,15 +179,15 @@ impl Shortcuts {
     /// This function creates a new default set of Shortcuts.
     pub fn new() -> Self {
         Self {
-            menu_bar_packfile: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_PACKFILE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            menu_bar_mymod: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_MYMOD.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            menu_bar_view: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            menu_bar_game_selected: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_GAME_SELECTED.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            menu_bar_special_stuff: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_SPECIAL_STUFF.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            menu_bar_about: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_ABOUT.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            packfile_contents_tree_view: BTreeMap::from_iter(SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            packed_file_table: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_TABLE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
-            packed_file_decoder: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_DECODER.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            menu_bar_packfile: SHORTCUTS_MENU_BAR_PACKFILE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            menu_bar_mymod: SHORTCUTS_MENU_BAR_MYMOD.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            menu_bar_view: SHORTCUTS_MENU_BAR_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            menu_bar_game_selected: SHORTCUTS_MENU_BAR_GAME_SELECTED.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            menu_bar_special_stuff: SHORTCUTS_MENU_BAR_SPECIAL_STUFF.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            menu_bar_about: SHORTCUTS_MENU_BAR_ABOUT.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            packfile_contents_tree_view: SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            packed_file_table: SHORTCUTS_PACKED_FILE_TABLE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
+            packed_file_decoder: SHORTCUTS_PACKED_FILE_DECODER.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string())).collect(),
         }
     }
 

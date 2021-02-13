@@ -193,13 +193,13 @@ impl Diagnostics {
                         match dependency_data.get(&(column as i32)) {
                             Some(ref_data) => {
 
-                                if ref_data.referenced_column_is_localised {
+                                if ref_data.referenced_column_is_localised || ref_data.referenced_table_is_ak_only {
                                     // TODO: report missing loc data here.
                                 }
-
+                                /*
                                 else if ref_data.referenced_table_is_ak_only {
                                     // If it's only in the AK, ignore it.
-                                }
+                                }*/
 
                                 // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
                                 else if ref_data.data.is_empty() {
@@ -365,16 +365,14 @@ impl Diagnostics {
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !ignored_fields.contains(&field_text_name) {
-                    if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 1,
-                            row_number: row as i64,
-                            message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
-                            report_type: TableDiagnosticReportType::InvalidEscape,
-                            level: DiagnosticLevel::Warning,
-                        });
-                    }
+                if !ignored_fields.contains(&field_text_name) && !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: 1,
+                        row_number: row as i64,
+                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
+                        report_type: TableDiagnosticReportType::InvalidEscape,
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
 
                 if !ignored_fields.contains(&field_key_name) {

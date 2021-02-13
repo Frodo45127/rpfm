@@ -161,8 +161,8 @@ impl DecodedData {
             DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
             DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
             DecodedData::OptionalStringU16(_) => field_type == &FieldType::OptionalStringU16,
-            DecodedData::SequenceU16(_) => if let FieldType::SequenceU16(_) = field_type { true } else { false },
-            DecodedData::SequenceU32(_) => if let FieldType::SequenceU32(_) = field_type { true } else { false },
+            DecodedData::SequenceU16(_) => matches!(field_type, FieldType::SequenceU16(_)),
+            DecodedData::SequenceU32(_) => matches!(field_type, FieldType::SequenceU32(_)),
         }
     }
 

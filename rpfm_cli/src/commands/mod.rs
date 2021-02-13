@@ -56,7 +56,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 		    else if matches.is_present("delete-files") {
 				match matches.values_of("delete-files") {
 					Some(values) => {
-                        let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
+                        let packed_file_paths = values.collect::<Vec<&str>>();
                         packfile::delete_files(&config, packfile_path, &packed_file_paths)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
@@ -66,7 +66,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 		    else if matches.is_present("delete-folders") {
 				match matches.values_of("delete-folders") {
 					Some(values) => {
-                        let folder_paths = values.map(|y| y).collect::<Vec<&str>>();
+                        let folder_paths = values.collect::<Vec<&str>>();
                         packfile::delete_folders(&config, packfile_path, &folder_paths)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
@@ -109,7 +109,7 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
     if matches.is_present("import") {
 		match matches.values_of("import") {
 			Some(values) => {
-                let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
+                let packed_file_paths = values.collect::<Vec<&str>>();
                 table::import_tsv(&config, &packed_file_paths)
             },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
@@ -119,7 +119,7 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
     else if matches.is_present("export") {
 		match matches.values_of("export") {
 			Some(values) => {
-                let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
+                let packed_file_paths = values.collect::<Vec<&str>>();
                 table::export_tsv(&config, &packed_file_paths)
             },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())

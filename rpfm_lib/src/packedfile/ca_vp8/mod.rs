@@ -132,7 +132,7 @@ impl CaVp8 {
     }
 
     /// This function takes a `CaVp8` and encodes it to `Vec<u8>`.
-    pub fn save(&self) -> Result<Vec<u8>> {
+    pub fn save(&self) -> Vec<u8> {
         match self.format {
             SupportedFormats::Camv => self.save_camv(),
             SupportedFormats::Ivf => self.save_ivf(),
@@ -247,7 +247,7 @@ impl CaVp8 {
     }
 
     /// This function creates a `CaVp8` from a `Vec<u8>` containing a video of CAMV format.
-    fn save_camv(&self) -> Result<Vec<u8>> {
+    fn save_camv(&self) -> Vec<u8> {
         let mut packed_file = vec![];
         packed_file.encode_string_u8(SIGNATURE_CAMV);
         packed_file.encode_integer_i16(1);
@@ -281,11 +281,11 @@ impl CaVp8 {
             offset += frame.size as usize;
         }
 
-        Ok(packed_file)
+        packed_file
     }
 
     /// This function creates a `CaVp8` from a `Vec<u8>` containing a video of CAMV format.
-    fn save_ivf(&self) -> Result<Vec<u8>> {
+    fn save_ivf(&self) -> Vec<u8> {
         let mut packed_file = vec![];
         packed_file.encode_string_u8(SIGNATURE_IVF);
         packed_file.encode_integer_i16(0);
@@ -309,7 +309,7 @@ impl CaVp8 {
             offset += frame.size as usize;
         }
 
-        Ok(packed_file)
+        packed_file
     }
 
     /// This function returns the format of the currently decoded video.

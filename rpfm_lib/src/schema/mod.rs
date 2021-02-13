@@ -742,50 +742,32 @@ impl VersionedFile {
 
     /// This function returns true if the provided `VersionedFile` is an AnimFragment Definition. Otherwise, it returns false.
     pub fn is_anim_fragment(&self) -> bool {
-        match *self {
-            VersionedFile::AnimFragment(_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::AnimFragment(_))
     }
 
     /// This function returns true if the provided `VersionedFile` is an AnimTable Definition. Otherwise, it returns false.
     pub fn is_animtable(&self) -> bool {
-        match *self {
-            VersionedFile::AnimTable(_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::AnimTable(_))
     }
 
     /// This function returns true if the provided `VersionedFile` is a DB Definition. Otherwise, it returns false.
     pub fn is_db(&self) -> bool {
-        match *self {
-            VersionedFile::DB(_,_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::DB(_,_))
     }
 
     /// This function returns true if the provided `VersionedFile` is a Dependency Manager Definition. Otherwise, it returns false.
     pub fn is_dep_manager(&self) -> bool {
-        match *self {
-            VersionedFile::DepManager(_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::DepManager(_))
     }
 
     /// This function returns true if the provided `VersionedFile` is a Loc Definition. Otherwise, it returns false.
     pub fn is_loc(&self) -> bool {
-        match *self {
-            VersionedFile::Loc(_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::Loc(_))
     }
 
     /// This function returns true if the provided `VersionedFile` is an MatchedCombat Definition. Otherwise, it returns false.
     pub fn is_matched_combat(&self) -> bool {
-        match *self {
-            VersionedFile::MatchedCombat(_) => true,
-            _ => false,
-        }
+        matches!(*self, VersionedFile::MatchedCombat(_))
     }
 
     /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
@@ -1349,17 +1331,18 @@ impl From<&RawField> for Field {
         }
         else { (None, None) };
 
-        let mut field = Self::default();
-        field.name = raw_field.name.to_owned();
-        field.field_type = field_type;
-        field.is_key = raw_field.primary_key == "1";
-        field.default_value = raw_field.default_value.clone();
-        field.max_length = max_length;
-        field.is_filename = raw_field.is_filename.is_some();
-        field.filename_relative_path = raw_field.filename_relative_path.clone();
-        field.is_reference = is_reference;
-        field.lookup = lookup;
-        field.description = if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() };
-        field
+        Self {
+            name: raw_field.name.to_owned(),
+            field_type,
+            is_key: raw_field.primary_key == "1",
+            default_value: raw_field.default_value.clone(),
+            max_length,
+            is_filename: raw_field.is_filename.is_some(),
+            filename_relative_path: raw_field.filename_relative_path.clone(),
+            is_reference,
+            lookup,
+            description: if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() },
+            ..Default::default()
+        }
     }
 }

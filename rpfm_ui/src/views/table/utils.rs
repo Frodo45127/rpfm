@@ -58,8 +58,8 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
-            let item = &*model.item_2a(row, column);
-            undo_model.set_item_3a(row, column, item.clone());
+            let item = model.item_2a(row, column);
+            undo_model.set_item_3a(row, column, item);
         }
     }
 }
@@ -141,7 +141,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 
         // Items are individually cloned because there is no "takeRows" function to take out multiple individual rows.
         let items = (0..model.column_count_0a())
-            .map(|column| (&*model.item_2a(*row, column)).clone())
+            .map(|column| model.item_2a(*row, column))
             .collect::<Vec<Ptr<QStandardItem>>>();
 
         // If the current line is not the next of the batch, nor the first one, finish the pack.
@@ -237,10 +237,10 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
                 if let Ok(default_value) = default_value.parse::<i16>() {
                     default_value as i32
                 } else {
-                    0 as i32
+                    0_i32
                 }
             } else {
-                0 as i32
+                0_i32
             };
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -660,27 +660,25 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         for packed_file_view in open_packedfiles.iter() {
             let path = packed_file_view.get_ref_path();
             if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
-                if let ViewType::Internal(view) = packed_file_view.get_view() {
-                    if let View::Table(table) = view {
-                        let table = table.get_ref_table();
-                        let column = clean_column_names(column);
-                        let table_model = &table.table_model;
-                        for column_index in 0..table_model.column_count_0a() {
-                            if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
-                                for row in 0..table_model.row_count_0a() {
-                                    let item = table_model.item_2a(row, column_index);
-                                    let value = item.text().to_std_string();
-                                    let lookup_value = match lookup {
-                                        Some(columns) => {
-                                            let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
-                                                columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
-                                            }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
-                                            data.join(" ")
-                                        },
-                                        None => String::new(),
-                                    };
-                                    dependency_data_visual_column.insert(value, lookup_value);
-                                }
+                if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
+                    let table = table.get_ref_table();
+                    let column = clean_column_names(column);
+                    let table_model = &table.table_model;
+                    for column_index in 0..table_model.column_count_0a() {
+                        if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
+                            for row in 0..table_model.row_count_0a() {
+                                let item = table_model.item_2a(row, column_index);
+                                let value = item.text().to_std_string();
+                                let lookup_value = match lookup {
+                                    Some(columns) => {
+                                        let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
+                                            columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
+                                        }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
+                                        data.join(" ")
+                                    },
+                                    None => String::new(),
+                                };
+                                dependency_data_visual_column.insert(value, lookup_value);
                             }
                         }
                     }

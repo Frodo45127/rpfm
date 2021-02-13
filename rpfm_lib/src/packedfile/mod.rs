@@ -253,7 +253,7 @@ impl DecodedPackedFile {
             DecodedPackedFile::AnimFragment(data) => Some(data.save()),
             DecodedPackedFile::AnimPack(data) => Some(Ok(data.save())),
             DecodedPackedFile::AnimTable(data) => Some(data.save()),
-            DecodedPackedFile::CaVp8(data) => Some(data.save()),
+            DecodedPackedFile::CaVp8(data) => Some(Ok(data.save())),
             DecodedPackedFile::DB(data) => Some(data.save()),
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
@@ -420,7 +420,7 @@ impl PackedFileType {
             Self::StarPos |
             Self::PackFileSettings |
             Self::Unknown => self == other,
-            Self::Text(_) => if let Self::Text(_) = other { true } else { false },
+            Self::Text(_) => matches!(other, Self::Text(_)),
         }
     }
 
@@ -446,7 +446,7 @@ impl PackedFileType {
             Self::StarPos |
             Self::PackFileSettings |
             Self::Unknown => others.contains(&self),
-            Self::Text(_) => others.iter().any(|x| if let Self::Text(_) = x { true } else { false }),
+            Self::Text(_) => others.iter().any(|x| matches!(x, Self::Text(_))),
         }
     }
 }

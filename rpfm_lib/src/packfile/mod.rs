@@ -423,7 +423,7 @@ impl PathType {
         // As this operation can get very expensive very fast, we first check if we have a PackFile.
         // If so, we just leave the PackFile and remove everything else.
         let we_have_packfile = path_types.par_iter().find_any(|item| {
-            if let PathType::PackFile = item { true } else { false }
+            matches!(item, PathType::PackFile)
         });
 
         match we_have_packfile {
@@ -432,7 +432,7 @@ impl PathType {
             // If we don't have a PackFile, we check the rest of the items (files and folders).
             None => {
                 let we_have_folder = path_types.par_iter().any(|item| {
-                    if let PathType::Folder(_) = item { true } else { false }
+                    matches!(item, PathType::Folder(_))
                 });
 
                 // If we don't have a folder, we assume the entire set are unique files.
@@ -444,7 +444,7 @@ impl PathType {
                             // If it's a file, we have to check if there is a folder containing it.
                             PathType::File(ref path_to_add) => {
                                 path_types.par_iter().filter(|x| {
-                                    if let PathType::File(_) = x { false } else { true }
+                                    !matches!(x, PathType::File(_))
                                 }).any(|item_type| {
 
                                     // If the other one is a folder that contains it, dont add it.
@@ -457,7 +457,7 @@ impl PathType {
                             // If it's a folder, we have to check if there is already another folder containing it.
                             PathType::Folder(ref path_to_add) => {
                                 path_types.par_iter().filter(|x| {
-                                    if let PathType::File(_) = x { false } else { true }
+                                    !matches!(x, PathType::File(_))
                                 }).any(|item_type| {
 
                                     // If the other one is a folder that contains it, dont add it.
@@ -714,7 +714,7 @@ impl PackFile {
             let raw_data = RawPackedFile::read_from_path(path_as_file, path_as_packed_file.to_vec())?;
             packed_files.push(PackedFile::new_from_raw(&raw_data));
         }
-        let ref_packed_files = packed_files.iter().map(|x| x).collect::<Vec<&PackedFile>>();
+        let ref_packed_files = packed_files.iter().collect::<Vec<&PackedFile>>();
         self.add_packed_files(&ref_packed_files, overwrite)
     }
 
@@ -762,7 +762,7 @@ impl PackFile {
             }
         }
 
-        self.add_packed_files(&packed_files_to_add.iter().map(|x|x).collect::<Vec<&PackedFile>>(), overwrite)
+        self.add_packed_files(&packed_files_to_add.iter().collect::<Vec<&PackedFile>>(), overwrite)
     }
 
     /// This function is used to add a `PackedFile` from one `PackFile` into another.
@@ -783,11 +783,11 @@ impl PackFile {
         // As this can get very slow very quickly, we do here some... optimizations.
         // First, we get if there are PackFiles or folders in our list of PathTypes.
         let we_have_packfile = path_types.par_iter().any(|item| {
-            if let PathType::PackFile = item { true } else { false }
+            matches!(item, PathType::PackFile)
         });
 
         let we_have_folder = path_types.par_iter().any(|item| {
-            if let PathType::Folder(_) = item { true } else { false }
+            matches!(item, PathType::Folder(_))
         });
 
         // Then, if we have a PackFile,... just import all PackedFiles.
@@ -1108,11 +1108,11 @@ impl PackFile {
         // As this can get very slow very quickly, we do here some... optimizations.
         // First, we get if there are PackFiles or folders in our list of PathTypes.
         let we_have_packfile = path_types.par_iter().any(|item| {
-            if let PathType::PackFile = item { true } else { false }
+            matches!(item, PathType::PackFile)
         });
 
         let we_have_folder = path_types.par_iter().any(|item| {
-            if let PathType::Folder(_) = item { true } else { false }
+            matches!(item, PathType::Folder(_))
         });
 
         // Then, if we have a PackFile,... just import all PackedFiles.
@@ -1434,7 +1434,7 @@ impl PackFile {
 
         // If we have a PackFile, just get the paths of all PackedFiles in the PackFile.
         let we_have_packfile = path_types.par_iter().any(|item| {
-            if let PathType::PackFile = item { true } else { false }
+            matches!(item, PathType::PackFile)
         });
 
         if we_have_packfile {
@@ -1443,7 +1443,7 @@ impl PackFile {
 
         // If we don't have folders, the rest are files, so we just get the path stored in each PathType.
         let we_have_folder = path_types.par_iter().any(|item| {
-            if let PathType::Folder(_) = item { true } else { false }
+            matches!(item, PathType::Folder(_))
         });
 
         if !we_have_folder {
@@ -1687,9 +1687,6 @@ impl PackFile {
         let mut files_to_delete: Vec<Vec<String>> = vec![];
         let dependencies = dependencies.get_ref_dependency_database();
 
-        // We get the entire list of paths from the dependency database, so we can check if each `PackedFile is trying to overwrite a vanilla one or not.
-        let database_path_list = dependencies.iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>();
-
         // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
         // Otherwise, they may have to be decoded multiple times, making this function take ages to finish.
         let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter()
@@ -1709,7 +1706,7 @@ impl PackFile {
 
             // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
             // as those are probably intended to overwrite vanilla files, not to be optimized.
-            if database_path_list.contains(&path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+            if dependencies.iter().map(|x| x.get_path().to_vec()).any(|x| x == path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
 
             // If it's a DB table, try to optimize it.
             if path.len() == 3 && path[0] == "db" && !game_dbs.is_empty() {
@@ -2196,7 +2193,7 @@ impl PackFile {
     /// This function tries to get the list of CA PackFile of the currently selected game from the manifest.txt on /data,
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
-        let data_path = get_game_selected_data_path().ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
+        let data_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         let manifest = Manifest::read_from_game_selected()?;
         let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
         let pack_file_paths = pack_file_names.iter().map(|x| {
@@ -2278,11 +2275,11 @@ impl PackFile {
             movie_files.sort_by_key(|x| x.get_path().to_vec());
             movie_files.dedup_by_key(|x| x.get_path().to_vec());
 
-            pack_file.add_packed_files(&(boot_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(release_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(patch_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(mod_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(movie_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(patch_files.iter().collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true)?;
 
             // Set it as type "Other(200)", so we can easely identify it as fake in other places.
             // Used to lock the CA Files.
@@ -2453,8 +2450,7 @@ impl PackFile {
             // Update his offset, and get his compression data if it has it.
             index_position += packed_file_index_path_offset;
             let is_compressed = if let PFHVersion::PFH5 = pack_file_decoded.pfh_version {
-                if let Ok(true) = packed_file_index.decode_bool(index_position - 1) { true }
-                else { false }
+                matches!(packed_file_index.decode_bool(index_position - 1), Ok(true))
             } else { false };
 
             // Get his path. Like the PackFile index, it's a StringU8 terminated in 00. We get it and split it in folders for easy use.
@@ -2483,7 +2479,7 @@ impl PackFile {
             let mut packed_file = PackedFile::new_from_raw(&raw_data);
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.get_path() == &[RESERVED_NAME_NOTES] {
+            if packed_file.get_path() == [RESERVED_NAME_NOTES] {
                 if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
@@ -2491,7 +2487,7 @@ impl PackFile {
                 }
             }
 
-            else if packed_file.get_path() == &[RESERVED_NAME_SETTINGS] {
+            else if packed_file.get_path() == [RESERVED_NAME_SETTINGS] {
                 if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
                     pack_file_decoded.settings = if let Ok(settings) = PackFileSettings::load(&data) {
                         settings
@@ -2720,7 +2716,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
     pub fn read_from_game_selected() -> Result<Self> {
-        let mut manifest_path = get_game_selected_data_path().ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
+        let mut manifest_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         manifest_path.push("manifest.txt");
 
         let mut reader = ReaderBuilder::new()
@@ -2740,9 +2736,11 @@ impl Manifest {
             if record.len() != 2 && record.len() != 3 {
                 return Err(ErrorKind::ManifestError.into());
             } else {
-                let mut manifest_entry = ManifestEntry::default();
-                manifest_entry.relative_path = record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned();
-                manifest_entry.size = record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?;
+                let mut manifest_entry = ManifestEntry {
+                    relative_path: record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned(),
+                    size: record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?,
+                    ..Default::default()
+                };
 
                 // In newer games, a third field has been added.
                 if record.len() == 3 {
@@ -2781,9 +2779,11 @@ impl Manifest {
             if record.len() != 2 && record.len() != 3 {
                 return Err(ErrorKind::ManifestError.into());
             } else {
-                let mut manifest_entry = ManifestEntry::default();
-                manifest_entry.relative_path = record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned();
-                manifest_entry.size = record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?;
+                let mut manifest_entry = ManifestEntry {
+                    relative_path: record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned(),
+                    size: record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?,
+                    ..Default::default()
+                };
 
                 // In newer games, a third field has been added.
                 if record.len() == 3 {

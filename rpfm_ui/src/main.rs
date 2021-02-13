@@ -19,7 +19,6 @@
     clippy::new_ret_no_self,                // Disabled because the reported situations are special cases. So no, I'm not going to rewrite them.
     clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
     clippy::match_wild_err_arm,              // Disabled because, despite being a bad practice, it's the intended behavior in the code it warns about.
-    clippy::clone_on_copy
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.

@@ -388,7 +388,7 @@ impl TableView {
 
         // Amount of rows selected, to ensure certain behavior only triggers when we got the correct number of rows selected.
         let mut rows_selected = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-        rows_selected.sort();
+        rows_selected.sort_unstable();
         rows_selected.dedup();
 
         if rows.len() == 1 && rows[0].len() == 1 {
@@ -576,7 +576,7 @@ impl TableView {
                 TableOperations::AddRows(mut rows) => {
 
                     // Sort them 0->9, so we can process them.
-                    rows.sort();
+                    rows.sort_unstable();
                     self.undo_lock.store(true, Ordering::SeqCst);
                     let rows_splitted = delete_rows(&self.get_mut_ptr_table_model(), &rows);
                     history_opposite.push(TableOperations::RemoveRows(rows_splitted));
@@ -767,7 +767,7 @@ impl TableView {
             }
 
             if has_keys {
-                lua_table.push_str("}");
+                lua_table.push('}');
             }
         }
 
@@ -1008,7 +1008,7 @@ impl TableView {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
 
             // Dedup the list and reverse it.
-            rows_to_delete.sort();
+            rows_to_delete.sort_unstable();
             rows_to_delete.dedup();
             rows_to_delete.reverse();
 
@@ -1132,7 +1132,7 @@ impl TableView {
 
                 FieldType::I16 => {
                     if let Ok(new_value) = text.parse::<i16>() {
-                        if &current_value != *text {
+                        if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
@@ -1142,7 +1142,7 @@ impl TableView {
 
                 FieldType::I32 => {
                     if let Ok(new_value) = text.parse::<i32>() {
-                        if &current_value != *text {
+                        if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
@@ -1152,7 +1152,7 @@ impl TableView {
 
                 FieldType::I64 => {
                     if let Ok(new_value) = text.parse::<i64>() {
-                        if &current_value != *text {
+                        if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
@@ -1161,7 +1161,7 @@ impl TableView {
                 },
 
                 _ => {
-                    if &current_value != *text {
+                    if current_value != *text {
                         self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
                         changed_cells += 1;
                         self.process_edition(self.table_model.item_from_index(real_cell));

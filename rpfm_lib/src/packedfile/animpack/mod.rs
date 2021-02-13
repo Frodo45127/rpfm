@@ -134,8 +134,10 @@ impl AnimPack {
     }
 
     pub fn get_as_pack_file_info(&self, path: &[String]) -> (PackFileInfo, Vec<PackedFileInfo>) {
-        let mut pack_file_info = PackFileInfo::default();
-        pack_file_info.file_name = path.last().unwrap().to_owned();
+        let pack_file_info = PackFileInfo {
+            file_name: path.last().unwrap().to_owned(),
+            ..Default::default()
+        };
 
         let packed_file_info = self.packed_files.iter().map(From::from).collect();
         (pack_file_info, packed_file_info)
@@ -184,11 +186,11 @@ impl AnimPack {
         // As this can get very slow very quickly, we do here some... optimizations.
         // First, we get if there are PackFiles or folders in our list of PathTypes.
         let we_have_packfile = path_types.par_iter().any(|item| {
-            if let PathType::PackFile = item { true } else { false }
+            matches!(item, PathType::PackFile)
         });
 
         let we_have_folder = path_types.par_iter().any(|item| {
-            if let PathType::Folder(_) = item { true } else { false }
+            matches!(item, PathType::Folder(_))
         });
 
         // Then, if we have a PackFile,... just import all PackedFiles.
@@ -240,17 +242,20 @@ impl TryFrom<&PackedFile> for AnimPacked {
     type Error = Error;
 
     fn try_from(packed_file: &PackedFile) -> Result<Self> {
-        let mut anim_packed = Self::default();
-        anim_packed.path = packed_file.get_path().to_vec();
-        anim_packed.data = packed_file.get_raw_data()?;
+        let anim_packed = Self {
+            path: packed_file.get_path().to_vec(),
+            data: packed_file.get_raw_data()?,
+        };
         Ok(anim_packed)
     }
 }
 
 impl From<&AnimPacked> for PackedFileInfo {
     fn from(anim_packed: &AnimPacked) -> Self {
-        let mut packed_file_info = Self::default();
-        packed_file_info.path = anim_packed.get_ref_path().to_vec();
+        let packed_file_info = Self {
+            path: anim_packed.get_ref_path().to_vec(),
+            ..Default::default()
+        };
         packed_file_info
     }
 }

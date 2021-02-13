@@ -312,10 +312,8 @@ impl TemplateUI {
                     option.1.set_enabled(true);
                 }
             }
-            else {
-                if let Some(option) = self.options.borrow().iter().find(|(x, _)| x == option.get_ref_key()) {
-                    option.1.set_enabled(false);
-                }
+            else if let Some(option) = self.options.borrow().iter().find(|(x, _)| x == option.get_ref_key()) {
+                option.1.set_enabled(false);
             }
         }
 
@@ -325,10 +323,8 @@ impl TemplateUI {
                     param.1.set_enabled(true);
                 }
             }
-            else {
-                if let Some(param) = self.params.borrow().iter().find(|(x, _)| x == param.get_ref_key()) {
-                    param.1.set_enabled(false);
-                }
+            else if let Some(param) = self.params.borrow().iter().find(|(x, _)| x == param.get_ref_key()) {
+                param.1.set_enabled(false);
             }
         }
     }

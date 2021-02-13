@@ -1067,7 +1067,7 @@ impl PackFileContentsSlots {
                     }
 
                     let path_type: PathType = From::from(item_type);
-                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type.clone()));
+                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
                         Response::I32I32((old_version, new_version)) => {

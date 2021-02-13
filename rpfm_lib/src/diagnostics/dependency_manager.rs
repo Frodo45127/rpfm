@@ -23,7 +23,7 @@ use super::DiagnosticLevel;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the results of a diagnostics check over a single PackedFile.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DependencyManagerDiagnostic {
     result: Vec<DependencyManagerDiagnosticReport>
 }

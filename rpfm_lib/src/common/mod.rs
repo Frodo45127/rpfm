@@ -122,11 +122,8 @@ pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(path) = SETTINGS.read().unwrap().paths.get(game_selected) {
-        if let Some(path) = path {
-            Some(path.join(PathBuf::from("data")))
-        }
-        else { None }
+    if let Some(Some(path)) = SETTINGS.read().unwrap().paths.get(game_selected) {
+        Some(path.join(PathBuf::from("data")))
     } else { None }
 }
 
@@ -134,11 +131,8 @@ pub fn get_game_selected_data_path() -> Option<PathBuf> {
 #[allow(dead_code)]
 pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(path) = SETTINGS.read().unwrap().paths.get(game_selected) {
-        if let Some(path) = path {
-            Some(path.join(PathBuf::from("assembly_kit")))
-        }
-        else { None }
+    if let Some(Some(path)) = SETTINGS.read().unwrap().paths.get(game_selected) {
+        Some(path.join(PathBuf::from("assembly_kit")))
     } else { None }
 }
 
@@ -390,7 +384,7 @@ pub fn get_mymod_install_path() -> Option<PathBuf> {
             DirBuilder::new().recursive(true).create(&path).ok()?;
             Some(path)
         }
-        InstallType::Wargaming => return None,
+        InstallType::Wargaming => None,
     }
 }
 

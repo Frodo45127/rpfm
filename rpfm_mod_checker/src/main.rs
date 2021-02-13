@@ -122,7 +122,7 @@ fn get_content_folder(base_path: Option<&Path>) -> Result<PathBuf> {
         path
     };
 
-    let mut exe_path = content_path.to_path_buf();
+    let mut exe_path = content_path.clone();
     exe_path.push("Troy.exe");
     if exe_path.is_file() {
         content_path.push("mods");

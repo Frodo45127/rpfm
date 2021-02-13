@@ -55,11 +55,13 @@ impl TemplateDB {
 
     /// This function builds a full TemplateDB from a PackedFile, if said PackedFile is a decodeable DB Table.
     pub fn new_from_packedfile(packed_file: &PackedFile) -> Result<Self> {
-        let mut template = Self::default();
-        template.name = packed_file.get_path().last().unwrap().to_owned();
-        template.table = match packed_file.get_path().get(1) {
-            Some(table) => table.to_owned(),
-            None => return Err(ErrorKind::Generic.into()),
+        let mut template = Self {
+            name: packed_file.get_path().last().unwrap().to_owned(),
+            table: match packed_file.get_path().get(1) {
+                Some(table) => table.to_owned(),
+                None => return Err(ErrorKind::Generic.into()),
+            },
+            ..Default::default()
         };
 
         match packed_file.get_decoded_from_memory()? {
@@ -88,10 +90,8 @@ impl TemplateDB {
         let path = vec!["db".to_owned(), self.table.to_owned(), self.name.to_owned()];
 
         let mut table = if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
-            if let Ok(table) = packed_file.decode_return_ref_no_locks(&schema) {
-                if let DecodedPackedFile::DB(table) = table {
-                    table.clone()
-                } else { DB::new(&self.name, None, schema.get_ref_last_definition_db(&self.table, &dependencies)?) }
+            if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref_no_locks(&schema) {
+                table.clone()
             } else { DB::new(&self.name, None, schema.get_ref_last_definition_db(&self.table, &dependencies)?) }
         } else { DB::new(&self.name, None, schema.get_ref_last_definition_db(&self.table, &dependencies)?) };
 

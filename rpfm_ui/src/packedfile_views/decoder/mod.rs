@@ -1518,7 +1518,7 @@ impl PackedFileDecoderView {
         // First check is done here, to initialize the possible schemas.
         if definitions_possible.is_empty() {
             if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                if (number < 60000.0 && number > -60000.0 && (!(-0.001..=0.001).contains(&number) || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
                     definitions_possible.push(vec![FieldType::F32]);
                 }
             }
@@ -1569,7 +1569,7 @@ impl PackedFileDecoderView {
                     }
                 }
                 else if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                    if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                    if (number < 60000.0 && number > -60000.0 && (!(-0.001..=0.001).contains(&number) || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
                         let mut def = base.to_vec();
                         def.push(FieldType::F32);
                         elements.push(def);
@@ -1627,7 +1627,7 @@ impl PackedFileDecoderView {
                     // Filter the mapped data to see if we have a common one in every cell.
                     let fields = mapper.iter().map(|(x, y)| {
                         let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                        field.set_field_type(table.get_ref_definition().get_fields_processed()[*x].get_field_type().clone());
+                        field.set_field_type(table.get_ref_definition().get_fields_processed()[*x].get_field_type());
                         field
                     }).collect();
 

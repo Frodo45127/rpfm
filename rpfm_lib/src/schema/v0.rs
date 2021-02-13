@@ -190,13 +190,14 @@ impl From<&TableDefinitionV0> for DefinitionV1 {
 
 impl From<&FieldV0> for FieldV1 {
     fn from(legacy_field: &FieldV0) -> Self {
-        let mut field = Self::default();
-        field.name = legacy_field.field_name.to_owned();
-        field.field_type = From::from(&legacy_field.field_type);
-        field.is_key = legacy_field.field_is_key;
-        field.is_reference = legacy_field.field_is_reference.clone();
-        field.description = legacy_field.field_description.to_owned();
-        field
+        Self {
+            name: legacy_field.field_name.to_owned(),
+            field_type: From::from(&legacy_field.field_type),
+            is_key: legacy_field.field_is_key,
+            is_reference: legacy_field.field_is_reference.clone(),
+            description: legacy_field.field_description.to_owned(),
+            ..Default::default()
+        }
     }
 }
 

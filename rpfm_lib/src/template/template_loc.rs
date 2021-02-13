@@ -51,8 +51,10 @@ impl TemplateLoc {
 
     /// This function builds a full TemplateLoc from a PackedFile, if said PackedFile is a decodeable Loc Table.
     pub fn new_from_packedfile(packed_file: &PackedFile) -> Result<Self> {
-        let mut template = Self::default();
-        template.name = packed_file.get_path().last().unwrap().to_owned();
+        let mut template = Self {
+            name: packed_file.get_path().last().unwrap().to_owned(),
+            ..Default::default()
+        };
 
         match packed_file.get_decoded_from_memory()? {
             DecodedPackedFile::Loc(table) => {
@@ -79,10 +81,8 @@ impl TemplateLoc {
         let path = vec!["text".to_owned(), "db".to_owned(), self.name.to_owned()];
 
         let mut table = if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
-            if let Ok(table) = packed_file.decode_return_ref_no_locks(&schema) {
-                if let DecodedPackedFile::Loc(table) = table {
-                    table.clone()
-                } else { Loc::new(schema.get_ref_last_definition_loc()?) }
+            if let Ok(DecodedPackedFile::Loc(table)) = packed_file.decode_return_ref_no_locks(&schema) {
+                table.clone()
             } else { Loc::new(schema.get_ref_last_definition_loc()?) }
         } else { Loc::new(schema.get_ref_last_definition_loc()?) };
 

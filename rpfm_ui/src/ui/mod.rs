@@ -188,16 +188,13 @@ impl UI {
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
-        if args.len() > 1 {
-            if args[1] != "--booted_from_launcher" {
-                let path = PathBuf::from(&args[1]);
-                if path.is_file() {
-                    if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
-                        show_dialog(&app_ui.main_window, error, false);
-                    }
+        if args.len() > 1 && args[1] != "--booted_from_launcher" {
+            let path = PathBuf::from(&args[1]);
+            if path.is_file() {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
+                    show_dialog(&app_ui.main_window, error, false);
                 }
             }
-
         }
 
         if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions)  {

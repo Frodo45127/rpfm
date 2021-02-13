@@ -43,9 +43,11 @@ impl Asset {
 
     /// This function builds a full TemplateDB from a PackedFile, if said PackedFile is a decodeable DB Table.
     pub fn new_from_packedfile(packed_file: &PackedFile) -> Self {
-        let mut template = Self::default();
-        template.file_path = packed_file.get_path().join("/");
-        template.packed_file_path = packed_file.get_path().join("/");
+        let template = Self {
+            file_path: packed_file.get_path().join("/"),
+            packed_file_path: packed_file.get_path().join("/"),
+            ..Default::default()
+        };
 
         template
     }

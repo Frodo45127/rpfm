@@ -1380,7 +1380,7 @@ impl TableSearch {
                             _ =>  {}
                         }
 
-                        positions_and_texts.push((model_index.clone(), replaced_text));
+                        positions_and_texts.push((*model_index, replaced_text));
                     } else { return }
                 }
             }
