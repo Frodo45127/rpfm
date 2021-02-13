@@ -14,9 +14,10 @@ Small crate to put the macros used in RPFM.
 
 #![crate_type = "proc-macro"]
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 
 use quote::quote;
-use syn::{Data, DeriveInput, Ident, parse_macro_input, export::Span};
+use syn::{Data, DeriveInput, Ident, parse_macro_input};
 
 #[proc_macro_derive(GetClone)]
 pub fn getter_clone(input: TokenStream) -> TokenStream {

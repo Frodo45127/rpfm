@@ -1993,6 +1993,7 @@ dependencies = [
 name = "rpfm_macros"
 version = "2.3.102"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
 ]
