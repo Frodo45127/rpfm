@@ -420,18 +420,18 @@ pub fn get_game_selected_exe_version_number() -> Result<u32> {
                         Ok(version)
                     }
 
-                    None => Ok(0),
+                    None => Err(ErrorKind::GamePathNotConfigured.into()),
                 }
             }
 
             // If we have no exe, return a default value.
             else {
-                Ok(0)
+                Err(ErrorKind::GamePathNotConfigured.into())
             }
 
         }
 
-        _ => Ok(0),
+        _ => Err(ErrorKind::GamePathNotConfigured.into()),
     }
 }
 
