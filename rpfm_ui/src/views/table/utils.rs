@@ -58,8 +58,8 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
-            let item = model.item_2a(row, column);
-            undo_model.set_item_3a(row, column, item);
+            let item = &*model.item_2a(row, column);
+            undo_model.set_item_3a(row, column, item.clone());
         }
     }
 }
@@ -141,7 +141,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 
         // Items are individually cloned because there is no "takeRows" function to take out multiple individual rows.
         let items = (0..model.column_count_0a())
-            .map(|column| model.item_2a(*row, column))
+            .map(|column| (&*model.item_2a(*row, column)).clone())
             .collect::<Vec<Ptr<QStandardItem>>>();
 
         // If the current line is not the next of the batch, nor the first one, finish the pack.
