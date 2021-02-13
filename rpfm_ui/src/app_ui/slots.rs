@@ -40,7 +40,6 @@ use rpfm_lib::games::*;
 use rpfm_lib::packfile::{Manifest, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
-use rpfm_lib::SCHEMA;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
