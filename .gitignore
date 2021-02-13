@@ -69,3 +69,11 @@ shortcuts.ron
 # Subclasses lib compilation files.
 /rpfm_ui/qt_subclasses/Makefile.*
 /rpfm_ui/qt_subclasses/qt_subclasses.pro.*
+
+# Files created during tests.
+/test_files/PFH0_test_encode.pack
+/test_files/PFH2_test_encode.pack
+/test_files/PFH3_test_encode.pack
+/test_files/PFH4_test_encode.pack
+/test_files/PFH5_test_encode.pack
+/test_files/PFH6_test_encode.pack
