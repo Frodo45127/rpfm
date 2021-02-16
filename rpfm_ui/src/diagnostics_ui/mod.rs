@@ -42,6 +42,7 @@ use qt_core::QPtr;
 use qt_core::QObject;
 use qt_core::QSignalBlocker;
 
+use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use std::rc::Rc;
@@ -426,6 +427,9 @@ impl DiagnosticsUI {
                             message.set_editable(false);
                             report_type.set_editable(false);
 
+                            // Set the tooltips to the diag type and description columns.
+                            Self::set_tooltips_table(&[&level, &path, &message], &result.report_type);
+
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
@@ -519,6 +523,9 @@ impl DiagnosticsUI {
                             fill3.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
+
+                            // Set the tooltips to the diag type and description columns.
+                            Self::set_tooltips_dependency_manager(&[&level, &fill3, &message], &result.report_type);
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -880,5 +887,35 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
         diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_warning"), warning)));
         diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_error"), error)));
+    }
+
+    pub unsafe fn set_tooltips_table(items: &[&CppBox<QStandardItem>], report_type: &TableDiagnosticReportType) {
+        let tool_tip = match report_type {
+            TableDiagnosticReportType::OutdatedTable => qtr("outdated_table_explanation"),
+            TableDiagnosticReportType::InvalidReference => qtr("invalid_reference_explanation"),
+            TableDiagnosticReportType::EmptyRow => qtr("empty_row_explanation"),
+            TableDiagnosticReportType::EmptyKeyField => qtr("empty_key_field_explanation"),
+            TableDiagnosticReportType::EmptyKeyFields => qtr("empty_key_fields_explanation"),
+            TableDiagnosticReportType::DuplicatedCombinedKeys => qtr("duplicated_combined_keys_explanation"),
+            TableDiagnosticReportType::NoReferenceTableFound => qtr("no_reference_table_found_explanation"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak => qtr("no_reference_table_nor_column_found_pak_explanation"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak => qtr("no_reference_table_nor_column_found_no_pak_explanation"),
+            TableDiagnosticReportType::InvalidEscape => qtr("invalid_escape_explanation"),
+            TableDiagnosticReportType::DuplicatedRow => qtr("duplicated_row_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
+    pub unsafe fn set_tooltips_dependency_manager(items: &[&CppBox<QStandardItem>], report_type: &DependencyManagerDiagnosticReportType) {
+        let tool_tip = match report_type {
+            DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName => qtr("invalid_dependency_pack_file_name_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
     }
 }
