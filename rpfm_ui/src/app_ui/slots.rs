@@ -1152,15 +1152,25 @@ impl AppUISlots {
                         <h3>Credits</h3>
                         <ul style=\"list-style-type: disc\">
                             <li>Created and Programmed by: <b>Frodo45127</b>.</li>
-                            <li>Icon until 1.6.2 by: <b>Maruka</b>.</li>
-                            <li>Icons since 2.0.0 by: <b>Jake Armitage</b>.</li>
-                            <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
+                            <li>Extra programming work by: <b>Vandy</b>.</li>
+
+                            <li>App Icons until v1.6.2 by: <b>Maruka</b>.</li>
+                            <li>App Icons since v2.0.0 by: <b>Jake Armitage</b>.</li>
+
+                            <li>AnimPack research: <b>Marthenil</b> and <b>Frodo45127</b>.</li>
+
+                            <li>Ca_vp8 research: <b>John Sirett</b>.</li>
+
                             <li>LUA functions by: <b>Aexrael Dex</b>.</li>
                             <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
+
+                            <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
+                            <li>RigidModel module until v1.6.2 by: <b>Frodo45127</b>.</li>
+
                             <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
-                            <li>Ca_vp8 research: <b>John Sirett</b>.</li>
-                            <li>AnimPack research: <b>Marthenil</b> and <b>Frodo45127</b>.</li>
                             <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
+
+
                         </ul>
 
                         <h3>Special thanks</h3>
