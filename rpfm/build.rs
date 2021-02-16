@@ -9,13 +9,8 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Build script for the RPFM.
-
+Build script for RPFM.
 !*/
-
-/// This crate is only needed for the Windows Build.
-#[cfg(target_os = "windows")]
-use winres;
 
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
