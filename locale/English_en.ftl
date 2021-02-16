@@ -819,3 +819,5 @@ invalid_dependency_pack_file_name_explanation = One of the PackFile Names in the
     - Empty rows on the Dependency Manager.
     - A PackFile name not ended in ".pack".
     - A PackFile name containing an space.
+
+pfs_button_apply = Apply Settings

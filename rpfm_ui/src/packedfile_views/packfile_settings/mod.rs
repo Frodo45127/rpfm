@@ -18,6 +18,7 @@ use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QSpinBox;
 use qt_widgets::QPlainTextEdit;
+use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 
 use qt_core::QBox;
@@ -25,6 +26,7 @@ use qt_core::QPtr;
 use qt_core::QString;
 
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use rpfm_error::Result;
@@ -32,23 +34,29 @@ use rpfm_error::Result;
 use rpfm_lib::packfile::PackFileSettings;
 use rpfm_lib::packedfile::PackedFileType;
 
+use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::locale::qtr;
-use crate::packedfile_views::PackedFileView;
+use crate::packedfile_views::{PackedFileView, PackFileContentsUI};
+use crate::utils::create_grid_layout;
+use self::slots::PackFileSettingsSlots;
 use super::{ViewType, View};
+
+mod connections;
+mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of the PackFile Settings.
-#[derive(Default)]
 pub struct PackFileSettingsView {
     settings_text_multi_line: BTreeMap<String, QBox<QPlainTextEdit>>,
     settings_text_single_line: BTreeMap<String, QBox<QLineEdit>>,
     settings_bool: BTreeMap<String, QBox<QCheckBox>>,
     settings_number: BTreeMap<String, QBox<QSpinBox>>,
+    settings_apply_button: QBox<QPushButton>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -63,6 +71,8 @@ impl PackFileSettingsView {
     /// The view is loaded dinamically based on the settings we have.
     pub unsafe fn new_view(
         pack_file_view: &mut PackedFileView,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings);
@@ -73,8 +83,12 @@ impl PackFileSettingsView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let mut view = Self::default();
         let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
+
+        let mut settings_text_multi_line = BTreeMap::new();
+        let mut settings_text_single_line = BTreeMap::new();
+        let mut settings_number = BTreeMap::new();
+        let mut settings_bool = BTreeMap::new();
 
         let mut row = 0;
         for (key, setting) in &settings.settings_text {
@@ -88,7 +102,7 @@ impl PackFileSettingsView {
             layout.add_widget_5a(&edit, row, 1, 2, 1);
             layout.set_row_stretch(row + 1, 100);
 
-            view.settings_text_multi_line.insert(key.to_owned(), edit);
+            settings_text_multi_line.insert(key.to_owned(), edit);
             row += 2;
         }
 
@@ -100,7 +114,7 @@ impl PackFileSettingsView {
             layout.add_widget_5a(&label, row, 0, 1, 1);
             layout.add_widget_5a(&edit, row, 1, 1, 1);
 
-            view.settings_text_single_line.insert(key.to_owned(), edit);
+            settings_text_single_line.insert(key.to_owned(), edit);
             row += 1;
         }
 
@@ -113,7 +127,7 @@ impl PackFileSettingsView {
             layout.add_widget_5a(&label, row, 0, 1, 1);
             layout.add_widget_5a(&edit, row, 1, 1, 1);
 
-            view.settings_bool.insert(key.to_owned(), edit);
+            settings_bool.insert(key.to_owned(), edit);
             row += 1;
         }
 
@@ -126,18 +140,40 @@ impl PackFileSettingsView {
             layout.add_widget_5a(&label, row, 0, 1, 1);
             layout.add_widget_5a(&edit, row, 1, 1, 1);
 
-            view.settings_number.insert(key.to_owned(), edit);
+            settings_number.insert(key.to_owned(), edit);
             row += 1;
         }
 
         let padding_widget = QWidget::new_1a(pack_file_view.get_mut_widget());
         layout.add_widget_5a(&padding_widget, row, 0, 1, 3);
-        layout.set_row_stretch(row, 1000);
 
+        // Buttons at the bottom.
+        let button_box = QWidget::new_1a(pack_file_view.get_mut_widget());
+        let button_box_layout = create_grid_layout(button_box.static_upcast());
 
+        let button_box_apply = QPushButton::from_q_string_q_widget(&qtr("pfs_button_apply"), pack_file_view.get_mut_widget());
+        button_box_layout.add_widget_5a(&button_box_apply, 0, 0, 0, 0);
+
+        layout.add_widget_5a(&button_box, row + 1, 0, 1, 3);
+        layout.set_row_stretch(row, 900);
+
+        let pack_file_settings_view = Arc::new(Self {
+            settings_text_multi_line,
+            settings_text_single_line,
+            settings_bool,
+            settings_number,
+            settings_apply_button: button_box_apply,
+        });
+
+        let pack_file_settings_slots = PackFileSettingsSlots::new(
+            &pack_file_settings_view,
+            app_ui,
+            pack_file_contents_ui
+        );
+
+        connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
         pack_file_view.packed_file_type = PackedFileType::PackFileSettings;
-        pack_file_view.view = ViewType::Internal(View::PackFileSettings(Arc::new(view)));
-
+        pack_file_view.view = ViewType::Internal(View::PackFileSettings(pack_file_settings_view));
         Ok(())
     }
 
@@ -150,5 +186,10 @@ impl PackFileSettingsView {
         self.settings_number.iter().for_each(|(key, widget)| { settings.settings_number.insert(key.to_owned(), widget.value()); });
 
         settings
+    }
+
+    /// This function returns a reference to the apply button.
+    pub fn get_ref_apply_button(&self) -> &QBox<QPushButton> {
+        &self.settings_apply_button
     }
 }

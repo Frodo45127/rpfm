@@ -180,6 +180,11 @@ impl PackedFileView {
         &mut self.view
     }
 
+    /// This function returns a copy of the `PackedFileType` of this view.
+    pub fn get_packed_file_type(&self) -> PackedFileType {
+        self.packed_file_type
+    }
+
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
     pub unsafe fn save(
         &self,

@@ -939,8 +939,9 @@ impl PackFileContentsSlots {
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
-            app_ui => move |_| {
-            AppUI::open_packfile_settings(&app_ui);
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::open_packfile_settings(&app_ui, &pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Open Notes" Action.

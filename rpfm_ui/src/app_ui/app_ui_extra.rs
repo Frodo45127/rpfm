@@ -1702,6 +1702,7 @@ impl AppUI {
     /// This function is used to open the settings embebed into a PackFile.
     pub unsafe fn open_packfile_settings(
         app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1740,7 +1741,7 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
             tab.set_path(&path);
 
-            match PackFileSettingsView::new_view(&mut tab) {
+            match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                 Ok(_) => {
                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
