@@ -1494,7 +1494,7 @@ impl PackedFileDecoderView {
         let raw_table = RawTable::read(&raw_definition, &raw_db_path, raw_db_version)?;
         let imported_table = DB::from(&raw_table);
 
-        let raw_localisable_fields: Result<RawLocalisableFields> = RawLocalisableFields::read(&raw_db_path, raw_db_version);
+        let raw_localisable_fields: RawLocalisableFields = RawLocalisableFields::read(&raw_db_path, raw_db_version).map_err(|error| ErrorKind::MissingRawLocalisableFields(error.to_string()))?;
         let mut raw_columns: Vec<Vec<String>> = vec![];
 
         for row in imported_table.get_ref_table_data() {
@@ -1538,7 +1538,7 @@ impl PackedFileDecoderView {
         }
 
         // All the other checks are done here.
-        for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.unwrap().fields).len() - 1 {
+        for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields).len() - 1 {
             println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
             definitions_possible = definitions_possible.par_iter().map(|base| {
                 let mut elements = vec![];

@@ -569,6 +569,9 @@ pub enum ErrorKind {
     /// Error for when we try to open in the decoder an incompatible PackedFile.
     PackedFileNotDecodeableWithDecoder,
 
+    /// Error for when importing a definition fails due to missing/broken localisable fields file.
+    MissingRawLocalisableFields(String),
+
     /// Error for when we try to launch a game with no steam ID.
     LaunchNotSupportedForThisGame,
 
@@ -914,6 +917,7 @@ impl Display for ErrorKind {
             ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
             ErrorKind::DecoderDecode(cause) => write!(f, "<p>Error while trying to load the following PackedFile to the decoder:</p><p>{}</p>", cause),
             ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
+            ErrorKind::MissingRawLocalisableFields(cause) => write!(f, "<p>{}</p><p>This happens when the TExc_LocalisableFields.xml file is missing/empty/broken in raw_data/db. If it's so, copy it from another game and try again.</p>", cause),
             ErrorKind::LaunchNotSupportedForThisGame => write!(f, "<p>The currently selected game cannot be launched from Steam.</p>"),
             ErrorKind::ConfigFolderCouldNotBeOpened => write!(f, "<p>RPFM's config folder couldn't be open (maybe it doesn't exists?).</p>"),
             ErrorKind::InvalidPathsInTemplate => write!(f, "<p>An empty/invalid path has been detected when processing the template. This can be caused by a bad template or by an empty parameter.<p>"),
