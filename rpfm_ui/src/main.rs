@@ -22,7 +22,7 @@
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
-//#![windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
