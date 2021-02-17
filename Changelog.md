@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
+
 ## [Unreleased]
 ### Added
 - Implemented `To Json` command on the CLI, to convert the schemas to Json.
@@ -19,6 +21,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented `Restart` button on update dialog.
 - New  `rpfm.exe` executable to launch RPFM UI with self-restarting capabilities.
 - Added changelog link to the "RPFM updated successfully" dialog.
+- Implemented `Import` command to quickly import everything from a MyMod's Assets folder into a MyMod ([@chadvandy](https://github.com/chadvandy)).
+- Implemented `Export` command to quickly export everything from a MyMod into its Asset Folder ([@chadvandy](https://github.com/chadvandy)).
+- Implemented `Files to Ignore on Import` PackFile Setting to blacklist files from autoimporting when using the new `Import` MyMod command ([@chadvandy](https://github.com/chadvandy)).
+- Implemented diagnostic description tooltip when hovering the mouse over them, to know what each diagnostic means, and how to fix it.
+- Implemented an `Apply Settings` button on the PackFile Settings view, to instantly apply those settings without having to save the PackFile.
 
 ### Changed
 - Removed automatic diagnostics checks (were causing too many issues to be maintainable).
@@ -39,6 +46,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - UpdateXXXX folders are now deleted after an update.
 - Added icon to the cli tool.
 - Improved diagnostics' blacklisting logic to allow blacklisting of entire folders, and of particular columns.
+- Reworked `Install/Uninstall` commands to work with any PackFile, not only MyMods, and moved both commands to the `PackFile` menu ([@chadvandy](https://github.com/chadvandy)).
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -58,6 +66,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed `Access is Denied` issue when clearing the schemas folder.
 - Fixed an issue that caused RPFM to fail to clean up the schemas folder when trying to update the schemas.
 - Fixed a bug that caused the TabBar Context Menu to popup when it shouldn't.
+- Fixed a bug that caused `rpfm_macros` to fail to compile in certain systems.
+- Fixed a crash when using `Import from Assembly Kit` button in the decoder with Warhammer 2.
+- Fixed a bug that caused RPFM to take a few more seconds than it should to start.
+- Fixed a bug that caused table filters to not work on checkbox columns.
+- Fixed a bug that caused Smart Delete to delete the wrong rows when using a filter.
 
 ## [2.3.4] - 2020-11-22
 ### Added
