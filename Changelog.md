@@ -71,6 +71,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a bug that caused RPFM to take a few more seconds than it should to start.
 - Fixed a bug that caused table filters to not work on checkbox columns.
 - Fixed a bug that caused Smart Delete to delete the wrong rows when using a filter.
+- Fixed broken links in changelog.
 
 ## [2.3.4] - 2020-11-22
 ### Added
@@ -221,6 +222,13 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.1.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.3.4...HEAD
+[2.3.4]: https://github.com/Frodo45127/rpfm/compare/v2.3.3...v2.3.4
+[2.3.3]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.3
+[2.3.2]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.2
+[2.3.1]: https://github.com/Frodo45127/rpfm/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/Frodo45127/rpfm/compare/v2.2.1...v2.3.0
+[2.2.1]: https://github.com/Frodo45127/rpfm/compare/v2.2.0...v2.2.1
+[2.2.0]: https://github.com/Frodo45127/rpfm/compare/v2.1.5...v2.2.0
 [2.1.5]: https://github.com/Frodo45127/rpfm/compare/v2.1.4...v2.1.5
 [2.1.4]: https://github.com/Frodo45127/rpfm/compare/v2.1.3...v2.1.4
