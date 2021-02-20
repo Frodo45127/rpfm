@@ -1393,7 +1393,7 @@ impl TableView {
 
             // Filter out unchanged/empty cells.
             let real_edits = edits.into_iter()
-                .filter(|(old, new, _)| !new.text().is_empty() && old.text() != new.text())
+                .filter(|(old, new, _)| !new.text().is_empty() && old.text().to_std_string() != new.text().to_std_string())
                 .map(|(old, new, index)| (old.text().to_std_string(), new.text().to_std_string(), index.row(), index.column()))
                 .collect::<Vec<(String, String, i32, i32)>>();
             if real_edits.is_empty() { None } else { Some(real_edits) }
