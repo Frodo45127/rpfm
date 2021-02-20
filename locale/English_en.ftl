@@ -580,6 +580,7 @@ context_menu_reset_selection = Reset &Selection
 context_menu_resize_columns = Resize Columns
 context_menu_undo = &Undo
 context_menu_redo = &Redo
+context_menu_cascade_edition = Rename References
 
 header_column = <b><i>Column Name</i></b>
 header_hidden = <b><i>Hidden</i></b>
@@ -821,3 +822,4 @@ invalid_dependency_pack_file_name_explanation = One of the PackFile Names in the
     - A PackFile name containing an space.
 
 pfs_button_apply = Apply Settings
+cascade_edition_dialog = Rename References

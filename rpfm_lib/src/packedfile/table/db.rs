@@ -26,6 +26,7 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
+use rpfm_macros::*;
 
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::{decoder::Decoder, encoder::Encoder};
@@ -34,6 +35,7 @@ use crate::GAME_SELECTED;
 use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::Dependencies;
+use crate::packedfile::PackedFileType;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
@@ -67,6 +69,25 @@ pub struct DB {
 
     /// The table's data, containing all the stuff needed to decode/encode it.
     table: Table,
+}
+
+/// This holds all the data needed to trigger cascade editions.
+///
+/// We use a struct because Cascade Editions need a lot of different data, and it's a mess to deal with all of it independenlty.
+#[derive(Clone, Debug, Default, GetRef, GetRefMut, Set)]
+pub struct CascadeEdition {
+
+    /// Name of the edited table.
+    edited_table_name: String,
+
+    /// Definition of the edited table.
+    edited_table_definition: Definition,
+
+    /// Which columns of which tables point to the column used as key.
+    referenced_tables: BTreeMap<u32, (BTreeMap<String, Vec<String>>, bool)>,
+
+    /// Change we have to do, with the column as key.
+    data_changes: BTreeMap<u32, Vec<(String, String)>>,
 }
 
 //---------------------------------------------------------------------------//
@@ -622,6 +643,122 @@ impl DB {
         }
 
         false
+    }
+
+    /// This mess of a function performs a recursive/cascade editing over the related files on a PackFile.
+    ///
+    /// It edits:
+    /// - References to the cell we're editing (recursive).
+    /// - Loc references to the table we're editing.
+    ///
+    /// It returns the list of edited paths.
+    pub fn cascade_edition(editions: &CascadeEdition, pack_file: &mut PackFile) -> Vec<Vec<String>> {
+        let mut edited_paths = vec![];
+
+        for (column, data_changes) in editions.get_ref_data_changes() {
+
+            // This little boy is the one that contains the list of precalculated tables to edit.
+            // Get the ones for the column we're currently editing, then get all the tables we need to edit.
+            if let Some((ref_table_data, _)) = editions.get_ref_referenced_tables().get(column) {
+                for (ref_table_name, ref_column_names) in ref_table_data {
+                    for packed_file in pack_file.get_ref_mut_packed_files_by_path_start(&["db".to_owned(), ref_table_name.to_string()]) {
+                        let path = packed_file.get_path().to_vec();
+                        if let DecodedPackedFile::DB(table) = packed_file.get_ref_mut_decoded() {
+                            let mut table_data = table.get_table_data();
+
+                            // Find the column to edit within the table.
+                            for ref_column_name in ref_column_names {
+                                if let Some(column) = table.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column_name) {
+
+                                    // Then, only if the data has changed, go through all the rows and perform the edits.
+                                    for (old_data, new_data) in data_changes {
+                                        if old_data != new_data {
+                                            for row in &mut table_data {
+                                                if let Some(field_data) = row.get_mut(column) {
+                                                    match field_data {
+                                                        DecodedData::StringU8(field_data) |
+                                                        DecodedData::StringU16(field_data) |
+                                                        DecodedData::OptionalStringU8(field_data) |
+                                                        DecodedData::OptionalStringU16(field_data) => {
+
+                                                            // Only edit exact matches.
+                                                            if field_data == old_data {
+                                                                *field_data = new_data.to_owned();
+
+                                                                if !edited_paths.contains(&path) {
+                                                                    edited_paths.push(path.to_vec());
+                                                                }
+                                                            }
+                                                        }
+                                                        _ => continue
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Set the table's data. Let's hope nothing wrong happened.
+                            let _ = table.set_table_data(&table_data);
+                        }
+                    }
+                }
+            }
+
+            // Now, with locs. First, this is done only if our definition has localised fields and we edited the "key" field of our table.
+            if let Some(field) = editions.get_ref_edited_table_definition().get_fields_processed().get(*column as usize) {
+                if field.get_is_key() || field.get_name().to_lowercase() == "key" {
+                    if !editions.get_ref_edited_table_definition().get_localised_fields().is_empty() {
+
+                        for packed_file in pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false) {
+                            let path = packed_file.get_path().to_vec();
+                            if let DecodedPackedFile::Loc(table) = packed_file.get_ref_mut_decoded() {
+                                let mut table_data = table.get_table_data();
+                                for row in &mut table_data {
+                                    for (old_data, new_data) in data_changes {
+
+                                        // Same as with the tables, but here the column is always 0 and the entry structure is:
+                                        // "tablenamewithout_tables"_"localisedcolumnname"_"editedkey".
+                                        for loc_field in editions.get_ref_edited_table_definition().get_localised_fields() {
+                                            let short_table_name = if editions.get_ref_edited_table_name().ends_with("_tables") {
+                                                editions.get_ref_edited_table_name().split_at(editions.get_ref_edited_table_name().len() - 7).0
+                                            } else { editions.get_ref_edited_table_name() };
+
+                                            let old_localised_key = format!("{}_{}_{}", short_table_name, loc_field.get_name(), &old_data);
+                                            let new_localised_key = format!("{}_{}_{}", short_table_name, loc_field.get_name(), &new_data);
+
+                                            if old_localised_key != new_localised_key {
+                                                match &mut row[0] {
+                                                    DecodedData::StringU8(field_data) |
+                                                    DecodedData::StringU16(field_data) |
+                                                    DecodedData::OptionalStringU8(field_data) |
+                                                    DecodedData::OptionalStringU16(field_data) => {
+                                                        if *field_data == old_localised_key {
+                                                            *field_data = new_localised_key;
+
+                                                            if !edited_paths.contains(&path) {
+                                                                edited_paths.push(path.to_vec());
+                                                            }
+                                                        }
+                                                    }
+                                                    _ => continue
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                let _ = table.set_table_data(&table_data);
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        edited_paths
     }
 
     /// This function imports a TSV file into a decoded table.

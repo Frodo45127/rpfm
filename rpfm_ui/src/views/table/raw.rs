@@ -42,9 +42,13 @@ use cpp_core::Ref;
 use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 
+use rpfm_lib::packedfile::table::db::CascadeEdition;
+use rpfm_lib::packedfile::table::Table;
+
 use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
 use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
+use crate::UI_STATE;
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -68,6 +72,7 @@ impl TableView {
             self.context_menu_copy_as_lua_table.set_enabled(true);
             self.context_menu_delete_rows.set_enabled(true);
             self.context_menu_rewrite_selection.set_enabled(true);
+            self.context_menu_cascade_edition.set_enabled(true);
         }
 
         // Otherwise, disable them.
@@ -78,6 +83,7 @@ impl TableView {
             self.context_menu_copy.set_enabled(false);
             self.context_menu_copy_as_lua_table.set_enabled(false);
             self.context_menu_delete_rows.set_enabled(false);
+            self.context_menu_cascade_edition.set_enabled(false);
         }
 
         if !self.undo_lock.load(Ordering::SeqCst) {
@@ -1250,5 +1256,147 @@ impl TableView {
         if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
             self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
+    }
+
+    /// This function triggers a cascade edition through the entire program of the selected cells.
+    pub unsafe fn cascade_edition(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+
+        // We only want to do this for tables we can identify.
+        let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return };
+
+        // Get the selected indexes.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+
+        // Ask the dialog to get the data needed for the replacing.
+        if let Some(editions) = self.cascade_edition_dialog(&indexes) {
+
+            // Trigger editions in our own table.
+            let real_cells = editions.iter()
+                .map(|(_, new_value, row, column)| (self.table_model.index_2a(*row, *column), &**new_value))
+                .collect::<Vec<(CppBox<QModelIndex>, &str)>>();
+            self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
+
+            // Initialize our cascade editions.
+            let mut cascade_editions = CascadeEdition::default();
+            cascade_editions.set_edited_table_name(edited_table_name);
+            cascade_editions.set_edited_table_definition(self.get_ref_table_definition().clone());
+
+            // Get the tables/rows that need to be edited.
+            let schema = SCHEMA.read().unwrap();
+            let edited_fields_processed = cascade_editions.get_ref_edited_table_definition().get_fields_processed();
+            editions.into_iter().for_each(|(old_data, new_data, _, column)| {
+                match cascade_editions.get_ref_mut_data_changes().get_mut(&(column as u32)) {
+                    Some(data_changed) => data_changed.push((old_data, new_data)),
+                    None => {
+                        let data_changed = vec![(old_data, new_data)];
+                        cascade_editions.get_ref_mut_data_changes().insert(column as u32, data_changed);
+
+                        if let Some(field) = edited_fields_processed.get(column as usize) {
+                            if let Some(results) = Table::get_tables_and_columns_referencing_our_own(
+                                &schema,
+                                cascade_editions.get_ref_edited_table_name(),
+                                &field.get_name(),
+                                cascade_editions.get_ref_edited_table_definition()
+                            ){
+                                cascade_editions.get_ref_mut_referenced_tables().insert(column as u32, results);
+                            }
+                        }
+                    },
+                }
+            });
+
+            // Now that we know what to edit, save all views of referencing files, so we only have to deal with them in the background.
+            UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+
+                // Check for tables.
+                if let Some(folder) = packed_file_view.get_path().get(0) {
+                    if folder.to_lowercase() == "db" {
+                        if let Some(table_name) = packed_file_view.get_path().get(1) {
+                            if cascade_editions.get_ref_referenced_tables().values().any(|x| x.0.contains_key(table_name)) {
+                                let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                            }
+                        }
+                    }
+                }
+
+                // Check for locs.
+                else if cascade_editions.get_ref_referenced_tables().values().any(|x| x.1) {
+                    if let Some(file) = packed_file_view.get_path().last() {
+                        if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
+                            let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                        }
+                    }
+                }
+            });
+
+            // Then ask the backend to do the heavy work.
+            CENTRAL_COMMAND.send_message_qt(Command::CascadeEdition(cascade_editions));
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            match response {
+                Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info) => {
+
+                    // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
+                    let edited_path_types = edited_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(edited_path_types.to_vec()));
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_path_types));
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+
+                    // Before finishing, reload all edited views.
+                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                    edited_paths.iter().for_each(|path| {
+                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                            if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                            }
+                        }
+                    });
+                }
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+    }
+
+    /// This function creates the "Cascade Edition" dialog.
+    ///
+    /// It returns the data for the editions, or `None` if the dialog is canceled or closed.
+    pub unsafe fn cascade_edition_dialog(&self, indexes: &[CppBox<QModelIndex>]) -> Option<Vec<(String, String, i32, i32)>> {
+
+        // Create and configure the dialog.
+        let dialog = QDialog::new_1a(&self.table_view_primary);
+        dialog.set_window_title(&qtr("cascade_edition_dialog"));
+        dialog.set_modal(true);
+        dialog.resize_2a(800, 50);
+
+        let main_grid = create_grid_layout(dialog.static_upcast());
+        let mut edits = vec![];
+
+        for (row, index) in indexes.iter().enumerate() {
+            let old_name_line_edit = QLineEdit::from_q_string_q_widget(&self.table_model.data_1a(index).to_string(), &dialog);
+            let new_name_line_edit = QLineEdit::from_q_string_q_widget(&self.table_model.data_1a(index).to_string(), &dialog);
+
+            old_name_line_edit.set_enabled(false);
+            main_grid.add_widget_5a(&old_name_line_edit, row as i32, 0, 1, 1);
+            main_grid.add_widget_5a(&new_name_line_edit, row as i32, 1, 1, 1);
+
+            edits.push((old_name_line_edit, new_name_line_edit, index));
+        }
+
+        let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
+        main_grid.add_widget_5a(&accept_button, 99999, 0, 1, 2);
+
+        accept_button.released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+
+            // Filter out unchanged/empty cells.
+            let real_edits = edits.into_iter()
+                .filter(|(old, new, _)| !new.text().is_empty() && old.text() != new.text())
+                .map(|(old, new, index)| (old.text().to_std_string(), new.text().to_std_string(), index.row(), index.column()))
+                .collect::<Vec<(String, String, i32, i32)>>();
+            if real_edits.is_empty() { None } else { Some(real_edits) }
+        } else { None }
     }
 }

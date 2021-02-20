@@ -49,6 +49,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_smart_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["smart_delete"])));
     ui.get_mut_ptr_context_menu_undo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["undo"])));
     ui.get_mut_ptr_context_menu_redo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["redo"])));
+    ui.get_mut_ptr_context_menu_cascade_edition().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["cascade_edition"])));
 
     // Set the shortcuts to only trigger in the Table.
     ui.get_mut_ptr_context_menu_add_rows().set_shortcut_context(ShortcutContext::WidgetShortcut);

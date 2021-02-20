@@ -28,7 +28,7 @@ use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
@@ -332,7 +332,10 @@ pub enum Command {
     GetMissingDefinitions,
 
     /// This command is used to rebuild the dependencies of a PackFile.
-    RebuildDependencies
+    RebuildDependencies,
+
+    /// This command is used to trigger a cascade edition on all referenced data.
+    CascadeEdition(CascadeEdition),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -451,6 +454,9 @@ pub enum Response {
 
     /// Response to return `Vec<Definition>`.
     VecDefinition(Vec<Definition>),
+
+    /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
+    VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),
 }
 
 #[derive(Debug)]

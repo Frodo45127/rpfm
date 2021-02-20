@@ -183,6 +183,7 @@ pub struct TableView {
     context_menu_resize_columns: QPtr<QAction>,
     context_menu_sidebar: QPtr<QAction>,
     context_menu_search: QPtr<QAction>,
+    context_menu_cascade_edition: QPtr<QAction>,
     smart_delete: QBox<QAction>,
 
     sidebar_scroll_area: QBox<QScrollArea>,
@@ -346,6 +347,8 @@ impl TableView {
 
         let context_menu_search = context_menu.add_action_q_string(&qtr("context_menu_search"));
         let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
+
+        let context_menu_cascade_edition = context_menu.add_action_q_string(&qtr("context_menu_cascade_edition"));
 
         let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
@@ -512,6 +515,7 @@ impl TableView {
             context_menu_resize_columns,
             context_menu_sidebar,
             context_menu_search,
+            context_menu_cascade_edition,
             smart_delete,
 
             search_search_line_edit,
@@ -798,6 +802,11 @@ impl TableView {
     /// This function returns a pointer to the search action.
     pub fn get_mut_ptr_context_menu_search(&self) -> &QPtr<QAction> {
         &self.context_menu_search
+    }
+
+    /// This function returns a pointer to the cascade edition action.
+    pub fn get_mut_ptr_context_menu_cascade_edition(&self) -> &QPtr<QAction> {
+        &self.context_menu_cascade_edition
     }
 
     /// This function returns a vector with the entire hide/show checkbox list.

@@ -38,7 +38,7 @@ use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
-use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags, RESERVED_NAME_NOTES};
+use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo}, PathType, PFHFlags, RESERVED_NAME_NOTES};
 use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -1024,6 +1024,13 @@ pub fn background_loop() {
             }
 
             Command::RebuildDependencies => dependencies.rebuild(pack_file_decoded.get_packfiles_list()),
+
+            Command::CascadeEdition(editions) => {
+                let edited_paths = DB::cascade_edition(&editions, &mut pack_file_decoded);
+                let edited_paths_2 = edited_paths.iter().map(|x| &**x).collect::<Vec<&[String]>>();
+                let packed_files_info = pack_file_decoded.get_ref_packed_files_by_paths(edited_paths_2).iter().map(|x| PackedFileInfo::from(*x)).collect::<Vec<PackedFileInfo>>();
+                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info));
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

@@ -77,6 +77,7 @@ pub struct TableViewSlots {
     pub resize_columns: QBox<SlotNoArgs>,
     pub sidebar: QBox<SlotOfBool>,
     pub search: QBox<SlotOfBool>,
+    pub cascade_edition: QBox<SlotNoArgs>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
     pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
@@ -476,6 +477,14 @@ impl TableViewSlots {
             }
         }));
 
+        let cascade_edition = SlotNoArgs::new(&view.table_view_primary, clone!(
+            view,
+            app_ui,
+            pack_file_contents_ui => move || {
+                view.cascade_edition(&app_ui, &pack_file_contents_ui);
+            }
+        ));
+
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
@@ -623,6 +632,7 @@ impl TableViewSlots {
             resize_columns,
             sidebar,
             search,
+            cascade_edition,
             hide_show_columns,
             hide_show_columns_all,
             freeze_columns,

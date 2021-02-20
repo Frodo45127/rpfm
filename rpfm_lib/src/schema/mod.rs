@@ -143,7 +143,7 @@ pub enum VersionedFile {
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:

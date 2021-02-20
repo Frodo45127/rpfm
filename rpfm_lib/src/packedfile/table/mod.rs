@@ -739,6 +739,72 @@ impl Table {
 
     }
 
+    /// This function returns the list of table/columns that reference the provided columns, and if there may be a loc entry that changing our column may need a change.
+    ///
+    /// This supports more than one reference level, except for locs.
+    /// TODO: Make loc editions be as deep as needed.
+    pub fn get_tables_and_columns_referencing_our_own(
+        schema_option: &Option<Schema>,
+        table_name: &str,
+        column_name: &str,
+        definition: &Definition
+    ) -> Option<(BTreeMap<String, Vec<String>>, bool)> {
+        if let Some(ref schema) = *schema_option {
+
+            // Make sure the table name is correct.
+            let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
+            let mut tables: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+            // We get all the db definitions from the schema, then iterate all of them to find what tables/columns reference our own.
+            for versioned_file in schema.get_ref_versioned_file_db_all() {
+                if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
+                    let mut columns: Vec<String> = vec![];
+                    for ref_version in ref_definition {
+                        for ref_field in ref_version.get_fields_processed() {
+                            if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
+
+                                // As this applies to all versions of a table, skip repeated fields.
+                                if ref_ref_table == short_table_name && ref_ref_field == column_name && !columns.iter().any(|x| x == ref_field.get_name()) {
+                                    columns.push(ref_field.get_name().to_owned());
+
+                                    // If we find a referencing column, get recursion working to check if there is any column referencing this one that needs to be edited.
+                                    if let Some((ref_of_ref, _)) = Self::get_tables_and_columns_referencing_our_own(schema_option, ref_table_name, ref_field.get_name(), ref_version) {
+                                        for refs in &ref_of_ref {
+                                            match tables.get_mut(refs.0) {
+                                                Some(columns) => for value in refs.1 {
+                                                    if !columns.contains(value) {
+                                                        columns.push(value.to_owned());
+                                                    }
+                                                }
+                                                None => { tables.insert(refs.0.to_owned(), refs.1.to_vec()); },
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Only add them if we actually found columns.
+                    if !columns.is_empty() {
+                        tables.insert(ref_table_name.to_owned(), columns);
+                    }
+                }
+            }
+
+            // Also, check if we have to be careful about localised fields.
+            let has_loc_fields = if let Some(field) = definition.get_fields_processed().iter().find(|x| x.get_name() == column_name) {
+                if (field.get_is_key() || field.get_name() == "key") && !definition.get_localised_fields().is_empty() {
+                    true
+                } else { false }
+            } else { false };
+
+            Some((tables, has_loc_fields))
+        } else {
+           None
+        }
+    }
+
     //----------------------------------------------------------------//
     // TSV Functions for PackedFiles.
     //----------------------------------------------------------------//
