@@ -480,18 +480,6 @@ pub fn background_loop() {
                     }
                 }
 
-                // Check if we're trying to open the rpfm_ignore file
-                else if path == ["rpfm_ignore.rpfm_reserved".to_owned()] {
-                    let mut rpfm_ignore_txt = Text::new();
-                    rpfm_ignore_txt.set_text_type(TextType::Markdown);
-                    /*match pack_file_decoded.get_rpfm_ignore() {
-                        Some(rpfm_ignore) => {
-                            rpfm_ignore_txt.set_contents(rpfm_ignore);
-                            CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt));
-                        }
-                        None => CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt)),
-                    }*/
-                }
                 else {
 
                     // Find the PackedFile we want and send back the response.
