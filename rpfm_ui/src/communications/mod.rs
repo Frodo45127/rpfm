@@ -292,14 +292,7 @@ pub enum Command {
     ApplyTemplate(Template, Vec<(String, bool)>, Vec<(String, String)>, bool),
 
     /// This command is used to save a PackFile into a template.
-    ///
-    /// The data it contains is:
-    /// - Name of the template.
-    /// - Description.
-    /// - Author.
-    /// - Options (Visual description, key).
-    /// - Params (Visual description, key).
-    SaveTemplate(String, String, String, String, Vec<(String, String)>, Vec<(String, String, String)>, Vec<(String, String, String, String)>),
+    SaveTemplate(Template),
 
     /// This command is used to update the templates.
     UpdateTemplates,
@@ -452,8 +445,8 @@ pub enum Response {
     /// Response to return `PackFileSettings`.
     PackFileSettings(PackFileSettings),
 
-    /// Response to return `Vec<Definition>`.
-    VecDefinition(Vec<Definition>),
+    /// Response to return `Vec<(String, Definition)>`.
+    VecStringDefinition(Vec<(String, Definition)>),
 
     /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
     VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),

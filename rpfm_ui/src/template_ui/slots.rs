@@ -27,7 +27,7 @@ use super::*;
 ///
 /// This means everything you can do with the stuff you have in the `TemplateUI` goes here.
 pub struct TemplateUISlots {
-    pub toggle_required: QBox<SlotNoArgs>,
+    //pub toggle_required: QBox<SlotNoArgs>,
 }
 
 
@@ -35,12 +35,12 @@ pub struct TemplateUISlots {
 ///
 /// This means everything you can do with the stuff you have in the `SaveTemplateUI` goes here.
 pub struct SaveTemplateUISlots {
-    pub step_1_slot_add: QBox<SlotNoArgs>,
-    pub step_1_slot_remove: QBox<SlotNoArgs>,
-    pub step_2_slot_add: QBox<SlotNoArgs>,
-    pub step_2_slot_remove: QBox<SlotNoArgs>,
-    pub step_3_slot_add: QBox<SlotNoArgs>,
-    pub step_3_slot_remove: QBox<SlotNoArgs>,
+    pub sections_slot_add: QBox<SlotNoArgs>,
+    pub sections_slot_remove: QBox<SlotNoArgs>,
+    pub options_slot_add: QBox<SlotNoArgs>,
+    pub options_slot_remove: QBox<SlotNoArgs>,
+    pub params_slot_add: QBox<SlotNoArgs>,
+    pub params_slot_remove: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -52,12 +52,12 @@ impl TemplateUISlots {
 
     /// This function creates a new `TemplateUISlots`.
     pub unsafe fn new(ui: &Rc<TemplateUI>) -> Self {
-        let toggle_required = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-            ui.update_template_view();
-        }));
+        //let toggle_required = SlotNoArgs::new(&ui.dialog, clone!(
+        //    ui => move || {
+        //    ui.update_template_view();
+        //}));
         TemplateUISlots {
-            toggle_required,
+            //toggle_required,
         }
     }
 }
@@ -69,85 +69,45 @@ impl SaveTemplateUISlots {
     pub unsafe fn new(ui: &Rc<SaveTemplateUI>) -> Self {
 
         // Slots for step 1
-        let step_1_slot_add = SlotNoArgs::new(&ui.step_1_tableview, clone!(
+        let sections_slot_add = SlotNoArgs::new(&ui.sections_tableview, clone!(
             ui => move || {
-            let qlist_boi = QListOfQStandardItem::new();
-
-            let key = QStandardItem::new();
-            let value = QStandardItem::new();
-
-            qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-
-            ui.step_1_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+            SaveTemplateUI::add_empty_row(&ui.sections_model);
         }));
 
-        let step_1_slot_remove = SlotNoArgs::new(&ui.step_1_tableview, clone!(
+        let sections_slot_remove = SlotNoArgs::new(&ui.sections_tableview, clone!(
             ui => move || {
-            let indexes = ui.step_1_tableview.selection_model().selection().indexes();
-            let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            let rows_sorted = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-
-            crate::views::table::utils::delete_rows(&ui.step_1_model.static_upcast(), &rows_sorted);
+            SaveTemplateUI::remove_rows(&ui.sections_model, &ui.sections_tableview);
         }));
 
         // Slots for step 2
-        let step_2_slot_add = SlotNoArgs::new(&ui.step_2_tableview, clone!(
+        let options_slot_add = SlotNoArgs::new(&ui.options_tableview, clone!(
             ui => move || {
-            let qlist_boi = QListOfQStandardItem::new();
-
-            let key = QStandardItem::new();
-            let value = QStandardItem::new();
-            let section = QStandardItem::new();
-
-            qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
-
-            ui.step_2_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+            SaveTemplateUI::add_empty_row(&ui.options_model);
         }));
 
-        let step_2_slot_remove = SlotNoArgs::new(&ui.step_2_tableview, clone!(
+        let options_slot_remove = SlotNoArgs::new(&ui.options_tableview, clone!(
             ui => move || {
-            let indexes = ui.step_2_tableview.selection_model().selection().indexes();
-            let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            let rows_sorted = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-
-            crate::views::table::utils::delete_rows(&ui.step_2_model.static_upcast(), &rows_sorted);
+            SaveTemplateUI::remove_rows(&ui.options_model, &ui.options_tableview);
         }));
 
         // Slots for step 3
-        let step_3_slot_add = SlotNoArgs::new(&ui.step_3_tableview, clone!(
+        let params_slot_add = SlotNoArgs::new(&ui.params_tableview, clone!(
             ui => move || {
-            let qlist_boi = QListOfQStandardItem::new();
-
-            let key = QStandardItem::new();
-            let value = QStandardItem::new();
-            let section = QStandardItem::new();
-
-            qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
-
-            ui.step_3_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+            SaveTemplateUI::add_empty_row(&ui.params_model);
         }));
 
-        let step_3_slot_remove = SlotNoArgs::new(&ui.step_3_tableview, clone!(
+        let params_slot_remove = SlotNoArgs::new(&ui.params_tableview, clone!(
             ui => move || {
-            let indexes = ui.step_3_tableview.selection_model().selection().indexes();
-            let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            let rows_sorted = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-
-            crate::views::table::utils::delete_rows(&ui.step_3_model.static_upcast(), &rows_sorted);
+            SaveTemplateUI::remove_rows(&ui.params_model, &ui.params_tableview);
         }));
 
         SaveTemplateUISlots {
-            step_1_slot_add,
-            step_1_slot_remove,
-            step_2_slot_add,
-            step_2_slot_remove,
-            step_3_slot_add,
-            step_3_slot_remove
+            sections_slot_add,
+            sections_slot_remove,
+            options_slot_add,
+            options_slot_remove,
+            params_slot_add,
+            params_slot_remove
         }
     }
 }

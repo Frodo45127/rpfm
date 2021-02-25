@@ -19,9 +19,9 @@ use super::{TemplateUI, SaveTemplateUI, slots::{TemplateUISlots, SaveTemplateUIS
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections_template(ui: &TemplateUI, slots: &TemplateUISlots) {
-    ui.accept_button.released().connect(ui.dialog.slot_accept());
+    //ui.accept_button.released().connect(ui.dialog.slot_accept());
 
-    ui.options.borrow().iter().map(|(_, y)| y).for_each(|x| { x.toggled().connect(&slots.toggle_required); });
+    //ui.options.borrow().iter().map(|(_, y)| y).for_each(|x| { x.toggled().connect(&slots.toggle_required); });
 }
 
 /// This function connects all the actions from the provided `SaveTemplateUI` with their slots in `SaveTemplateUISlots`.
@@ -29,9 +29,11 @@ pub unsafe fn set_connections_template(ui: &TemplateUI, slots: &TemplateUISlots)
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections_save_template(ui: &SaveTemplateUI, slots: &SaveTemplateUISlots) {
-    ui.step_2_add_button.released().connect(&slots.step_2_slot_add);
-    ui.step_2_remove_button.released().connect(&slots.step_2_slot_remove);
-    ui.step_3_add_button.released().connect(&slots.step_3_slot_add);
-    ui.step_3_remove_button.released().connect(&slots.step_3_slot_remove);
+    ui.sections_add_button.released().connect(&slots.sections_slot_add);
+    ui.sections_remove_button.released().connect(&slots.sections_slot_remove);
+    ui.options_add_button.released().connect(&slots.options_slot_add);
+    ui.options_remove_button.released().connect(&slots.options_slot_remove);
+    ui.params_add_button.released().connect(&slots.params_slot_add);
+    ui.params_remove_button.released().connect(&slots.params_slot_remove);
 }
 

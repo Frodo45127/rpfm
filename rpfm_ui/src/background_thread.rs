@@ -882,8 +882,8 @@ pub fn background_loop() {
             }
 
             // When we want to apply a template over the open PackFile...
-            Command::SaveTemplate(name, description, author, post_message, sections, options, params) => {
-                match Template::save_from_packfile(&mut pack_file_decoded, &name, &description, &author, &post_message, &sections, &options, &params) {
+            Command::SaveTemplate(mut template) => {
+                match template.save_from_packfile(&mut pack_file_decoded) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -974,11 +974,11 @@ pub fn background_loop() {
             Command::GetDefinitionList => {
                 let tables = pack_file_decoded.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
                 let definitions = tables.iter().filter_map(|x| x.get_decoded_from_memory().ok()).filter_map(|y| match y {
-                    DecodedPackedFile::DB(table) => Some(table.get_definition()),
-                    DecodedPackedFile::Loc(table) => Some(table.get_definition()),
+                    DecodedPackedFile::DB(table) => Some((table.get_table_name(), table.get_definition())),
+                    DecodedPackedFile::Loc(table) => Some(("loc".to_string(), table.get_definition())),
                     _ => None,
-                }).collect::<Vec<Definition>>();
-                CENTRAL_COMMAND.send_message_rust(Response::VecDefinition(definitions));
+                }).collect::<Vec<(String, Definition)>>();
+                CENTRAL_COMMAND.send_message_rust(Response::VecStringDefinition(definitions));
             }
 
             Command::GetMissingDefinitions => {

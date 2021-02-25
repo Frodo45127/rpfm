@@ -1960,13 +1960,14 @@ impl AppUI {
     ) -> Result<Option<String>> {
 
         // Launch the dialog and wait for the answer.
-        if let Some((name, description, author, post_message, sections, options, params)) = SaveTemplateUI::load(app_ui) {
+        if let Some(template) = SaveTemplateUI::load(app_ui) {
 
             // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
             AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
             // Create the PackFile.
-            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description, author, post_message, sections, options, params));
+            let name = template.get_ref_name().to_owned();
+            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(template));
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => Ok(Some(name)),

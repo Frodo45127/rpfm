@@ -61,38 +61,37 @@ mod template_loc;
 pub struct Template {
 
     /// It stores the structural version of the Table.
-    version: u16,
+    pub version: u16,
 
     /// Author of the PackFile.
     pub author: String,
 
     /// Name of the template (his filename.json).
-    name: String,
+    pub name: String,
 
     /// Description of what this template does.
     pub description: String,
 
     /// This message is shown in the UI after the template has been applied.
-    post_message: String,
+    pub post_message: String,
 
     /// Sections this template has.
-    sections: Vec<TemplateSection>,
+    pub sections: Vec<TemplateSection>,
 
     /// List of options this PackFile can have.
-    options: Vec<TemplateOption>,
+    pub options: Vec<TemplateOption>,
 
     /// List of params this template requires the user to fill.
-    params: Vec<TemplateParam>,
-
+    pub params: Vec<TemplateParam>,
 
     /// The list of DB tables that should be created using this template.
-    dbs: Vec<TemplateDB>,
+    pub dbs: Vec<TemplateDB>,
 
     /// The list of Loc tables that should be created using this template.
-    locs: Vec<TemplateLoc>,
+    pub locs: Vec<TemplateLoc>,
 
     /// The list of binary assets that should be added to the PackFile using this template.
-    assets: Vec<Asset>,
+    pub assets: Vec<Asset>,
 }
 
 /// This struct is a common field for table templates. It's here so it can be shared between table types.
@@ -166,6 +165,15 @@ pub struct TemplateParam {
 /// Types of params the templates can use.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum ParamType {
+
+    /// Generic checkbox type, for bool fields.
+    Checkbox,
+
+    /// Generic integer type.
+    Integer,
+
+    /// Generic decimal type.
+    Float,
 
     /// Basic text type. This is used for strings that need no validation.
     Text,
@@ -283,43 +291,9 @@ impl Template {
 
     /// Function to generate a Template from the currently open PackedFile.
     pub fn save_from_packfile(
+        &mut self,
         pack_file: &mut PackFile,
-        template_name: &str,
-        template_author: &str,
-        template_description: &str,
-        template_post_message: &str,
-        sections: &[(String, String)],
-        options: &[(String, String, String)],
-        params: &[(String, String, String, String)]
     ) -> Result<()> {
-
-        let sections = sections.iter().map(|(key, name)| {
-            TemplateSection {
-                required_options: vec![],
-                key: key.to_owned(),
-                name: name.to_owned(),
-                section: String::new(),
-            }
-        }).collect::<Vec<TemplateSection>>();
-
-        let options = options.iter().map(|(key, name, section)| {
-            TemplateOption {
-                required_options: vec![],
-                key: key.to_owned(),
-                name: name.to_owned(),
-                section: section.to_owned(),
-            }
-        }).collect::<Vec<TemplateOption>>();
-
-        let params = params.iter().map(|(key, name, section, param_type)| {
-            TemplateParam {
-                required_options: vec![],
-                key: key.to_owned(),
-                name: name.to_owned(),
-                section: section.to_owned(),
-                param_type: serde_json::from_str(param_type).unwrap_or(ParamType::Text),
-            }
-        }).collect::<Vec<TemplateParam>>();
 
         // If we have no PackedFiles, return an error.
         if pack_file.get_packedfiles_list().is_empty() {
@@ -328,11 +302,11 @@ impl Template {
 
         // DB Importing.
         let tables = pack_file.get_packed_files_by_type(PackedFileType::DB, false);
-        let dbs = tables.iter().map(|table| TemplateDB::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateDB>>();
+        self.dbs = tables.iter().map(|table| TemplateDB::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateDB>>();
 
         // Loc Importing.
         let tables = pack_file.get_packed_files_by_type(PackedFileType::Loc, false);
-        let locs = tables.iter().map(|table| TemplateLoc::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateLoc>>();
+        self.locs = tables.iter().map(|table| TemplateLoc::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateLoc>>();
 
         // Raw Assets Importing.
         let raw_types = vec![
@@ -353,33 +327,17 @@ impl Template {
             PackedFileType::Text(TextType::Plain)
         ];
 
-        let assets_path = get_custom_template_assets_path()?.join(template_name);
+        let assets_path = get_custom_template_assets_path()?.join(&self.name);
         DirBuilder::new().recursive(true).create(&assets_path)?;
 
         let assets_packed_files = pack_file.get_ref_packed_files_by_types(&raw_types, false);
         let assets_path_types = assets_packed_files.iter().map(|x| PathType::File(x.get_path().to_vec())).collect::<Vec<PathType>>();
-        let assets = assets_packed_files.iter().map(|x| Asset::new_from_packedfile(x)).collect::<Vec<Asset>>();
-        if !assets.is_empty() {
+        self.assets = assets_packed_files.iter().map(|x| Asset::new_from_packedfile(x)).collect::<Vec<Asset>>();
+        if !self.assets.is_empty() {
             pack_file.extract_packed_files_by_type(&assets_path_types, &assets_path)?;
         }
 
-        let mut template = Self {
-            version: 0,
-            author: template_author.to_owned(),
-            name: template_name.to_owned(),
-            description: template_description.to_owned(),
-            post_message: template_post_message.to_owned(),
-
-            sections: sections.to_vec(),
-            options: options.to_vec(),
-            params: params.to_vec(),
-
-            dbs,
-            locs,
-            assets,
-        };
-
-        template.save(template_name)
+        self.save()
     }
 
     /// This function returns the list of sections available for the provided Template.
@@ -413,13 +371,13 @@ impl Template {
     }
 
     /// This function saves a `Template` from memory to a file in the `template/` folder.
-    pub fn save(&mut self, template: &str) -> Result<()> {
+    pub fn save(&mut self) -> Result<()> {
         let mut file_path = get_custom_template_definitions_path()?;
 
         // Make sure the path exists to avoid problems with updating templates.
         DirBuilder::new().recursive(true).create(&file_path)?;
 
-        file_path.push(format!("{}.json", template));
+        file_path.push(format!("{}.json", self.name));
         let mut file = File::create(&file_path)?;
         file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
@@ -573,6 +531,11 @@ impl Template {
             Err(ErrorKind::TemplateUpdateError.into())
         }
     }
+
+    /// This function returns the name of the template.
+    pub fn get_ref_name(&self) -> &str {
+        &self.name
+    }
 }
 
 /// Implementation of TemplateField.
@@ -608,7 +571,28 @@ impl TemplateField {
     }
 }
 
+impl TemplateSection {
+
+    pub fn new_from_key_name_required_options(key: &str, name: &str, required_options: &[String]) -> Self {
+        Self {
+            required_options: required_options.to_vec(),
+            key: key.to_owned(),
+            name: name.to_owned(),
+            section: String::new(),
+        }
+    }
+}
+
 impl TemplateOption {
+
+    pub fn new_from_key_name_section(key: &str, name: &str, section: &str) -> Self {
+        Self {
+            required_options: vec![],
+            key: key.to_owned(),
+            name: name.to_owned(),
+            section: section.to_owned(),
+        }
+    }
 
     /// This function is used to check if we have all the options required to use this field in the template.
     pub fn has_required_options(&self, options: &[String]) -> bool {
@@ -617,6 +601,16 @@ impl TemplateOption {
 }
 
 impl TemplateParam {
+
+    pub fn new_from_key_name_section_param_type(key: &str, name: &str, section: &str, param_type: &str) -> Self {
+        Self {
+            required_options: vec![],
+            key: key.to_owned(),
+            name: name.to_owned(),
+            section: section.to_owned(),
+            param_type: serde_json::from_str(param_type).unwrap_or(ParamType::Text),
+        }
+    }
 
     /// This function is used to check if we have all the options required to use this field in the template.
     pub fn has_required_options(&self, options: &[String]) -> bool {
