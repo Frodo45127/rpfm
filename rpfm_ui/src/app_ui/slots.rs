@@ -836,8 +836,6 @@ impl AppUISlots {
                                 .collect::<Vec<PathBuf>>()
                         });
 
-                        dbg!(&files_to_ignore);
-
                         PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
 
                     }

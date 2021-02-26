@@ -36,7 +36,7 @@ use crate::packfile::{PathType, PackFile, packedfile::PackedFile};
 use crate::packedfile::PackedFileType;
 use crate::packedfile::text::TextType;
 use crate::SCHEMA;
-use crate::schema::{APIResponseSchema, Definition, Field};
+use crate::schema::{APIResponseSchema, Field};
 use self::{asset::Asset, template_db::TemplateDB, template_loc::TemplateLoc};
 
 pub const TEMPLATE_FOLDER: &str = "templates";
@@ -120,9 +120,6 @@ pub struct TemplateSection {
 
     /// Visual name of the section.
     name: String,
-
-    /// Section under which this section should be put.
-    section: String,
 }
 
 /// This struct contains the data of an option to be chosen in a template.
@@ -159,7 +156,10 @@ pub struct TemplateParam {
     section: String,
 
     /// Type of the param, so the UI uses one type of input or another.
-    param_type: ParamType
+    param_type: ParamType,
+
+    /// If this field is required to be able to finish the template.
+    is_required: bool
 }
 
 /// Types of params the templates can use.
@@ -178,11 +178,11 @@ pub enum ParamType {
     /// Basic text type. This is used for strings that need no validation.
     Text,
 
-    /// Field type. This is used for params that directly translate into a field in a table, so it can use their validations.
-    TableField(Field),
+    /// Field type. This is used for params that directly translate into a field in a table, so it can use their validations. It contains it's table name, and the field definition.
+    TableField((String, Field)),
 
-    /// Full table type: This is used for params that admit multiple entries, like tables where you add multiple effects to a spell.
-    Table(Definition),
+    // Full table type: This is used for params that admit multiple entries, like tables where you add multiple effects to a spell.
+    //Table(Definition),
 }
 
 impl Default for ParamType {
@@ -578,8 +578,12 @@ impl TemplateSection {
             required_options: required_options.to_vec(),
             key: key.to_owned(),
             name: name.to_owned(),
-            section: String::new(),
         }
+    }
+
+    /// This function is used to check if we have all the options required to use this section in the template.
+    pub fn has_required_options(&self, options: &[String]) -> bool {
+        self.required_options.is_empty() || self.required_options.iter().all(|x| options.contains(x))
     }
 }
 
@@ -602,13 +606,14 @@ impl TemplateOption {
 
 impl TemplateParam {
 
-    pub fn new_from_key_name_section_param_type(key: &str, name: &str, section: &str, param_type: &str) -> Self {
+    pub fn new_from_key_name_section_param_type_check_state(key: &str, name: &str, section: &str, param_type: &str, is_required: bool) -> Self {
         Self {
             required_options: vec![],
             key: key.to_owned(),
             name: name.to_owned(),
             section: section.to_owned(),
             param_type: serde_json::from_str(param_type).unwrap_or(ParamType::Text),
+            is_required
         }
     }
 

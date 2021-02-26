@@ -12,6 +12,14 @@
 Module with all the code to connect all the template actions.
 !*/
 
+use qt_widgets::QCheckBox;
+use qt_widgets::QDoubleSpinBox;
+use qt_widgets::QLineEdit;
+use qt_widgets::QComboBox;
+use qt_widgets::QSpinBox;
+
+use rpfm_lib::template::ParamType;
+
 use super::{TemplateUI, SaveTemplateUI, slots::{TemplateUISlots, SaveTemplateUISlots}};
 
 /// This function connects all the actions from the provided `SaveTemplateUI` with their slots in `SaveTemplateUISlots`.
@@ -19,9 +27,28 @@ use super::{TemplateUI, SaveTemplateUI, slots::{TemplateUISlots, SaveTemplateUIS
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections_template(ui: &TemplateUI, slots: &TemplateUISlots) {
-    //ui.accept_button.released().connect(ui.dialog.slot_accept());
+    ui.params.borrow().iter().filter_map(|(_, widget, param_type, is_required)| if *is_required { Some((widget, param_type)) } else { None }).for_each(|(widget, param_type)| {
+        match param_type {
+            ParamType::Checkbox => widget.static_downcast::<QCheckBox>().toggled().connect(&slots.update_view),
+            ParamType::Integer => widget.static_downcast::<QSpinBox>().editing_finished().connect(&slots.update_view),
+            ParamType::Float => widget.static_downcast::<QDoubleSpinBox>().editing_finished().connect(&slots.update_view),
+            ParamType::Text => widget.static_downcast::<QLineEdit>().editing_finished().connect(&slots.update_view),
 
-    //ui.options.borrow().iter().map(|(_, y)| y).for_each(|x| { x.toggled().connect(&slots.toggle_required); });
+            // For these types, first ensure what type of field do we have!!!!
+            ParamType::TableField(_) => {
+                if !widget.dynamic_cast::<QComboBox>().is_null() {
+                    widget.static_downcast::<QComboBox>().current_index_changed().connect(&slots.update_view)
+                } else if !widget.dynamic_cast::<QLineEdit>().is_null() {
+                    widget.static_downcast::<QLineEdit>().editing_finished().connect(&slots.update_view)
+                } else {
+                    unimplemented!()
+                }
+            },
+            //ParamType::Table(_) => {},
+        };
+    });
+
+    ui.wazard.current_id_changed().connect(&slots.edited_required);
 }
 
 /// This function connects all the actions from the provided `SaveTemplateUI` with their slots in `SaveTemplateUISlots`.

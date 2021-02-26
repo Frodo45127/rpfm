@@ -15,6 +15,7 @@ Unlike other views, this one is triggered and destroyed in a dialog here, so the
 is not really neccesary, but it makes things easier to understand.
 !*/
 
+use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QTextEdit;
 use qt_widgets::QTableView;
 use qt_widgets::QCheckBox;
@@ -26,13 +27,14 @@ use qt_widgets::QPushButton;
 use qt_widgets::QLabel;
 use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
-use qt_widgets::QWizard;
+use qt_widgets::{QWizard, q_wizard::{WizardButton, WizardOption}};
 use qt_widgets::QWizardPage;
 
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::CheckState;
 use qt_core::QBox;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
@@ -66,7 +68,7 @@ pub struct TemplateUI {
 
     pub template: Rc<Template>,
     pub options: Rc<RefCell<Vec<(String, QPtr<QCheckBox>)>>>,
-    pub params: Rc<RefCell<Vec<(String, QPtr<QWidget>)>>>,
+    pub params: Rc<RefCell<Vec<(String, QPtr<QWidget>, ParamType, bool)>>>,
 
     pub wazard: QBox<QWizard>,
 }
@@ -106,6 +108,7 @@ impl TemplateUI {
     pub unsafe fn load(app_ui: &Rc<AppUI>, template: &Template) -> Option<(Vec<(String, bool)>, Vec<(String, String)>)> {
 
         let wazard = QWizard::new_1a(&app_ui.main_window);
+        wazard.set_option_2a(WizardOption::IndependentPages, true);
         wazard.set_window_title(&qtr("load_templates_dialog_title"));
         wazard.set_modal(true);
 
@@ -118,46 +121,24 @@ impl TemplateUI {
         });
 
         // Load the initial info page.
-        let info_page = QWizardPage::new_1a(&ui.wazard);
-        let info_section = Self::load_info_section(&ui);
-        let info_grid = create_grid_layout(info_page.static_upcast());
-        info_grid.set_contents_margins_4a(4, 0, 4, 4);
-        info_grid.set_spacing(4);
-        info_grid.add_widget_5a(&info_section, 0, 0, 1, 1);
-
-        info_page.set_title(&QString::from_std_str("By: ".to_owned() + &ui.template.author));
-        info_page.set_sub_title(&QString::from_std_str(&ui.template.description));
-
+        let info_page = Self::load_info_section(&ui);
         ui.wazard.add_page(&info_page);
 
         // Load the named sections, one per page.
         for section in ui.template.get_sections() {
-            let page = QWizardPage::new_1a(&ui.wazard);
-            let loaded_section = Self::load_section(&ui, section);
-            let main_grid = create_grid_layout(page.static_upcast());
-            main_grid.set_contents_margins_4a(4, 0, 4, 4);
-            main_grid.set_spacing(4);
-            main_grid.add_widget_5a(&loaded_section, 0, 0, 1, 1);
-
-            page.set_title(&QString::from_std_str(section.get_ref_name()));
+            let page = Self::load_section(&ui, &section);
             ui.wazard.add_page(&page);
         }
 
         // Load the sectionless items.
-        let page = QWizardPage::new_1a(&ui.wazard);
-        let empty_section = TemplateSection::default();
-        let section = Self::load_section(&ui, &empty_section);
-        let main_grid = create_grid_layout(page.static_upcast());
-        main_grid.set_contents_margins_4a(4, 0, 4, 4);
-        main_grid.set_spacing(4);
-        main_grid.add_widget_5a(&section, 0, 0, 1, 1);
+        let page = Self::load_post_section(&ui);
         ui.wazard.add_page(&page);
 
         // Slots and connections.
         let slots = slots::TemplateUISlots::new(&ui);
         connections::set_connections_template(&ui, &slots);
 
-        //ui.update_template_view();
+        ui.update_template_view();
 
         // Execute the wazard.
         if ui.wazard.exec() == 1 {
@@ -171,42 +152,59 @@ impl TemplateUI {
     /// This function loads the info section into the view.
     ///
     /// This section is usually static, so no complex stuff here.
-    unsafe fn load_info_section(ui: &Rc<Self>) -> QBox<QGroupBox> {
+    unsafe fn load_info_section(ui: &Rc<Self>) -> QBox<QWizardPage> {
 
-        let widget = QGroupBox::from_q_string(&QString::from_std_str("Template Info"));
-        let grid = create_grid_layout(widget.static_upcast());
+        let page = QWizardPage::new_1a(&ui.wazard);
+        let grid = create_grid_layout(page.static_upcast());
+        page.set_title(&QString::from_std_str("By: ".to_owned() + &ui.template.author));
 
-        let author_label = QLabel::from_q_string_q_widget(&QString::from_std_str("By: ".to_owned() + &ui.template.author), &widget);
-        let description_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&ui.template.description), &widget);
+        let description_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&ui.template.description), &page);
 
-        grid.add_widget_5a(&author_label, 0, 0, 1, 2);
         grid.add_widget_5a(&description_label, 1 , 0, 1, 2);
 
-        widget
+        page
     }
 
     /// This function loads the info section into the view.
     ///
     /// This section is usually static, so no complex stuff here.
-    unsafe fn load_section(ui: &Rc<Self>, section: &TemplateSection) -> QBox<QGroupBox> {
+    unsafe fn load_section(ui: &Rc<Self>, section: &TemplateSection) -> QBox<QWizardPage> {
 
-        let widget = QGroupBox::from_q_string(&QString::from_std_str(section.get_ref_name()));
-        let grid = create_grid_layout(widget.static_upcast());
+        let page = QWizardPage::new_1a(&ui.wazard);
+        let grid = create_grid_layout(page.static_upcast());
+        page.set_title(&QString::from_std_str(section.get_ref_name()));
 
         let mut count = 0;
         ui.template.get_options().iter().filter(|x| x.get_ref_section() == section.get_ref_key()).for_each(|z| {
-            let widget = Self::load_option_data(ui, z);
-            grid.add_widget_5a(&widget, count as i32, 0, 1, 1);
+            let field = Self::load_option_data(ui, z);
+            grid.add_widget_5a(&field, count as i32, 0, 1, 1);
             count += 1;
         });
         count += 2;
         ui.template.get_params().iter().filter(|x| x.get_ref_section() == section.get_ref_key()).for_each(|z| {
-            let widget = Self::load_field_data(ui, z);
-            grid.add_widget_5a(&widget, count as i32, 0, 1, 1);
+            let field = Self::load_field_data(ui, z);
+            grid.add_widget_5a(&field, count as i32, 0, 1, 1);
             count += 1;
         });
 
-        widget
+        page
+    }
+
+    /// This function loads the info section into the view.
+    ///
+    /// This section is usually static, so no complex stuff here.
+    unsafe fn load_post_section(ui: &Rc<Self>) -> QBox<QWizardPage> {
+
+        let page = QWizardPage::new_1a(&ui.wazard);
+        let grid = create_grid_layout(page.static_upcast());
+
+        let post_message_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&ui.template.post_message), &page);
+        let final_message_label = QLabel::from_q_string_q_widget(&qtr("template_load_final_message"), &page);
+
+        grid.add_widget_5a(&post_message_label, 0, 0, 1, 1);
+        grid.add_widget_5a(&final_message_label, 1, 0, 1, 1);
+
+        page
     }
 
     unsafe fn load_option_data(ui: &Rc<Self>, option: &TemplateOption) -> QBox<QWidget> {
@@ -229,8 +227,11 @@ impl TemplateUI {
         let widget = QWidget::new_0a();
         let grid = create_grid_layout(widget.static_upcast());
 
-        let label = QLabel::from_q_string_q_widget(&QString::from_std_str(param.get_ref_name()), &widget);
-        label.set_minimum_width(100);
+        let is_required = if *param.get_ref_is_required() { "*" } else { "" };
+        let name = param.get_ref_name().to_owned() + is_required;
+        let label = QLabel::from_q_string_q_widget(&QString::from_std_str(&name), &widget);
+        label.set_minimum_width(200);
+        label.set_maximum_width(200);
 
         match param.get_ref_param_type() {
             ParamType::Checkbox => {
@@ -238,52 +239,54 @@ impl TemplateUI {
                 field_widget.set_minimum_width(250);
                 grid.add_widget_5a(&label, 0, 0, 1, 1);
                 grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
             ParamType::Integer => {
                 let field_widget = QSpinBox::new_1a(&widget);
                 field_widget.set_minimum_width(250);
                 grid.add_widget_5a(&label, 0, 0, 1, 1);
                 grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
             ParamType::Float => {
                 let field_widget = QDoubleSpinBox::new_1a(&widget);
                 field_widget.set_minimum_width(250);
                 grid.add_widget_5a(&label, 0, 0, 1, 1);
                 grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
             ParamType::Text => {
                 let field_widget = QLineEdit::from_q_widget(&widget);
                 field_widget.set_minimum_width(250);
+                field_widget.set_maximum_width(250);
                 grid.add_widget_5a(&label, 0, 0, 1, 1);
                 grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
 
-            ParamType::TableField(field) => {
+            ParamType::TableField((table_name, field)) => {
                 let mut definition = Definition::new(-1);
                 *definition.get_ref_mut_fields() = vec![field.clone()];
-
-                let ref_data = get_reference_data("", &definition);
+                let ref_data = get_reference_data(&(table_name.to_owned() + field.get_name()), &definition);
 
                 match ref_data {
                     Ok(ref_data) => {
-                        if ref_data.is_empty() {
+                        if ref_data.is_empty() || ref_data.get(&0).unwrap().data.is_empty() {
                             let field_widget = QLineEdit::from_q_widget(&widget);
                             field_widget.set_minimum_width(250);
                             grid.add_widget_5a(&label, 0, 0, 1, 1);
                             grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
                         }
                         else {
 
                             let field_widget = QComboBox::new_1a(&widget);
+                            field_widget.set_editable(true);
                             field_widget.set_minimum_width(250);
+                            field_widget.set_maximum_width(250);
                             grid.add_widget_5a(&label, 0, 0, 1, 1);
                             grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
 
                             for ref_data in ref_data.get(&0).unwrap().data.keys() {
                                 field_widget.add_item_q_string(&QString::from_std_str(ref_data));
@@ -295,15 +298,15 @@ impl TemplateUI {
                         field_widget.set_minimum_width(250);
                         grid.add_widget_5a(&label, 0, 0, 1, 1);
                         grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                        ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
+                        ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
                     }
                 }
 
             }
 
-            ParamType::Table(_definition) => {
-                unimplemented!()
-            }
+            //ParamType::Table(_definition) => {
+            //    unimplemented!()
+            //}
         }
 
         widget
@@ -313,7 +316,7 @@ impl TemplateUI {
     pub unsafe fn get_data_from_view(&self) -> (Vec<(String, bool)>, Vec<(String, String)>) {
         let options = self.options.borrow().iter().map(|(key, widget)| (key.to_owned(), widget.is_checked())).collect();
 
-        let params = self.params.borrow().iter().map(|(key, widget)| (key.to_owned(),
+        let params = self.params.borrow().iter().map(|(key, widget, _, _)| (key.to_owned(),
             if !widget.dynamic_cast::<QComboBox>().is_null() {
                 widget.static_downcast::<QComboBox>().current_text().to_std_string()
             } else if !widget.dynamic_cast::<QLineEdit>().is_null() {
@@ -328,27 +331,75 @@ impl TemplateUI {
 
     /// This function updates the state of the UI when we enable/disable parts of the template.
     pub unsafe fn update_template_view(&self) {
-        let options_enabled = self.options.borrow().iter().filter_map(|(x, y)| if y.is_checked() { Some(x.to_owned()) } else { None }).collect::<Vec<String>>();
-        for option in self.template.get_options() {
-            if option.has_required_options(&options_enabled) {
-                if let Some(option) = self.options.borrow().iter().find(|(x, _)| x == option.get_ref_key()) {
-                    option.1.set_enabled(true);
+        let options_enabled = self.options.borrow().iter().filter_map(|(x, y)|
+            if y.is_checked() { Some(x.to_owned()) } else { None }
+        ).collect::<Vec<String>>();
+
+        // Check all sections that are enable/disabled as expected.
+        for template_section in self.template.get_sections() {
+            for template_option in self.template.get_options() {
+                if template_option.get_ref_section() == template_section.get_ref_key() {
+                    if let Some(option) = self.options.borrow().iter().find(|(x, _)| x == template_option.get_ref_key()) {
+                        if template_section.has_required_options(&options_enabled) && template_option.has_required_options(&options_enabled) {
+                            option.1.set_enabled(true);
+                        } else {
+                            option.1.set_enabled(false);
+                        }
+                    }
                 }
             }
-            else if let Some(option) = self.options.borrow().iter().find(|(x, _)| x == option.get_ref_key()) {
-                option.1.set_enabled(false);
+
+            for template_param in self.template.get_params() {
+                if template_param.get_ref_section() == template_section.get_ref_key() {
+                    if let Some((_, widget, _, _)) = self.params.borrow().iter().find(|(param_key, _, _, _)| param_key == template_param.get_ref_key()) {
+                        if template_section.has_required_options(&options_enabled) && template_param.has_required_options(&options_enabled) {
+                            widget.set_enabled(true);
+                        } else {
+                            widget.set_enabled(false);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// This function updates the state of the UI when we enable/disable parts of the template.
+    pub unsafe fn check_required_fields(&self) {
+
+        // Check all params that are enable/disabled as expected.
+        let mut are_required_params_fulfilled = true;
+        for template_param in self.template.get_params() {
+            if let Some((_, widget, param_type, is_required)) = self.params.borrow().iter().find(|(param_key, _, _, _)| param_key == template_param.get_ref_key()) {
+                if *is_required {
+
+                    match param_type {
+                        ParamType::Checkbox => continue,
+                        ParamType::Integer => { are_required_params_fulfilled &= !widget.static_downcast::<QSpinBox>().text().to_std_string().is_empty(); },
+                        ParamType::Float => { are_required_params_fulfilled &= !widget.static_downcast::<QDoubleSpinBox>().text().to_std_string().is_empty(); },
+                        ParamType::Text => { are_required_params_fulfilled &= !widget.static_downcast::<QLineEdit>().text().to_std_string().is_empty(); },
+
+                        // For these types, first ensure what type of field do we have!!!!
+                        ParamType::TableField(_) => {
+                            if !widget.dynamic_cast::<QComboBox>().is_null() {
+                               are_required_params_fulfilled &= !widget.static_downcast::<QComboBox>().current_text().to_std_string().is_empty();
+                            } else if !widget.dynamic_cast::<QLineEdit>().is_null() {
+                                are_required_params_fulfilled &= !widget.static_downcast::<QLineEdit>().text().to_std_string().is_empty();
+                            } else {
+                                unimplemented!()
+                            };
+                        },
+                        //ParamType::Table(_) => {},
+                    }
+                }
             }
         }
 
-        for param in self.template.get_params() {
-            if param.has_required_options(&options_enabled) {
-                if let Some(param) = self.params.borrow().iter().find(|(x, _)| x == param.get_ref_key()) {
-                    param.1.set_enabled(true);
-                }
-            }
-            else if let Some(param) = self.params.borrow().iter().find(|(x, _)| x == param.get_ref_key()) {
-                param.1.set_enabled(false);
-            }
+        // Check that the finish button is enabled/disabled as expected.
+        let finish_button = self.wazard.button(WizardButton::FinishButton);
+        if are_required_params_fulfilled && finish_button.is_visible() {
+            finish_button.set_enabled(true);
+        } else {
+            finish_button.set_enabled(false);
         }
     }
 }
@@ -547,6 +598,7 @@ impl SaveTemplateUI {
 
         // If there are definitions, use them to fill the sections/params views.
         if !definitions.is_empty() {
+            let mut already_added = vec![];
             for (index, (name, definition)) in definitions.iter().enumerate() {
                 let section = format!("section_{}_{}", index, name);
                 let qlist_boi = QListOfQStandardItem::new();
@@ -560,17 +612,35 @@ impl SaveTemplateUI {
                 self.sections_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
 
                 for field in definition.get_ref_fields() {
+
+                    // When adding fields that reference each other, make sure to only add one to the list!!!
+                    // NOTE: this is not accurate. We need a better way of doing this.
+                    if let Some(ref_data) = field.get_is_reference() {
+                        if already_added.contains(ref_data) {
+                            continue;
+                        }
+                    }
+
                     let qlist_boi = QListOfQStandardItem::new();
-                    let key = QStandardItem::from_q_string(&QString::from_std_str(field.get_name()));
+                    let key = QStandardItem::from_q_string(&QString::from_std_str(name.to_owned() + field.get_name()));
                     let value = QStandardItem::from_q_string(&QString::from_std_str(field.get_name()));
                     let section = QStandardItem::from_q_string(&QString::from_std_str(&section));
-                    let param_type = QStandardItem::from_q_string(&QString::from_std_str(serde_json::to_string(&ParamType::TableField(field.clone())).unwrap()));
+                    let param_type = QStandardItem::from_q_string(&QString::from_std_str(serde_json::to_string(&ParamType::TableField((name.to_owned(), field.clone()))).unwrap()));
+                    let is_required = QStandardItem::new();
+                    is_required.set_checkable(true);
+                    is_required.set_check_state(CheckState::Checked);
 
                     qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&is_required.into_ptr().as_mut_raw_ptr());
                     self.params_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+
+                    // Remove the tables in the table.
+                    if name.len() > 7 {
+                        already_added.push((name.to_owned().drain(..name.len() - 7).collect(), field.get_name().to_owned()));
+                    }
                 }
             }
         }
@@ -580,9 +650,11 @@ impl SaveTemplateUI {
             let qlist_boi = QListOfQStandardItem::new();
             let key = QStandardItem::new();
             let value = QStandardItem::new();
+            let required_options = QStandardItem::new();
 
             qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
+            qlist_boi.append_q_standard_item(&required_options.into_ptr().as_mut_raw_ptr());
             self.sections_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
 
             let qlist_boi = QListOfQStandardItem::new();
@@ -590,11 +662,14 @@ impl SaveTemplateUI {
             let value = QStandardItem::new();
             let section = QStandardItem::new();
             let param_type = QStandardItem::new();
+            let is_required = QStandardItem::new();
+            is_required.set_checkable(true);
 
             qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
+            qlist_boi.append_q_standard_item(&is_required.into_ptr().as_mut_raw_ptr());
             self.params_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
         }
 
@@ -626,10 +701,16 @@ impl SaveTemplateUI {
         let params_columm_2 = QStandardItem::from_q_string(&qtr("name"));
         let params_columm_3 = QStandardItem::from_q_string(&qtr("section"));
         let params_columm_4 = QStandardItem::from_q_string(&qtr("param_type"));
+        let params_columm_5 = QStandardItem::from_q_string(&qtr("is_required"));
         self.params_model.set_horizontal_header_item(0, params_columm_1.into_ptr());
         self.params_model.set_horizontal_header_item(1, params_columm_2.into_ptr());
         self.params_model.set_horizontal_header_item(2, params_columm_3.into_ptr());
         self.params_model.set_horizontal_header_item(3, params_columm_4.into_ptr());
+        self.params_model.set_horizontal_header_item(4, params_columm_5.into_ptr());
+
+        self.sections_tableview.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+        self.options_tableview.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+        self.params_tableview.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
     }
 
     /// This function returns the options/parameters from the view.
@@ -645,7 +726,12 @@ impl SaveTemplateUI {
         for row in 0..self.sections_model.row_count_0a() {
             let key = self.sections_model.item_2a(row, 0).text().to_std_string();
             let name = self.sections_model.item_2a(row, 1).text().to_std_string();
-            let required_options = self.sections_model.item_2a(row, 2).text().to_std_string().split(',').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+            let required_options_str = self.sections_model.item_2a(row, 2).text().to_std_string();
+            let required_options = if required_options_str.is_empty() { vec![] } else {
+                required_options_str.split(',').map(|x| x.to_owned()).collect::<Vec<String>>()
+            };
+
             if !key.is_empty() && !name.is_empty() {
                 sections.push(TemplateSection::new_from_key_name_required_options(&key, &name, &required_options));
             }
@@ -667,8 +753,9 @@ impl SaveTemplateUI {
             let name = self.params_model.item_2a(row, 1).text().to_std_string();
             let section = self.params_model.item_2a(row, 2).text().to_std_string();
             let param_type = self.params_model.item_2a(row, 3).text().to_std_string();
+            let is_required = self.params_model.item_2a(row, 4).check_state() == CheckState::Checked;
             if !key.is_empty() && !name.is_empty() {
-                params.push(TemplateParam::new_from_key_name_section_param_type(&key, &name, &section, &param_type));
+                params.push(TemplateParam::new_from_key_name_section_param_type_check_state(&key, &name, &section, &param_type, is_required));
             }
         }
 

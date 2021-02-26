@@ -833,3 +833,5 @@ invalid_dependency_pack_file_name_explanation = One of the PackFile Names in the
 
 pfs_button_apply = Apply Settings
 cascade_edition_dialog = Rename References
+template_load_final_message = And with that, the template is done. Make sure to follow the steps here in case the template needs them.
+is_required = Is Required

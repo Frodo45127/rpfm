@@ -13,6 +13,7 @@ Module with all the code related to `TemplateUISlots`.
 !*/
 
 use qt_core::QBox;
+use qt_core::SlotOfInt;
 use qt_core::SlotNoArgs;
 
 use std::rc::Rc;
@@ -27,7 +28,8 @@ use super::*;
 ///
 /// This means everything you can do with the stuff you have in the `TemplateUI` goes here.
 pub struct TemplateUISlots {
-    //pub toggle_required: QBox<SlotNoArgs>,
+    pub update_view: QBox<SlotNoArgs>,
+    pub edited_required: QBox<SlotOfInt>,
 }
 
 
@@ -52,12 +54,18 @@ impl TemplateUISlots {
 
     /// This function creates a new `TemplateUISlots`.
     pub unsafe fn new(ui: &Rc<TemplateUI>) -> Self {
-        //let toggle_required = SlotNoArgs::new(&ui.dialog, clone!(
-        //    ui => move || {
-        //    ui.update_template_view();
-        //}));
+        let edited_required = SlotOfInt::new(&ui.wazard, clone!(
+            ui => move |_| {
+            ui.check_required_fields();
+        }));
+
+        let update_view = SlotNoArgs::new(&ui.wazard, clone!(
+            ui => move || {
+            ui.update_template_view();
+        }));
         TemplateUISlots {
-            //toggle_required,
+            update_view,
+            edited_required,
         }
     }
 }
