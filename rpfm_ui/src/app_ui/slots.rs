@@ -831,9 +831,11 @@ impl AppUISlots {
                         };
 
                         let files_to_ignore = settings.settings_text.get("import_files_to_ignore").map(|files_to_ignore| {
-                            files_to_ignore.split('\n')
-                                .map(|x| assets_folder.to_path_buf().join(x))
-                                .collect::<Vec<PathBuf>>()
+                            if files_to_ignore.is_empty() { vec![] } else {
+                                files_to_ignore.split('\n')
+                                    .map(|x| assets_folder.to_path_buf().join(x))
+                                    .collect::<Vec<PathBuf>>()
+                            }
                         });
 
                         PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
