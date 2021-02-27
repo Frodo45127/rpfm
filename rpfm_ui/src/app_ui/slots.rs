@@ -220,10 +220,6 @@ impl AppUISlots {
                     let _ = AppUI::purge_them_all(&app_ui,  &pack_file_contents_ui, false);
                     GlobalSearchUI::clear(&global_search_ui);
                     diagnostics_ui.get_ref_diagnostics_table_model().clear();
-                    //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
-
-                    // Show the "Tips".
-                    //display_help_tips(&app_ui);
 
                     // New PackFiles are always of Mod type.
                     app_ui.change_packfile_type_mod.set_checked(true);
@@ -249,6 +245,9 @@ impl AppUISlots {
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     UI_STATE.set_operational_mode(&app_ui, None);
                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                    // Force a dependency rebuild.
+                    CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies);
                 }
             }
         ));
