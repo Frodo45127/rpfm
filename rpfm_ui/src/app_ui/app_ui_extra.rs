@@ -318,6 +318,9 @@ impl AppUI {
                 // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
                 else {
 
+                    // Reset the operational mode.
+                    UI_STATE.set_operational_mode(&app_ui, None);
+
                     // Depending on the Id, choose one game or another.
                     let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                     match ui_data.pfh_version {
