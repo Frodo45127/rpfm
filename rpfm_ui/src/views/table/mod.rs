@@ -1462,6 +1462,7 @@ impl FilterView {
         }
 
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_line_edit.set_clear_button_enabled(true);
         filter_case_sensitive_button.set_checkable(true);
 
         // Add everything to the grid.

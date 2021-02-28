@@ -149,6 +149,7 @@ impl PackFileContentsUI {
         let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), &packfile_contents_dock_inner_widget);
         let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), &packfile_contents_dock_inner_widget);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_line_edit.set_clear_button_enabled(true);
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
