@@ -56,7 +56,7 @@ use std::rc::Rc;
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str_as_bool;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -108,6 +108,9 @@ pub enum TableType {
     DB(DB),
     Loc(Loc),
     MatchedCombat(MatchedCombat),
+
+    /// This one is for random views that just need a table with advanced behavior.
+    NormalTable(Table),
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
@@ -266,6 +269,7 @@ impl TableView {
             TableType::MatchedCombat(ref table) => (table.get_definition(), None, None, PackedFileType::MatchedCombat),
             TableType::AnimTable(ref table) => (table.get_definition(), None, None, PackedFileType::AnimTable),
             TableType::AnimFragment(ref table) => (table.get_definition(), None, None, PackedFileType::AnimFragment),
+            TableType::NormalTable(ref table) => (table.get_definition(), None, None, PackedFileType::Unknown),
         };
 
         // Get the dependency data of this Table.

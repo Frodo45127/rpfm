@@ -84,6 +84,7 @@ impl PackedFileTableView {
             TableType::DB(_) => PackedFileType::DB,
             TableType::Loc(_) => PackedFileType::Loc,
             TableType::MatchedCombat(_) => PackedFileType::MatchedCombat,
+            TableType::NormalTable(_) => unimplemented!()
         };
 
         let table_view = TableView::new_view(

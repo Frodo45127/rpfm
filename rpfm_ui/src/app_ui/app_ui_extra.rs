@@ -694,6 +694,7 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -833,11 +834,13 @@ impl AppUI {
                 let slot_load_template = SlotOfBool::new(&template_load_action, clone!(
                     app_ui,
                     pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
                     template_name,
                     is_custom => move |_| {
                         match Template::load(&template_name, is_custom) {
                             Ok(template) => {
-                                if let Some((options, params)) = TemplateUI::load(&app_ui, &template) {
+                                if let Some((options, params)) = TemplateUI::load(&template, &app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui) {
                                     match Self::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));

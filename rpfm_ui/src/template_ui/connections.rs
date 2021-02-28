@@ -40,12 +40,22 @@ pub unsafe fn set_connections_template(ui: &TemplateUI, slots: &TemplateUISlots)
                     widget.static_downcast::<QComboBox>().current_index_changed().connect(&slots.update_view)
                 } else if !widget.dynamic_cast::<QLineEdit>().is_null() {
                     widget.static_downcast::<QLineEdit>().editing_finished().connect(&slots.update_view)
+                } else if !widget.dynamic_cast::<QCheckBox>().is_null() {
+                    widget.static_downcast::<QCheckBox>().toggled().connect(&slots.update_view)
+                } else if !widget.dynamic_cast::<QSpinBox>().is_null() {
+                    widget.static_downcast::<QSpinBox>().editing_finished().connect(&slots.update_view)
+                } else if !widget.dynamic_cast::<QDoubleSpinBox>().is_null() {
+                    widget.static_downcast::<QDoubleSpinBox>().editing_finished().connect(&slots.update_view)
                 } else {
                     unimplemented!()
                 }
             },
-            //ParamType::Table(_) => {},
+            ParamType::Table(_) => widget.static_downcast::<QLineEdit>().editing_finished().connect(&slots.update_view),
         };
+    });
+
+    ui.options.borrow().iter().for_each(|(_, widget)| {
+        widget.toggled().connect(&slots.update_view);
     });
 
     ui.wazard.current_id_changed().connect(&slots.edited_required);

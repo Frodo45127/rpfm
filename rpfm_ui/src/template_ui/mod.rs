@@ -44,16 +44,20 @@ use cpp_core::Ref;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use rpfm_lib::schema::Definition;
+use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::schema::{Definition, FieldType};
 use rpfm_lib::template::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::utils::create_grid_layout;
-use crate::views::table::utils::*;
+use crate::views::table::{TableView, TableType, utils::*};
 
 mod connections;
 mod slots;
@@ -105,7 +109,13 @@ pub struct SaveTemplateUI {
 impl TemplateUI {
 
     /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
-    pub unsafe fn load(app_ui: &Rc<AppUI>, template: &Template) -> Option<(Vec<(String, bool)>, Vec<(String, String)>)> {
+    pub unsafe fn load(
+        template: &Template,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) -> Option<(Vec<(String, bool)>, Vec<(String, String)>)> {
 
         let wazard = QWizard::new_1a(&app_ui.main_window);
         wazard.set_option_2a(WizardOption::IndependentPages, true);
@@ -126,7 +136,7 @@ impl TemplateUI {
 
         // Load the named sections, one per page.
         for section in ui.template.get_sections() {
-            let page = Self::load_section(&ui, &section);
+            let page = Self::load_section(&ui, &section, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
             ui.wazard.add_page(&page);
         }
 
@@ -160,7 +170,7 @@ impl TemplateUI {
 
         let description_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&ui.template.description), &page);
 
-        grid.add_widget_5a(&description_label, 1 , 0, 1, 2);
+        grid.add_widget_5a(&description_label, 0, 0, 1, 2);
 
         page
     }
@@ -168,22 +178,32 @@ impl TemplateUI {
     /// This function loads the info section into the view.
     ///
     /// This section is usually static, so no complex stuff here.
-    unsafe fn load_section(ui: &Rc<Self>, section: &TemplateSection) -> QBox<QWizardPage> {
+    unsafe fn load_section(ui: &Rc<Self>, section: &TemplateSection,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) -> QBox<QWizardPage> {
 
         let page = QWizardPage::new_1a(&ui.wazard);
         let grid = create_grid_layout(page.static_upcast());
         page.set_title(&QString::from_std_str(section.get_ref_name()));
 
-        let mut count = 0;
+        let description_label = QLabel::from_q_string_q_widget(&QString::from_std_str(section.get_ref_description()), &page);
+        grid.add_widget_5a(&description_label, 0, 0, 1, 2);
+
+        let column = 0;
+        let mut count = 1;
         ui.template.get_options().iter().filter(|x| x.get_ref_section() == section.get_ref_key()).for_each(|z| {
             let field = Self::load_option_data(ui, z);
-            grid.add_widget_5a(&field, count as i32, 0, 1, 1);
+            grid.add_widget_5a(&field, count as i32, column, 1, 1);
             count += 1;
         });
+
         count += 2;
         ui.template.get_params().iter().filter(|x| x.get_ref_section() == section.get_ref_key()).for_each(|z| {
-            let field = Self::load_field_data(ui, z);
-            grid.add_widget_5a(&field, count as i32, 0, 1, 1);
+            let field = Self::load_field_data(ui, z, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
+            grid.add_widget_5a(&field, count as i32, column, 1, 1);
             count += 1;
         });
 
@@ -223,7 +243,14 @@ impl TemplateUI {
         widget
     }
 
-    unsafe fn load_field_data(ui: &Rc<Self>, param: &TemplateParam) -> QBox<QWidget> {
+    unsafe fn load_field_data(ui: &Rc<Self>,
+        param: &TemplateParam,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) -> QBox<QWidget> {
+
         let widget = QWidget::new_0a();
         let grid = create_grid_layout(widget.static_upcast());
 
@@ -267,46 +294,134 @@ impl TemplateUI {
             ParamType::TableField((table_name, field)) => {
                 let mut definition = Definition::new(-1);
                 *definition.get_ref_mut_fields() = vec![field.clone()];
-                let ref_data = get_reference_data(&(table_name.to_owned() + field.get_name()), &definition);
 
-                match ref_data {
-                    Ok(ref_data) => {
-                        if ref_data.is_empty() || ref_data.get(&0).unwrap().data.is_empty() {
-                            let field_widget = QLineEdit::from_q_widget(&widget);
-                            field_widget.set_minimum_width(250);
-                            grid.add_widget_5a(&label, 0, 0, 1, 1);
-                            grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+                match field.get_field_type() {
+
+                    FieldType::Boolean => {
+                        let field_widget = QCheckBox::from_q_widget(&widget);
+
+                        let check_state = if let Some(default_value) = field.get_default_value() {
+                            default_value.to_lowercase() == "true"
+                        } else { false };
+
+                        if check_state {
+                            field_widget.set_check_state(CheckState::Checked);
+                        } else {
+                            field_widget.set_check_state(CheckState::Unchecked);
                         }
-                        else {
 
-                            let field_widget = QComboBox::new_1a(&widget);
-                            field_widget.set_editable(true);
-                            field_widget.set_minimum_width(250);
-                            field_widget.set_maximum_width(250);
-                            grid.add_widget_5a(&label, 0, 0, 1, 1);
-                            grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
-                            ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
-
-                            for ref_data in ref_data.get(&0).unwrap().data.keys() {
-                                field_widget.add_item_q_string(&QString::from_std_str(ref_data));
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        let field_widget = QLineEdit::from_q_widget(&widget);
                         field_widget.set_minimum_width(250);
                         grid.add_widget_5a(&label, 0, 0, 1, 1);
                         grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
                         ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
                     }
-                }
+                    FieldType::I16 |
+                    FieldType::I32 |
+                    FieldType::I64 => {
+                        let field_widget = QSpinBox::new_1a(&widget);
 
+                        let data = if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                default_value
+                            } else {
+                                0i32
+                            }
+                        } else {
+                            0i32
+                        };
+                        field_widget.set_value(data);
+
+                        field_widget.set_minimum_width(250);
+                        grid.add_widget_5a(&label, 0, 0, 1, 1);
+                        grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
+                        ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+                    }
+                    FieldType::F32 => {
+                        let field_widget = QDoubleSpinBox::new_1a(&widget);
+
+                        let data = if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<f32>() {
+                                default_value
+                            } else {
+                                0.0f32
+                            }
+                        } else {
+                            0.0f32
+                        };
+
+                        field_widget.set_value(data.into());
+
+                        field_widget.set_minimum_width(250);
+                        grid.add_widget_5a(&label, 0, 0, 1, 1);
+                        grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
+                        ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+                    }
+
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+                        let ref_data = get_reference_data(&(table_name.to_owned() + field.get_name()), &definition);
+                        match ref_data {
+                            Ok(ref_data) => {
+                                if ref_data.is_empty() || ref_data.get(&0).unwrap().data.is_empty() {
+                                    let field_widget = QLineEdit::from_q_widget(&widget);
+
+                                    let text = if let Some(default_value) = field.get_default_value() {
+                                        default_value.to_owned()
+                                    } else {
+                                        String::new()
+                                    };
+                                    field_widget.set_text(&QString::from_std_str(&text));
+                                    field_widget.set_minimum_width(250);
+                                    grid.add_widget_5a(&label, 0, 0, 1, 1);
+                                    grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
+                                    ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+                                }
+                                else {
+
+                                    let field_widget = QComboBox::new_1a(&widget);
+                                    field_widget.set_editable(true);
+                                    field_widget.set_minimum_width(250);
+                                    field_widget.set_maximum_width(250);
+                                    grid.add_widget_5a(&label, 0, 0, 1, 1);
+                                    grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
+                                    ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+
+                                    for ref_data in ref_data.get(&0).unwrap().data.keys() {
+                                        field_widget.add_item_q_string(&QString::from_std_str(ref_data));
+                                    }
+                                }
+                            }
+                            Err(_) => {
+                                let field_widget = QLineEdit::from_q_widget(&widget);
+
+                                let text = if let Some(default_value) = field.get_default_value() {
+                                    default_value.to_owned()
+                                } else {
+                                    String::new()
+                                };
+                                field_widget.set_text(&QString::from_std_str(&text));
+
+                                field_widget.set_minimum_width(250);
+                                grid.add_widget_5a(&label, 0, 0, 1, 1);
+                                grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
+                                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+                            }
+                        }
+                    }
+
+                    FieldType::SequenceU16(_) |
+                    FieldType::SequenceU32(_) => unimplemented!()
+                }
             }
 
-            //ParamType::Table(_definition) => {
-            //    unimplemented!()
-            //}
+            // These are semi-full tables, without cells referencing params.
+            ParamType::Table(definition) => {
+                let table_data = TableType::NormalTable(Table::new(definition));
+                let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
+                ui.params.borrow_mut().push((param.get_ref_key().to_owned(), table_view.get_mut_ptr_table_view_primary().static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
+            }
         }
 
         widget
@@ -384,11 +499,19 @@ impl TemplateUI {
                                are_required_params_fulfilled &= !widget.static_downcast::<QComboBox>().current_text().to_std_string().is_empty();
                             } else if !widget.dynamic_cast::<QLineEdit>().is_null() {
                                 are_required_params_fulfilled &= !widget.static_downcast::<QLineEdit>().text().to_std_string().is_empty();
+                            } else if !widget.dynamic_cast::<QCheckBox>().is_null() {
+                                are_required_params_fulfilled &= !widget.static_downcast::<QCheckBox>().is_checked();
+                            }
+
+                            // The rest of the types cannot be required, so we skip them.
+                            else if !widget.dynamic_cast::<QSpinBox>().is_null() {
+                            } else if !widget.dynamic_cast::<QDoubleSpinBox>().is_null() {
+                            } else if !widget.dynamic_cast::<QTableView>().is_null() {
                             } else {
                                 unimplemented!()
                             };
                         },
-                        //ParamType::Table(_) => {},
+                        ParamType::Table(_) => {},
                     }
                 }
             }
@@ -605,10 +728,12 @@ impl SaveTemplateUI {
                 let key = QStandardItem::from_q_string(&QString::from_std_str(&section));
                 let value = QStandardItem::from_q_string(&QString::from_std_str(&name));
                 let required_options = QStandardItem::new();
+                let description = QStandardItem::new();
 
                 qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
                 qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
                 qlist_boi.append_q_standard_item(&required_options.into_ptr().as_mut_raw_ptr());
+                qlist_boi.append_q_standard_item(&description.into_ptr().as_mut_raw_ptr());
                 self.sections_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
 
                 for field in definition.get_ref_fields() {
@@ -633,8 +758,8 @@ impl SaveTemplateUI {
                     qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
                     qlist_boi.append_q_standard_item(&is_required.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
                     self.params_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
 
                     // Remove the tables in the table.
@@ -651,10 +776,12 @@ impl SaveTemplateUI {
             let key = QStandardItem::new();
             let value = QStandardItem::new();
             let required_options = QStandardItem::new();
+            let description = QStandardItem::new();
 
             qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&required_options.into_ptr().as_mut_raw_ptr());
+            qlist_boi.append_q_standard_item(&description.into_ptr().as_mut_raw_ptr());
             self.sections_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
 
             let qlist_boi = QListOfQStandardItem::new();
@@ -668,8 +795,8 @@ impl SaveTemplateUI {
             qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&section.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
             qlist_boi.append_q_standard_item(&is_required.into_ptr().as_mut_raw_ptr());
+            qlist_boi.append_q_standard_item(&param_type.into_ptr().as_mut_raw_ptr());
             self.params_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
         }
 
@@ -686,9 +813,11 @@ impl SaveTemplateUI {
         let sections_columm_1 = QStandardItem::from_q_string(&qtr("key"));
         let sections_columm_2 = QStandardItem::from_q_string(&qtr("name"));
         let sections_columm_3 = QStandardItem::from_q_string(&qtr("required_options"));
+        let sections_columm_4 = QStandardItem::from_q_string(&qtr("description"));
         self.sections_model.set_horizontal_header_item(0, sections_columm_1.into_ptr());
         self.sections_model.set_horizontal_header_item(1, sections_columm_2.into_ptr());
         self.sections_model.set_horizontal_header_item(2, sections_columm_3.into_ptr());
+        self.sections_model.set_horizontal_header_item(2, sections_columm_4.into_ptr());
 
         let options_columm_1 = QStandardItem::from_q_string(&qtr("key"));
         let options_columm_2 = QStandardItem::from_q_string(&qtr("name"));
@@ -700,8 +829,8 @@ impl SaveTemplateUI {
         let params_columm_1 = QStandardItem::from_q_string(&qtr("key"));
         let params_columm_2 = QStandardItem::from_q_string(&qtr("name"));
         let params_columm_3 = QStandardItem::from_q_string(&qtr("section"));
-        let params_columm_4 = QStandardItem::from_q_string(&qtr("param_type"));
-        let params_columm_5 = QStandardItem::from_q_string(&qtr("is_required"));
+        let params_columm_4 = QStandardItem::from_q_string(&qtr("is_required"));
+        let params_columm_5 = QStandardItem::from_q_string(&qtr("param_type"));
         self.params_model.set_horizontal_header_item(0, params_columm_1.into_ptr());
         self.params_model.set_horizontal_header_item(1, params_columm_2.into_ptr());
         self.params_model.set_horizontal_header_item(2, params_columm_3.into_ptr());
@@ -726,6 +855,7 @@ impl SaveTemplateUI {
         for row in 0..self.sections_model.row_count_0a() {
             let key = self.sections_model.item_2a(row, 0).text().to_std_string();
             let name = self.sections_model.item_2a(row, 1).text().to_std_string();
+            let description = self.sections_model.item_2a(row, 3).text().to_std_string();
 
             let required_options_str = self.sections_model.item_2a(row, 2).text().to_std_string();
             let required_options = if required_options_str.is_empty() { vec![] } else {
@@ -733,7 +863,7 @@ impl SaveTemplateUI {
             };
 
             if !key.is_empty() && !name.is_empty() {
-                sections.push(TemplateSection::new_from_key_name_required_options(&key, &name, &required_options));
+                sections.push(TemplateSection::new_from_key_name_required_options_description(&key, &name, &required_options, &description));
             }
         }
 
@@ -752,8 +882,8 @@ impl SaveTemplateUI {
             let key = self.params_model.item_2a(row, 0).text().to_std_string();
             let name = self.params_model.item_2a(row, 1).text().to_std_string();
             let section = self.params_model.item_2a(row, 2).text().to_std_string();
-            let param_type = self.params_model.item_2a(row, 3).text().to_std_string();
-            let is_required = self.params_model.item_2a(row, 4).check_state() == CheckState::Checked;
+            let is_required = self.params_model.item_2a(row, 3).check_state() == CheckState::Checked;
+            let param_type = self.params_model.item_2a(row, 4).text().to_std_string();
             if !key.is_empty() && !name.is_empty() {
                 params.push(TemplateParam::new_from_key_name_section_param_type_check_state(&key, &name, &section, &param_type, is_required));
             }

@@ -188,8 +188,9 @@ impl AppUISlots {
         let packfile_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui => move || {
-                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+            global_search_ui,
+            diagnostics_ui => move || {
+                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
 
@@ -1532,8 +1533,9 @@ impl AppUITempSlots {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
-        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
     }
 }

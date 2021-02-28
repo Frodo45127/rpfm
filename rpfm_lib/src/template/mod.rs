@@ -36,7 +36,7 @@ use crate::packfile::{PathType, PackFile, packedfile::PackedFile};
 use crate::packedfile::PackedFileType;
 use crate::packedfile::text::TextType;
 use crate::SCHEMA;
-use crate::schema::{APIResponseSchema, Field};
+use crate::schema::{APIResponseSchema, Definition, Field};
 use self::{asset::Asset, template_db::TemplateDB, template_loc::TemplateLoc};
 
 pub const TEMPLATE_FOLDER: &str = "templates";
@@ -120,6 +120,9 @@ pub struct TemplateSection {
 
     /// Visual name of the section.
     name: String,
+
+    /// Description of what this section is for.
+    description: String,
 }
 
 /// This struct contains the data of an option to be chosen in a template.
@@ -181,8 +184,8 @@ pub enum ParamType {
     /// Field type. This is used for params that directly translate into a field in a table, so it can use their validations. It contains it's table name, and the field definition.
     TableField((String, Field)),
 
-    // Full table type: This is used for params that admit multiple entries, like tables where you add multiple effects to a spell.
-    //Table(Definition),
+    /// Full table type: This is used for params that admit multiple entries, like tables where you add multiple effects to a spell.
+    Table(Definition),
 }
 
 impl Default for ParamType {
@@ -573,11 +576,12 @@ impl TemplateField {
 
 impl TemplateSection {
 
-    pub fn new_from_key_name_required_options(key: &str, name: &str, required_options: &[String]) -> Self {
+    pub fn new_from_key_name_required_options_description(key: &str, name: &str, required_options: &[String], description: &str) -> Self {
         Self {
             required_options: required_options.to_vec(),
             key: key.to_owned(),
             name: name.to_owned(),
+            description: description.to_owned(),
         }
     }
 

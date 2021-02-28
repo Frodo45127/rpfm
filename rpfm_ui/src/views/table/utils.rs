@@ -361,6 +361,7 @@ pub unsafe fn load_data(
         TableType::DB(data) => data.get_ref_table_data(),
         TableType::Loc(data) => data.get_ref_table_data(),
         TableType::MatchedCombat(data) => data.get_ref_table_data(),
+        TableType::NormalTable(data) => data.get_ref_table_data(),
     };
 
     if !data.is_empty() {
