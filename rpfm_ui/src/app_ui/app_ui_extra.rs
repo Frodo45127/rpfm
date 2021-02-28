@@ -109,6 +109,23 @@ impl AppUI {
         are_you_sure(app_ui.main_window.as_mut_raw_ptr(), is_delete_my_mod)
     }
 
+    /// This function pops up a modal asking you if you're sure you want to do an action that may result in loss of data.
+    ///
+    /// This one is for custom actions, not for closing window actions.
+    pub unsafe fn are_you_sure_edition(app_ui: &Rc<AppUI>, message: &str) -> bool {
+
+        // Create the dialog and run it (Yes => 3, No => 4).
+        QMessageBox::from_2_q_string_icon3_int_q_widget(
+            &qtr("rpfm_title"),
+            &qtr(message),
+            q_message_box::Icon::Warning,
+            65536, // No
+            16384, // Yes
+            1, // By default, select yes.
+            &app_ui.main_window,
+        ).exec() == 3
+    }
+
     /// This function updates the backend of all open PackedFiles with their view's data.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn back_to_back_end_all(

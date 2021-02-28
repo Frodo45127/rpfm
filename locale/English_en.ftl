@@ -843,3 +843,4 @@ generate_ids_instructions = It's simple, write the initial id in the box below a
 generate_ids_accept = Accept
 
 context_menu_delete_filtered_out_rows = Delete Filtered-out Rows
+are_you_sure_delete_filtered_out_rows = This will delete all filtered-out rows. Are you sure?

@@ -228,7 +228,9 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                view.delete_filtered_out_rows(&app_ui, &pack_file_contents_ui);
+                if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete_filtered_out_rows") {
+                    view.delete_filtered_out_rows(&app_ui, &pack_file_contents_ui);
+                }
             }
         ));
 
