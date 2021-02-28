@@ -61,7 +61,10 @@ jobs:
         run: |
           D:\Craft\craft\craftenv.ps1
           cd D:/a/rpfm/rpfm
-          cargo build --release
+          cargo build --release --bin rpfm
+          cargo build --release --bin rpfm_cli
+          cargo build --release --bin rpfm_mod_checker
+          cargo build --release --bin rpfm_ui
         shell: pwsh
 
       - name: Prepare Assets for Release (Windows)
