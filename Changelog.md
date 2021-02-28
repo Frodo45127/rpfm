@@ -26,6 +26,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Files to Ignore on Import` PackFile Setting to blacklist files from autoimporting when using the new `Import` MyMod command ([@chadvandy](https://github.com/chadvandy)).
 - Implemented diagnostic description tooltip when hovering the mouse over them, to know what each diagnostic means, and how to fix it.
 - Implemented an `Apply Settings` button on the PackFile Settings view, to instantly apply those settings without having to save the PackFile.
+- Implemented `Rename References` feature.
+- Implemented `Clear` button for TreeView and Table filters.
+- Implemented `Delete Filtered-out Rows` feature.
+- Implemented `Generate Ids` feature.
 
 ### Changed
 - Removed automatic diagnostics checks (were causing too many issues to be maintainable).
@@ -47,6 +51,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Added icon to the cli tool.
 - Improved diagnostics' blacklisting logic to allow blacklisting of entire folders, and of particular columns.
 - Reworked `Install/Uninstall` commands to work with any PackFile, not only MyMods, and moved both commands to the `PackFile` menu ([@chadvandy](https://github.com/chadvandy)).
+- Empty rows are now shown by default when filtering a table.
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -72,6 +77,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a bug that caused table filters to not work on checkbox columns.
 - Fixed a bug that caused Smart Delete to delete the wrong rows when using a filter.
 - Fixed broken links in changelog.
+- Fixed MyMod's Import not working when the blacklist for it was empty.
+- Fixed MyMod mode not being disabled when opening another PackFile.
+- Fixed dependencies not being initialized on new PackFile.
+- Fixed tables not being properly updated after certain editions.
+- Fixed svg icons not showing up on windows.
 
 ## [2.3.4] - 2020-11-22
 ### Added
