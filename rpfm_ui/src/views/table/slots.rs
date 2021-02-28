@@ -60,6 +60,7 @@ pub struct TableViewSlots {
     pub add_rows: QBox<SlotNoArgs>,
     pub insert_rows: QBox<SlotNoArgs>,
     pub delete_rows: QBox<SlotNoArgs>,
+    pub delete_rows_not_in_filter: QBox<SlotNoArgs>,
     pub clone_and_append: QBox<SlotNoArgs>,
     pub clone_and_insert: QBox<SlotNoArgs>,
     pub copy: QBox<SlotNoArgs>,
@@ -69,6 +70,7 @@ pub struct TableViewSlots {
     pub invert_selection: QBox<SlotNoArgs>,
     pub reset_selection: QBox<SlotNoArgs>,
     pub rewrite_selection: QBox<SlotNoArgs>,
+    pub generate_ids: QBox<SlotNoArgs>,
     pub undo: QBox<SlotNoArgs>,
     pub redo: QBox<SlotNoArgs>,
     pub import_tsv: QBox<SlotOfBool>,
@@ -221,6 +223,15 @@ impl TableViewSlots {
             }
         ));
 
+        // When you want to delete all rows not in the current filter...
+        let delete_rows_not_in_filter = SlotNoArgs::new(&view.table_view_primary, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+                view.delete_filtered_out_rows(&app_ui, &pack_file_contents_ui);
+            }
+        ));
+
         // When you want to clone and insert one or more rows.
         let clone_and_append = SlotNoArgs::new(&view.table_view_primary, clone!(
             app_ui,
@@ -298,6 +309,14 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move || {
             view.rewrite_selection(&app_ui, &pack_file_contents_ui);
+        }));
+
+        // When we want to rewrite the selected items using a formula.
+        let generate_ids = SlotNoArgs::new(&view.table_view_primary, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+            view.generate_ids(&app_ui, &pack_file_contents_ui);
         }));
 
         // When we want to undo the last action.
@@ -615,6 +634,7 @@ impl TableViewSlots {
             add_rows,
             insert_rows,
             delete_rows,
+            delete_rows_not_in_filter,
             clone_and_append,
             clone_and_insert,
             copy,
@@ -624,6 +644,7 @@ impl TableViewSlots {
             invert_selection,
             reset_selection,
             rewrite_selection,
+            generate_ids,
             undo,
             redo,
             import_tsv,

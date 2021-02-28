@@ -167,6 +167,7 @@ pub struct TableView {
     context_menu_add_rows: QPtr<QAction>,
     context_menu_insert_rows: QPtr<QAction>,
     context_menu_delete_rows: QPtr<QAction>,
+    context_menu_delete_rows_not_in_filter: QPtr<QAction>,
     context_menu_clone_and_append: QPtr<QAction>,
     context_menu_clone_and_insert: QPtr<QAction>,
     context_menu_copy: QPtr<QAction>,
@@ -176,6 +177,7 @@ pub struct TableView {
     context_menu_invert_selection: QPtr<QAction>,
     context_menu_reset_selection: QPtr<QAction>,
     context_menu_rewrite_selection: QPtr<QAction>,
+    context_menu_generate_ids: QPtr<QAction>,
     context_menu_undo: QPtr<QAction>,
     context_menu_redo: QPtr<QAction>,
     context_menu_import_tsv: QPtr<QAction>,
@@ -325,6 +327,7 @@ impl TableView {
         let context_menu_add_rows = context_menu.add_action_q_string(&qtr("context_menu_add_rows"));
         let context_menu_insert_rows = context_menu.add_action_q_string(&qtr("context_menu_insert_rows"));
         let context_menu_delete_rows = context_menu.add_action_q_string(&qtr("context_menu_delete_rows"));
+        let context_menu_delete_rows_not_in_filter = context_menu.add_action_q_string(&qtr("context_menu_delete_filtered_out_rows"));
 
         let context_menu_clone_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_clone_submenu"), &table_view_primary);
         let context_menu_clone_and_insert = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_insert"));
@@ -337,6 +340,7 @@ impl TableView {
         let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
         let context_menu_paste_as_new_row = context_menu.add_action_q_string(&qtr("context_menu_paste_as_new_row"));
 
+        let context_menu_generate_ids = context_menu.add_action_q_string(&qtr("context_menu_generate_ids"));
         let context_menu_rewrite_selection = context_menu.add_action_q_string(&qtr("context_menu_rewrite_selection"));
         let context_menu_invert_selection = context_menu.add_action_q_string(&qtr("context_menu_invert_selection"));
         let context_menu_reset_selection = context_menu.add_action_q_string(&qtr("context_menu_reset_selection"));
@@ -499,6 +503,7 @@ impl TableView {
             context_menu_add_rows,
             context_menu_insert_rows,
             context_menu_delete_rows,
+            context_menu_delete_rows_not_in_filter,
             context_menu_clone_and_append,
             context_menu_clone_and_insert,
             context_menu_copy,
@@ -508,6 +513,7 @@ impl TableView {
             context_menu_invert_selection,
             context_menu_reset_selection,
             context_menu_rewrite_selection,
+            context_menu_generate_ids,
             context_menu_undo,
             context_menu_redo,
             context_menu_import_tsv,
@@ -719,6 +725,11 @@ impl TableView {
         &self.context_menu_delete_rows
     }
 
+    /// This function returns a pointer to the delete rows not in filter action.
+    pub fn get_mut_ptr_context_menu_delete_rows_not_in_filter(&self) -> &QPtr<QAction> {
+        &self.context_menu_delete_rows_not_in_filter
+    }
+
     /// This function returns a pointer to the clone_and_append action.
     pub fn get_mut_ptr_context_menu_clone_and_append(&self) -> &QPtr<QAction> {
         &self.context_menu_clone_and_append
@@ -762,6 +773,11 @@ impl TableView {
     /// This function returns a pointer to the rewrite selection action.
     pub fn get_mut_ptr_context_menu_rewrite_selection(&self) -> &QPtr<QAction> {
         &self.context_menu_rewrite_selection
+    }
+
+    /// This function returns a pointer to the fill ids action.
+    pub fn get_mut_ptr_context_menu_generate_ids(&self) -> &QPtr<QAction> {
+        &self.context_menu_generate_ids
     }
 
     /// This function returns a pointer to the undo action.

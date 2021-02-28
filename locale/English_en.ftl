@@ -835,3 +835,11 @@ pfs_button_apply = Apply Settings
 cascade_edition_dialog = Rename References
 template_load_final_message = And with that, the template is done. Make sure to follow the steps here in case the template needs them.
 is_required = Is Required
+context_menu_generate_ids = Generate Ids
+generate_ids = Generate Ids
+generate_ids_title = Generate Ids
+generate_ids_instructions_title = Instructions
+generate_ids_instructions = It's simple, write the initial id in the box below and hit accept.
+generate_ids_accept = Accept
+
+context_menu_delete_filtered_out_rows = Delete Filtered-out Rows

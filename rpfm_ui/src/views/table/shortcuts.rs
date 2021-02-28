@@ -32,12 +32,14 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_context_menu_add_rows().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["add_row"])));
     ui.get_mut_ptr_context_menu_insert_rows().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["insert_row"])));
     ui.get_mut_ptr_context_menu_delete_rows().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["delete_row"])));
+    ui.get_mut_ptr_context_menu_delete_rows_not_in_filter().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["delete_filtered_out_rows"])));
     ui.get_mut_ptr_context_menu_clone_and_insert().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["clone_and_insert_row"])));
     ui.get_mut_ptr_context_menu_clone_and_append().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["clone_and_append_row"])));
     ui.get_mut_ptr_context_menu_copy().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy"])));
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_as_lua_table"])));
     ui.get_mut_ptr_context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
     ui.get_mut_ptr_context_menu_paste_as_new_row().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_as_new_row"])));
+    ui.get_mut_ptr_context_menu_generate_ids().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["generate_ids"])));
     ui.get_mut_ptr_context_menu_rewrite_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["rewrite_selection"])));
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["selection_invert"])));
     ui.get_mut_ptr_context_menu_reset_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["revert_selection"])));
@@ -49,18 +51,20 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_smart_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["smart_delete"])));
     ui.get_mut_ptr_context_menu_undo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["undo"])));
     ui.get_mut_ptr_context_menu_redo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["redo"])));
-    ui.get_mut_ptr_context_menu_cascade_edition().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["cascade_edition"])));
+    ui.get_mut_ptr_context_menu_cascade_edition().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["rename_references"])));
 
     // Set the shortcuts to only trigger in the Table.
     ui.get_mut_ptr_context_menu_add_rows().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_insert_rows().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_delete_rows().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_delete_rows_not_in_filter().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_clone_and_insert().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_clone_and_append().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_copy().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_paste().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_paste_as_new_row().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_generate_ids().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_rewrite_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_reset_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -77,12 +81,14 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_add_rows());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_insert_rows());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_delete_rows());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_delete_rows_not_in_filter());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_clone_and_insert());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_clone_and_append());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy_as_lua_table());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste_as_new_row());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_generate_ids());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_rewrite_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_invert_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_reset_selection());

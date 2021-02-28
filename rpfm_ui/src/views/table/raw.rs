@@ -18,6 +18,7 @@ use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
+use qt_widgets::QSpinBox;
 use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QBrush;
@@ -71,12 +72,14 @@ impl TableView {
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
             self.context_menu_delete_rows.set_enabled(true);
+            self.context_menu_generate_ids.set_enabled(true);
             self.context_menu_rewrite_selection.set_enabled(true);
             self.context_menu_cascade_edition.set_enabled(true);
         }
 
         // Otherwise, disable them.
         else {
+            self.context_menu_generate_ids.set_enabled(false);
             self.context_menu_rewrite_selection.set_enabled(false);
             self.context_menu_clone_and_append.set_enabled(false);
             self.context_menu_clone_and_insert.set_enabled(false);
@@ -234,6 +237,35 @@ impl TableView {
 
                     real_cells.push(self.table_filter.map_to_source(*index));
                     values.push(text);
+                }
+            }
+
+            let mut realer_cells = vec![];
+            for index in (0..real_cells.len()).rev() {
+                realer_cells.push((real_cells.pop().unwrap(), &*values[index]));
+            }
+            realer_cells.reverse();
+
+            self.set_data_on_cells(&realer_cells, 0, &[], app_ui, pack_file_contents_ui);
+        }
+    }
+
+    /// This function fills the currently provided cells with a set of ids.
+    pub unsafe fn generate_ids(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+        if let Some(value) = self.create_generate_ids_dialog() {
+
+            // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
+            let indexes = self.table_view_primary.selection_model().selection().indexes();
+            let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+            sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+
+            let mut real_cells = vec![];
+            let mut values = vec![];
+
+            for (id, index) in indexes_sorted.iter().enumerate() {
+                if index.is_valid() {
+                    real_cells.push(self.table_filter.map_to_source(*index));
+                    values.push((value + id as i32).to_string());
                 }
             }
 
@@ -997,8 +1029,63 @@ impl TableView {
 
         if dialog.exec() == 1 {
             let new_text = rewrite_sequence_line_edit.text().to_std_string();
-            if new_text.is_empty() { None } else { Some((is_math_op.is_checked(), rewrite_sequence_line_edit.text().to_std_string())) }
+            if new_text.is_empty() { None } else { Some((is_math_op.is_checked(), new_text)) }
         } else { None }
+    }
+
+    /// This function creates the entire "Generate Ids" dialog for tables. It returns the starting id, or None.
+    pub unsafe fn create_generate_ids_dialog(&self) -> Option<i32> {
+
+        // Create and configure the dialog.
+        let dialog = QDialog::new_1a(&self.table_view_primary);
+        dialog.set_window_title(&qtr("generate_ids_title"));
+        dialog.set_modal(true);
+        dialog.resize_2a(400, 50);
+        let main_grid = create_grid_layout(dialog.static_upcast());
+
+        // Create a little frame with some instructions.
+        let instructions_frame = QGroupBox::from_q_string_q_widget(&qtr("generate_ids_instructions_title"), &dialog);
+        let instructions_grid = create_grid_layout(instructions_frame.static_upcast());
+        let instructions_label = QLabel::from_q_string_q_widget(&qtr("generate_ids_instructions"), &instructions_frame);
+        instructions_grid.add_widget_5a(& instructions_label, 0, 0, 1, 1);
+
+        let starting_id_spin_box = QSpinBox::new_1a(&dialog);
+        starting_id_spin_box.set_minimum(i32::MIN);
+        starting_id_spin_box.set_maximum(i32::MAX);
+        let accept_button = QPushButton::from_q_string(&qtr("generate_ids_accept"));
+
+        main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 1);
+        main_grid.add_widget_5a(&starting_id_spin_box, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 2, 0, 1, 1);
+
+        accept_button.released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            Some(starting_id_spin_box.value())
+        } else { None }
+    }
+
+    /// This function takes care of the "Delete filtered-out rows" feature for tables.
+    pub unsafe fn delete_filtered_out_rows(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+
+        let visible_columns = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view_primary.is_column_hidden(*index)).collect::<Vec<i32>>();
+
+        // If it's empty, it means everything is hidden, so we delete everything.
+        let mut rows_to_delete = vec![];
+        for row in 0..self.table_model.row_count_0a() {
+            if visible_columns.is_empty() {
+                rows_to_delete.push(row);
+            } else if !self.table_filter.map_from_source(&self.table_model.index_2a(row, visible_columns[0])).is_valid() {
+                rows_to_delete.push(row);
+            }
+        }
+
+        // Dedup the list and reverse it.
+        rows_to_delete.sort_unstable();
+        rows_to_delete.dedup();
+        rows_to_delete.reverse();
+
+        self.set_data_on_cells(&[], 0, &rows_to_delete, app_ui, pack_file_contents_ui);
     }
 
     /// This function takes care of the "Smart Delete" feature for tables.

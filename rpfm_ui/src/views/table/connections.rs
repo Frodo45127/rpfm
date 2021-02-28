@@ -33,6 +33,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_context_menu_add_rows().triggered().connect(&slots.add_rows);
     ui.get_mut_ptr_context_menu_insert_rows().triggered().connect(&slots.insert_rows);
     ui.get_mut_ptr_context_menu_delete_rows().triggered().connect(&slots.delete_rows);
+    ui.get_mut_ptr_context_menu_delete_rows_not_in_filter().triggered().connect(&slots.delete_rows_not_in_filter);
     ui.get_mut_ptr_context_menu_clone_and_append().triggered().connect(&slots.clone_and_append);
     ui.get_mut_ptr_context_menu_clone_and_insert().triggered().connect(&slots.clone_and_insert);
     ui.get_mut_ptr_context_menu_copy().triggered().connect(&slots.copy);
@@ -42,6 +43,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_context_menu_invert_selection().triggered().connect(&slots.invert_selection);
     ui.get_mut_ptr_context_menu_reset_selection().triggered().connect(&slots.reset_selection);
     ui.get_mut_ptr_context_menu_rewrite_selection().triggered().connect(&slots.rewrite_selection);
+    ui.get_mut_ptr_context_menu_generate_ids().triggered().connect(&slots.generate_ids);
     ui.get_mut_ptr_context_menu_undo().triggered().connect(&slots.undo);
     ui.get_mut_ptr_context_menu_redo().triggered().connect(&slots.redo);
     ui.get_mut_ptr_context_menu_import_tsv().triggered().connect(&slots.import_tsv);
