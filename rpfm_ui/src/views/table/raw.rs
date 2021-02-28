@@ -1179,10 +1179,6 @@ impl TableView {
         blocker.unblock();
         blocker_undo.unblock();
 
-        // Trick to properly update the view.
-        self.table_view_primary.clear_focus();
-        self.table_view_primary.set_focus_0a();
-
         let deleted_rows = if !rows_to_delete.is_empty() {
             super::utils::delete_rows(&self.get_mut_ptr_table_model(), &rows_to_delete)
         } else { vec![] };
@@ -1227,6 +1223,10 @@ impl TableView {
 
             self.post_process_edition(app_ui, pack_file_contents_ui);
         }
+
+        // Trick to properly update the view.
+        self.table_view_primary.clear_focus();
+        self.table_view_primary.set_focus_0a();
     }
 
     /// Process a single cell edition. Launch this after every edition if the signals are blocked.
