@@ -61,6 +61,11 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                 }
             }
 
+            // In case of text, if it's empty we let it pass the filters.
+            else if (currntIndex.data(2).toString().isEmpty()) {
+                continue;
+            }
+
             // Text matches.
             else if (regex.isValid()) {
                 QRegularExpressionMatch match = regex.match(currntIndex.data(2).toString());
