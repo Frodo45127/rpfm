@@ -1224,32 +1224,44 @@ impl TableView {
                 },
 
                 FieldType::I16 => {
-                    if let Ok(new_value) = text.parse::<i16>() {
-                        if current_value != *text {
-                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
-                            changed_cells += 1;
-                            self.process_edition(self.table_model.item_from_index(real_cell));
-                        }
+
+                    // To the stupid float conversion problem avoid, this we do.
+                    let new_value = if let Ok(new_value) = text.parse::<i16>() { new_value }
+                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i16 }
+                    else { continue };
+
+                    if current_value != new_value.to_string() {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
+                        changed_cells += 1;
+                        self.process_edition(self.table_model.item_from_index(real_cell));
                     }
                 },
 
                 FieldType::I32 => {
-                    if let Ok(new_value) = text.parse::<i32>() {
-                        if current_value != *text {
-                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
-                            changed_cells += 1;
-                            self.process_edition(self.table_model.item_from_index(real_cell));
-                        }
+
+                    // To the stupid float conversion problem avoid, this we do.
+                    let new_value = if let Ok(new_value) = text.parse::<i32>() { new_value }
+                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i32 }
+                    else { continue };
+
+                    if current_value != new_value.to_string() {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
+                        changed_cells += 1;
+                        self.process_edition(self.table_model.item_from_index(real_cell));
                     }
                 },
 
                 FieldType::I64 => {
-                    if let Ok(new_value) = text.parse::<i64>() {
-                        if current_value != *text {
-                            self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
-                            changed_cells += 1;
-                            self.process_edition(self.table_model.item_from_index(real_cell));
-                        }
+
+                    // To the stupid float conversion problem avoid, this we do.
+                    let new_value = if let Ok(new_value) = text.parse::<i64>() { new_value }
+                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i64 }
+                    else { continue };
+
+                    if current_value != new_value.to_string() {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
+                        changed_cells += 1;
+                        self.process_edition(self.table_model.item_from_index(real_cell));
                     }
                 },
 
