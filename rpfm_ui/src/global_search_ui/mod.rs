@@ -50,7 +50,7 @@ use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, 
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response};
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
@@ -439,22 +439,15 @@ impl GlobalSearchUI {
         model_text.clear();
         model_schema.clear();
 
-        let response = CENTRAL_COMMAND.recv_message_qt();
-        match response {
-            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
+        // Load the results to their respective models. Then, store the GlobalSearch for future checks.
+        let (global_search, packed_files_info) = CENTRAL_COMMAND.recv_message_global_search_update_to_qt_try();
 
-                // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
-                Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
-                Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
-                Self::load_schema_matches_to_ui(&model_schema, &tree_view_schema, &global_search.matches_schema);
-                UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
-            }
-
-            // In ANY other situation, it's a message problem.
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-        }
+        Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
+        Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
+        Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
+        Self::load_schema_matches_to_ui(&model_schema, &tree_view_schema, &global_search.matches_schema);
+        UI_STATE.set_global_search(&global_search);
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
     }
 
     /// This function takes care of updating the results of a global search for the provided paths.
@@ -484,21 +477,14 @@ impl GlobalSearchUI {
         model_loc.clear();
         model_text.clear();
 
-        let response = CENTRAL_COMMAND.recv_message_qt();
-        match response {
-            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
+        // Load the results to their respective models. Then, store the GlobalSearch for future checks.
+        let (global_search, packed_files_info) = CENTRAL_COMMAND.recv_message_global_search_update_to_qt_try();
 
-                // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
-                Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
-                Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
-                UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
-            }
-
-            // In ANY other situation, it's a message problem.
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-        }
+        Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
+        Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
+        Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
+        UI_STATE.set_global_search(&global_search);
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
