@@ -58,6 +58,7 @@ use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::{log_to_status_bar, show_dialog};
 use crate::VERSION;
+use crate::VERSION_SUBTITLE;
 use crate::views::table::utils::{get_reference_data, setup_item_delegates};
 
 //-------------------------------------------------------------------------------//
@@ -1139,7 +1140,9 @@ impl AppUISlots {
                         "<table>
                             <tr>
                                 <td><h2><b>Rusted PackFile Manager</b></h2></td>
-                                <td>{}</td>
+                            </tr>
+                            <tr>
+                                <td>{} {} Patch</td>
                             </tr>
                         </table>
 
@@ -1179,7 +1182,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION))
+                        ", &VERSION, &VERSION_SUBTITLE))
                     );
             }
         ));
