@@ -504,9 +504,9 @@ impl TableView {
                     let is_valid_data = match field.get_ref_field_type() {
                         FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
                         FieldType::F32 => text.parse::<f32>().is_ok(),
-                        FieldType::I16 => text.parse::<i16>().is_ok(),
-                        FieldType::I32 => text.parse::<i32>().is_ok(),
-                        FieldType::I64 => text.parse::<i64>().is_ok(),
+                        FieldType::I16 => text.parse::<i16>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::I32 => text.parse::<i32>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::I64 => text.parse::<i64>().is_ok() || text.parse::<f32>().is_ok(),
 
                         // All these are Strings, so we can skip their checks....
                         FieldType::StringU8 |
