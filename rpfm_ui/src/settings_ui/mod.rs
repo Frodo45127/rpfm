@@ -93,7 +93,6 @@ pub struct SettingsUI {
     pub extra_network_check_template_updates_on_start_label: QBox<QLabel>,
     pub extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
     pub extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
-    pub extra_packfile_enable_diagnostics_label: QBox<QLabel>,
     pub extra_packfile_use_lazy_loading_label: QBox<QLabel>,
     pub extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
     pub ui_global_use_dark_theme_label: QBox<QLabel>,
@@ -112,7 +111,6 @@ pub struct SettingsUI {
     pub extra_network_check_template_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_enable_diagnostics_checkbox: QBox<QCheckBox>,
     pub extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
     pub extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     pub ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
@@ -150,6 +148,17 @@ pub struct SettingsUI {
 
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
+
+    //-------------------------------------------------------------------------------//
+    // `Diagnostics` section of the `Settings` dialog.
+    //-------------------------------------------------------------------------------//
+    pub diagnostics_enable_diagnostics_tool_label: QBox<QLabel>,
+    pub diagnostics_diagnostics_trigger_on_open_label: QBox<QLabel>,
+    pub diagnostics_diagnostics_trigger_on_table_edit_label: QBox<QLabel>,
+
+    pub diagnostics_enable_diagnostics_tool_checkbox: QBox<QCheckBox>,
+    pub diagnostics_diagnostics_trigger_on_open_checkbox: QBox<QCheckBox>,
+    pub diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Warning` section of the `Settings` dialog.
@@ -232,7 +241,7 @@ impl SettingsUI {
             paths_games_buttons.insert((*folder_name).to_string(), game_button);
         }
 
-        main_grid.add_widget_5a(&paths_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(&paths_frame, 0, 0, 1, 3);
 
         //-----------------------------------------------//
         // `Extra Paths` Frame.
@@ -262,7 +271,7 @@ impl SettingsUI {
         paths_grid.add_widget_5a(&paths_zip_line_edit, 1, 1, 1, 1);
         paths_grid.add_widget_5a(&paths_zip_button, 1, 2, 1, 1);
 
-        main_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 2);
+        main_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 3);
 
         //-----------------------------------------------//
         // `General` Frame.
@@ -318,9 +327,6 @@ impl SettingsUI {
         let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_allow_editing_of_ca_packfiles"), &general_frame);
         let extra_packfile_allow_editing_of_ca_packfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_enable_diagnostics_label = QLabel::from_q_string_q_widget(&qtr("settings_use_dependency_checker"), &general_frame);
-        let extra_packfile_enable_diagnostics_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_optimize_not_renamed_packedfiles"), &general_frame);
         let extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
 
@@ -372,9 +378,6 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 9, 0, 1, 1);
         general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 9, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_label, 10, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_checkbox, 10, 1, 1, 1);
-
         general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 13, 0, 1, 1);
         general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 13, 1, 1, 1);
 
@@ -390,7 +393,7 @@ impl SettingsUI {
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 16, 0, 1, 1);
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 16, 1, 1, 1);
 
-        main_grid.add_widget_5a(&general_frame, 2, 0, 3, 1);
+        main_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
 
         //-----------------------------------------------//
         // `Table` Frame.
@@ -485,7 +488,35 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 90, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 90, 1, 1, 1);
 
-        main_grid.add_widget_5a(&debug_frame, 3, 1, 1, 1);
+        main_grid.add_widget_5a(&debug_frame, 2, 2, 1, 1);
+
+        //-----------------------------------------------//
+        // `Diagnostics` Frame.
+        //-----------------------------------------------//
+        let diagnostics_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_diagnostics_title"), &dialog);
+        let diagnostics_grid = create_grid_layout(diagnostics_frame.static_upcast());
+        diagnostics_grid.set_contents_margins_4a(4, 0, 4, 0);
+        diagnostics_grid.set_spacing(4);
+        diagnostics_grid.set_row_stretch(80, 10);
+
+        let diagnostics_enable_diagnostics_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_show_panel_on_boot"), &diagnostics_frame);
+        let diagnostics_diagnostics_trigger_on_open_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_trigger_on_open"), &diagnostics_frame);
+        let diagnostics_diagnostics_trigger_on_table_edit_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_trigger_on_edit"), &diagnostics_frame);
+
+        let diagnostics_enable_diagnostics_tool_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
+        let diagnostics_diagnostics_trigger_on_open_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
+        let diagnostics_diagnostics_trigger_on_table_edit_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
+
+        diagnostics_grid.add_widget_5a(&diagnostics_enable_diagnostics_tool_label, 0, 0, 1, 1);
+        diagnostics_grid.add_widget_5a(&diagnostics_enable_diagnostics_tool_checkbox, 0, 1, 1, 1);
+
+        diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_open_label, 1, 0, 1, 1);
+        diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_open_checkbox, 1, 1, 1, 1);
+
+        diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_table_edit_label, 2, 0, 1, 1);
+        diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_table_edit_checkbox, 2, 1, 1, 1);
+
+        main_grid.add_widget_5a(&diagnostics_frame, 3, 2, 1, 1);
 
         //-----------------------------------------------//
         // `Warning` section.
@@ -496,7 +527,7 @@ impl SettingsUI {
         warning_message.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
 
         warning_grid.add_widget_5a(&warning_message, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&warning_frame, 4, 1, 1, 1);
+        main_grid.add_widget_5a(&warning_frame, 3, 1, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
@@ -513,7 +544,7 @@ impl SettingsUI {
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
-        main_grid.add_widget_5a(&button_box, 5, 0, 1, 2);
+        main_grid.add_widget_5a(&button_box, 4, 0, 1, 3);
 
         // Now, we build the `SettingsUI` struct and return it.
         Self {
@@ -549,7 +580,6 @@ impl SettingsUI {
             extra_network_check_template_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
             extra_packfile_optimize_not_renamed_packedfiles_label,
-            extra_packfile_enable_diagnostics_label,
             extra_packfile_use_lazy_loading_label,
             extra_packfile_disable_uuid_regeneration_on_db_tables_label,
             ui_global_use_dark_theme_label,
@@ -568,7 +598,6 @@ impl SettingsUI {
             extra_network_check_template_updates_on_start_checkbox,
             extra_packfile_allow_editing_of_ca_packfiles_checkbox,
             extra_packfile_optimize_not_renamed_packedfiles_checkbox,
-            extra_packfile_enable_diagnostics_checkbox,
             extra_packfile_use_lazy_loading_checkbox,
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             ui_global_use_dark_theme_checkbox,
@@ -606,6 +635,17 @@ impl SettingsUI {
 
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
+
+            //-------------------------------------------------------------------------------//
+            // `Diagnostics` section of the `Settings` dialog.
+            //-------------------------------------------------------------------------------//
+            diagnostics_enable_diagnostics_tool_label,
+            diagnostics_diagnostics_trigger_on_open_label,
+            diagnostics_diagnostics_trigger_on_table_edit_label,
+
+            diagnostics_enable_diagnostics_tool_checkbox,
+            diagnostics_diagnostics_trigger_on_open_checkbox,
+            diagnostics_diagnostics_trigger_on_table_edit_checkbox,
 
             //-------------------------------------------------------------------------------//
             // `Warning` section of the `Settings` dialog.
@@ -675,7 +715,6 @@ impl SettingsUI {
         self.extra_network_check_template_updates_on_start_checkbox.set_checked(settings.settings_bool["check_template_updates_on_start"]);
         self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]);
         self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
-        self.extra_packfile_enable_diagnostics_checkbox.set_checked(settings.settings_bool["enable_diagnostics_tool"]);
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
         self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
         self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(settings.settings_bool["packfile_treeview_resize_to_fit"]);
@@ -693,6 +732,11 @@ impl SettingsUI {
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
         self.debug_enable_debug_menu_checkbox.set_checked(settings.settings_bool["enable_debug_menu"]);
         self.debug_spoof_ca_authoring_tool_checkbox.set_checked(settings.settings_bool["spoof_ca_authoring_tool"]);
+
+        // Load the Diagnostics Stuff.
+        self.diagnostics_enable_diagnostics_tool_checkbox.set_checked(settings.settings_bool["enable_diagnostics_tool"]);
+        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
+        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
 
         // Hidden stuff.
         *self.recent_files.write().unwrap() = settings.get_recent_files();
@@ -749,7 +793,6 @@ impl SettingsUI {
         settings.settings_bool.insert("check_template_updates_on_start".to_owned(), self.extra_network_check_template_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
         settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
-        settings.settings_bool.insert("enable_diagnostics_tool".to_owned(), self.extra_packfile_enable_diagnostics_checkbox.is_checked());
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
         settings.settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
@@ -767,6 +810,11 @@ impl SettingsUI {
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());
         settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.is_checked());
         settings.settings_bool.insert("spoof_ca_authoring_tool".to_owned(), self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
+
+        // Get the Diagnostics Settings.
+        settings.settings_bool.insert("enable_diagnostics_tool".to_owned(), self.diagnostics_enable_diagnostics_tool_checkbox.is_checked());
+        settings.settings_bool.insert("diagnostics_trigger_on_open".to_owned(), self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
+        settings.settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
 
         // Return the new Settings.
         settings.set_recent_files(&self.recent_files.read().unwrap());

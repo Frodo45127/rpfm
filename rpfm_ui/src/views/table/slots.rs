@@ -31,6 +31,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
+use rpfm_lib::packfile::PathType;
 use rpfm_lib::packedfile::table::Table;
 
 use crate::app_ui::AppUI;
@@ -52,6 +53,7 @@ use super::*;
 
 /// This struct contains the slots of the view of a Table PackedFile.
 pub struct TableViewSlots {
+    pub delayed_updates: QBox<SlotNoArgs>,
     pub toggle_lookups: QBox<SlotOfBool>,
     pub sort_order_column_changed: QBox<SlotOfIntSortOrder>,
     pub show_context_menu: QBox<SlotOfQPoint>,
@@ -121,6 +123,34 @@ impl TableViewSlots {
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     ) -> Self {
 
+        // When we want to update the diagnostic/global search data of this table.
+        let delayed_updates = SlotNoArgs::new(&view.table_view_primary, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
+            view => move || {
+
+            // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
+            if !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
+                if let Some(ref packed_file_path) = view.packed_file_path {
+                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
+                        if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
+                            show_dialog(&view.table_view_primary, error, false);
+                        } else {
+                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_table_edit"] {
+                                if let Some(path) = view.get_packed_file_path() {
+                                    if diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible() {
+                                        let path_types = vec![PathType::File(path)];
+                                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }));
+
         // When we want to toggle the lookups on and off.
         let toggle_lookups = SlotOfBool::new(&view.table_view_primary, clone!(
             view => move |_| {
@@ -187,6 +217,8 @@ impl TableViewSlots {
                 if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
                     view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
+
+                view.start_delayed_updates_timer();
             }
         ));
 
@@ -388,7 +420,7 @@ impl TableViewSlots {
                                 );
 
                                 // Prepare the diagnostic pass.
-                                view.start_diagnostic_check();
+                                view.start_delayed_updates_timer();
 
                                 let table_name = match data {
                                     TableType::DB(_) => packed_file_path.read().unwrap().get(1).cloned(),
@@ -628,6 +660,7 @@ impl TableViewSlots {
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
+            delayed_updates,
             toggle_lookups,
             sort_order_column_changed,
             show_context_menu,

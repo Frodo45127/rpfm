@@ -83,7 +83,6 @@ impl Settings {
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("check_template_updates_on_start".to_owned(), true);
-        settings_bool.insert("enable_diagnostics_tool".to_owned(), true);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
@@ -102,6 +101,11 @@ impl Settings {
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
         settings_bool.insert("enable_debug_menu".to_owned(), false);
         settings_bool.insert("spoof_ca_authoring_tool".to_owned(), false);
+
+        // Diagnostics Settings
+        settings_bool.insert("enable_diagnostics_tool".to_owned(), true);
+        settings_bool.insert("diagnostics_trigger_on_open".to_owned(), true);
+        settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), true);
 
         Self {
             paths,

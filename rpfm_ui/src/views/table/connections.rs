@@ -74,6 +74,8 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_search_search_line_edit().text_changed().connect(&slots.search_check_regex);
 
     ui.get_mut_ptr_table_view_primary().double_clicked().connect(&slots.open_subtable);
+
+    ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
 }
 
 pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {

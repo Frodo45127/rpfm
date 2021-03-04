@@ -195,6 +195,8 @@ impl UI {
             if path.is_file() {
                 if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
                     show_dialog(&app_ui.main_window, error, false);
+                } else if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }
         }

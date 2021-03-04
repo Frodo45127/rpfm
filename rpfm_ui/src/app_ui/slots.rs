@@ -257,6 +257,7 @@ impl AppUISlots {
         let packfile_open_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             global_search_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
@@ -283,6 +284,10 @@ impl AppUISlots {
                         // Try to open it, and report it case of error.
                         if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
                             return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
                 }
@@ -536,6 +541,7 @@ impl AppUISlots {
         let packfile_preferences = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             global_search_ui => move |_| {
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
@@ -554,7 +560,7 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&app_ui, None);
-                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -595,8 +601,9 @@ impl AppUISlots {
         let mymod_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             global_search_ui => move || {
-                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
             }
         ));
 
@@ -615,6 +622,7 @@ impl AppUISlots {
         let mymod_new = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             global_search_ui => move |_| {
 
                 // Trigger the `New MyMod` Dialog, and get the result.
@@ -700,7 +708,7 @@ impl AppUISlots {
 
                             // Show the "Tips".
                             //display_help_tips(&app_ui);
-                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
                             app_ui.main_window.set_enabled(true);
                         }
 
@@ -720,6 +728,7 @@ impl AppUISlots {
         let mymod_delete_selected = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             global_search_ui => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
@@ -769,7 +778,7 @@ impl AppUISlots {
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
                                 true
                             }
                             else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
@@ -1539,6 +1548,6 @@ impl AppUITempSlots {
         diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
         AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
-        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
     }
 }

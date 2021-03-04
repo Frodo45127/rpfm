@@ -314,6 +314,8 @@ impl DiagnosticsUI {
         diagnostics_dock_layout.set_column_stretch(0, 10);
         sidebar_scroll_area.hide();
 
+        diagnostics_dock_widget.set_hidden(!SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"]);
+
         Self {
 
             //-------------------------------------------------------------------------------//
@@ -354,32 +356,34 @@ impl DiagnosticsUI {
 
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
-        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-            CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
-            diagnostics_ui.diagnostics_table_model.clear();
-            let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
-            Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-            Self::filter(app_ui, diagnostics_ui);
-            Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
-            UI_STATE.set_diagnostics(&diagnostics);
-        }
+        app_ui.menu_bar_packfile.set_enabled(false);
+        app_ui.menu_bar_templates.set_enabled(false);
+
+        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
+        diagnostics_ui.diagnostics_table_model.clear();
+        let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
+        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
+        Self::filter(app_ui, diagnostics_ui);
+        Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+        UI_STATE.set_diagnostics(&diagnostics);
+
+        app_ui.menu_bar_packfile.set_enabled(true);
+        app_ui.menu_bar_templates.set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
     pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
-        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-            let diagnostics = UI_STATE.get_diagnostics();
-            CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
-            let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
+        let diagnostics = UI_STATE.get_diagnostics();
+        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
+        let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
 
-            diagnostics_ui.diagnostics_table_model.clear();
-            Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+        diagnostics_ui.diagnostics_table_model.clear();
+        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
 
-            Self::filter(app_ui, diagnostics_ui);
-            Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
-            UI_STATE.set_diagnostics(&diagnostics);
-        }
+        Self::filter(app_ui, diagnostics_ui);
+        Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+        UI_STATE.set_diagnostics(&diagnostics);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
@@ -389,7 +393,14 @@ impl DiagnosticsUI {
         Self::clean_diagnostics_from_views(app_ui);
 
         if !diagnostics.is_empty() {
-            for diagnostic_type in diagnostics {
+            let blocker = QSignalBlocker::from_q_object(&diagnostics_ui.diagnostics_table_model);
+            for (index, diagnostic_type) in diagnostics.iter().enumerate() {
+
+                // Unlock in the last step.
+                if index == diagnostics.len() - 1 {
+                    blocker.unblock();
+                }
+
                 match diagnostic_type {
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
@@ -690,7 +701,8 @@ impl DiagnosticsUI {
 
                     // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
                     blocker.unblock();
-                    table_view.update_q_region(&table_view.visible_region());
+                    table_view.clear_focus();
+                    table_view.set_focus_0a();
                 }
             }
         }

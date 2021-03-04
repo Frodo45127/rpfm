@@ -422,7 +422,6 @@ settings_check_schema_updates_on_start = Check Schema Updates on Start:
 settings_check_template_updates_on_start = Check Template Updates on Start:
 settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles:
 settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
-settings_use_dependency_checker = Enable Diagnostics Tool:
 settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
 settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables:
 settings_packfile_treeview_resize_to_fit = Resize TreeView to content's size:
@@ -431,6 +430,11 @@ settings_table_resize_on_edit = Resize tables on edits to content's size:
 settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
 settings_debug_enable_debug_menu = Enable Debug Menu
+
+settings_diagnostics_title = Diagnostics Settings
+settings_diagnostics_show_panel_on_boot = Enable Diagnostics Tool:
+settings_diagnostics_trigger_on_open = Trigger Diagnostics Check on Open PackFile:
+settings_diagnostics_trigger_on_edit = Trigger Diagnostics Check on Table Editing:
 
 settings_text_title = Text Editor Settings
 
@@ -459,13 +463,16 @@ tt_extra_packfile_allow_editing_of_ca_packfiles_tip = By default, only PackFiles
     If you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!
 tt_extra_packfile_optimize_not_renamed_packedfiles_tip = If you enable this, when running the 'Optimize PackFile' feature RPFM will optimize Tables and Locs that have the same name as their vanilla counterparts.
     Usually, those files are intended to fully override their vanilla counterparts, so by default (this setting off) they are ignored by the optimizer. But it can be useful sometimes to optimize them too (AssKit including too many files), so that's why this setting exists.
-tt_extra_packfile_use_dependency_checker_tip = If you enable this, when opening a DB Table RPFM will try to get his dependencies and mark all cells with a reference to another table as 'Not Found In Table' (Red), 'Referenced Table Not Found' (Blue) or 'Correct Reference' (Black). It makes opening a big table a bit slower.
 tt_extra_packfile_use_lazy_loading_tip = If you enable this, PackFiles will load their data on-demand from the disk instead of loading the entire PackFile to Ram. This reduces Ram usage by a lot, but if something else changes/deletes the PackFile while it's open, the PackFile will likely be unrecoverable and you'll lose whatever is in it.
     If you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.
 tt_extra_disable_uuid_regeneration_on_db_tables_label_tip = Check this if you plan to put your binary tables under Git/Svn/any kind of version control software.
 
 tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a \"missing_table_definitions.txt\" file.
     DEBUG FEATURE, VERY SLOW. DON'T ENABLE IT UNLESS YOU REALLY WANT TO USE IT.
+
+tt_diagnostics_enable_diagnostics_tool_tip = Enable this to make the diagnostics panel appear on start.
+tt_diagnostics_trigger_diagnostics_on_open_tip = Enable this to trigger a full PackFile Diagnostics check when opening a PackFile.
+tt_diagnostics_trigger_diagnostics_on_table_edit_tip = Enable this to trigger a limited diagnostics check each time you edit a table.
 
 ### CA_VP8 Videos
 

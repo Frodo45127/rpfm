@@ -57,7 +57,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let extra_network_check_schema_updates_on_start_tip = qtr("tt_extra_network_check_schema_updates_on_start_tip");
     let extra_packfile_allow_editing_of_ca_packfiles_tip = qtr("tt_extra_packfile_allow_editing_of_ca_packfiles_tip");
     let extra_packfile_optimize_not_renamed_packedfiles_tip = qtr("tt_extra_packfile_optimize_not_renamed_packedfiles_tip");
-    let extra_packfile_use_dependency_checker_tip = qtr("tt_extra_packfile_use_dependency_checker_tip");
     let extra_packfile_use_lazy_loading_tip = qtr("tt_extra_packfile_use_lazy_loading_tip");
     let extra_disable_uuid_regeneration_on_db_tables_label_tip = qtr("tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
 
@@ -72,8 +71,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&extra_packfile_allow_editing_of_ca_packfiles_tip);
     settings_ui.extra_packfile_optimize_not_renamed_packedfiles_label.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
     settings_ui.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
-    settings_ui.extra_packfile_enable_diagnostics_label.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
-    settings_ui.extra_packfile_enable_diagnostics_checkbox.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
     settings_ui.extra_packfile_use_lazy_loading_label.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_use_lazy_loading_checkbox.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_label.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
@@ -95,4 +92,18 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
 
     settings_ui.debug_clear_autosave_folder_button.set_tool_tip(&debug_clear_autosaves);
     settings_ui.debug_clear_schema_folder_button.set_tool_tip(&debug_clear_schemas);
+
+    //-----------------------------------------------//
+    // `Diagnostics` tips.
+    //-----------------------------------------------//
+    let diagnostics_enable_diagnostics_tool_tip = qtr("tt_diagnostics_enable_diagnostics_tool_tip");
+    let diagnostics_trigger_diagnostics_on_open_tip = qtr("tt_diagnostics_trigger_diagnostics_on_open_tip");
+    let diagnostics_trigger_diagnostics_on_table_edit_tip = qtr("tt_diagnostics_trigger_diagnostics_on_table_edit_tip");
+
+    settings_ui.diagnostics_enable_diagnostics_tool_label.set_tool_tip(&diagnostics_enable_diagnostics_tool_tip);
+    settings_ui.diagnostics_enable_diagnostics_tool_checkbox.set_tool_tip(&diagnostics_enable_diagnostics_tool_tip);
+    settings_ui.diagnostics_diagnostics_trigger_on_open_label.set_tool_tip(&diagnostics_trigger_diagnostics_on_open_tip);
+    settings_ui.diagnostics_diagnostics_trigger_on_open_checkbox.set_tool_tip(&diagnostics_trigger_diagnostics_on_open_tip);
+    settings_ui.diagnostics_diagnostics_trigger_on_table_edit_label.set_tool_tip(&diagnostics_trigger_diagnostics_on_table_edit_tip);
+    settings_ui.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_tool_tip(&diagnostics_trigger_diagnostics_on_table_edit_tip);
 }

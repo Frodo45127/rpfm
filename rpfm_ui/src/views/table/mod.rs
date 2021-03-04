@@ -226,7 +226,7 @@ pub struct TableView {
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 
-    pub timer_diagnostics_check: QBox<QTimer>,
+    pub timer_delayed_updates: QBox<QTimer>,
 }
 
 /// This struct contains the stuff needed for a filter row.
@@ -489,8 +489,8 @@ impl TableView {
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
-        let timer_diagnostics_check = QTimer::new_1a(parent);
-        timer_diagnostics_check.set_single_shot(true);
+        let timer_delayed_updates = QTimer::new_1a(parent);
+        timer_delayed_updates.set_single_shot(true);
 
         // Create the raw Struct and begin
         let packed_file_table_view = Arc::new(TableView {
@@ -563,7 +563,7 @@ impl TableView {
             history_undo: Arc::new(RwLock::new(vec![])),
             history_redo: Arc::new(RwLock::new(vec![])),
 
-            timer_diagnostics_check,
+            timer_delayed_updates,
         });
 
         let packed_file_table_view_slots = TableViewSlots::new(
@@ -642,7 +642,7 @@ impl TableView {
         );
 
         // Prepare the diagnostic pass.
-        self.start_diagnostic_check();
+        self.start_delayed_updates_timer();
 
         // Reset the undo model and the undo/redo history.
         update_undo_model(&model, &undo_model);
@@ -922,6 +922,11 @@ impl TableView {
             Some(ref path) => Some(path.read().unwrap().clone()),
             None => None,
         }
+    }
+
+    pub unsafe fn start_delayed_updates_timer(&self) {
+        self.timer_delayed_updates.set_interval(1500);
+        self.timer_delayed_updates.start_0a();
     }
 }
 

@@ -740,10 +740,15 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
+                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
                 }));
@@ -768,10 +773,15 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
+                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
                 }));
@@ -796,10 +806,15 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
+                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
                 }));
@@ -823,10 +838,15 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
+                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
                 }));
@@ -916,6 +936,7 @@ impl AppUI {
     pub unsafe fn build_open_mymod_submenus(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         global_search_ui: &Rc<GlobalSearchUI>
     ) {
 
@@ -981,10 +1002,15 @@ impl AppUI {
                                             app_ui,
                                             pack_file_contents_ui,
                                             global_search_ui,
+                                            diagnostics_ui,
                                             game_folder_name => move |_| {
                                             if Self::are_you_sure(&app_ui, false) {
                                                 if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                     return show_dialog(&app_ui.main_window, error, false);
+                                                }
+
+                                                if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                                                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                                                 }
                                             }
                                         }));
