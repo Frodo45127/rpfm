@@ -41,7 +41,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
-use crate::utils::{check_regex, show_dialog};
+use crate::utils::{check_regex, log_to_status_bar, show_dialog};
 use crate::UI_STATE;
 
 use super::utils::*;
@@ -82,6 +82,7 @@ pub struct TableViewSlots {
     pub sidebar: QBox<SlotOfBool>,
     pub search: QBox<SlotOfBool>,
     pub cascade_edition: QBox<SlotNoArgs>,
+    pub go_to_definition: QBox<SlotNoArgs>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
     pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
@@ -538,6 +539,18 @@ impl TableViewSlots {
             }
         ));
 
+        let go_to_definition = SlotNoArgs::new(&view.table_view_primary, clone!(
+            view,
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui) {
+                    log_to_status_bar(&error);
+                }
+            }
+        ));
+
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
@@ -689,6 +702,7 @@ impl TableViewSlots {
             sidebar,
             search,
             cascade_edition,
+            go_to_definition,
             hide_show_columns,
             hide_show_columns_all,
             freeze_columns,

@@ -331,6 +331,12 @@ pub enum Command {
 
     /// This command is used to trigger a cascade edition on all referenced data.
     CascadeEdition(CascadeEdition),
+
+    /// This command is used for the Go To Definition feature. Contains table, column, and value to search.
+    GoToDefinition(String, String, String),
+
+    /// This command is used to get the source data of a loc key. Contains the loc key to search.
+    GetSourceDataFromLocKey(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -452,6 +458,12 @@ pub enum Response {
 
     /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
     VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),
+
+    /// Response to return `Vec<String>, usize, usize`.
+    VecStringUsizeUsize(Vec<String>, usize, usize),
+
+    /// Response to return `Option<(String, String, String)>`.
+    OptionStringStringString(Option<(String, String, String)>),
 }
 
 #[derive(Debug)]

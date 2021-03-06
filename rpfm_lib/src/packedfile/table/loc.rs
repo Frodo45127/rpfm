@@ -20,9 +20,11 @@ use std::path::PathBuf;
 use rpfm_error::{ErrorKind, Result};
 
 use crate::common::{decoder::Decoder, encoder::Encoder};
+use crate::packedfile::Dependencies;
 use super::DecodedData;
 use super::Table;
 
+use crate::SCHEMA;
 use crate::schema::*;
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
@@ -200,6 +202,45 @@ impl Loc {
         // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
         let _ = self.table.set_table_data(&new_entries);
         self.table.get_ref_table_data().is_empty()
+    }
+
+    /// This function returns the table/column/key from the provided key, if it exists in the current PackFile.
+    ///
+    /// We return the table without "_tables". Keep that in mind if you use this.
+    pub fn get_source_location_of_loc_key(key: &str, dependencies: &Dependencies) -> Option<(String, String, String)> {
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            let key_splitted = key.split('_').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let mut table = String::new();
+
+            // Loop to get the table.
+            for (index, value) in key_splitted.iter().enumerate() {
+                table.push_str(value);
+                let temp_table = table.to_owned() + "_tables";
+                if let Ok(definition) = schema.get_ref_last_definition_db(&temp_table, dependencies) {
+                    let localised_fields = definition.get_localised_fields();
+                    if !localised_fields.is_empty() && key_splitted.len() > index + 2 {
+                        let mut field = String::new();
+
+                        // Loop to get the column.
+                        for (secon_index, value) in key_splitted[index + 1..].iter().enumerate() {
+                            field.push_str(value);
+                            if localised_fields.iter().any(|x| x.get_name() == field) {
+
+                                // If we reached this, the rest is the value.
+                                let key_field = &key_splitted[index + secon_index + 2..].join("_");
+                                if let Some(field) = definition.get_fields_processed().iter().find(|x| (x.get_name() == "key" || x.get_name() == "id") && x.get_is_key()) {
+                                    return Some((table, field.get_name().to_string(), key_field.to_owned()));
+                                }
+                            }
+                            field.push('_');
+                        }
+                    }
+                }
+                table.push('_');
+            }
+        }
+
+        None
     }
 
     /// This function imports a TSV file into a decoded table.

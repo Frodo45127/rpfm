@@ -46,10 +46,11 @@ use std::sync::atomic::Ordering;
 use rpfm_lib::packedfile::table::db::CascadeEdition;
 use rpfm_lib::packedfile::table::Table;
 
-use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
+use crate::locale::tr;
 use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
 use crate::UI_STATE;
+use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -75,6 +76,7 @@ impl TableView {
             self.context_menu_generate_ids.set_enabled(true);
             self.context_menu_rewrite_selection.set_enabled(true);
             self.context_menu_cascade_edition.set_enabled(true);
+            self.context_menu_go_to_definition.set_enabled(true);
         }
 
         // Otherwise, disable them.
@@ -87,6 +89,7 @@ impl TableView {
             self.context_menu_copy_as_lua_table.set_enabled(false);
             self.context_menu_delete_rows.set_enabled(false);
             self.context_menu_cascade_edition.set_enabled(false);
+            self.context_menu_go_to_definition.set_enabled(false);
         }
 
         if !self.undo_lock.load(Ordering::SeqCst) {
@@ -1494,5 +1497,109 @@ impl TableView {
                 .collect::<Vec<(String, String, i32, i32)>>();
             if real_edits.is_empty() { None } else { Some(real_edits) }
         } else { None }
+    }
+
+    /// This function tries to open the source of a reference/loc key, if exits in the PackFile.
+    ///
+    /// If the source it's not found, it does nothing.
+    /// If the source is a read-only dependency, it does nothing yet.
+    pub unsafe fn go_to_definition(
+        &self,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) -> Option<String> {
+
+        let mut error_message = String::new();
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        if indexes.count_0a() > 0 {
+            let ref_info = match *self.packed_file_type {
+
+                // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
+                PackedFileType::DB => {
+                    let index = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0));
+                    if let Some(field) = self.get_ref_table_definition().get_fields_processed().get(index.column() as usize) {
+                        if let Some((ref_table, ref_column)) = field.get_is_reference() {
+                            Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
+                        } else { None }
+                    } else { None }
+                }
+
+                // For Locs, we use the column 0 of the row with the selected item.
+                PackedFileType::Loc => {
+                    let index_row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
+                    let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
+                    CENTRAL_COMMAND.send_message_qt(Command::GetSourceDataFromLocKey(key));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::OptionStringStringString(response) => response,
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some((ref_table, ref_column, ref_data)) = ref_info {
+
+                // Save the tables that may be the source before searching, to ensure their data is updated.
+                UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+                    if let Some(folder) = packed_file_view.get_path().get(0) {
+                        if folder.to_lowercase() == "db" {
+                            if let Some(table_name) = packed_file_view.get_path().get(1) {
+                                if &ref_table == table_name {
+                                    let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Then ask the backend to do the heavy work.
+                CENTRAL_COMMAND.send_message_qt(Command::GoToDefinition(ref_table.to_owned(), ref_column.to_owned(), ref_data));
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+
+                    // We receive a path/column/row, so we know what to open/select.
+                    Response::VecStringUsizeUsize(path, column, row) => {
+                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+
+                        // Set the current file as non-preview, so it doesn't close when opening the source one.
+                        if let Some(packed_file_path) = self.get_packed_file_path() {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path) {
+                                packed_file_view.set_is_preview(false);
+                            }
+                        }
+
+                        // Open the table and select the cell.
+                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                            if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                                let table_view = view.get_ref_table();
+                                let table_view = table_view.get_mut_ptr_table_view_primary();
+                                let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                                let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                                let table_selection_model = table_view.selection_model();
+
+                                let table_model_index = table_model.index_2a(row as i32, column as i32);
+                                let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                                if table_model_index_filtered.is_valid() {
+                                    table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                    table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                }
+                            }
+                        }
+                    }
+
+                    Response::Error(error) => error_message = error.to_terminal(),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+            } else {
+                error_message = tr("source_data_for_field_not_found");
+            }
+        }
+
+        if error_message.is_empty() { None }
+        else { Some(error_message) }
     }
 }

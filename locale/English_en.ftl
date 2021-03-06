@@ -851,3 +851,7 @@ generate_ids_accept = Accept
 
 context_menu_delete_filtered_out_rows = Delete Filtered-out Rows
 are_you_sure_delete_filtered_out_rows = This will delete all filtered-out rows. Are you sure?
+
+context_menu_go_to = Go To...
+context_menu_go_to_definition = Go To Definition
+source_data_for_field_not_found = The source of the selected data could not be found.

@@ -191,6 +191,9 @@ pub struct TableView {
     context_menu_cascade_edition: QPtr<QAction>,
     smart_delete: QBox<QAction>,
 
+    context_menu_go_to: QBox<QMenu>,
+    context_menu_go_to_definition: QPtr<QAction>,
+
     sidebar_scroll_area: QBox<QScrollArea>,
     search_widget: QBox<QWidget>,
 
@@ -361,13 +364,18 @@ impl TableView {
         let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
 
+        let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view_primary);
+        let context_menu_go_to_definition = context_menu_go_to.add_action_q_string(&qtr("context_menu_go_to_definition"));
+
         // Insert some separators to space the menu, and the paste submenu.
         context_menu.insert_menu(&context_menu_paste, &context_menu_clone_submenu);
         context_menu.insert_menu(&context_menu_paste, &context_menu_copy_submenu);
+        context_menu.insert_menu(&context_menu_paste, &context_menu_go_to);
         context_menu.insert_separator(&context_menu_rewrite_selection);
         context_menu.insert_separator(&context_menu_import_tsv);
         context_menu.insert_separator(&context_menu_search);
         context_menu.insert_separator(&context_menu_undo);
+
 
         //--------------------------------------------------//
         // Search Section.
@@ -527,6 +535,9 @@ impl TableView {
             context_menu_search,
             context_menu_cascade_edition,
             smart_delete,
+
+            context_menu_go_to,
+            context_menu_go_to_definition,
 
             search_search_line_edit,
             search_replace_line_edit,
@@ -827,6 +838,11 @@ impl TableView {
     /// This function returns a pointer to the cascade edition action.
     pub fn get_mut_ptr_context_menu_cascade_edition(&self) -> &QPtr<QAction> {
         &self.context_menu_cascade_edition
+    }
+
+    /// This function returns a pointer to the go to definition action.
+    pub fn get_mut_ptr_context_menu_go_to_definition(&self) -> &QPtr<QAction> {
+        &self.context_menu_go_to_definition
     }
 
     /// This function returns a vector with the entire hide/show checkbox list.

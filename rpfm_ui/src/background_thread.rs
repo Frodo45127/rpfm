@@ -48,7 +48,7 @@ use rpfm_lib::template::Template;
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Notification, Response, THREADS_COMMUNICATION_ERROR};
-use crate::locale::tre;
+use crate::locale::{tr, tre};
 use crate::RPFM_PATH;
 use crate::views::table::TableType;
 
@@ -1019,6 +1019,26 @@ pub fn background_loop() {
                 let packed_files_info = pack_file_decoded.get_ref_packed_files_by_paths(edited_paths_2).iter().map(|x| PackedFileInfo::from(*x)).collect::<Vec<PackedFileInfo>>();
                 CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info));
             }
+
+            Command::GoToDefinition(ref_table, ref_column, ref_data) => {
+                let packed_files = pack_file_decoded.get_ref_packed_files_by_path_start(&["db".to_owned(), ref_table + "_tables"]);
+                let mut found = false;
+                for packed_file in &packed_files {
+                    if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
+                        if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
+                           CENTRAL_COMMAND.send_message_rust(Response::VecStringUsizeUsize(packed_file.get_path().to_vec(), column_index, row_index));
+                           found = true;
+                           break;
+                        }
+                    }
+                }
+
+                if !found {
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GeneticHTMLError(tr("source_data_for_field_not_found")).into()));
+                }
+            },
+
+            Command::GetSourceDataFromLocKey(loc_key) => CENTRAL_COMMAND.send_message_rust(Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

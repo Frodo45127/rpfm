@@ -805,6 +805,25 @@ impl Table {
         }
     }
 
+    /// This function tries to find the row and column of the provided data, if it exists in this table.
+    pub fn get_source_location_of_reference_data(
+        &self,
+        column_name: &str,
+        row_data: &str
+    ) -> Option<(usize, usize)> {
+        if let Some(column_index) = self.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == column_name) {
+            for (row_index, row) in self.get_ref_table_data().iter().enumerate() {
+                if let Some(cell_data) = row.get(column_index) {
+                    if &cell_data.data_to_string() == row_data {
+                        return Some((column_index, row_index))
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     //----------------------------------------------------------------//
     // TSV Functions for PackedFiles.
     //----------------------------------------------------------------//
