@@ -52,6 +52,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_context_menu_undo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["undo"])));
     ui.get_mut_ptr_context_menu_redo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["redo"])));
     ui.get_mut_ptr_context_menu_cascade_edition().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["rename_references"])));
+    ui.get_mut_ptr_context_menu_go_to_definition().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["go_to_definition"])));
 
     // Set the shortcuts to only trigger in the Table.
     ui.get_mut_ptr_context_menu_add_rows().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -76,6 +77,8 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_smart_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_undo().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_redo().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_cascade_edition().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_go_to_definition().set_shortcut_context(ShortcutContext::WidgetShortcut);
 
     // Add the actions to the TableView, so the shortcuts work.
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_add_rows());
@@ -100,4 +103,6 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_smart_delete());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_undo());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_redo());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_cascade_edition());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_go_to_definition());
 }

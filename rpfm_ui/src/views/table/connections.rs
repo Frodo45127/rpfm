@@ -55,6 +55,10 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_context_menu_go_to_definition().triggered().connect(&slots.go_to_definition);
     ui.get_mut_ptr_smart_delete().triggered().connect(&slots.smart_delete);
 
+    ui.get_go_to_loc_actions().iter()
+        .zip(slots.go_to_loc.iter())
+        .for_each(|(x, y)| { x.triggered().connect(y); });
+
     ui.get_hide_show_checkboxes_all().state_changed().connect(&slots.hide_show_columns_all);
     ui.get_freeze_checkboxes_all().state_changed().connect(&slots.freeze_columns_all);
 

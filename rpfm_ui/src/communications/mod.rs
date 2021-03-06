@@ -337,6 +337,9 @@ pub enum Command {
 
     /// This command is used to get the source data of a loc key. Contains the loc key to search.
     GetSourceDataFromLocKey(String),
+
+    /// This command is used to get the loc file/column/row of a key. Contains the loc key to search.
+    GoToLoc(String),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

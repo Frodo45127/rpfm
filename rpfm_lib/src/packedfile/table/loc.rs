@@ -86,6 +86,11 @@ impl Loc {
         self.table.get_ref_definition()
     }
 
+    /// This function returns a reference to the underlying table.
+    pub fn get_ref_table(&self) -> &Table {
+        &self.table
+    }
+
     /// This function returns a copy of the entries of this Loc Table.
     pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
         self.table.get_table_data()

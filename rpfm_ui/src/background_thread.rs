@@ -1038,6 +1038,24 @@ pub fn background_loop() {
                 }
             },
 
+            Command::GoToLoc(loc_key) => {
+                let packed_files = pack_file_decoded.get_ref_packed_files_by_type(PackedFileType::Loc, false);
+                let mut found = false;
+                for packed_file in &packed_files {
+                    if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
+                        if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
+                           CENTRAL_COMMAND.send_message_rust(Response::VecStringUsizeUsize(packed_file.get_path().to_vec(), column_index, row_index));
+                           found = true;
+                           break;
+                        }
+                    }
+                }
+
+                if !found {
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GeneticHTMLError(tr("loc_key_not_found")).into()));
+                }
+            },
+
             Command::GetSourceDataFromLocKey(loc_key) => CENTRAL_COMMAND.send_message_rust(Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
 
             // These two belong to the network thread, not to this one!!!!

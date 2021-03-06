@@ -83,6 +83,7 @@ pub struct TableViewSlots {
     pub search: QBox<SlotOfBool>,
     pub cascade_edition: QBox<SlotNoArgs>,
     pub go_to_definition: QBox<SlotNoArgs>,
+    pub go_to_loc: Vec<QBox<SlotNoArgs>>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
     pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
@@ -551,6 +552,25 @@ impl TableViewSlots {
             }
         ));
 
+        let mut go_to_loc = vec![];
+
+        for field in view.get_ref_table_definition().get_localised_fields() {
+            let field_name = field.get_name().to_owned();
+            let slot = SlotNoArgs::new(&view.table_view_primary, clone!(
+                view,
+                app_ui,
+                pack_file_contents_ui,
+                global_search_ui,
+                diagnostics_ui => move || {
+                    if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &field_name) {
+                        log_to_status_bar(&error);
+                    }
+                }
+            ));
+
+            go_to_loc.push(slot);
+        }
+
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
@@ -703,6 +723,7 @@ impl TableViewSlots {
             search,
             cascade_edition,
             go_to_definition,
+            go_to_loc,
             hide_show_columns,
             hide_show_columns_all,
             freeze_columns,

@@ -67,7 +67,7 @@ use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
+use crate::locale::{qtr, qtre};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{View, ViewType};
 use crate::utils::atomic_from_ptr;
@@ -193,6 +193,7 @@ pub struct TableView {
 
     context_menu_go_to: QBox<QMenu>,
     context_menu_go_to_definition: QPtr<QAction>,
+    context_menu_go_to_loc: Vec<QPtr<QAction>>,
 
     sidebar_scroll_area: QBox<QScrollArea>,
     search_widget: QBox<QWidget>,
@@ -366,6 +367,13 @@ impl TableView {
 
         let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view_primary);
         let context_menu_go_to_definition = context_menu_go_to.add_action_q_string(&qtr("context_menu_go_to_definition"));
+        let mut context_menu_go_to_loc = vec![];
+
+        for (index, loc_column) in table_definition.get_localised_fields().iter().enumerate() {
+            let context_menu_go_to_loc_action = context_menu_go_to.add_action_q_string(&qtre("context_menu_go_to_loc", &[loc_column.get_name()]));
+            if index == 0 { context_menu_go_to.insert_separator(&context_menu_go_to_loc_action); }
+            context_menu_go_to_loc.push(context_menu_go_to_loc_action)
+        }
 
         // Insert some separators to space the menu, and the paste submenu.
         context_menu.insert_menu(&context_menu_paste, &context_menu_clone_submenu);
@@ -538,6 +546,7 @@ impl TableView {
 
             context_menu_go_to,
             context_menu_go_to_definition,
+            context_menu_go_to_loc,
 
             search_search_line_edit,
             search_replace_line_edit,
@@ -843,6 +852,11 @@ impl TableView {
     /// This function returns a pointer to the go to definition action.
     pub fn get_mut_ptr_context_menu_go_to_definition(&self) -> &QPtr<QAction> {
         &self.context_menu_go_to_definition
+    }
+
+    /// This function returns a vector with the entire go to loc action list.
+    pub fn get_go_to_loc_actions(&self) -> &[QPtr<QAction>] {
+        &self.context_menu_go_to_loc
     }
 
     /// This function returns a vector with the entire hide/show checkbox list.

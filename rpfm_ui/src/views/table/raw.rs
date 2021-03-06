@@ -1602,4 +1602,88 @@ impl TableView {
         if error_message.is_empty() { None }
         else { Some(error_message) }
     }
+
+    /// This function tries to open the loc data related with the currently selected row.
+    ///
+    /// If the loc data it's not found, it does nothing.
+    /// If the loc data is a read-only dependency, it does nothing yet.
+    pub unsafe fn go_to_loc(
+        &self,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        loc_column_name: &str
+    ) -> Option<String> {
+
+        // This is only for DB Tables, and we need to have something selected.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut error_message = String::new();
+        if indexes.count_0a() > 0 {
+            if let PackedFileType::DB = *self.packed_file_type {
+
+                // Save the currently open locs, to ensure the backend has the most up-to-date data.
+                UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+                    if let PackedFileType::Loc = packed_file_view.get_packed_file_type() {
+                        let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                    }
+                });
+
+                // Get the name of the table and the key of the selected row to know what loc key to search.
+                let table_name = if let Some(ref table_name) = self.table_name {
+                    table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
+                } else { return Some(tr("loc_key_not_found")) };
+
+                let key = if let Some(column) = self.get_ref_table_definition().get_fields_processed().iter().position(|x| (x.get_name() == "key" || x.get_name() == "id") && x.get_is_key()) {
+                    let row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
+                    self.table_model.index_2a(row, column as i32).data_0a().to_string().to_std_string()
+                } else { return Some(tr("loc_key_not_found")) };
+
+                let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
+
+                // Then ask the backend to do the heavy work.
+                CENTRAL_COMMAND.send_message_qt(Command::GoToLoc(loc_key));
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+
+                    // We receive a path/column/row, so we know what to open/select.
+                    Response::VecStringUsizeUsize(path, column, row) => {
+                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+
+                        // Set the current file as non-preview, so it doesn't close when opening the source one.
+                        if let Some(packed_file_path) = self.get_packed_file_path() {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path) {
+                                packed_file_view.set_is_preview(false);
+                            }
+                        }
+
+                        // Open the table and select the cell.
+                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                            if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
+                                let table_view = view.get_ref_table();
+                                let table_view = table_view.get_mut_ptr_table_view_primary();
+                                let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                                let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                                let table_selection_model = table_view.selection_model();
+
+                                let table_model_index = table_model.index_2a(row as i32, column as i32);
+                                let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                                if table_model_index_filtered.is_valid() {
+                                    table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                    table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                }
+                            }
+                        }
+                    }
+
+                    Response::Error(error) => error_message = error.to_terminal(),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+            }
+        }
+
+        if error_message.is_empty() { None }
+        else { Some(error_message) }
+    }
 }
