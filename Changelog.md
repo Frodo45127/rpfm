@@ -52,6 +52,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Improved diagnostics' blacklisting logic to allow blacklisting of entire folders, and of particular columns.
 - Reworked `Install/Uninstall` commands to work with any PackFile, not only MyMods, and moved both commands to the `PackFile` menu ([@chadvandy](https://github.com/chadvandy)).
 - Empty rows are now shown by default when filtering a table.
+- Now each version has a name (why not?).
+- Improved responsiness during diagnostics checks.
+- Tweaked timing of diagnostics checks.
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -82,6 +85,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed dependencies not being initialized on new PackFile.
 - Fixed tables not being properly updated after certain editions.
 - Fixed svg icons not showing up on windows.
+- Fixed rare crash/hangs while doing a global search.
+- Fixed `Update Table` command closing PackedFiles it shouldn't close.
 
 ## [2.3.4] - 2020-11-22
 ### Added
