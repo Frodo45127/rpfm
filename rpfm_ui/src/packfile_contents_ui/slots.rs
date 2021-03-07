@@ -1060,12 +1060,16 @@ impl PackFileContentsSlots {
             let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
-                TreePathType::File(_) => {
+                TreePathType::File(path) => {
 
                     // First, if the PackedFile is open, save it.
-                    if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
-                        return show_dialog(&app_ui.main_window, error, false);
-                    }
+                    UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+                        if packed_file_view.get_path() == *path {
+                            if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, true) {
+                                return show_dialog(&app_ui.main_window, error, false);
+                            }
+                        }
+                    });
 
                     let path_type: PathType = From::from(item_type);
                     CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
