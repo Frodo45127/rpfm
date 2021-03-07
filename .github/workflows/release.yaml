@@ -49,7 +49,7 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-        shell: bash
+        shell: wsl-bash {0}
 
       - if: matrix.os == 'self-hosted-ubuntu'
         name: Installing Qt5, KTextEditor & KImageFormats
