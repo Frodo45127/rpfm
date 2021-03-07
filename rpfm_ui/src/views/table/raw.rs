@@ -344,7 +344,7 @@ impl TableView {
         //
         // TODO: Improve this.
         let (intexed_keys, indexes_no_keys): (Vec<Ref<QModelIndex>>, Vec<Ref<QModelIndex>>) = indexes_sorted.iter()
-            .map(|x| x.as_ref())
+            .filter_map(|x| if x.column() != -1 { Some(x.as_ref()) } else { None })
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
@@ -733,22 +733,33 @@ impl TableView {
         let mut table_data: Vec<(Option<String>, Vec<String>)> = vec![];
         let mut last_row = None;
         for index in indexes {
-            let current_row = index.row();
-            match last_row {
-                Some(row) => {
+            if index.column() != -1 {
+                let current_row = index.row();
+                match last_row {
+                    Some(row) => {
 
-                    // If it's the same row as before, take the row from the table data and append it.
-                    if current_row == row {
-                        let entry = table_data.last_mut().unwrap();
-                        let data = self.get_escaped_lua_string_from_index(*index);
-                        if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
-                            entry.0 = Some(self.escape_string_from_index(*index));
+                        // If it's the same row as before, take the row from the table data and append it.
+                        if current_row == row {
+                            let entry = table_data.last_mut().unwrap();
+                            let data = self.get_escaped_lua_string_from_index(*index);
+                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                                entry.0 = Some(self.escape_string_from_index(*index));
+                            }
+                            entry.1.push(data);
                         }
-                        entry.1.push(data);
-                    }
 
-                    // If it's not the same row as before, we create it as a new row.
-                    else {
+                        // If it's not the same row as before, we create it as a new row.
+                        else {
+                            let mut entry = (None, vec![]);
+                            let data = self.get_escaped_lua_string_from_index(*index);
+                            entry.1.push(data.to_string());
+                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                                entry.0 = Some(self.escape_string_from_index(*index));
+                            }
+                            table_data.push(entry);
+                        }
+                    }
+                    None => {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
@@ -758,18 +769,9 @@ impl TableView {
                         table_data.push(entry);
                     }
                 }
-                None => {
-                    let mut entry = (None, vec![]);
-                    let data = self.get_escaped_lua_string_from_index(*index);
-                    entry.1.push(data.to_string());
-                    if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
-                        entry.0 = Some(self.escape_string_from_index(*index));
-                    }
-                    table_data.push(entry);
-                }
-            }
 
-            last_row = Some(current_row);
+                last_row = Some(current_row);
+            }
         }
 
         // Create the string of the table.
@@ -1192,82 +1194,84 @@ impl TableView {
         let mut changed_cells = 0;
 
         for (real_cell, text) in real_cells {
+            if real_cell.is_valid() {
 
-            // Depending on the column, we try to encode the data in one format or another.
-            let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
-            let definition = self.get_ref_table_definition();
-            match definition.get_fields_processed()[real_cell.column() as usize].get_ref_field_type() {
+                // Depending on the column, we try to encode the data in one format or another.
+                let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
+                let definition = self.get_ref_table_definition();
+                match definition.get_fields_processed()[real_cell.column() as usize].get_ref_field_type() {
 
-                FieldType::Boolean => {
-                    let current_value = self.table_model.item_from_index(real_cell).check_state();
-                    let new_value = if text.to_lowercase() == "true" || *text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                    if current_value != new_value {
-                        self.table_model.item_from_index(real_cell).set_check_state(new_value);
-                        changed_cells += 1;
-                        self.process_edition(self.table_model.item_from_index(real_cell));
-                    }
-                },
-
-                // These are a bit special because we have to ignore any difference after the third decimal.
-                FieldType::F32 => {
-                    let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_float_0a());
-                    if let Ok(new_value) = text.parse::<f32>() {
-                        let new_value_txt = format!("{:.3}", new_value);
-                        if current_value != new_value_txt {
-                            self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
+                    FieldType::Boolean => {
+                        let current_value = self.table_model.item_from_index(real_cell).check_state();
+                        let new_value = if text.to_lowercase() == "true" || *text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                        if current_value != new_value {
+                            self.table_model.item_from_index(real_cell).set_check_state(new_value);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
                         }
-                    }
-                },
+                    },
 
-                FieldType::I16 => {
+                    // These are a bit special because we have to ignore any difference after the third decimal.
+                    FieldType::F32 => {
+                        let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_float_0a());
+                        if let Ok(new_value) = text.parse::<f32>() {
+                            let new_value_txt = format!("{:.3}", new_value);
+                            if current_value != new_value_txt {
+                                self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
+                                changed_cells += 1;
+                                self.process_edition(self.table_model.item_from_index(real_cell));
+                            }
+                        }
+                    },
 
-                    // To the stupid float conversion problem avoid, this we do.
-                    let new_value = if let Ok(new_value) = text.parse::<i16>() { new_value }
-                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i16 }
-                    else { continue };
+                    FieldType::I16 => {
 
-                    if current_value != new_value.to_string() {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
-                        changed_cells += 1;
-                        self.process_edition(self.table_model.item_from_index(real_cell));
-                    }
-                },
+                        // To the stupid float conversion problem avoid, this we do.
+                        let new_value = if let Ok(new_value) = text.parse::<i16>() { new_value }
+                        else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i16 }
+                        else { continue };
 
-                FieldType::I32 => {
+                        if current_value != new_value.to_string() {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    },
 
-                    // To the stupid float conversion problem avoid, this we do.
-                    let new_value = if let Ok(new_value) = text.parse::<i32>() { new_value }
-                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i32 }
-                    else { continue };
+                    FieldType::I32 => {
 
-                    if current_value != new_value.to_string() {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
-                        changed_cells += 1;
-                        self.process_edition(self.table_model.item_from_index(real_cell));
-                    }
-                },
+                        // To the stupid float conversion problem avoid, this we do.
+                        let new_value = if let Ok(new_value) = text.parse::<i32>() { new_value }
+                        else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i32 }
+                        else { continue };
 
-                FieldType::I64 => {
+                        if current_value != new_value.to_string() {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    },
 
-                    // To the stupid float conversion problem avoid, this we do.
-                    let new_value = if let Ok(new_value) = text.parse::<i64>() { new_value }
-                    else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i64 }
-                    else { continue };
+                    FieldType::I64 => {
 
-                    if current_value != new_value.to_string() {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
-                        changed_cells += 1;
-                        self.process_edition(self.table_model.item_from_index(real_cell));
-                    }
-                },
+                        // To the stupid float conversion problem avoid, this we do.
+                        let new_value = if let Ok(new_value) = text.parse::<i64>() { new_value }
+                        else if let Ok(new_value) = text.parse::<f32>() { new_value.round() as i64 }
+                        else { continue };
 
-                _ => {
-                    if current_value != *text {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
-                        changed_cells += 1;
-                        self.process_edition(self.table_model.item_from_index(real_cell));
+                        if current_value != new_value.to_string() {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    },
+
+                    _ => {
+                        if current_value != *text {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
                     }
                 }
             }
