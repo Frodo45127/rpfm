@@ -37,19 +37,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ilammy/msvc-dev-cmd@v1
-      - uses: Vampire/setup-wsl@v1
-        with:
-            distribution: Ubuntu-20.04
+      #- uses: Vampire/setup-wsl@v1
+      #  with:
+      #      distribution: Ubuntu-20.04
       #- uses: actions-rs/toolchain@v1
       #  with:
       #    profile: minimal
       #    toolchain: ${{ matrix.rust }}
       #    override: true
 
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-        shell: wsl-bash {0}
+      #- name: Get the version
+      #  id: get_version
+      #  run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      #  shell: wsl-bash {0}
 
       - if: matrix.os == 'self-hosted-ubuntu'
         name: Installing Qt5, KTextEditor & KImageFormats
