@@ -18,7 +18,7 @@ Also, the manual is [***HERE, READ IT BEFORE ASKING***][Manual].
 
 # Requirements (to build)
 
-Check the building instructions here: [https://frodo45127.github.io/rpfm/chapter_6.html][CompInst]
+Check the building instructions [here][CompInst]
 
 # FAQ
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
@@ -46,4 +46,4 @@ Check the building instructions here: [https://frodo45127.github.io/rpfm/chapter
 [Patreon]: https://www.patreon.com/RPFM
 [Manual]: https://frodo45127.github.io/rpfm/
 [Downloads]: https://github.com/Frodo45127/rpfm/releases
-[CompInst]: https://frodo45127.github.io/rpfm/chapter_6.html
+[CompInst]: https://frodo45127.github.io/rpfm/chapter_comp.html
