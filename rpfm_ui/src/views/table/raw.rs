@@ -529,7 +529,7 @@ impl TableView {
                         if real_row == -1 {
                             let row = get_new_row(&self.get_ref_table_definition());
                             self.table_model.append_row_q_list_of_q_standard_item(&row);
-                            real_row = self.table_model.row_count_0a() - 1;
+                            real_row = self.table_filter.row_count_0a() - 1;
                             added_rows += 1;
                         }
                         real_cells.push((self.table_filter.map_to_source(&self.table_filter.index_2a(real_row, real_column)), *text));
