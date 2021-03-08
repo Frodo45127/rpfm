@@ -76,7 +76,19 @@ impl TableView {
             self.context_menu_generate_ids.set_enabled(true);
             self.context_menu_rewrite_selection.set_enabled(true);
             self.context_menu_cascade_edition.set_enabled(true);
-            self.context_menu_go_to_definition.set_enabled(true);
+
+            if *self.packed_file_type == PackedFileType::DB {
+                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
+            } else {
+                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+            }
+
+            if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
+                self.context_menu_go_to_definition.set_enabled(true);
+            } else {
+                self.context_menu_go_to_definition.set_enabled(false);
+            }
+
         }
 
         // Otherwise, disable them.
@@ -90,6 +102,7 @@ impl TableView {
             self.context_menu_delete_rows.set_enabled(false);
             self.context_menu_cascade_edition.set_enabled(false);
             self.context_menu_go_to_definition.set_enabled(false);
+            self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
         }
 
         if !self.undo_lock.load(Ordering::SeqCst) {
