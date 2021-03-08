@@ -34,6 +34,8 @@ use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 
+use rayon::prelude::*;
+
 use std::collections::BTreeMap;
 use std::cmp::{Ordering, Reverse};
 use std::rc::Rc;
@@ -500,12 +502,15 @@ pub unsafe fn build_columns(
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut keys = vec![];
+    let tooltips = get_column_tooltips(&schema, &definition.get_fields_processed(), table_name);
 
     for (index, field) in definition.get_fields_processed().iter().enumerate() {
 
         let name = clean_column_names(&field.get_name());
         let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
-        set_column_tooltip(&schema, &field, table_name, &item);
+        if let Some(ref tooltip) = tooltips.get(index) {
+            item.set_tool_tip(&QString::from_std_str(tooltip));
+        }
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
         // Depending on his type, set one width or another.
@@ -574,78 +579,83 @@ pub unsafe fn build_columns(
 }
 
 /// This function sets the tooltip for the provided column header, if the column should have one.
-pub unsafe fn set_column_tooltip(
+pub unsafe fn get_column_tooltips(
     schema: &Option<Schema>,
-    field: &Field,
+    fields: &[Field],
     table_name: Option<&String>,
-    item: &QStandardItem
-) {
+) -> Vec<String> {
+
+    let mut tooltips = vec![];
 
     // If we passed it a table name, build the tooltip based on it. The logic is simple:
     // - If we have a description, we add it to the tooltip.
     // - If the column references another column, we add it to the tooltip.
     // - If the column is referenced by another column, we add it to the tooltip.
     if let Some(table_name) = table_name {
-        let mut tooltip_text = String::new();
-        if !field.get_description().is_empty() {
-            tooltip_text.push_str(&format!("<p>{}</p>", field.get_description()));
-        }
+        if let Some(ref schema) = schema {
 
-        if let Some(ref reference) = field.get_is_reference() {
-            tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
-        }
+            let versioned_files = schema.get_ref_versioned_file_db_all().into_iter();
+            tooltips = fields.par_iter().map(|field| {
+                let mut tooltip_text = String::new();
+                if !field.get_description().is_empty() {
+                    tooltip_text.push_str(&format!("<p>{}</p>", field.get_description()));
+                }
 
-        else {
-            let mut referenced_columns = if let Some(ref schema) = schema {
-                let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
-                let mut columns = vec![];
+                if let Some(ref reference) = field.get_is_reference() {
+                    tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
+                }
 
-                // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
-                for versioned_file in schema.get_ref_versioned_file_db_all() {
-                    if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
-                        let mut found = false;
-                        for ref_version in ref_definition {
-                            for ref_field in ref_version.get_fields_processed() {
-                                if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
-                                    if ref_ref_table == short_table_name && ref_ref_field == field.get_name() {
-                                        found = true;
-                                        columns.push((ref_table_name.to_owned(), ref_field.get_name().to_owned()));
+                else {
+                    let mut referenced_columns = {
+                        let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
+                        let mut columns = vec![];
+
+                        // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
+                        for versioned_file in versioned_files.clone() {
+                            if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
+                                let mut found = false;
+                                for ref_version in ref_definition {
+                                    for ref_field in ref_version.get_fields_processed() {
+                                        if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
+                                            if ref_ref_table == short_table_name && ref_ref_field == field.get_name() {
+                                                found = true;
+                                                columns.push((ref_table_name.to_owned(), ref_field.get_name().to_owned()));
+                                            }
+                                        }
                                     }
+                                    if found { break; }
                                 }
                             }
-                            if found { break; }
                         }
+                        columns
+                    };
+
+                    referenced_columns.sort_unstable();
+                    if !referenced_columns.is_empty() {
+                        tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_3")));
+                        for (index, reference) in referenced_columns.iter().enumerate() {
+                            tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+
+                            // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
+                            if index == 50 {
+                                tooltip_text.push_str(&format!("<p>{}</p>nnnn", tre("column_tooltip_2", &[&(referenced_columns.len() as isize - 50).to_string()])));
+                                break;
+                            }
+                        }
+
+                        // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
+                        tooltip_text.pop();
+                        tooltip_text.pop();
+                        tooltip_text.pop();
+                        tooltip_text.pop();
                     }
                 }
-                columns
-            } else { vec![] };
-
-            referenced_columns.sort_unstable();
-            if !referenced_columns.is_empty() {
-                tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_3")));
-                for (index, reference) in referenced_columns.iter().enumerate() {
-                    tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
-
-                    // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
-                    if index == 50 {
-                        tooltip_text.push_str(&format!("<p>{}</p>nnnn", tre("column_tooltip_2", &[&(referenced_columns.len() as isize - 50).to_string()])));
-                        break;
-                    }
-                }
-
-                // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
-                tooltip_text.pop();
-                tooltip_text.pop();
-                tooltip_text.pop();
-                tooltip_text.pop();
-            }
-        }
-
-        // We only add the tooltip if we got something to put into it.
-        if !tooltip_text.is_empty() {
-            item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+                tooltip_text
+            }).collect::<Vec<String>>();
         }
     }
+
+    tooltips
 }
 
 /// This function returns the reference data for an entire table.
