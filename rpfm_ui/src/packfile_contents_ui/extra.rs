@@ -378,4 +378,9 @@ impl PackFileContentsUI {
             app_ui.main_window.set_enabled(true);
         }
     }
+
+    pub unsafe fn start_delayed_updates_timer(pack_file_contents_ui: &Rc<Self>,) {
+        pack_file_contents_ui.filter_timer_delayed_updates.set_interval(500);
+        pack_file_contents_ui.filter_timer_delayed_updates.start_0a();
+    }
 }

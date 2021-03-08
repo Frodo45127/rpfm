@@ -27,6 +27,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.packfile_contents_tree_view.double_clicked().connect(&slots.open_packedfile_full);
 
     // Trigger the filter whenever the "filtered" text or any of his settings changes.
+    ui.filter_timer_delayed_updates.timeout().connect(&slots.filter_trigger);
     ui.filter_line_edit.text_changed().connect(&slots.filter_change_text);
     ui.filter_autoexpand_matches_button.toggled().connect(&slots.filter_change_autoexpand_matches);
     ui.filter_case_sensitive_button.toggled().connect(&slots.filter_change_case_sensitive);

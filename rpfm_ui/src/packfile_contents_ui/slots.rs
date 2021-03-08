@@ -60,6 +60,7 @@ pub struct PackFileContentsSlots {
     pub open_packedfile_preview: QBox<SlotNoArgs>,
     pub open_packedfile_full: QBox<SlotNoArgs>,
 
+    pub filter_trigger: QBox<SlotNoArgs>,
     pub filter_change_text: QBox<SlotOfQString>,
     pub filter_change_autoexpand_matches: QBox<SlotOfBool>,
     pub filter_change_case_sensitive: QBox<SlotOfBool>,
@@ -141,19 +142,27 @@ impl PackFileContentsSlots {
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
         let filter_change_text = SlotOfQString::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |_| {
-                PackFileContentsUI::filter_files(&pack_file_contents_ui);
+                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
             }
         ));
         let filter_change_autoexpand_matches = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |_| {
-                PackFileContentsUI::filter_files(&pack_file_contents_ui);
+                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
             }
         ));
         let filter_change_case_sensitive = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |_| {
+                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
+            }
+        ));
+
+        // Function triggered by the filter timer.
+        let filter_trigger = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
                 PackFileContentsUI::filter_files(&pack_file_contents_ui);
             }
         ));
+
 
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -1200,6 +1209,7 @@ impl PackFileContentsSlots {
             open_packedfile_preview,
             open_packedfile_full,
 
+            filter_trigger,
             filter_change_text,
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,

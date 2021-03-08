@@ -28,6 +28,7 @@ use qt_core::{ContextMenuPolicy, DockWidgetArea};
 use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
+use qt_core::QTimer;
 
 use rpfm_lib::SETTINGS;
 
@@ -59,6 +60,7 @@ pub struct PackFileContentsUI {
     pub filter_line_edit: QBox<QLineEdit>,
     pub filter_autoexpand_matches_button: QBox<QPushButton>,
     pub filter_case_sensitive_button: QBox<QPushButton>,
+    pub filter_timer_delayed_updates: QBox<QTimer>,
 
     //-------------------------------------------------------------------------------//
     // Contextual menu for the PackFile Contents TreeView.
@@ -145,9 +147,11 @@ impl PackFileContentsUI {
         }
 
         // Create and configure the widgets to control the `TreeView`s filter.
+        let filter_timer_delayed_updates = QTimer::new_1a(&packfile_contents_dock_widget);
         let filter_line_edit = QLineEdit::from_q_widget(&packfile_contents_dock_inner_widget);
         let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), &packfile_contents_dock_inner_widget);
         let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), &packfile_contents_dock_inner_widget);
+        filter_timer_delayed_updates.set_single_shot(true);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_autoexpand_matches_button.set_checkable(true);
@@ -236,6 +240,7 @@ impl PackFileContentsUI {
             filter_line_edit,
             filter_autoexpand_matches_button,
             filter_case_sensitive_button,
+            filter_timer_delayed_updates,
 
             //-------------------------------------------------------------------------------//
             // Contextual menu for the PackFile Contents TreeView.
