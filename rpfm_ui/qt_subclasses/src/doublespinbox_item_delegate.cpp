@@ -5,16 +5,24 @@
 #include <QDoubleSpinBox>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QDoubleSpinBoxItemDelegate.
-extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column) {
-    QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent);
+extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column, QTimer* timer) {
+    QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent, timer);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QDoubleSpinBoxItemDelegate. Empty, as we don't need to do anything special with it.
-QDoubleSpinBoxItemDelegate::QDoubleSpinBoxItemDelegate(QObject *parent): QStyledItemDelegate(parent) {}
+QDoubleSpinBoxItemDelegate::QDoubleSpinBoxItemDelegate(QObject *parent, QTimer* timer): QStyledItemDelegate(parent) {
+    diag_timer = timer;
+}
 
 // Function called when the spinbox it's created. Here we configure the limits and decimals of the spinbox.
 QWidget* QDoubleSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
+
+    // Stop the diagnostics timer, so it doesn't steal the focus of the editor.
+    if (diag_timer) {
+        diag_timer->stop();
+    }
+
     QDoubleSpinBox* spinBox = new QDoubleSpinBox(parent);
     spinBox->setRange(-3.402823e+38, 3.402823e+38);
     spinBox->setDecimals(3);

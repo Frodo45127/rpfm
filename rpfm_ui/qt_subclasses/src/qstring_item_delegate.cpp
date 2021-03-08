@@ -3,18 +3,25 @@
 #include <QLineEdit>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QStringItemDelegate.
-extern "C" void new_qstring_item_delegate(QObject *parent, const int column, const int max_lenght) {
-    QStringItemDelegate* delegate = new QStringItemDelegate(parent, max_lenght);
+extern "C" void new_qstring_item_delegate(QObject *parent, const int column, const int max_lenght, QTimer* timer) {
+    QStringItemDelegate* delegate = new QStringItemDelegate(parent, max_lenght, timer);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QStringItemDelegate. We use it to store the max lenght allowed for the delegate.
-QStringItemDelegate::QStringItemDelegate(QObject *parent, const int lenght): QStyledItemDelegate(parent) {
+QStringItemDelegate::QStringItemDelegate(QObject *parent, const int lenght, QTimer* timer): QStyledItemDelegate(parent) {
     max_lenght = lenght;
+    diag_timer = timer;
 }
 
 // Function called when the widget it's created. Here we configure the QLinEdit.
 QWidget* QStringItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
+
+    // Stop the diagnostics timer, so it doesn't steal the focus of the editor.
+    if (diag_timer) {
+        diag_timer->stop();
+    }
+
     QLineEdit *editor = new QLineEdit(parent);
     if (this->max_lenght > 0) {
         editor->setMaxLength(max_lenght);

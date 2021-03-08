@@ -45,6 +45,7 @@ use qt_core::QVariant;
 use qt_core::Orientation;
 use qt_core::QObject;
 use qt_core::CheckState;
+use qt_core::QTimer;
 use qt_core::QStringList;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
@@ -1726,10 +1727,10 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, 0);
+    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, 0, &QTimer::new_0a().as_ptr());
 
     // Fields Max lenght and CA Order must be numeric.
-    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 9, 32);
-    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 12, 16);
-    new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 65535);
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 9, 32, &QTimer::new_0a().as_ptr());
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 12, 16, &QTimer::new_0a().as_ptr());
+    new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 65535, &QTimer::new_0a().as_ptr());
 }

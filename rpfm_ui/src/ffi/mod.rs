@@ -29,6 +29,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QStringList;
 use qt_core::QPtr;
+use qt_core::QTimer;
 use qt_core::QListOfInt;
 use qt_core::CaseSensitivity;
 
@@ -38,27 +39,27 @@ use crate::locale::qtr;
 use crate::UI_STATE;
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32); }
-pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32) {
-    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_lenght) }
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32, timer: *mut QTimer); }
+pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32, timer: &Ptr<QTimer>) {
+    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_lenght, timer.as_mut_raw_ptr()) }
 }
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
-extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32); }
-pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32) {
-    unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type) }
+extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer); }
+pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>) {
+    unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr()) }
 }
 
 /// This function changes the default editor widget for F32 cells on tables with a numeric one.
-extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32); }
-pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32) {
-    unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column) }
+extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer); }
+pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>) {
+    unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr()) }
 }
 
 /// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema..
-extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32); }
-pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_lenght: i32) {
-    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_lenght) }
+extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32, timer: *mut QTimer); }
+pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_lenght: i32, timer: &Ptr<QTimer>) {
+    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_lenght, timer.as_mut_raw_ptr()) }
 }
 
 /// This function setup the special filter used for the PackFile Contents `TreeView`.

@@ -1293,7 +1293,8 @@ impl AppUISlots {
                                     &table.get_mut_ptr_table_view_primary(),
                                     &table.get_mut_ptr_table_view_frozen(),
                                     &table.get_ref_table_definition(),
-                                    &data
+                                    &data,
+                                    &table.timer_delayed_updates
                                 );
                             }
                         }

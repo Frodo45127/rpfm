@@ -5,8 +5,9 @@
 #include <QStyledItemDelegate>
 #include <QAbstractItemDelegate>
 #include <QDoubleSpinBox>
+#include <QTimer>
 
-extern "C" void new_double_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0);
+extern "C" void new_double_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr);
 
 class QDoubleSpinBoxItemDelegate : public QStyledItemDelegate
 {
@@ -14,7 +15,7 @@ class QDoubleSpinBoxItemDelegate : public QStyledItemDelegate
 
 public:
 
-    explicit QDoubleSpinBoxItemDelegate(QObject *parent = nullptr);
+    explicit QDoubleSpinBoxItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -24,6 +25,7 @@ public:
 signals:
 
 private:
+    QTimer* diag_timer;
 };
 
 #endif // DOUBLESPINBOX_ITEM_DELEGATE_H

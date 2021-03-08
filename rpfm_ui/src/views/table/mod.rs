@@ -605,7 +605,8 @@ impl TableView {
             &packed_file_table_view.get_mut_ptr_table_view_frozen(),
             &packed_file_table_view.table_definition.read().unwrap(),
             &packed_file_table_view.dependency_data,
-            &table_data
+            &table_data,
+            &packed_file_table_view.timer_delayed_updates
         );
 
         // Initialize the undo model.
@@ -658,7 +659,8 @@ impl TableView {
             &table_view_frozen,
             &self.get_ref_table_definition(),
             &self.dependency_data,
-            &data
+            &data,
+            &self.timer_delayed_updates
         );
 
         // Prepare the diagnostic pass.

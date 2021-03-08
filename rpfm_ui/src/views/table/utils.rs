@@ -345,6 +345,7 @@ pub unsafe fn load_data(
     definition: &Definition,
     dependency_data: &RwLock<BTreeMap<i32, DependencyData>>,
     data: &TableType,
+    timer: &QBox<QTimer>,
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -393,6 +394,7 @@ pub unsafe fn load_data(
         &table_view_frozen,
         definition,
         &dependency_data.read().unwrap(),
+        timer
     )
 }
 
@@ -714,7 +716,8 @@ pub unsafe fn setup_item_delegates(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &BTreeMap<i32, DependencyData>
+    dependency_data: &BTreeMap<i32, DependencyData>,
+    timer: &QBox<QTimer>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
     for (column, field) in definition.get_fields_processed().iter().enumerate() {
@@ -730,30 +733,30 @@ pub unsafe fn setup_item_delegates(
                 field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length());
-            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length());
+            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr());
+            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr());
         }
 
         else {
             match field.get_ref_field_type() {
                 FieldType::Boolean => {},
                 FieldType::F32 => {
-                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32);
-                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32);
+                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr());
+                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr());
                 },
                 FieldType::I16 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr());
                 },
                 FieldType::I32 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr());
                 },
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
                 FieldType::I64 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr());
                 },
                 FieldType::StringU8 |
                 FieldType::StringU16 |

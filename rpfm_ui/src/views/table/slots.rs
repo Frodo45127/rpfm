@@ -418,7 +418,8 @@ impl TableViewSlots {
                                     &view.get_mut_ptr_table_view_frozen(),
                                     &view.get_ref_table_definition(),
                                     &view.dependency_data,
-                                    &data
+                                    &data,
+                                    &view.timer_delayed_updates
                                 );
 
                                 // Prepare the diagnostic pass.

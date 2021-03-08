@@ -4,8 +4,9 @@
 #include "qt_subclasses_global.h"
 #include <QStyledItemDelegate>
 #include <QAbstractItemDelegate>
+#include <QTimer>
 
-extern "C" void new_qstring_item_delegate(QObject *parent = nullptr, const int column = 0, const int max_lenght = 0);
+extern "C" void new_qstring_item_delegate(QObject *parent = nullptr, const int column = 0, const int max_lenght = 0, QTimer* timer = nullptr);
 
 class QStringItemDelegate : public QStyledItemDelegate
 {
@@ -13,7 +14,7 @@ class QStringItemDelegate : public QStyledItemDelegate
 
 public:
 
-    explicit QStringItemDelegate(QObject *parent = nullptr, const int max_lenght = 0);
+    explicit QStringItemDelegate(QObject *parent = nullptr, const int max_lenght = 0, QTimer* timer = nullptr);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -24,6 +25,7 @@ signals:
 
 private:
     int max_lenght;
+    QTimer* diag_timer;
 };
 
 #endif // QSTRING_ITEM_DELEGATE_H

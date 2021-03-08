@@ -7,20 +7,26 @@
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QSpinBoxItemDelegate.
 // We have to pass it the integer type (16, 32 or 64) too for later checks.
-extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, const bool is_optional) {
-    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, is_optional);
+extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, const bool is_optional, QTimer* timer) {
+    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, is_optional, timer);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QSpinBoxItemDelegate. We use it to store the integer type of the value in the delegate.
-QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, const bool is_optional): QStyledItemDelegate(parent)
+QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, const bool is_optional, QTimer* timer): QStyledItemDelegate(parent)
 {
     type = integer_type;
     optional = is_optional;
+    diag_timer = timer;
 }
 
 // Function called when the widget it's created. Here we configure the spinbox/linedit.
 QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
+
+    // Stop the diagnostics timer, so it doesn't steal the focus of the editor.
+    if (diag_timer) {
+        diag_timer->stop();
+    }
 
     // SpinBoxes only support i16, i32, not i64, so for i64 we use a linedit with validation.
     if (type == 64) {

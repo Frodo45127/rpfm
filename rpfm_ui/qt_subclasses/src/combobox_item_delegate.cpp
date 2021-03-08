@@ -4,21 +4,28 @@
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QComboBoxItemDelegate,
 // with the specified values. We have to tell it too if the combo will be editable or not.
-extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght) {
-    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght);
+extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght, QTimer* timer) {
+    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght, timer);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
-QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght): QStyledItemDelegate(parent)
+QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer): QStyledItemDelegate(parent)
 {
     editable = is_editable;
     values = provided_values;
     max_lenght = lenght;
+    diag_timer = timer;
 }
 
 // Function called when the combo it's created. It just put the values into the combo and returns it.
 QWidget* QComboBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
+
+    // Stop the diagnostics timer, so it doesn't steal the focus of the editor.
+    if (diag_timer) {
+        diag_timer->stop();
+    }
+
     QComboBox* comboBox = new QComboBox(parent);
     comboBox->setEditable(editable);
     comboBox->addItems(values);
