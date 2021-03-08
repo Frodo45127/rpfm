@@ -103,6 +103,7 @@ pub struct FilterViewSlots {
     pub filter_line_edit: QBox<SlotOfQString>,
     pub filter_column_selector: QBox<SlotOfInt>,
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
+    pub filter_trigger: QBox<SlotNoArgs>,
     pub filter_check_regex: QBox<SlotOfQString>,
     pub filter_add: QBox<SlotNoArgs>,
     pub filter_remove: QBox<SlotNoArgs>,
@@ -752,16 +753,22 @@ impl FilterViewSlots {
 
         // When we want to filter the table...
         let filter_line_edit = SlotOfQString::new(&view.filter_widget, clone!(
-            parent_view => move |_| {
-            parent_view.filter_table();
+            view => move |_| {
+            FilterView::start_delayed_updates_timer(&view);
         }));
 
         let filter_column_selector = SlotOfInt::new(&view.filter_widget, clone!(
-            parent_view => move |_| {
-            parent_view.filter_table();
+            view => move |_| {
+            FilterView::start_delayed_updates_timer(&view);
         }));
 
         let filter_case_sensitive_button = SlotNoArgs::new(&view.filter_widget, clone!(
+            view => move || {
+            FilterView::start_delayed_updates_timer(&view);
+        }));
+
+        // Function triggered by the filter timer.
+        let filter_trigger = SlotNoArgs::new(&view.filter_widget, clone!(
             parent_view => move || {
             parent_view.filter_table();
         }));
@@ -790,6 +797,7 @@ impl FilterViewSlots {
             filter_line_edit,
             filter_column_selector,
             filter_case_sensitive_button,
+            filter_trigger,
             filter_check_regex,
             filter_add,
             filter_remove,

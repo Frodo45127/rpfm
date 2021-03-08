@@ -238,6 +238,7 @@ pub struct FilterView {
     filter_widget: QBox<QWidget>,
     filter_case_sensitive_button: QBox<QPushButton>,
     filter_column_selector: QBox<QComboBox>,
+    filter_timer_delayed_updates: QBox<QTimer>,
     filter_line_edit: QBox<QLineEdit>,
     filter_add: QBox<QPushButton>,
     filter_remove: QBox<QPushButton>,
@@ -1503,6 +1504,7 @@ impl FilterView {
         filter_grid.set_column_stretch(3, 0);
         filter_grid.set_column_stretch(4, 0);
 
+        let filter_timer_delayed_updates = QTimer::new_1a(&parent);
         let filter_line_edit = QLineEdit::from_q_widget(&parent);
         let filter_column_selector = QComboBox::new_1a(&parent);
         let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), &parent);
@@ -1510,6 +1512,7 @@ impl FilterView {
         let filter_add = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &parent);
         let filter_remove = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &parent);
 
+        filter_timer_delayed_updates.set_single_shot(true);
         filter_column_selector.set_model(&filter_column_list);
 
         let fields = get_fields_sorted(&view.get_ref_table_definition());
@@ -1537,6 +1540,7 @@ impl FilterView {
             filter_line_edit,
             filter_case_sensitive_button,
             filter_column_selector,
+            filter_timer_delayed_updates,
             filter_add,
             filter_remove,
         });
@@ -1546,5 +1550,10 @@ impl FilterView {
         connections::set_connections_filter(&filter, &slots);
 
         view.get_ref_mut_filters().push(filter);
+    }
+
+    pub unsafe fn start_delayed_updates_timer(view: &Arc<Self>) {
+        view.filter_timer_delayed_updates.set_interval(500);
+        view.filter_timer_delayed_updates.start_0a();
     }
 }
