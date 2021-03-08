@@ -1366,6 +1366,7 @@ impl TableView {
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         self.context_menu_update();
         if let Some(ref packed_file_path) = self.packed_file_path {
+            TableSearch::update_search(&self);
             set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
         }
 
