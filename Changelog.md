@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.4.1]
+### Fixed
+- Fixed CTD on editing integer cells.
+- Fixed lost focus while editing string cells.
+
 ## [2.4.0]
 ### Added
 - Implemented `To Json` command on the CLI, to convert the schemas to Json.
@@ -31,10 +36,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Delete Filtered-out Rows` feature.
 - Implemented `Generate Ids` feature.
 - Implemented `Check PackFile` and `Check Open PackedFiles` buttons to manually trigger diagnostics checks.
+- Implemented `Go To Definition` feature.
+- Implemented `Go To Loc` feature.
 
 ### Changed
-- Removed automatic diagnostics checks (were causing too many issues to be maintainable).
-- Removed automatic global search checks (were causing too many issues to be maintainable).
 - Small performance optimizations for querying for dependency data.
 - Updated dependencies.
 - Improved definition importer performance, both in time and memory consumption.
@@ -242,7 +247,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.1...HEAD
+[2.4.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/Frodo45127/rpfm/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/Frodo45127/rpfm/compare/v2.3.3...v2.3.4
 [2.3.3]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.3
