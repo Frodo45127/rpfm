@@ -23,9 +23,9 @@ QWidget* QStringItemDelegate::createEditor(QWidget *parent, const QStyleOptionVi
     }
 
     QLineEdit *editor = new QLineEdit(parent);
-    if (this->max_lenght > 0) {
-        editor->setMaxLength(max_lenght);
-    }
+    //if (this->max_lenght > 0) {
+    //    editor->setMaxLength(max_lenght);
+    //}
     return editor;
 }
 

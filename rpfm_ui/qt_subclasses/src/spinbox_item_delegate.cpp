@@ -7,16 +7,15 @@
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QSpinBoxItemDelegate.
 // We have to pass it the integer type (16, 32 or 64) too for later checks.
-extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, const bool is_optional, QTimer* timer) {
-    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, is_optional, timer);
+extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, QTimer* timer) {
+    QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, timer);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QSpinBoxItemDelegate. We use it to store the integer type of the value in the delegate.
-QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, const bool is_optional, QTimer* timer): QStyledItemDelegate(parent)
+QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_type, QTimer* timer): QStyledItemDelegate(parent)
 {
     type = integer_type;
-    optional = is_optional;
     diag_timer = timer;
 }
 
@@ -36,20 +35,14 @@ QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionV
 
     // For the rest, we use a normal spinbox.
     else {
-        if (optional) {
-            QLineEdit* lineEdit = new QLineEdit(parent);
-            return lineEdit;
+        QSpinBox* spinBox = new QSpinBox(parent);
+        if (type == 32) {
+            spinBox->setRange(-2147483648, 2147483647);
         }
-        else {
-            QSpinBox* spinBox = new QSpinBox(parent);
-            if (type == 32) {
-                spinBox->setRange(-2147483648, 2147483647);
-            }
-            else if (type == 16) {
-                spinBox->setRange(-32768, 32767);
-            }
-            return spinBox;
+        else if (type == 16) {
+            spinBox->setRange(-32768, 32767);
         }
+        return spinBox;
     }
 }
 
@@ -61,16 +54,9 @@ void QSpinBoxItemDelegate::setEditorData(QWidget *editor, const QModelIndex &ind
         lineEdit->setText(value);
     }
     else {
-        if (optional) {
-            QLineEdit* lineEdit = static_cast<QLineEdit*>(editor);
-            QString value = index.model()->data(index, Qt::EditRole).toString();
-            lineEdit->setText(value);
-        }
-        else {
-            QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
-            signed int value = index.model()->data(index, Qt::EditRole).toInt();
-            spinBox->setValue(value);
-        }
+        QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
+        signed int value = index.model()->data(index, Qt::EditRole).toInt();
+        spinBox->setValue(value);
     }
 }
 
@@ -85,18 +71,9 @@ void QSpinBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *mod
         if (ok) { model->setData(index, value, Qt::EditRole); }
     }
     else {
-        if (optional) {
-            QLineEdit* lineEdit = static_cast<QLineEdit*>(editor);
-            bool ok;
-            signed int value = lineEdit->text().toInt(&ok);
-            if (ok) { model->setData(index, value, Qt::EditRole); }
-            else { model->setData(index, "", Qt::EditRole); }
-        }
-        else {
-            QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
-            signed int value = spinBox->value();
-            model->setData(index, value, Qt::EditRole);
-        }
+        QSpinBox* spinBox = static_cast<QSpinBox*>(editor);
+        signed int value = spinBox->value();
+        model->setData(index, value, Qt::EditRole);
     }
 }
 

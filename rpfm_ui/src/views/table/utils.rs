@@ -772,8 +772,8 @@ pub unsafe fn setup_item_delegates(
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
                 FieldType::OptionalStringU16 => {
-                    //new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.get_max_length());
-                    //new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.get_max_length());
+                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr());
+                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr());
                 },
                 FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {}
             }

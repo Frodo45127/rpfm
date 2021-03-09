@@ -7,7 +7,7 @@
 #include <QSpinBox>
 #include <QTimer>
 
-extern "C" void new_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, const int integer_type = 0, const bool is_optional = false, QTimer* timer = nullptr);
+extern "C" void new_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, const int integer_type = 0, QTimer* timer = nullptr);
 
 class QSpinBoxItemDelegate : public QStyledItemDelegate
 {
@@ -15,7 +15,7 @@ class QSpinBoxItemDelegate : public QStyledItemDelegate
 
 public:
 
-    explicit QSpinBoxItemDelegate(QObject *parent = nullptr, const int integer_type = 0, const bool is_optional = false, QTimer* timer = nullptr);
+    explicit QSpinBoxItemDelegate(QObject *parent = nullptr, const int integer_type = 0, QTimer* timer = nullptr);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -26,7 +26,6 @@ signals:
 
 private:
     int type;
-    bool optional;
     QTimer *diag_timer;
 };
 
