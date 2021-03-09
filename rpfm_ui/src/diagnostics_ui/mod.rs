@@ -15,6 +15,7 @@ Module with all the code related to the `DiagnosticsUI`.
 use qt_widgets::q_abstract_item_view::{ScrollHint, SelectionMode};
 use qt_widgets::QCheckBox;
 use qt_widgets::QDockWidget;
+use qt_widgets::{QFrame, q_frame::{Shadow, Shape}};
 use qt_widgets::QGroupBox;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLabel;
@@ -143,6 +144,11 @@ impl DiagnosticsUI {
         let diagnostics_button_info = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_info"), &filter_frame);
         let diagnostics_button_only_current_packed_file = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_only_current_packed_file"), &filter_frame);
         let diagnostics_button_show_more_filters = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_show_more_filters"), &filter_frame);
+
+        let line_separator = QFrame::new_1a(&filter_frame);
+        line_separator.set_frame_shape(Shape::VLine);
+        line_separator.set_frame_shadow(Shadow::Sunken);
+
         diagnostics_button_error.set_checkable(true);
         diagnostics_button_warning.set_checkable(true);
         diagnostics_button_info.set_checkable(true);
@@ -176,11 +182,12 @@ impl DiagnosticsUI {
 
         filter_grid.add_widget_5a(&diagnostics_button_check_packfile, 0, 0, 1, 1);
         filter_grid.add_widget_5a(&diagnostics_button_check_current_packed_file, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 3, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 4, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 5, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 6, 1, 1);
+        filter_grid.add_widget_5a(&line_separator, 0, 2, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 4, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 5, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 6, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 7, 1, 1);
 
         let diagnostics_table_view = QTableView::new_1a(&diagnostics_dock_inner_widget);
         let diagnostics_table_filter = new_tableview_filter_safe(diagnostics_dock_inner_widget.static_upcast());
