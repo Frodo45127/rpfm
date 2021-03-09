@@ -6,7 +6,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [2.4.0]
 ### Added
 - Implemented `To Json` command on the CLI, to convert the schemas to Json.
 - Implemented context menu for PackedFile View Tabs.
@@ -30,6 +30,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Clear` button for TreeView and Table filters.
 - Implemented `Delete Filtered-out Rows` feature.
 - Implemented `Generate Ids` feature.
+- Implemented `Check PackFile` and `Check Open PackedFiles` buttons to manually trigger diagnostics checks.
 
 ### Changed
 - Removed automatic diagnostics checks (were causing too many issues to be maintainable).
@@ -55,6 +56,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Now each version has a name (why not?).
 - Improved responsiness during diagnostics checks.
 - Tweaked timing of diagnostics checks.
+- Improved performance when opening PackedFiles.
+- `Extract Table` now uses the PackFile's folder as default, then /data, then Rpfm's folder.
+- Added small delay before filtering Tables/TreeView to improve performance while filtering.
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -87,6 +91,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed svg icons not showing up on windows.
 - Fixed rare crash/hangs while doing a global search.
 - Fixed `Update Table` command closing PackedFiles it shouldn't close.
+- Fixed compilation instructions link ([@LenardHess](https://github.com/LenardHess)).
 
 ## [2.3.4] - 2020-11-22
 ### Added
@@ -237,7 +242,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.3.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/Frodo45127/rpfm/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/Frodo45127/rpfm/compare/v2.3.3...v2.3.4
 [2.3.3]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.2
