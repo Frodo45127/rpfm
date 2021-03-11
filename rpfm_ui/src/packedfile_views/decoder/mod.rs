@@ -1569,7 +1569,8 @@ impl PackedFileDecoderView {
                         elements.push(def);
                     }
                 }
-                else if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+
+                if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
                     if (number < 60000.0 && number > -60000.0 && (!(-0.001..=0.001).contains(&number) || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
                         let mut def = base.to_vec();
                         def.push(FieldType::F32);
