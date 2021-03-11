@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.4.2]
+### Fixed
+- Fixed hang when updating tables.
+
 ## [2.4.1]
 ### Fixed
 - Fixed CTD on editing integer cells.
