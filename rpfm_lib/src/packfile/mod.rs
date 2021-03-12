@@ -1000,7 +1000,7 @@ impl PackFile {
     pub fn get_packed_files_by_type(&self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { y == packed_file_type } else { y.eq_non_strict(packed_file_type) }
             }).cloned().collect()
     }
@@ -1012,7 +1012,7 @@ impl PackFile {
     pub fn get_ref_packed_files_by_type(&self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<&PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { y == packed_file_type } else { y.eq_non_strict(packed_file_type) }
             }).collect()
     }
@@ -1024,7 +1024,7 @@ impl PackFile {
     pub fn get_ref_mut_packed_files_by_type(&mut self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { y == packed_file_type } else { y.eq_non_strict(packed_file_type) }
             }).collect()
     }
@@ -1036,7 +1036,7 @@ impl PackFile {
     pub fn get_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
             }).cloned().collect()
     }
@@ -1048,7 +1048,7 @@ impl PackFile {
     pub fn get_ref_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
             }).collect()
     }
@@ -1060,7 +1060,7 @@ impl PackFile {
     pub fn get_ref_mut_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut()
             .filter(|x| {
-                let y = PackedFileType::get_packed_file_type(x.get_path());
+                let y = PackedFileType::get_packed_file_type(x.get_ref_raw(), false);
                 if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
             }).collect()
     }
@@ -2567,12 +2567,15 @@ impl PackFile {
             packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
-            let (path, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
+            let is_compressable = match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
+                PackedFileType::DB | PackedFileType::Loc => false,
+                _ => true
+            };
+            let (_, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
 
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile. EXCEPT FOR TABLES. NEVER COMPRESS TABLES.
-            match PackedFileType::get_packed_file_type(path) {
-                PackedFileType::DB | PackedFileType::Loc => *should_be_compressed = false,
-                _ => {}
+            if !is_compressable {
+                *should_be_compressed = false;
             }
 
             if *should_be_compressed && !*is_compressed {

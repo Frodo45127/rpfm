@@ -26,11 +26,12 @@ use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
-use rpfm_lib::packedfile::DecodedPackedFile;
+use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
+use rpfm_lib::packedfile::uic::UIC;
 use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
@@ -340,6 +341,9 @@ pub enum Command {
 
     /// This command is used to get the loc file/column/row of a key. Contains the loc key to search.
     GoToLoc(String),
+
+    /// This command is used to get the type of a PackedFile.
+    GetPackedFileType(Vec<String>)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -429,6 +433,9 @@ pub enum Response {
     /// Response to return `(RigidModel, PackedFileInfo)`.
     RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),
 
+    /// Response to return `(UIC, PackedFileInfo)`.
+    UICPackedFileInfo((UIC, PackedFileInfo)),
+
     /// Response to return `Text`.
     Text(Text),
 
@@ -467,6 +474,9 @@ pub enum Response {
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),
+
+    /// Response to return `PackedFileType`.
+    PackedFileType(PackedFileType),
 }
 
 #[derive(Debug)]

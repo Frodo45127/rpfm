@@ -430,8 +430,8 @@ impl PackedFile {
     }
 
     /// This function returns the type of the Provided PackedFile, according to it's path.
-    pub fn get_packed_file_type_by_path(&self) -> PackedFileType {
-        PackedFileType::get_packed_file_type(self.get_path())
+    pub fn get_packed_file_type(&self, strict_mode: bool) -> PackedFileType {
+        PackedFileType::get_packed_file_type(self.get_ref_raw(), strict_mode)
     }
 }
 

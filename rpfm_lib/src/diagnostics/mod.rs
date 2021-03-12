@@ -126,7 +126,7 @@ impl Diagnostics {
                 }
             }
 
-            match packed_file.get_packed_file_type_by_path() {
+            match packed_file.get_packed_file_type(false) {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,
@@ -486,7 +486,7 @@ impl Diagnostics {
                 }
             }
 
-            let diagnostic = match packed_file.get_packed_file_type_by_path() {
+            let diagnostic = match packed_file.get_packed_file_type(false) {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,

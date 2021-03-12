@@ -194,7 +194,7 @@ impl PackedFileDecoderView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let packed_file_type = PackedFileType::get_packed_file_type_by_data(&packed_file);
+        let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), true);
 
         // If the PackedFileType is not one of the ones supported by the schema system, get out.
         if !SUPPORTED_PACKED_FILE_TYPES.iter().any(|x| x == &packed_file_type)  {

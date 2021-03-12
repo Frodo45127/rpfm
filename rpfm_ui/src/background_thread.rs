@@ -498,6 +498,7 @@ pub fn background_loop() {
                                         DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::UIC(uic) => CENTRAL_COMMAND.send_message_rust(Response::UICPackedFileInfo((uic.clone(), From::from(&**packed_file)))),
                                         _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
 
                                     }
@@ -745,7 +746,7 @@ pub fn background_loop() {
                         let name = format!("{}.{}", Uuid::new_v4(), extension);
                         let mut temporal_file_path = temp_dir();
                         temporal_file_path.push(name);
-                        match packed_file.get_packed_file_type_by_path() {
+                        match packed_file.get_packed_file_type(false) {
 
                             // Tables we extract them as TSV.
                             PackedFileType::DB => {
@@ -814,7 +815,7 @@ pub fn background_loop() {
             Command::SavePackedFileFromExternalView((path, external_path)) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(packed_file) => {
-                        match packed_file.get_packed_file_type_by_path() {
+                        match packed_file.get_packed_file_type(false) {
 
                             // Tables we extract them as TSV.
                             PackedFileType::DB | PackedFileType::Loc => {
@@ -1057,6 +1058,12 @@ pub fn background_loop() {
             },
 
             Command::GetSourceDataFromLocKey(loc_key) => CENTRAL_COMMAND.send_message_rust(Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
+            Command::GetPackedFileType(path) => {
+                match pack_file_decoded.get_ref_packed_file_by_path(&path) {
+                    Some(packed_file) => CENTRAL_COMMAND.send_message_rust(Response::PackedFileType(PackedFileType::get_packed_file_type(&packed_file.get_ref_raw(), false))),
+                    None => CENTRAL_COMMAND.send_message_rust(Response::PackedFileType(PackedFileType::Unknown)),
+                }
+            },
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

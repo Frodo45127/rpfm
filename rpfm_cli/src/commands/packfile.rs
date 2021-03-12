@@ -214,7 +214,7 @@ pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
 	let mut table = Table::new();
     table.add_row(row!["PackedFile Path", "Type", "Size"]);
     for file in packfile.get_ref_packed_files_all() {
-    	let packedfile_type = PackedFileType::get_packed_file_type(&file.get_path());
+    	let packedfile_type = PackedFileType::get_packed_file_type(file.get_ref_raw(), true);
     	let size = ByteSize::kib((file.get_raw_data_size() / 1024).into());
     	table.add_row(row![file.get_path().join("/"), packedfile_type, size]);
     }
