@@ -116,6 +116,7 @@ impl TableView {
         let mut columns = vec![];
         let mut patterns = vec![];
         let mut sensitivity = vec![];
+        let mut show_blank_cells = vec![];
 
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
@@ -132,11 +133,14 @@ impl TableView {
             if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
             else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
 
+            // Check if we should filter out blank cells or not.
+            show_blank_cells.push(filter.filter_show_blank_cells_button.is_checked());
+
             patterns.push(filter.filter_line_edit.text().into_ptr());
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity, &show_blank_cells);
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.

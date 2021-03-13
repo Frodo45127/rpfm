@@ -857,3 +857,4 @@ context_menu_go_to_definition = Go To Definition
 source_data_for_field_not_found = The source of the selected data could not be found.
 context_menu_go_to_loc = Go To Loc Entry:  {"{"}{"}"}
 loc_key_not_found = The loc entry couldn't be found.
+table_filter_show_blank_cells = Show Blank Cells
