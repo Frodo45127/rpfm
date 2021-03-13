@@ -1463,6 +1463,13 @@ impl PackFile {
         paths
     }
 
+    /// This function removes all not-in-memory-already PackedFiles from the PackFile. Used for removing possibly corrupted PackedFiles from the PackFile in order to sanitize it.
+    ///
+    /// BE CAREFUL WITH USING THIS. IT MAY (PROBABLY WILL) CAUSE DATA LOSSES.
+    pub fn clean_packfile(&mut self) {
+        self.packed_files.retain(|x| x.is_in_memory())
+    }
+
     /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.
     ///
     /// By default this append a `_number` to the file name in case of collision. If you want it to overwrite instead,
@@ -2538,27 +2545,6 @@ impl PackFile {
         if let Some(path) = new_path { self.set_file_path(&path)?; }
         else if !self.get_file_path().is_file() { return Err(ErrorKind::PackFileIsNotAFile.into()) }
 
-        // Before everything else, add the file for the notes if we have them. We'll remove it later, after the file has been saved.
-        if let Some(note) = &self.notes {
-            let mut data = vec![];
-            data.encode_string_u8(&note);
-            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
-            let packed_file = PackedFile::new_from_raw(&raw_data);
-            self.packed_files.push(packed_file);
-        }
-
-        // Saving PackFile settings.
-        let mut data = vec![];
-        data.write_all(&to_string_pretty(&self.settings)?.as_bytes())?;
-        let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
-        let packed_file = PackedFile::new_from_raw(&raw_data);
-        self.packed_files.push(packed_file);
-
-        // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
-        // So, to fix it, we have to sort all the PackedFiles here by path.
-        // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
-        self.packed_files.sort_unstable_by_key(|a| a.get_path().join("\\").to_lowercase());
-
         // We ensure that all the data is loaded and in his right form (compressed/encrypted) before attempting to save.
         // We need to do this here because we need later on their compressed size.
         for packed_file in &mut self.packed_files {
@@ -2591,6 +2577,27 @@ impl PackFile {
                 *should_be_encrypted = None;
             }
         }
+
+        // Save notes, if needed.
+        if let Some(note) = &self.notes {
+            let mut data = vec![];
+            data.encode_string_u8(&note);
+            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
+            let packed_file = PackedFile::new_from_raw(&raw_data);
+            self.packed_files.push(packed_file);
+        }
+
+        // Saving PackFile settings.
+        let mut data = vec![];
+        data.write_all(&to_string_pretty(&self.settings)?.as_bytes())?;
+        let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
+        let packed_file = PackedFile::new_from_raw(&raw_data);
+        self.packed_files.push(packed_file);
+
+        // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
+        // So, to fix it, we have to sort all the PackedFiles here by path.
+        // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
+        self.packed_files.sort_unstable_by_key(|a| a.get_path().join("\\").to_lowercase());
 
         // First we encode the indexes and the data (just in case we compressed it).
         let mut pack_file_index = vec![];

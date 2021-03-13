@@ -587,6 +587,8 @@ impl AppUI {
         app_ui.templates_load_custom_template_to_packfile.set_enabled(enable);
         app_ui.templates_load_official_template_to_packfile.set_enabled(enable);
 
+        app_ui.special_stuff_rescue_packfile.set_enabled(enable);
+
         // If we are enabling...
         if enable {
 

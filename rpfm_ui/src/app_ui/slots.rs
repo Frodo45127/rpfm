@@ -119,6 +119,7 @@ pub struct AppUISlots {
     pub special_stuff_generate_pak_file: QBox<SlotOfBool>,
     pub special_stuff_optimize_packfile: QBox<SlotOfBool>,
     pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
+    pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Templates` menu slots.
@@ -1092,6 +1093,60 @@ impl AppUISlots {
             }
         ));
 
+        // What happens when we trigger the "Rescue PackFile" action.
+        let special_stuff_rescue_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui => move |_| {
+                if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
+                    app_ui.main_window.set_enabled(false);
+
+                    // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
+                    if let Err(error) = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
+                        return show_dialog(&app_ui.main_window, error, false);
+                    }
+
+                    // Create the FileDialog to save the PackFile and configure it.
+                    let file_dialog = QFileDialog::from_q_widget_q_string(
+                        &app_ui.main_window,
+                        &qtr("save_packfile"),
+                    );
+                    file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
+                    file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                    file_dialog.set_confirm_overwrite(true);
+                    file_dialog.set_default_suffix(&QString::from_std_str("pack"));
+
+                    // Run it and act depending on the response we get (1 => Accept, 0 => Cancel).
+                    if file_dialog.exec() == 1 {
+                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                        CENTRAL_COMMAND.send_message_qt(Command::CleanAndSavePackFileAs(path));
+                        let response = CENTRAL_COMMAND.recv_message_qt_try();
+                        match response {
+                            Response::PackFileInfo(pack_file_info) => {
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+
+                                let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                                packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                packfile_item.set_text(&QString::from_std_str(&file_name));
+
+                                UI_STATE.set_operational_mode(&app_ui, None);
+                                UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                            }
+                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        }
+                    }
+
+                    // Then we re-enable the main Window and return whatever we've received.
+                    app_ui.main_window.set_enabled(true);
+                }
+            }
+        ));
+
         //-----------------------------------------------//
         // `Templates` menu logic.
         //-----------------------------------------------//
@@ -1494,6 +1549,7 @@ impl AppUISlots {
             special_stuff_generate_pak_file,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,
+            special_stuff_rescue_packfile,
 
             //-----------------------------------------------//
             // `Templates` menu slots.

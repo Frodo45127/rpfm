@@ -88,6 +88,9 @@ pub enum Command {
     /// This command is used when we want to remove from memory the extra packfile with the provided path.
     RemovePackFileExtra(PathBuf),
 
+    /// This command is used to "clean" a Packfile from corrupted files and save it to disk.
+    CleanAndSavePackFileAs(PathBuf),
+
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
 
