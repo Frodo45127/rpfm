@@ -238,6 +238,7 @@ pub struct FilterView {
     filter_widget: QBox<QWidget>,
     filter_case_sensitive_button: QBox<QPushButton>,
     filter_column_selector: QBox<QComboBox>,
+    filter_show_blank_cells_button: QBox<QPushButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
     filter_line_edit: QBox<QLineEdit>,
     filter_add: QBox<QPushButton>,
@@ -1507,6 +1508,7 @@ impl FilterView {
         let filter_timer_delayed_updates = QTimer::new_1a(&parent);
         let filter_line_edit = QLineEdit::from_q_widget(&parent);
         let filter_column_selector = QComboBox::new_1a(&parent);
+        let filter_show_blank_cells_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_show_blank_cells"), &parent);
         let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), &parent);
         let filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
         let filter_add = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &parent);
@@ -1524,13 +1526,15 @@ impl FilterView {
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_case_sensitive_button.set_checkable(true);
+        filter_show_blank_cells_button.set_checkable(true);
 
         // Add everything to the grid.
         filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 1);
         filter_grid.add_widget_5a(&filter_case_sensitive_button, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(&filter_column_selector, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(&filter_add, 0, 3, 1, 1);
-        filter_grid.add_widget_5a(&filter_remove, 0, 4, 1, 1);
+        filter_grid.add_widget_5a(&filter_show_blank_cells_button, 0, 2, 1, 1);
+        filter_grid.add_widget_5a(&filter_column_selector, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&filter_add, 0, 9, 1, 1);
+        filter_grid.add_widget_5a(&filter_remove, 0, 10, 1, 1);
 
         let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
         parent_grid.add_widget_5a(&filter_widget, view.get_ref_filters().len() as i32 + 3, 0, 1, 2);
@@ -1539,6 +1543,7 @@ impl FilterView {
             filter_widget,
             filter_line_edit,
             filter_case_sensitive_button,
+            filter_show_blank_cells_button,
             filter_column_selector,
             filter_timer_delayed_updates,
             filter_add,

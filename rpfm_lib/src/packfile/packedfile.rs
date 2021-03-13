@@ -90,6 +90,9 @@ pub struct RawOnDisk {
     is_compressed: bool,
     is_encrypted: Option<PFHVersion>,
 
+    /// Last Modified Date on disk of the PackFile containing this PackedFile.
+    last_modified_date_pack: i64,
+
     /// Hash of the PackedFile's data, to ensure we don't grab the wrong data.
     hash: Arc<Mutex<u64>>,
 }
@@ -253,6 +256,11 @@ impl PackedFile {
     /// This function replace the `DecodedPackedFile` part of a `PackedFile` with the provided one.
     pub fn set_decoded(&mut self, data: &DecodedPackedFile) {
         self.decoded = data.clone();
+    }
+
+    /// This function is used to know if a PackedFile has been loaded to memory.
+    pub fn is_in_memory(&self) -> bool {
+        matches!(self.raw.data, PackedFileData::OnMemory(_,_,_))
     }
 
     /// This function tries to get the decoded data from a `PackedFile`, returning an error if the file was not decoded previously.
@@ -694,23 +702,34 @@ impl RawOnDisk {
         is_compressed: bool,
         is_encrypted: Option<PFHVersion>,
     ) -> Self {
+        let last_modified_date_pack = get_last_modified_time_from_buffered_file(&*reader.lock().unwrap());
         Self {
             reader,
             start,
             size,
             is_compressed,
             is_encrypted,
+            last_modified_date_pack,
             hash: Arc::new(Mutex::new(0)),
         }
     }
 
     /// This function tries to read and return the raw data of the PackedFile.
     pub fn read(&self) -> Result<Vec<u8>> {
-        let mut data = vec![0; self.size as usize];
+
+        // Date check, to ensure the PackFile hasn't been modified since we got the indexes to read it.
         let mut file = self.reader.lock().unwrap();
+        let current_date = get_last_modified_time_from_buffered_file(&*file);
+        if current_date != self.last_modified_date_pack {
+            return Err(ErrorKind::PackedFileSourceChanged.into());
+        }
+
+        // Read the data from disk.
+        let mut data = vec![0; self.size as usize];
         file.seek(SeekFrom::Start(self.start))?;
         file.read_exact(&mut data)?;
 
+        // Hash check, to ensure the integrity of the data if we loaded it before.
         let mut current_hash = self.hash.lock().unwrap();
         let mut hasher = DefaultHasher::new();
         data.hash(&mut hasher);
@@ -721,11 +740,11 @@ impl RawOnDisk {
             *current_hash = new_hash;
         }
 
-
         // Otherwise, check its hash to ensure we're not fucking up the PackFile.
         else if *current_hash != new_hash {
             return Err(ErrorKind::PackedFileChecksumFailed.into());
         }
+
         Ok(data)
     }
 

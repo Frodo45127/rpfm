@@ -83,10 +83,17 @@ pub fn get_current_time() -> i64 {
     Utc::now().naive_utc().timestamp()
 }
 
-/// This function gets the last modified date from a file and return it, as a decoded u32.
+/// This function gets the last modified date from a file and return it, as an i64.
 #[allow(dead_code)]
 pub fn get_last_modified_time_from_file(file: &File) -> i64 {
     let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata().unwrap().modified().unwrap());
+    last_modified_time.naive_utc().timestamp()
+}
+
+/// This function gets the last modified date from a file and return it, as an i64.
+#[allow(dead_code)]
+pub fn get_last_modified_time_from_buffered_file(file: &BufReader<File>) -> i64 {
+    let last_modified_time: DateTime<Utc> = DateTime::from(file.get_ref().metadata().unwrap().modified().unwrap());
     last_modified_time.naive_utc().timestamp()
 }
 

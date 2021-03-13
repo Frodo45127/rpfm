@@ -80,14 +80,17 @@ impl PackFileContentsUI {
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
-                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                paths_packedfile.iter().for_each(|path| {
-                    if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                let failed_paths = paths_packedfile.iter().filter_map(|path| {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
-                        }
-                    }
-                });
+                            Some(path.to_vec())
+                        } else { None }
+                    } else { None }
+                }).collect::<Vec<Vec<String>>>();
+
+                for path in &failed_paths {
+                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                }
             }
 
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -124,16 +127,19 @@ impl PackFileContentsUI {
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
-                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                paths_packedfile.iter().for_each(|path| {
+                let failed_paths = paths_packedfile.iter().filter_map(|path| {
                     if let PathType::File(path) = path {
-                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                        if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(app_ui, &pack_file_contents_ui, path, false);
-                            }
-                        }
-                    }
-                });
+                                Some(path.to_vec())
+                            } else { None }
+                        } else { None }
+                    } else { None }
+                }).collect::<Vec<Vec<String>>>();
+
+                for path in &failed_paths {
+                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                }
             }
 
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -331,10 +337,11 @@ impl PackFileContentsUI {
 
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
                 let response = CENTRAL_COMMAND.recv_message_qt();
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+                let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
-                // Get a "Folder-only" FileDialog.
+                // Remove the pack from the path to get a "Folder-only" FileDialog.
                 let extraction_path = if pack_path.is_file() {
+                    pack_path.pop();
                     QFileDialog::get_existing_directory_3a(
                         &app_ui.main_window,
                         &qtr("context_menu_mass_export_tsv_folder"),

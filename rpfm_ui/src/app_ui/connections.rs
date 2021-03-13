@@ -113,6 +113,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_rom2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
     app_ui.special_stuff_sho2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
 
+    app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
+
     //-----------------------------------------------//
     // `Templates` menu connections.
     //-----------------------------------------------//

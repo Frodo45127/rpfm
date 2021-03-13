@@ -103,6 +103,7 @@ pub struct FilterViewSlots {
     pub filter_line_edit: QBox<SlotOfQString>,
     pub filter_column_selector: QBox<SlotOfInt>,
     pub filter_case_sensitive_button: QBox<SlotNoArgs>,
+    pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
     pub filter_trigger: QBox<SlotNoArgs>,
     pub filter_check_regex: QBox<SlotOfQString>,
     pub filter_add: QBox<SlotNoArgs>,
@@ -758,13 +759,18 @@ impl FilterViewSlots {
         }));
 
         let filter_column_selector = SlotOfInt::new(&view.filter_widget, clone!(
-            view => move |_| {
-            FilterView::start_delayed_updates_timer(&view);
+            parent_view => move |_| {
+            parent_view.filter_table();
         }));
 
         let filter_case_sensitive_button = SlotNoArgs::new(&view.filter_widget, clone!(
-            view => move || {
-            FilterView::start_delayed_updates_timer(&view);
+            parent_view => move || {
+            parent_view.filter_table();
+        }));
+
+        let filter_show_blank_cells_button = SlotNoArgs::new(&view.filter_widget, clone!(
+            parent_view => move || {
+            parent_view.filter_table();
         }));
 
         // Function triggered by the filter timer.
@@ -797,6 +803,7 @@ impl FilterViewSlots {
             filter_line_edit,
             filter_column_selector,
             filter_case_sensitive_button,
+            filter_show_blank_cells_button,
             filter_trigger,
             filter_check_regex,
             filter_add,

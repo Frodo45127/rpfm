@@ -845,9 +845,10 @@ impl DiagnosticsUI {
         columns.push(6);
         patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
+        let show_blank_lines = vec![false; sensitivity.len()];
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &sensitivity);
+        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &sensitivity, &show_blank_lines);
     }
 
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {

@@ -226,6 +226,9 @@ pub struct AppUI {
     // Empire's actions.
     pub special_stuff_emp_optimize_packfile: QPtr<QAction>,
 
+    // Common operations.
+    pub special_stuff_rescue_packfile: QPtr<QAction>,
+
     //-------------------------------------------------------------------------------//
     // `Templates` menu.
     //-------------------------------------------------------------------------------//
@@ -561,6 +564,7 @@ impl AppUI {
         let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
         let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
         let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.
         let special_stuff_troy_generate_pak_file = menu_troy.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
@@ -583,6 +587,8 @@ impl AppUI {
         let special_stuff_sho2_optimize_packfile = menu_shogun_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_nap_optimize_packfile = menu_napoleon.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_emp_optimize_packfile = menu_empire.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+
+        menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
         //-----------------------------------------------//
         // `Templates` Menu.
@@ -781,6 +787,9 @@ impl AppUI {
 
             // Empire's actions.
             special_stuff_emp_optimize_packfile,
+
+            // Common operations.
+            special_stuff_rescue_packfile,
 
             //-------------------------------------------------------------------------------//
             // "Templates" menu.

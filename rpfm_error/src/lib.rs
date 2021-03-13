@@ -274,6 +274,9 @@ pub enum ErrorKind {
     /// Error for when the checksum of a PackedFile fails.
     PackedFileChecksumFailed,
 
+    /// Error for when we detect the source data of a PackFile changed before reading it to memory.
+    PackedFileSourceChanged,
+
     /// Error for when we get a decoded packedfile in a type we don't expect. Contains both, the received type, and the expected type.
     PackedFileTypeIsNotWhatWeExpected(String, String),
 
@@ -773,6 +776,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
             ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
+            ErrorKind::PackedFileSourceChanged => write!(f, "<p>The PackFile's data has been altered on disk outside RPFM. If you see this, it means you're using lazy-loading and another program has altered the data on disk before RPFM could load it to memory.</p><p><b>Basically, this means your PackFile got partially corrupted.</b></p><p>Luckily, not all is lost. Your original PackFile on disk should still be safe, and RPFM can recover part of the files inside the open PackFile: DB tables, Locs and any PackedFile open before this message appeared. To do that, go to Special Stuff and hit '<b><i>Rescue PackFile</i></b>', then choose a folder to save the clean PackFile.</p><p>That will create a PackFile with only the files that were confirmed as non-corrupted, so at least you can recover their data.</p><p>And some final words: If you intentionally opened the same PackFile in two instances of RPFM and tried to save on both, that was the cause of this. No, it's not a bug in RPFM. No, I can't magically fix it. It's how lazy-loading data from disk works. If you don't like it, you can disable lazy-loading in the settings. You'll be resistant to PackFile corruption, but RPFM will use a ton more RAM. So... choose your poison.</p><p><b>Note:</b> If this message appeared while adding files from a PackFile, you're save. Just close the 'Add From PackFile' tab and open it again.</p>"),
             ErrorKind::PackedFileTypeIsNotWhatWeExpected(found_type, expected_type) => write!(f, "<p>The PackedFile's type is not what we expected. We expected {} but found {}. This is either a bug or you did weird things with the game selected.</p>", expected_type, found_type),
             ErrorKind::PackFileIsACAPackFile => write!(f, "<p>You can't do that to a CA PackFile, you monster!</p>"),
 

@@ -157,6 +157,15 @@ pub fn background_loop() {
                 }
             }
 
+            // If you want to perform a clean&save over a PackFile...
+            Command::CleanAndSavePackFileAs(path) => {
+                pack_file_decoded.clean_packfile();
+                match pack_file_decoded.save(Some(path.to_path_buf())) {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
+                }
+            }
+
             // In case we want to change the current settings...
             Command::SetSettings(settings) => {
                 *SETTINGS.write().unwrap() = settings;

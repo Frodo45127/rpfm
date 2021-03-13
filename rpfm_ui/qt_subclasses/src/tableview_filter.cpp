@@ -16,12 +16,14 @@ extern "C" void trigger_tableview_filter(
     QSortFilterProxyModel* filter,
     QList<int> columns,
     QStringList patterns,
-    QList<int> case_sensitive
+    QList<int> case_sensitive,
+    QList<int> show_blank_cells
 ) {
     QTableViewSortFilterProxyModel* filter2 = static_cast<QTableViewSortFilterProxyModel*>(filter);
     filter2->columns = columns;
     filter2->patterns = patterns;
     filter2->case_sensitive = case_sensitive;
+    filter2->show_blank_cells = show_blank_cells;
     filter2->setFilterKeyColumn(0);
 }
 
@@ -37,6 +39,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
         int column = columns.at(i);
         QString const pattern = patterns.at(i);
         Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(i));
+        bool show_blank_cells_in_column = show_blank_cells.at(i) == 1 ? true: false;
 
         QRegularExpression::PatternOptions options = QRegularExpression::PatternOptions();
         if (case_sensitivity == Qt::CaseSensitivity::CaseInsensitive) {
@@ -62,7 +65,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             }
 
             // In case of text, if it's empty we let it pass the filters.
-            else if (currntIndex.data(2).toString().isEmpty()) {
+            else if (show_blank_cells_in_column && currntIndex.data(2).toString().isEmpty()) {
                 continue;
             }
 
