@@ -25,6 +25,9 @@ use crate::Schema;
 const SIGNATURE: &str = "Version";
 const VERSION_SIZE: usize = 3;
 
+/// Size of the header of an UIC PackedFile.
+pub const HEADER_SIZE: usize = 10;
+
 pub const EXTENSION: &str = ".cml";
 
 //---------------------------------------------------------------------------//
@@ -57,13 +60,20 @@ impl UIC {
 
     /// This function creates a `UIC` from a `&[u8]`.
     pub fn read(packed_file_data: &[u8], schema: &Schema) -> Result<Self> {
-        let signature = packed_file_data.decode_string_u8(0, SIGNATURE.len())?;
-        let version = packed_file_data.decode_string_u8(SIGNATURE.len(), VERSION_SIZE)?.parse::<u32>()?;
+        let version = Self::read_header(packed_file_data)?;
 
         // If we've reached this, we've succesfully decoded the entire UI.
         Ok(Self {
             version,
         })
+    }
+
+    /// This function tries to read the header of an UIC PackedFile from raw data.
+    pub fn read_header(packed_file_data: &[u8]) -> Result<u32> {
+        let signature = packed_file_data.decode_string_u8(0, SIGNATURE.len())?;
+        let version = packed_file_data.decode_string_u8(SIGNATURE.len(), VERSION_SIZE)?.parse::<u32>()?;
+
+        Ok(version)
     }
 
     /// This function takes an `UIC` and encodes it to `Vec<u8>`.
