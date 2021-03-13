@@ -147,12 +147,12 @@ impl PackFileContentsSlots {
         ));
         let filter_change_autoexpand_matches = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |_| {
-                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
+                PackFileContentsUI::filter_files(&pack_file_contents_ui);
             }
         ));
         let filter_change_case_sensitive = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move |_| {
-                PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
+                PackFileContentsUI::filter_files(&pack_file_contents_ui);
             }
         ));
 
