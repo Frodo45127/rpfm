@@ -331,10 +331,11 @@ impl PackFileContentsUI {
 
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
                 let response = CENTRAL_COMMAND.recv_message_qt();
-                let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+                let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
-                // Get a "Folder-only" FileDialog.
+                // Remove the pack from the path to get a "Folder-only" FileDialog.
                 let extraction_path = if pack_path.is_file() {
+                    pack_path.pop();
                     QFileDialog::get_existing_directory_3a(
                         &app_ui.main_window,
                         &qtr("context_menu_mass_export_tsv_folder"),
