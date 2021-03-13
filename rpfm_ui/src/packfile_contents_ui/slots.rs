@@ -499,7 +499,9 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
+                                app_ui.main_window.set_enabled(false);
                                 PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                app_ui.main_window.set_enabled(true);
                             }
                         }
 
@@ -522,7 +524,9 @@ impl PackFileContentsSlots {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
+                            app_ui.main_window.set_enabled(false);
                             PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                            app_ui.main_window.set_enabled(true);
                         }
                     }
                 }
@@ -585,7 +589,10 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+
+                                    app_ui.main_window.set_enabled(false);
                                     PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
+                                    app_ui.main_window.set_enabled(true);
                                 }
                             }
                         }
@@ -607,7 +614,10 @@ impl PackFileContentsSlots {
 
                             // Get the Paths of the files inside the folders we want to add.
                             let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+
+                            app_ui.main_window.set_enabled(false);
                             PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
+                            app_ui.main_window.set_enabled(true);
                         }
                     }
                 }
