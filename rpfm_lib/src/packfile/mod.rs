@@ -2262,12 +2262,12 @@ impl PackFile {
             let mut movie_files = vec![];
             for path in packs_paths {
                 match Self::read(&path, use_lazy_loading) {
-                    Ok(pack) => match pack.get_pfh_file_type() {
-                        PFHFileType::Boot => boot_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Release => release_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Patch => patch_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Mod => mod_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Movie => movie_files.append(&mut pack.get_packed_files_all()),
+                    Ok(mut pack) => match pack.get_pfh_file_type() {
+                        PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
+                        PFHFileType::Release => release_files.append(&mut pack.packed_files),
+                        PFHFileType::Patch => patch_files.append(&mut pack.packed_files),
+                        PFHFileType::Mod => mod_files.append(&mut pack.packed_files),
+                        PFHFileType::Movie => movie_files.append(&mut pack.packed_files),
 
                         // If we find an unknown one, return an error.
                         PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown.into()),
@@ -2277,22 +2277,27 @@ impl PackFile {
             }
 
             // The priority in case of collision is:
-            // - Same Type: First to come is the valid one.
+            // - Same Type: Last to come is the valid one.
             // - Different Type: Last to come is the valid one.
-            boot_files.sort_by_key(|x| x.get_path().to_vec());
-            boot_files.dedup_by_key(|x| x.get_path().to_vec());
+            boot_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            boot_files.reverse();
+            boot_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            release_files.sort_by_key(|x| x.get_path().to_vec());
-            release_files.dedup_by_key(|x| x.get_path().to_vec());
+            release_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            release_files.reverse();
+            release_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            patch_files.sort_by_key(|x| x.get_path().to_vec());
-            patch_files.dedup_by_key(|x| x.get_path().to_vec());
+            patch_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            patch_files.reverse();
+            patch_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            mod_files.sort_by_key(|x| x.get_path().to_vec());
-            mod_files.dedup_by_key(|x| x.get_path().to_vec());
+            mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            mod_files.reverse();
+            mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            movie_files.sort_by_key(|x| x.get_path().to_vec());
-            movie_files.dedup_by_key(|x| x.get_path().to_vec());
+            movie_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            movie_files.reverse();
+            movie_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
             pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true)?;
             pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true)?;
