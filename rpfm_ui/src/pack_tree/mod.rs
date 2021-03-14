@@ -901,10 +901,11 @@ impl PackTree for QBox<QTreeView> {
                     // Then, we form the path ("parent -> child" style path) to add to the model.
                     let mut parent = big_parent.as_ptr();
                     for (index_in_path, name) in packed_file.path.iter().enumerate() {
+                        let name = QString::from_std_str(name);
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
                         if index_in_path == packed_file.path.len() - 1 {
-                            let file = QStandardItem::from_q_string(&QString::from_std_str(name));
+                            let file = QStandardItem::from_q_string(&name);
                             let state_item = QStandardItem::new();
                             let tooltip = new_packed_file_tooltip(&packed_file);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
@@ -945,7 +946,7 @@ impl PackTree for QBox<QTreeView> {
                                     if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                     // Get his text. If it's the same folder we are trying to add, this is our parent now.
-                                    if child.text().to_std_string() == *name {
+                                    if child.text().compare_q_string(&name) == 0 {
                                         parent = parent.child_1a(index);
                                         duplicate_found = true;
                                         break;
@@ -955,7 +956,7 @@ impl PackTree for QBox<QTreeView> {
 
                             // If our current parent doesn't have anything, just add it as a new folder.
                             if !duplicate_found {
-                                let folder = QStandardItem::from_q_string(&QString::from_std_str(name));
+                                let folder = QStandardItem::from_q_string(&name);
                                 let state_item = QStandardItem::new();
                                 folder.set_editable(false);
                                 folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
