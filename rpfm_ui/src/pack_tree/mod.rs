@@ -940,8 +940,9 @@ impl PackTree for QBox<QTreeView> {
                             if parent.has_children() {
 
                                 // It's a folder, so we check his children. We are only interested in
-                                // folders, so ignore the files.
-                                for index in 0..parent.row_count() {
+                                // folders, so ignore the files. Reverse because due to the sorting it's almost
+                                // sure the last folder is the one we want.
+                                for index in (0..parent.row_count()).rev() {
                                     let child = parent.child_2a(index, 0);
                                     if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
