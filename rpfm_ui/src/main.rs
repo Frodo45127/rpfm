@@ -52,7 +52,7 @@ use rpfm_lib::config::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
-use crate::communications::CentralCommand;
+use crate::communications::{CentralCommand, Command};
 use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::ui::GameSelectedIcons;
@@ -309,7 +309,10 @@ fn main() {
         // And launch it.
         let exit_code = unsafe { QApplication::exec() };
 
-        // Rejoin the threads on exit, so we don't leave a rogue thread running.
+        // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
+        CENTRAL_COMMAND.send_message_qt(Command::Exit);
+        CENTRAL_COMMAND.send_message_qt_to_network(Command::Exit);
+
         let _ = bac_handle.join();
         let _ = net_handle.join();
 
