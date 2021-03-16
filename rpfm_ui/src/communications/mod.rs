@@ -83,6 +83,9 @@ pub struct CentralCommand {
 #[derive(Debug)]
 pub enum Command {
 
+    /// This command is used to close a thread.
+    Exit,
+
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 

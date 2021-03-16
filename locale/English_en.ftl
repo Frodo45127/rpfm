@@ -861,3 +861,5 @@ table_filter_show_blank_cells = Show Blank Cells
 special_stuff_rescue_packfile = Rescue PackFile
 are_you_sure_rescue_packfile = Are you sure you want to do this? This is a dangerous option that should never be used unless the dev or RPFM tells you to specifically use it.
     So again, are you sure you want to use this?
+
+filter_group = Group

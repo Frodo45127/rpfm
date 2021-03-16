@@ -67,7 +67,7 @@ use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, qtre};
+use crate::locale::{qtr, qtre, tr};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{View, ViewType};
 use crate::utils::atomic_from_ptr;
@@ -236,6 +236,7 @@ pub struct TableView {
 /// This struct contains the stuff needed for a filter row.
 pub struct FilterView {
     filter_widget: QBox<QWidget>,
+    filter_match_group_selector: QBox<QComboBox>,
     filter_case_sensitive_button: QBox<QPushButton>,
     filter_column_selector: QBox<QComboBox>,
     filter_show_blank_cells_button: QBox<QPushButton>,
@@ -1508,31 +1509,51 @@ impl FilterView {
         let filter_timer_delayed_updates = QTimer::new_1a(&parent);
         let filter_line_edit = QLineEdit::from_q_widget(&parent);
         let filter_column_selector = QComboBox::new_1a(&parent);
+        let filter_match_group_selector = QComboBox::new_1a(&parent);
         let filter_show_blank_cells_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_show_blank_cells"), &parent);
         let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), &parent);
-        let filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
         let filter_add = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &parent);
         let filter_remove = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &parent);
 
-        filter_timer_delayed_updates.set_single_shot(true);
-        filter_column_selector.set_model(&filter_column_list);
+        // Reuse the models from the first filterview, as that one will never get destroyed.
+        if let Some(first_filter) = view.get_ref_filters().get(0) {
+            filter_column_selector.set_model(&first_filter.filter_column_selector.model());
+            filter_match_group_selector.set_model(&first_filter.filter_match_group_selector.model());
+        }
 
-        let fields = get_fields_sorted(&view.get_ref_table_definition());
-        for field in &fields {
-            let name = clean_column_names(&field.get_name());
-            filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
+        else {
+            let filter_match_group_list = QStandardItemModel::new_1a(&filter_match_group_selector);
+            let filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
+
+            filter_column_selector.set_model(&filter_column_list);
+            filter_match_group_selector.set_model(&filter_match_group_list);
+
+            let fields = get_fields_sorted(&view.get_ref_table_definition());
+            for field in &fields {
+                let name = clean_column_names(&field.get_name());
+                filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
+            }
+
+            filter_match_group_selector.add_item_q_string(&QString::from_std_str(&format!("{} {}", tr("filter_group"), 1)));
         }
 
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_case_sensitive_button.set_checkable(true);
         filter_show_blank_cells_button.set_checkable(true);
+        filter_timer_delayed_updates.set_single_shot(true);
+
+        // The first filter must never be deleted.
+        if view.get_ref_filters().get(0).is_none() {
+            filter_remove.set_enabled(false);
+        }
 
         // Add everything to the grid.
-        filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 1);
-        filter_grid.add_widget_5a(&filter_case_sensitive_button, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(&filter_show_blank_cells_button, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(&filter_column_selector, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 3);
+        filter_grid.add_widget_5a(&filter_match_group_selector, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&filter_case_sensitive_button, 0, 4, 1, 1);
+        filter_grid.add_widget_5a(&filter_show_blank_cells_button, 0, 5, 1, 1);
+        filter_grid.add_widget_5a(&filter_column_selector, 0, 6, 1, 1);
         filter_grid.add_widget_5a(&filter_add, 0, 9, 1, 1);
         filter_grid.add_widget_5a(&filter_remove, 0, 10, 1, 1);
 
@@ -1542,6 +1563,7 @@ impl FilterView {
         let filter = Arc::new(Self {
             filter_widget,
             filter_line_edit,
+            filter_match_group_selector,
             filter_case_sensitive_button,
             filter_show_blank_cells_button,
             filter_column_selector,
@@ -1560,5 +1582,12 @@ impl FilterView {
     pub unsafe fn start_delayed_updates_timer(view: &Arc<Self>) {
         view.filter_timer_delayed_updates.set_interval(500);
         view.filter_timer_delayed_updates.start_0a();
+    }
+
+    pub unsafe fn add_filter_group(view: &Arc<TableView>) {
+        if view.get_ref_filters()[0].filter_match_group_selector.count() < view.get_ref_filters().len() as i32 {
+            let name = QString::from_std_str(&format!("{} {}", tr("filter_group"), view.get_ref_filters()[0].filter_match_group_selector.count() + 1));
+            view.get_ref_filters()[0].filter_match_group_selector.add_item_q_string(&name);
+        }
     }
 }

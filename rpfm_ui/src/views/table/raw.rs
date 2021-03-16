@@ -117,30 +117,37 @@ impl TableView {
         let mut patterns = vec![];
         let mut sensitivity = vec![];
         let mut show_blank_cells = vec![];
+        let mut match_groups = vec![];
 
         let filters = self.filters.read().unwrap();
         for filter in filters.iter() {
-            let column_name = filter.filter_column_selector.current_text();
-            for column in 0..self.table_model.column_count_0a() {
-                if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
-                    columns.push(column);
-                    break;
+
+            // Ignore empty filters.
+            if !filter.filter_line_edit.text().to_std_string().is_empty() {
+
+                let column_name = filter.filter_column_selector.current_text();
+                for column in 0..self.table_model.column_count_0a() {
+                    if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
+                        columns.push(column);
+                        break;
+                    }
                 }
+
+                // Check if the filter should be "Case Sensitive".
+                let case_sensitive = filter.filter_case_sensitive_button.is_checked();
+                if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
+                else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
+
+                // Check if we should filter out blank cells or not.
+                show_blank_cells.push(filter.filter_show_blank_cells_button.is_checked());
+
+                patterns.push(filter.filter_line_edit.text().into_ptr());
+                match_groups.push(filter.filter_match_group_selector.current_index());
             }
-
-            // Check if the filter should be "Case Sensitive".
-            let case_sensitive = filter.filter_case_sensitive_button.is_checked();
-            if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
-            else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
-
-            // Check if we should filter out blank cells or not.
-            show_blank_cells.push(filter.filter_show_blank_cells_button.is_checked());
-
-            patterns.push(filter.filter_line_edit.text().into_ptr());
         }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity, &show_blank_cells);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity, &show_blank_cells, &match_groups);
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.

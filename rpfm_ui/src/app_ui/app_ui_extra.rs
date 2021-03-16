@@ -1344,6 +1344,7 @@ impl AppUI {
                 let mut tab = PackedFileView::default();
                 tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+                tab.set_path(&path);
                 if !is_external {
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_vec());
@@ -1351,7 +1352,6 @@ impl AppUI {
 
                     // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
                     let packed_file_type = get_packed_file_type(&path);
-                    tab.set_path(&path);
 
                     match packed_file_type {
 

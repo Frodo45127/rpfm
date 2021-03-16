@@ -52,7 +52,7 @@ use rpfm_lib::config::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
-use crate::communications::CentralCommand;
+use crate::communications::{CentralCommand, Command};
 use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::ui::GameSelectedIcons;
@@ -299,14 +299,24 @@ fn main() {
     //---------------------------------------------------------------------------------------//
 
     // Create the background and network threads, where all the magic will happen.
-    thread::spawn(|| { background_thread::background_loop(); });
-    thread::spawn(|| { network_thread::network_loop(); });
+    let bac_handle = thread::spawn(|| { background_thread::background_loop(); });
+    let net_handle = thread::spawn(|| { network_thread::network_loop(); });
 
     // Create the application and start the loop.
     QApplication::init(|app| {
         let _ui = unsafe { UI::new(app) };
 
         // And launch it.
-        unsafe { QApplication::exec() }
+        let exit_code = unsafe { QApplication::exec() };
+
+        // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
+        CENTRAL_COMMAND.send_message_qt(Command::Exit);
+        CENTRAL_COMMAND.send_message_qt_to_network(Command::Exit);
+
+        let _ = bac_handle.join();
+        let _ = net_handle.join();
+
+        exit_code
     })
+
 }

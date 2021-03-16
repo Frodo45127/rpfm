@@ -85,6 +85,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
 
 pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
     ui.filter_line_edit.text_changed().connect(&slots.filter_line_edit);
+    ui.filter_match_group_selector.current_index_changed().connect(&slots.filter_match_group_selector);
     ui.filter_column_selector.current_index_changed().connect(&slots.filter_column_selector);
     ui.filter_case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);
     ui.filter_show_blank_cells_button.toggled().connect(&slots.filter_show_blank_cells_button);

@@ -79,6 +79,9 @@ pub fn background_loop() {
         let response = CENTRAL_COMMAND.recv_message_rust();
         match response {
 
+            // Command to close the thread.
+            Command::Exit => return,
+
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 

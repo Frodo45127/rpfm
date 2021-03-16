@@ -36,6 +36,9 @@ pub fn network_loop() {
         let response = CENTRAL_COMMAND.recv_message_qt_to_network();
         match response {
 
+            // Command to close the thread.
+            Command::Exit => return,
+
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
                 match updater::check_updates_rpfm() {

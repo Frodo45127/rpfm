@@ -2201,13 +2201,25 @@ impl PackFile {
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
         let data_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
-        let manifest = Manifest::read_from_game_selected()?;
-        let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
-        let pack_file_paths = pack_file_names.iter().map(|x| {
-            let mut pack_file_path = data_path.to_path_buf();
-            pack_file_path.push(x);
-            pack_file_path
-        }).collect::<Vec<PathBuf>>();
+
+        // Try to get the manifest, if exists. If not, default to the old "Load everything except mods".
+        let pack_file_paths = match Manifest::read_from_game_selected() {
+            Ok(manifest) => {
+                let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
+                pack_file_names.iter().map(|x| {
+                    let mut pack_file_path = data_path.to_path_buf();
+                    pack_file_path.push(x);
+                    pack_file_path
+                }).collect::<Vec<PathBuf>>()
+            }
+            Err(_) => get_files_from_subdir(&data_path)?.iter()
+                .filter_map(|x| if let Some(extension) = x.extension() {
+                    if extension.to_string_lossy().to_lowercase() == "pack" {
+                        Some(x.to_owned())
+                    } else { None }
+                } else { None }).collect::<Vec<PathBuf>>()
+        };
+
         Self::open_packfiles(&pack_file_paths, true, true, true)
     }
 
@@ -2250,12 +2262,12 @@ impl PackFile {
             let mut movie_files = vec![];
             for path in packs_paths {
                 match Self::read(&path, use_lazy_loading) {
-                    Ok(pack) => match pack.get_pfh_file_type() {
-                        PFHFileType::Boot => boot_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Release => release_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Patch => patch_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Mod => mod_files.append(&mut pack.get_packed_files_all()),
-                        PFHFileType::Movie => movie_files.append(&mut pack.get_packed_files_all()),
+                    Ok(mut pack) => match pack.get_pfh_file_type() {
+                        PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
+                        PFHFileType::Release => release_files.append(&mut pack.packed_files),
+                        PFHFileType::Patch => patch_files.append(&mut pack.packed_files),
+                        PFHFileType::Mod => mod_files.append(&mut pack.packed_files),
+                        PFHFileType::Movie => movie_files.append(&mut pack.packed_files),
 
                         // If we find an unknown one, return an error.
                         PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown.into()),
@@ -2265,22 +2277,27 @@ impl PackFile {
             }
 
             // The priority in case of collision is:
-            // - Same Type: First to come is the valid one.
+            // - Same Type: Last to come is the valid one.
             // - Different Type: Last to come is the valid one.
-            boot_files.sort_by_key(|x| x.get_path().to_vec());
-            boot_files.dedup_by_key(|x| x.get_path().to_vec());
+            boot_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            boot_files.reverse();
+            boot_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            release_files.sort_by_key(|x| x.get_path().to_vec());
-            release_files.dedup_by_key(|x| x.get_path().to_vec());
+            release_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            release_files.reverse();
+            release_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            patch_files.sort_by_key(|x| x.get_path().to_vec());
-            patch_files.dedup_by_key(|x| x.get_path().to_vec());
+            patch_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            patch_files.reverse();
+            patch_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            mod_files.sort_by_key(|x| x.get_path().to_vec());
-            mod_files.dedup_by_key(|x| x.get_path().to_vec());
+            mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            mod_files.reverse();
+            mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            movie_files.sort_by_key(|x| x.get_path().to_vec());
-            movie_files.dedup_by_key(|x| x.get_path().to_vec());
+            movie_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+            movie_files.reverse();
+            movie_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
             pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true)?;
             pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true)?;
