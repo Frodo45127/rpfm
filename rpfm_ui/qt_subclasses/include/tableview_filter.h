@@ -13,7 +13,8 @@ extern "C" void trigger_tableview_filter(
     QList<int> columns = QList<int>(),
     QStringList patterns = QStringList(),
     QList<int> case_sensitive = QList<int>(),
-    QList<int> show_blank_cells = QList<int>()
+    QList<int> show_blank_cells = QList<int>(),
+    QList<int> match_groups_per_column = QList<int>()
 );
 
 class QTableViewSortFilterProxyModel : public QSortFilterProxyModel
@@ -25,6 +26,7 @@ public:
     QStringList patterns;
     QList<int> case_sensitive;
     QList<int> show_blank_cells;
+    QList<int> match_groups_per_column;
 
     explicit QTableViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;

@@ -1096,8 +1096,7 @@ impl AppUISlots {
         // What happens when we trigger the "Rescue PackFile" action.
         let special_stuff_rescue_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
-            pack_file_contents_ui,
-            global_search_ui => move |_| {
+            pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
                     app_ui.main_window.set_enabled(false);
 
