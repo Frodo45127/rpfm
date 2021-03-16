@@ -37,7 +37,6 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 
-use rpfm_lib::common::get_game_selected_data_path;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -334,31 +333,10 @@ impl PackFileContentsUI {
 
             // In normal mode, we ask the user to provide us with a path.
             OperationalMode::Normal => {
-
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
-
-                // Remove the pack from the path to get a "Folder-only" FileDialog.
-                let extraction_path = if pack_path.is_file() {
-                    pack_path.pop();
-                    QFileDialog::get_existing_directory_3a(
-                        &app_ui.main_window,
-                        &qtr("context_menu_mass_export_tsv_folder"),
-                        &QString::from_std_str(&pack_path.to_string_lossy())
-                    )
-                } else if let Some(path) = get_game_selected_data_path() {
-                    QFileDialog::get_existing_directory_3a(
-                        &app_ui.main_window,
-                        &qtr("context_menu_mass_export_tsv_folder"),
-                        &QString::from_std_str(&path.to_string_lossy())
-                    )
-                } else {
-                    QFileDialog::get_existing_directory_2a(
-                        &app_ui.main_window,
-                        &qtr("context_menu_mass_export_tsv_folder")
-                    )
-                };
+                let extraction_path = QFileDialog::get_existing_directory_2a(
+                    &app_ui.main_window,
+                    &qtr("context_menu_extract_packfile"),
+                );
 
                 if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
                 else { return }
