@@ -220,7 +220,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
@@ -232,6 +232,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
