@@ -299,14 +299,21 @@ fn main() {
     //---------------------------------------------------------------------------------------//
 
     // Create the background and network threads, where all the magic will happen.
-    thread::spawn(|| { background_thread::background_loop(); });
-    thread::spawn(|| { network_thread::network_loop(); });
+    let bac_handle = thread::spawn(|| { background_thread::background_loop(); });
+    let net_handle = thread::spawn(|| { network_thread::network_loop(); });
 
     // Create the application and start the loop.
     QApplication::init(|app| {
         let _ui = unsafe { UI::new(app) };
 
         // And launch it.
-        unsafe { QApplication::exec() }
+        let exit_code = unsafe { QApplication::exec() };
+
+        // Rejoin the threads on exit, so we don't leave a rogue thread running.
+        let _ = bac_handle.join();
+        let _ = net_handle.join();
+
+        exit_code
     })
+
 }
