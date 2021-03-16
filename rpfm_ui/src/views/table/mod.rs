@@ -1543,6 +1543,11 @@ impl FilterView {
         filter_show_blank_cells_button.set_checkable(true);
         filter_timer_delayed_updates.set_single_shot(true);
 
+        // The first filter must never be deleted.
+        if view.get_ref_filters().get(0).is_none() {
+            filter_remove.set_enabled(false);
+        }
+
         // Add everything to the grid.
         filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 3);
         filter_grid.add_widget_5a(&filter_match_group_selector, 0, 3, 1, 1);

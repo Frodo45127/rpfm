@@ -798,9 +798,10 @@ impl FilterViewSlots {
         }));
 
         let filter_remove = SlotNoArgs::new(&view.filter_widget, clone!(
+            view,
             parent_view => move || {
             if parent_view.get_ref_filters().len() > 1 {
-                parent_view.filter_base_widget.layout().remove_widget(parent_view.get_ref_filters().last().unwrap().filter_widget.as_ptr());
+                parent_view.filter_base_widget.layout().remove_widget(view.filter_widget.as_ptr());
                 parent_view.get_ref_mut_filters().pop();
                 parent_view.filter_table();
             }
