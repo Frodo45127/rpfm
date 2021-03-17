@@ -418,6 +418,13 @@ pub enum ErrorKind {
     MatchedCombatDecode(String),
 
     //--------------------------------//
+    // UIC Errors
+    //--------------------------------//
+
+    /// Error for when an UIC PackedFile fails to decode. Contains the error message.
+    UICDecode(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -846,6 +853,11 @@ impl Display for ErrorKind {
             // MatchedCombat Errors
             //--------------------------------//
             ErrorKind::MatchedCombatDecode(cause) => write!(f, "<p>Error while trying to decode the MatchedCombat PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // UIC Errors
+            //--------------------------------//
+            ErrorKind::UICDecode(cause) => write!(f, "<p>Error while trying to decode the UIC PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors

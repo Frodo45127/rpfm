@@ -28,12 +28,13 @@ use crate::schema::*;
 /// Size of the header of a AnimTable PackedFile.
 pub const HEADER_SIZE: usize = 8;
 
-/// Full path of an animation table. This is an special type of bin, so we identify it by his full path.
-pub const PATH: [&str; 3] = [
+/// Base path of an animation table. This is an special type of bin, stored only in this folder.
+pub const BASE_PATH: [&str; 2] = [
     "animations",
-    "animation_tables",
-    "animation_tables.bin"
+    "animation_tables"
 ];
+
+pub const EXTENSION: &str = "_tables.bin";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

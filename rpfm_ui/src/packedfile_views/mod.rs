@@ -50,6 +50,7 @@ use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
+use self::uic::PackedFileUICView;
 //use self::rigidmodel::PackedFileRigidModelView;
 
 pub mod anim_fragment;
@@ -63,6 +64,7 @@ pub mod packfile_settings;
 //pub mod rigidmodel;
 pub mod table;
 pub mod text;
+pub mod uic;
 
 pub mod utils;
 
@@ -101,6 +103,7 @@ pub enum View {
     //RigidModel(PackedFileRigidModelView),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
+    UIC(Arc<PackedFileUICView>),
     None,
 }
 
@@ -284,6 +287,14 @@ impl PackedFileView {
                             CENTRAL_COMMAND.send_message_qt(Command::SetPackFileSettings(view.save_view()));
                             return Ok(())
                         } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                    },
+
+                    // Disable saving UIC until support for saving them is wired up.
+                    PackedFileType::UIC => {
+                        return Ok(());
+                        //if let View::UIC(view) = view {
+                        //    DecodedPackedFile::UIC(view.save_view())
+                        //} else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                     },
 
                     PackedFileType::Unknown => return Ok(()),

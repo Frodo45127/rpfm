@@ -30,7 +30,6 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::StaticUpcast;
 
-
 use log::info;
 
 use regex::Regex;
@@ -39,7 +38,11 @@ use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
+use rpfm_lib::packedfile::PackedFileType;
+
 use crate::ASSETS_PATH;
+use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::{new_text_editor_safe, set_text_safe};
 use crate::locale::qtr;
 use crate::ORANGE;
@@ -185,6 +188,17 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
 
     widget.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", style_sheet)));
 }
+
+/// Util function to get the PackedFileType of a PackedFile in a reliable way.
+pub fn get_packed_file_type(path: &[String]) -> PackedFileType {
+    CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileType(path.to_vec()));
+    let response = CENTRAL_COMMAND.recv_message_qt();
+    match response {
+        Response::PackedFileType(packed_file_type) => packed_file_type,
+        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+    }
+}
+
 /// This function creates the stylesheet used for the dark theme in windows.
 pub fn create_dark_theme_stylesheet() -> String {
     format!("

@@ -25,12 +25,14 @@ use super::Table;
 
 use crate::schema::*;
 
-/// Full path of a matched combat table. This is an special type of bin, so we identify it by his full path.
-pub const PATH: [&str; 3] = [
+/// Matched combat files go under this folder.
+pub const BASE_PATH: [&str; 2] = [
     "animations",
-    "matched_combat",
-    "attila_generated.bin"
+    "matched_combat"
 ];
+
+/// Extension of MatchedCombat files.
+pub const EXTENSION: &str = ".bin";
 
 /// Size of the header of a MatchedCombat PackedFile.
 pub const HEADER_SIZE: usize = 8;

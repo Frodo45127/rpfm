@@ -66,14 +66,14 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*, uic::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
-use crate::utils::{create_grid_layout, show_dialog};
+use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog};
 
 
 //-------------------------------------------------------------------------------//
@@ -1351,7 +1351,7 @@ impl AppUI {
                     let icon = icon_type.get_icon_from_path();
 
                     // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
-                    let packed_file_type = PackedFileType::get_packed_file_type(&path);
+                    let packed_file_type = get_packed_file_type(&path);
 
                     match packed_file_type {
 
@@ -1520,6 +1520,25 @@ impl AppUI {
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.push(tab);
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                            }
+                        }
+
+                        // If the file is a UI Component...
+                        #[cfg(feature = "support-uic")]
+                        PackedFileType::UIC => {
+                            match PackedFileUICView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
+                                Ok(packed_file_info) => {
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+                                    if let Some(packed_file_info) = packed_file_info {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    }
+                                },
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::UICDecode(format!("{}", error)), false),
                             }
                         }
 
