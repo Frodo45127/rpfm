@@ -350,19 +350,11 @@ impl PackedFileType {
     /// Strict mode also performs a search by checking the data directly if no type was found, but that's very slow. Think twice before using it.
     pub fn get_packed_file_type(packed_file: &RawPackedFile, strict_mode: bool) -> Self {
 
-        // First, check full paths.
+        // First, try with extensions.
         let path = packed_file.get_path();
-        if path == table::animtable::PATH {
-            return Self::AnimTable;
-        }
-
-        if path == table::matched_combat::PATH {
-            return Self::MatchedCombat;
-        }
-
-        // If we didn't find it with full paths, try with extensions.
         if let Some(packedfile_name) = path.last() {
             let packedfile_name = packedfile_name.to_lowercase();
+
             if packedfile_name.ends_with(table::loc::EXTENSION) {
                 return Self::Loc;
             }
@@ -389,6 +381,16 @@ impl PackedFileType {
 
             if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
                 return Self::Text(*text_type);
+            }
+
+            // If that failed, try types that need to be in a specific path.
+            let path_str = path.iter().map(String::as_str).collect::<Vec<&str>>();
+            if packedfile_name.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
+                return Self::MatchedCombat;
+            }
+
+            if packedfile_name.ends_with(table::animtable::EXTENSION) && path_str.starts_with(&table::animtable::BASE_PATH) {
+                return Self::AnimTable;
             }
 
             // If that failed, check if it's in a folder which is known to only have specific files.
