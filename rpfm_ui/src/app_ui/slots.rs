@@ -588,9 +588,7 @@ impl AppUISlots {
         // What happens when we trigger the "Quit" action.
         let packfile_quit = SlotOfBool::new(&app_ui.main_window, clone!(
             mut app_ui => move |_| {
-                if AppUI::are_you_sure(&app_ui, false) {
-                    app_ui.main_window.close();
-                }
+                app_ui.main_window.close();
             }
         ));
 
