@@ -62,8 +62,8 @@ impl PackedFileUICView {
     /// This function creates a new PackedFileUICView, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>
+        _app_ui: &Rc<AppUI>,
+        _pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<Option<PackedFileInfo>> {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
