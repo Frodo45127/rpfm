@@ -1524,7 +1524,7 @@ impl AppUI {
                         }
 
                         // If the file is a UI Component...
-                        #[cfg(feature = "support-uic")]
+                        #[cfg(feature = "support_uic")]
                         PackedFileType::UIC => {
                             match PackedFileUICView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {

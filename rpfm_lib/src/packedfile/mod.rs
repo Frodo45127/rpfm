@@ -196,6 +196,7 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::Text(packed_file))
             }
 
+            #[cfg(feature = "support_uic")]
             PackedFileType::UIC => {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
@@ -255,6 +256,7 @@ impl DecodedPackedFile {
 
             PackedFileType::Text(_) => Self::decode(raw_packed_file),
 
+            #[cfg(feature = "support_uic")]
             PackedFileType::UIC => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
                 let packed_file = UIC::read(&data, &schema)?;
@@ -277,6 +279,8 @@ impl DecodedPackedFile {
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
             DecodedPackedFile::Text(data) => Some(data.save()),
+
+            #[cfg(feature = "support_uic")]
             DecodedPackedFile::UIC(data) => Some(Ok(data.save())),
             _=> None,
         }

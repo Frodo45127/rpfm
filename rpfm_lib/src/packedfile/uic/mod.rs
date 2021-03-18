@@ -59,7 +59,7 @@ impl UIC {
     }
 
     /// This function creates a `UIC` from a `&[u8]`.
-    pub fn read(packed_file_data: &[u8], schema: &Schema) -> Result<Self> {
+    pub fn read(packed_file_data: &[u8], _schema: &Schema) -> Result<Self> {
         let version = Self::read_header(packed_file_data)?;
 
         // If we've reached this, we've succesfully decoded the entire UI.
@@ -70,7 +70,7 @@ impl UIC {
 
     /// This function tries to read the header of an UIC PackedFile from raw data.
     pub fn read_header(packed_file_data: &[u8]) -> Result<u32> {
-        let signature = packed_file_data.decode_string_u8(0, SIGNATURE.len())?;
+        let _signature = packed_file_data.decode_string_u8(0, SIGNATURE.len())?;
         let version = packed_file_data.decode_string_u8(SIGNATURE.len(), VERSION_SIZE)?.parse::<u32>()?;
 
         Ok(version)

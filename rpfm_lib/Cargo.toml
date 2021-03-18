@@ -6,6 +6,11 @@ authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
 edition = "2018"
 
+[features]
+support_uic = []
+
+default = []
+
 [lib]
 # Disable doctest, as we have none of them but still `cargo test` tries to execute `RON` code as doctests, and fails.
 doctest = false
