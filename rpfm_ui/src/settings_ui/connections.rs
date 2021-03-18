@@ -30,6 +30,7 @@ pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots)
 
     settings_ui.debug_clear_autosave_folder_button.released().connect(&slots.clear_autosaves);
     settings_ui.debug_clear_schema_folder_button.released().connect(&slots.clear_schemas);
+    settings_ui.debug_clear_layout_settings_button.released().connect(&slots.clear_layout);
 
     settings_ui.button_box_shortcuts_button.released().connect(&slots.shortcuts);
     settings_ui.button_box_restore_default_button.released().connect(&slots.restore_default);

@@ -483,9 +483,6 @@ impl AppUI {
         view_toggle_global_search_panel.set_checkable(true);
         view_toggle_diagnostics_panel.set_checkable(true);
 
-        view_toggle_packfile_contents.set_checked(true);
-        view_toggle_diagnostics_panel.set_checked(true);
-
         //-----------------------------------------------//
         // `Game Selected` Menu.
         //-----------------------------------------------//

@@ -29,6 +29,7 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
+use qt_core::QString;
 
 use rpfm_lib::SETTINGS;
 
@@ -118,6 +119,7 @@ impl PackFileContentsUI {
         packfile_contents_dock_widget.set_widget(&packfile_contents_dock_inner_widget);
         main_window.add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &packfile_contents_dock_widget);
         packfile_contents_dock_widget.set_window_title(&qtr("gen_loc_packfile_contents"));
+        packfile_contents_dock_widget.set_object_name(&QString::from_std_str("packfile_contents_dock"));
 
         // Create and configure the `TreeView` itself.
         let packfile_contents_tree_view = QTreeView::new_1a(&packfile_contents_dock_inner_widget);

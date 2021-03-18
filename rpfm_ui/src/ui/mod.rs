@@ -20,7 +20,9 @@ use qt_gui::QFont;
 use qt_gui::QIcon;
 
 use qt_core::QFlags;
+use qt_core::QSettings;
 use qt_core::QString;
+use qt_core::QVariant;
 use qt_core::WindowState;
 
 use cpp_core::Ptr;
@@ -51,6 +53,8 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
 use crate::locale::tr;
+use crate::QT_PROGRAM;
+use crate::QT_ORG;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -124,6 +128,17 @@ impl UI {
 
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
+        // Apply last ui state.
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+
+        if !q_settings.contains(&QString::from_std_str("originalGeometry")) {
+            q_settings.set_value(&QString::from_std_str("originalGeometry"), &QVariant::from_q_byte_array(&app_ui.main_window.save_geometry()));
+            q_settings.set_value(&QString::from_std_str("originalWindowState"), &QVariant::from_q_byte_array(&app_ui.main_window.save_state_0a()));
+        }
+
+        app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
+        app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
+
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&app_ui, None);
 
@@ -149,10 +164,6 @@ impl UI {
         // If we want the window to start maximized...
         if SETTINGS.read().unwrap().settings_bool["start_maximized"] {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
-        }
-
-        if !SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-            app_ui.view_toggle_diagnostics_panel.toggle();
         }
 
         if !SETTINGS.read().unwrap().settings_string["font_name"].is_empty() && !SETTINGS.read().unwrap().settings_string["font_size"].is_empty() {

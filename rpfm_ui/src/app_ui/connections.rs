@@ -62,6 +62,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `View` menu connections.
     //-----------------------------------------------//
+    app_ui.menu_bar_view.about_to_show().connect(&slots.view_open_menu);
+
     app_ui.view_toggle_packfile_contents.toggled().connect(&slots.view_toggle_packfile_contents);
     app_ui.view_toggle_global_search_panel.toggled().connect(&slots.view_toggle_global_search_panel);
     app_ui.view_toggle_diagnostics_panel.toggled().connect(&slots.view_toggle_diagnostics_panel);

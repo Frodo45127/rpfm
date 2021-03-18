@@ -100,6 +100,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `View` menu slots.
     //-----------------------------------------------//
+    pub view_open_menu: QBox<SlotNoArgs>,
     pub view_toggle_packfile_contents: QBox<SlotOfBool>,
     pub view_toggle_global_search_panel: QBox<SlotOfBool>,
     pub view_toggle_diagnostics_panel: QBox<SlotOfBool>,
@@ -867,6 +868,18 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
+
+        // Initializer for the view actions.
+        let view_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
+            global_search_ui => move || {
+                app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
+                app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
+                app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible());
+        }));
+
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
             pack_file_contents_ui => move |state| {
             if !state { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
@@ -1527,6 +1540,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `View` menu slots.
             //-----------------------------------------------//
+            view_open_menu,
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,

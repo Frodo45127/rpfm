@@ -274,6 +274,8 @@ lazy_static! {
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = "Ghz";
+const QT_ORG: &str = "FrodoWazEre";
+const QT_PROGRAM: &str = "rpfm";
 
 /// Main function.
 fn main() {

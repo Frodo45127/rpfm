@@ -758,8 +758,10 @@ next_tab = Previous Tab
 
 settings_debug_clear_autosave_folder = Clear autosave folder
 settings_debug_clear_schema_folder = Clear schema folder
+settings_debug_clear_layout_settings = Clear layout settings
 tt_settings_debug_clear_autosave_folder = Use this to clear the entire autosave folder, either to clear space on your disk, or to apply the changes to autosave amount, if any.
 tt_settings_debug_clear_schema_folder = Use this to clear the entire schema folder. Just in case the updater fails.
+tt_settings_debug_clear_layout_settings = Use this to clear the layout special settings and restore the UI to its initial state.
 
 autosaves_cleared = Autosave folder deleted. It'll be regenerated the next time you start the program.
 schemas_cleared = Schemas folder deleted. Please, remember to re-download the schemas to be able to open tables.

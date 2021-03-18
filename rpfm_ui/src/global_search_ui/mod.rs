@@ -140,6 +140,7 @@ impl GlobalSearchUI {
         global_search_dock_widget.set_widget(&global_search_dock_inner_widget);
         main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, &global_search_dock_widget);
         global_search_dock_widget.set_window_title(&qtr("global_search"));
+        global_search_dock_widget.set_object_name(&QString::from_std_str("global_search_dock"));
 
         // Create the search & replace section.
         let global_search_search_frame = QGroupBox::from_q_string_q_widget(&qtr("global_search_info"), &global_search_dock_inner_widget);

@@ -103,7 +103,6 @@ impl Settings {
         settings_bool.insert("spoof_ca_authoring_tool".to_owned(), false);
 
         // Diagnostics Settings
-        settings_bool.insert("enable_diagnostics_tool".to_owned(), true);
         settings_bool.insert("diagnostics_trigger_on_open".to_owned(), true);
         settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), true);
 

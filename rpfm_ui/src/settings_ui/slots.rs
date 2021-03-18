@@ -20,6 +20,8 @@ use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QBox;
+use qt_core::QSettings;
+use qt_core::QString;
 use qt_core::SlotNoArgs;
 
 use std::collections::BTreeMap;
@@ -31,10 +33,13 @@ use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 use rpfm_lib::common::*;
 use rpfm_lib::config::init_config_path;
 
+use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;
 use crate::locale::tr;
+use crate::QT_PROGRAM;
+use crate::QT_ORG;
 use crate::settings_ui::SettingsUI;
 use crate::shortcuts_ui::ShortcutsUI;
 use crate::UI_STATE;
@@ -57,6 +62,7 @@ pub struct SettingsUISlots {
     pub font_settings: QBox<SlotNoArgs>,
     pub clear_autosaves: QBox<SlotNoArgs>,
     pub clear_schemas: QBox<SlotNoArgs>,
+    pub clear_layout: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -67,11 +73,20 @@ pub struct SettingsUISlots {
 impl SettingsUISlots {
 
     /// This function creates a new `SettingsUISlots`.
-    pub unsafe fn new(ui: &Rc<SettingsUI>) -> Self {
+    pub unsafe fn new(ui: &Rc<SettingsUI>, app_ui: &Rc<AppUI>) -> Self {
 
         // What happens when we hit thr "Restore Default" button.
         let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
-            mut ui => move || {
+            app_ui,
+            ui => move || {
+
+                // Restore layout settings.
+                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                q_settings.sync();
+
+                // Restore RPFM settings.
                 ui.load(&Settings::new());
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
             }
@@ -166,6 +181,14 @@ impl SettingsUISlots {
             }
         }));
 
+        let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
+            app_ui => move || {
+                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                q_settings.sync();
+        }));
+
         // And here... we return all the slots.
 		Self {
             restore_default,
@@ -176,7 +199,8 @@ impl SettingsUISlots {
             text_editor,
             font_settings,
             clear_autosaves,
-            clear_schemas
+            clear_schemas,
+            clear_layout
 		}
 	}
 }

@@ -148,15 +148,14 @@ pub struct SettingsUI {
 
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
+    pub debug_clear_layout_settings_button: QBox<QPushButton>,
 
     //-------------------------------------------------------------------------------//
     // `Diagnostics` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub diagnostics_enable_diagnostics_tool_label: QBox<QLabel>,
     pub diagnostics_diagnostics_trigger_on_open_label: QBox<QLabel>,
     pub diagnostics_diagnostics_trigger_on_table_edit_label: QBox<QLabel>,
 
-    pub diagnostics_enable_diagnostics_tool_checkbox: QBox<QCheckBox>,
     pub diagnostics_diagnostics_trigger_on_open_checkbox: QBox<QCheckBox>,
     pub diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
 
@@ -191,7 +190,7 @@ impl SettingsUI {
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<Settings> {
         let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
-        let slots = SettingsUISlots::new(&settings_ui);
+        let slots = SettingsUISlots::new(&settings_ui, &app_ui);
 
         connections::set_connections(&settings_ui, &slots);
         tips::set_tips(&settings_ui);
@@ -472,6 +471,7 @@ impl SettingsUI {
 
         let debug_clear_autosave_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_autosave_folder"), &debug_frame);
         let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
+        let debug_clear_layout_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_layout_settings"), &debug_frame);
 
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 1, 1, 1);
@@ -487,6 +487,7 @@ impl SettingsUI {
 
         debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 90, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 90, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 90, 2, 1, 1);
 
         main_grid.add_widget_5a(&debug_frame, 2, 2, 1, 1);
 
@@ -499,16 +500,11 @@ impl SettingsUI {
         diagnostics_grid.set_spacing(4);
         diagnostics_grid.set_row_stretch(80, 10);
 
-        let diagnostics_enable_diagnostics_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_show_panel_on_boot"), &diagnostics_frame);
         let diagnostics_diagnostics_trigger_on_open_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_trigger_on_open"), &diagnostics_frame);
         let diagnostics_diagnostics_trigger_on_table_edit_label = QLabel::from_q_string_q_widget(&qtr("settings_diagnostics_trigger_on_edit"), &diagnostics_frame);
 
-        let diagnostics_enable_diagnostics_tool_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
         let diagnostics_diagnostics_trigger_on_open_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
         let diagnostics_diagnostics_trigger_on_table_edit_checkbox = QCheckBox::from_q_widget(&diagnostics_frame);
-
-        diagnostics_grid.add_widget_5a(&diagnostics_enable_diagnostics_tool_label, 0, 0, 1, 1);
-        diagnostics_grid.add_widget_5a(&diagnostics_enable_diagnostics_tool_checkbox, 0, 1, 1, 1);
 
         diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_open_label, 1, 0, 1, 1);
         diagnostics_grid.add_widget_5a(&diagnostics_diagnostics_trigger_on_open_checkbox, 1, 1, 1, 1);
@@ -635,15 +631,14 @@ impl SettingsUI {
 
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
+            debug_clear_layout_settings_button,
 
             //-------------------------------------------------------------------------------//
             // `Diagnostics` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
-            diagnostics_enable_diagnostics_tool_label,
             diagnostics_diagnostics_trigger_on_open_label,
             diagnostics_diagnostics_trigger_on_table_edit_label,
 
-            diagnostics_enable_diagnostics_tool_checkbox,
             diagnostics_diagnostics_trigger_on_open_checkbox,
             diagnostics_diagnostics_trigger_on_table_edit_checkbox,
 
@@ -734,7 +729,6 @@ impl SettingsUI {
         self.debug_spoof_ca_authoring_tool_checkbox.set_checked(settings.settings_bool["spoof_ca_authoring_tool"]);
 
         // Load the Diagnostics Stuff.
-        self.diagnostics_enable_diagnostics_tool_checkbox.set_checked(settings.settings_bool["enable_diagnostics_tool"]);
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
 
@@ -812,7 +806,6 @@ impl SettingsUI {
         settings.settings_bool.insert("spoof_ca_authoring_tool".to_owned(), self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
 
         // Get the Diagnostics Settings.
-        settings.settings_bool.insert("enable_diagnostics_tool".to_owned(), self.diagnostics_enable_diagnostics_tool_checkbox.is_checked());
         settings.settings_bool.insert("diagnostics_trigger_on_open".to_owned(), self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
         settings.settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
 

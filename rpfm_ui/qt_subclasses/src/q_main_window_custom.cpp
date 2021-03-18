@@ -12,6 +12,15 @@ QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (Q
 // Overload of the close event so we can put a dialog there.
 void QMainWindowCustom::closeEvent(QCloseEvent *event) {
     event->ignore();
+
+    // Save the state of the window before closing it.
+    QSettings settings("FrodoWazEre", "rpfm");
+    settings.setValue("geometry", saveGeometry());
+    settings.setValue("windowState", saveState());
+
+    // Make sure the settings are saved before closing.
+    settings.sync();
+
     if (are_you_sure(this, false)) {
         event->accept();
     }

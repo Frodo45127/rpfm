@@ -131,6 +131,7 @@ impl DiagnosticsUI {
         diagnostics_dock_widget.set_widget(&diagnostics_dock_inner_widget);
         main_window.add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, diagnostics_dock_widget.as_ptr());
         diagnostics_dock_widget.set_window_title(&qtr("gen_loc_diagnostics"));
+        diagnostics_dock_widget.set_object_name(&QString::from_std_str("diagnostics_dock"));
 
         // Create and configure the filters section.
         let filter_frame = QGroupBox::from_q_widget(&diagnostics_dock_inner_widget);
@@ -320,8 +321,6 @@ impl DiagnosticsUI {
         diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
         diagnostics_dock_layout.set_column_stretch(0, 10);
         sidebar_scroll_area.hide();
-
-        diagnostics_dock_widget.set_hidden(!SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"]);
 
         Self {
 

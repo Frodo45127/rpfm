@@ -84,6 +84,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
 
     let debug_clear_autosaves = qtr("tt_settings_debug_clear_autosave_folder");
     let debug_clear_schemas = qtr("tt_settings_debug_clear_schema_folder");
+    let debug_clear_layout = qtr("tt_settings_debug_clear_layout_settings");
 
     settings_ui.debug_check_for_missing_table_definitions_label.set_tool_tip(&debug_check_for_missing_table_definitions_tip);
     settings_ui.debug_check_for_missing_table_definitions_checkbox.set_tool_tip(&debug_check_for_missing_table_definitions_tip);
@@ -92,16 +93,14 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
 
     settings_ui.debug_clear_autosave_folder_button.set_tool_tip(&debug_clear_autosaves);
     settings_ui.debug_clear_schema_folder_button.set_tool_tip(&debug_clear_schemas);
+    settings_ui.debug_clear_layout_settings_button.set_tool_tip(&debug_clear_layout);
 
     //-----------------------------------------------//
     // `Diagnostics` tips.
     //-----------------------------------------------//
-    let diagnostics_enable_diagnostics_tool_tip = qtr("tt_diagnostics_enable_diagnostics_tool_tip");
     let diagnostics_trigger_diagnostics_on_open_tip = qtr("tt_diagnostics_trigger_diagnostics_on_open_tip");
     let diagnostics_trigger_diagnostics_on_table_edit_tip = qtr("tt_diagnostics_trigger_diagnostics_on_table_edit_tip");
 
-    settings_ui.diagnostics_enable_diagnostics_tool_label.set_tool_tip(&diagnostics_enable_diagnostics_tool_tip);
-    settings_ui.diagnostics_enable_diagnostics_tool_checkbox.set_tool_tip(&diagnostics_enable_diagnostics_tool_tip);
     settings_ui.diagnostics_diagnostics_trigger_on_open_label.set_tool_tip(&diagnostics_trigger_diagnostics_on_open_tip);
     settings_ui.diagnostics_diagnostics_trigger_on_open_checkbox.set_tool_tip(&diagnostics_trigger_diagnostics_on_open_tip);
     settings_ui.diagnostics_diagnostics_trigger_on_table_edit_label.set_tool_tip(&diagnostics_trigger_diagnostics_on_table_edit_tip);
