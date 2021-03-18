@@ -63,6 +63,7 @@ pub struct CentralCommand {
     sender_diagnostics_to_qt: Sender<Diagnostics>,
     sender_diagnostics_update_to_qt: Sender<(Diagnostics, Vec<PackedFileInfo>)>,
     sender_global_search_update_to_qt: Sender<(GlobalSearch, Vec<PackedFileInfo>)>,
+    sender_save_packfile: Sender<Response>,
     sender_save_packedfile: Sender<Response>,
 
     receiver_qt: Receiver<Response>,
@@ -73,6 +74,7 @@ pub struct CentralCommand {
     receiver_diagnostics_to_qt: Receiver<Diagnostics>,
     receiver_diagnostics_update_to_qt: Receiver<(Diagnostics, Vec<PackedFileInfo>)>,
     receiver_global_search_update_to_qt: Receiver<(GlobalSearch, Vec<PackedFileInfo>)>,
+    receiver_save_packfile: Receiver<Response>,
     receiver_save_packedfile: Receiver<Response>,
 }
 
@@ -321,8 +323,8 @@ pub enum Command {
     /// This command is used to check for template updates.
     CheckTemplateUpdates,
 
-    /// This command is used to get the settings of the currently open PackFile.
-    GetPackFileSettings,
+    /// This command is used to get the settings of the currently open PackFile. True if the message is for the autosave.
+    GetPackFileSettings(bool),
 
     /// This command is used to set the settings of the currently open PackFile.
     SetPackFileSettings(PackFileSettings),
@@ -507,6 +509,7 @@ impl Default for CentralCommand {
         let diagnostics_update_response_channel = unbounded();
         let global_search_update_response_channel = unbounded();
         let save_packedfile_response_channel = unbounded();
+        let save_packfile_response_channel = unbounded();
         Self {
             sender_qt: command_channel.0,
             sender_rust: response_channel.0,
@@ -516,6 +519,7 @@ impl Default for CentralCommand {
             sender_diagnostics_to_qt: diagnostics_response_channel.0,
             sender_diagnostics_update_to_qt: diagnostics_update_response_channel.0,
             sender_global_search_update_to_qt: global_search_update_response_channel.0,
+            sender_save_packfile: save_packfile_response_channel.0,
             sender_save_packedfile: save_packedfile_response_channel.0,
             receiver_qt: response_channel.1,
             receiver_rust: command_channel.1,
@@ -525,6 +529,7 @@ impl Default for CentralCommand {
             receiver_diagnostics_to_qt: diagnostics_response_channel.1,
             receiver_diagnostics_update_to_qt: diagnostics_update_response_channel.1,
             receiver_global_search_update_to_qt: global_search_update_response_channel.1,
+            receiver_save_packfile: save_packfile_response_channel.1,
             receiver_save_packedfile: save_packedfile_response_channel.1,
         }
     }
@@ -601,6 +606,14 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_save_packedfile(&self, data: Response) {
         if self.sender_save_packedfile.send(data).is_err() {
+            panic!(THREADS_SENDER_ERROR);
+        }
+    }
+
+    /// This function serves to send message from the background thread to the main thread when an automatic PackFile save is triggered.
+    #[allow(dead_code)]
+    pub fn send_message_save_packfile(&self, data: Response) {
+        if self.sender_save_packfile.send(data).is_err() {
             panic!(THREADS_SENDER_ERROR);
         }
     }
@@ -776,7 +789,7 @@ impl CentralCommand {
         }
     }
 
-    /// This functions serves to receive messages from the network thread into the main thread when a PackedFile is saved.
+    /// This functions serves to receive messages from the background thread into the main thread when a PackedFile is saved.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
@@ -786,6 +799,24 @@ impl CentralCommand {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
             let response = self.receiver_save_packedfile.try_recv() ;
+            match response {
+                Ok(data) => return data,
+                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+            }
+            unsafe { event_loop.process_events_0a(); }
+        }
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread when a PackFile is automatically saved.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    #[allow(dead_code)]
+    pub fn recv_message_save_packfile_try(&self) -> Response {
+        let event_loop = unsafe { QEventLoop::new_0a() };
+        loop {
+
+            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+            let response = self.receiver_save_packfile.try_recv() ;
             match response {
                 Ok(data) => return data,
                 Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }

@@ -834,7 +834,7 @@ impl AppUISlots {
                             paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
                         }
 
-                        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings);
+                        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(false));
                         let response = CENTRAL_COMMAND.recv_message_qt();
                         let settings = match response {
                             Response::PackFileSettings(settings) => settings,
@@ -1386,8 +1386,8 @@ impl AppUISlots {
         // Autosave slot.
         let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings);
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(true));
+                let response = CENTRAL_COMMAND.recv_message_save_packfile_try();
                 let settings = match response {
                     Response::PackFileSettings(settings) => settings,
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

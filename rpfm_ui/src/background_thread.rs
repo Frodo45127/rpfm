@@ -976,8 +976,12 @@ pub fn background_loop() {
             }
 
             // In case we want to get the open PackFile's Settings...
-            Command::GetPackFileSettings => {
-                CENTRAL_COMMAND.send_message_rust(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+            Command::GetPackFileSettings(is_autosave) => {
+                if is_autosave {
+                    CENTRAL_COMMAND.send_message_save_packfile(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+                }
             }
 
             Command::SetPackFileSettings(settings) => {
