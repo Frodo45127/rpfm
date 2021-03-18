@@ -865,3 +865,4 @@ are_you_sure_rescue_packfile = Are you sure you want to do this? This is a dange
     So again, are you sure you want to use this?
 
 filter_group = Group
+are_you_sure_delete = Are you sure you want to delete the selected PackedFiles?

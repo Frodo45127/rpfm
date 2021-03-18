@@ -704,45 +704,48 @@ impl PackFileContentsSlots {
         let contextual_menu_delete = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
+                if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
 
-                CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                match response {
-                    Response::VecPathType(deleted_items) => {
-                        let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()));
-                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                    let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
 
-                        // Remove all the deleted PackedFiles from the cache.
-                        for item in &items {
-                            match item {
-                                TreePathType::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, false); },
-                                TreePathType::Folder(path) => {
-                                    let mut paths_to_remove = vec![];
-                                    {
-                                        let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                        for packed_file_path in open_packedfiles.iter().map(|x| x.get_ref_path()) {
-                                            if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
-                                                paths_to_remove.push(packed_file_path.to_vec());
+                    CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
+                        Response::VecPathType(deleted_items) => {
+                            let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()));
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                            // Remove all the deleted PackedFiles from the cache.
+                            for item in &items {
+                                match item {
+                                    TreePathType::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, false); },
+                                    TreePathType::Folder(path) => {
+                                        let mut paths_to_remove = vec![];
+                                        {
+                                            let open_packedfiles = UI_STATE.set_open_packedfiles();
+                                            for packed_file_path in open_packedfiles.iter().map(|x| x.get_ref_path()) {
+                                                if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
+                                                    paths_to_remove.push(packed_file_path.to_vec());
+                                                }
                                             }
                                         }
-                                    }
 
-                                    for path in paths_to_remove {
-                                        let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, false);
-                                    }
+                                        for path in paths_to_remove {
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, false);
+                                        }
 
+                                    }
+                                    TreePathType::PackFile => { let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false); },
+                                    TreePathType::None => unreachable!(),
                                 }
-                                TreePathType::PackFile => { let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false); },
-                                TreePathType::None => unreachable!(),
                             }
-                        }
-                    },
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                };
+                        },
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    };
+                }
             }
         ));
 
