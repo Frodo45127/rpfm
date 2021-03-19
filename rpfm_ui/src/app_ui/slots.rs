@@ -324,6 +324,8 @@ impl AppUISlots {
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+                let mut pack_image_path = pack_path.clone();
+                pack_image_path.set_extension("png");
 
                 // Ensure it's a file and it's not in data before proceeding.
                 if !pack_path.is_file() {
@@ -339,8 +341,9 @@ impl AppUISlots {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
-
                     if let Some(ref mod_name) = pack_path.file_name() {
+
+                        // Check if the PackFile is not a CA one before installing.
                         if let Ok(manifest) = Manifest::read_from_game_selected() {
                             if manifest.0.iter().filter_map(|x|
                                 if x.get_ref_relative_path().ends_with(".pack") {
@@ -354,6 +357,14 @@ impl AppUISlots {
                         if copy(pack_path, &game_data_path).is_err() {
                             return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
                         }
+
+                        // Try to copy the image too if exists.
+                        game_data_path.pop();
+                        game_data_path.push(pack_image_path.file_name().unwrap());
+                        if pack_image_path.is_file() && copy(pack_image_path, &game_data_path).is_err()  {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                        }
+
                         // Report the success, so the user knows it worked.
                         log_to_status_bar(&tr("install_sucess"));
 
@@ -388,6 +399,8 @@ impl AppUISlots {
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+
+                        // Check if the PackFile is not a CA one before uninstalling.
                         if let Ok(manifest) = Manifest::read_from_game_selected() {
                             if manifest.0.iter().filter_map(|x|
                                 if x.get_ref_relative_path().ends_with(".pack") {
