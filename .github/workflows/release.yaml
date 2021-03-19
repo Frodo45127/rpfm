@@ -184,7 +184,7 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/CHANGELOG.md ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/img/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\img\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
-          7z a rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
+          7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
       - if: matrix.os == 'self-hosted-ubuntu'
         name: Prepare Assets for Release
