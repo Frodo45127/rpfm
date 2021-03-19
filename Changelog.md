@@ -6,6 +6,36 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.4.3]
+### Added
+- Implemented a more robust corruption detection system.
+- Implemented `Rescue PackFile` feature, to rescue uncorrupted files from PackFiles that cannot be saved due to corruption.
+- Implemented `OR` filters for tables, through groups.
+
+### Changed
+- You can now choose to show/hide blank cells on table filters.
+- Removed filter delay in everything but LineEdits, so it's only delayed when writing.
+- The window now it's darkened when adding files, to show it's doing something.
+- Optimized PackFile loading logic by about 30-40% (takes less time to open PackFiles).
+- Optimized TreeView building logic by about 70% (takes wwaaaaay less time to build the TreeView after opening a PackFile).
+- Reverted changes to the Extract dialog on 2.4, as not everyone (not even me) was too happy with them.
+- Reworked internal PackFile type detection logic.
+- AnimTables are no longer required to have the name `animation_tables.bin` to be opened. Now RPFM detects them correctly, as long as they're in in `animation/animation_tables/` and their name ends in `_tables.bin`.
+- MatchedCombat files are no longer required to have the name `attila_generated.bin` to be opened. Now RPFM detects them correctly, as long as they're in in `animation/matched_combat/` and their name ends in `.bin`.
+- `Install` feature will now try to install the PackFile image too if it finds it.
+- Changed default `Install/Uninstall` shortcuts.
+
+### Fixed
+- Fixed incorrect optimization in the definition guesser.
+- Fixed rare hang on adding files to a PackFile.
+- Fixed empty tab name when opening files with external tools.
+- Fixed `Load All CA PackFiles` not working with older games without manifests.
+- Fixed 2 instances were RPFM left a thread running on close, leaving a process doing nothing but consuming memory in the background.
+- Fixed a bug that caused clicking the button `-` on filters to remove the bottom filter, not the one you clicked.
+- Fixed a rare CTD when the Autosave kicked in while a heavy load operation was taking place.
+- Fixed double "Are you sure?" dialog on close from the `Quit` action.
+- Fixed RPFM not remembering its own layout.
+
 ## [2.4.2]
 ### Fixed
 - Fixed hang when updating tables.
@@ -251,8 +281,10 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.1...HEAD
-[2.4.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...v2.4.1
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...HEAD
+[2.4.3]: https://github.com/Frodo45127/rpfm/compare/v2.4.2...v2.4.3
+[2.4.2]: https://github.com/Frodo45127/rpfm/compare/v2.4.1...v2.4.2
+[2.4.1]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/Frodo45127/rpfm/compare/v2.3.4...v2.4.0
 [2.3.4]: https://github.com/Frodo45127/rpfm/compare/v2.3.3...v2.3.4
 [2.3.3]: https://github.com/Frodo45127/rpfm/compare/v2.3.2...v2.3.3
