@@ -147,6 +147,21 @@ fn test_encode_string_u16() {
     assert_eq!(data, vec![87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0]);
 }
 
+/// Test to make sure the u16 0-padded string encoder (`encode_string_u16_0padded()`) works and fails properly.
+#[test]
+fn test_encode_string_u16_0padded() {
+
+    // Check the encoder works for a proper encoded string.
+    let mut data = vec![];
+    assert_eq!(data.encode_string_u16_0padded(&("Waha".to_owned(), 16)).is_ok(), true);
+    assert_eq!(data, vec![87, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+    // Check the encoder fails properly when the lenght it's inferior to the current string's lenght.
+    let mut data = vec![];
+    let result = data.encode_string_u16_0padded(&("Waha".to_owned(), 6));
+    assert_eq!(result.is_err(), true);
+}
+
 //---------------------------------------------------------------------------//
 //                          Indexed Encoders
 //---------------------------------------------------------------------------//

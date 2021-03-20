@@ -198,6 +198,23 @@ fn test_decode_string_u16() {
     assert_eq!(Decoder::decode_string_u16([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0].as_ref(), 0, 12).is_err(), true);
 }
 
+/// Test to make sure the u16 0-padded string decoder (`decode_string_u16_0padded()`) works and fails properly.
+#[test]
+fn test_decode_string_u16_0padded() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_ref(), 0, 20).unwrap().0, "Wahaha");
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_ref(), 0, 20).unwrap().1, 20);
+
+    // Check that, as soon as it finds a 0 (null character) the decoding stops.
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 0, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0].as_ref(), 0, 20).unwrap().0, "Waha");
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 0, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0].as_ref(), 0, 20).unwrap().1, 20);
+
+    // Check the decoder returns the full string if no zeros have been found before the end of the slice.
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0].as_ref(), 0, 20).unwrap().0, "Wahahahaha");
+    assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0].as_ref(), 0, 20).unwrap().1, 20);
+}
+
 //---------------------------------------------------------------------------//
 //                          Indexed Decoders
 //---------------------------------------------------------------------------//

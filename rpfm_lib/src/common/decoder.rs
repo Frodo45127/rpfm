@@ -87,6 +87,12 @@ pub trait Decoder {
     /// This function allows us to decode an UTF-16 String from raw data.
     fn decode_string_u16(&self, offset: usize, size: usize) -> Result<String>;
 
+    /// This function allows us to decode a 00-Padded UTF-16 String from raw data.
+    ///
+    /// This type of String has a fixed size and, when the characters end, it's filled with `00` bytes until it reach his size.
+    /// We return the decoded String and his full size when encoded (string + zeros).
+    fn decode_string_u16_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)>;
+
     /// This function allows us to decode a boolean from a byte, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_bool(&self, offset: usize, index: &mut usize) -> Result<bool>;
 
@@ -244,6 +250,16 @@ impl Decoder for [u8] {
             String::from_utf16(&u16_characters).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 String.</p>".to_owned())))
         }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {:?}.</li></ul>", size, offset.checked_sub(self.len()))).into()) }
+    }
+
+    fn decode_string_u16_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
+        if self.len() >= offset + size {
+            let size_no_zeros = self[offset..offset + size].iter().step_by(2).position(|x| *x == 0).map_or(size, |x| x * 2);
+            let u16_characters = self[offset..offset + size_no_zeros].chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect::<Vec<u16>>();
+            let string_decoded = String::from_utf16(&u16_characters).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode a UTF-16 0-Padded String.</p>".to_owned())))?;
+            Ok((string_decoded, size))
+        }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 0-Padded String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {:?}.</li></ul>", size, offset.checked_sub(self.len()))).into()) }
     }
 
     //---------------------------------------------------------------------------//
