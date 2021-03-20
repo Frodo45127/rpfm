@@ -79,7 +79,7 @@ pub trait Encoder {
     /// This one is a bit special. It's uses a tuple with the String to encode and the total size of the encoded string.
     /// So... we just encode the String as a normal string, then add 0 until we reach the desired size. If the String is
     /// longer than the provided size, we throw an error.
-    fn encode_string_u16_0padded(&mut self, string: &(String, usize)) -> Result<()>;
+    fn encode_string_u16_0padded(&mut self, string: &(&str, usize)) -> Result<()>;
 
     /// This function allows us to encode an UTF-8 String with his lenght (u16) before the String into the provided `Vec<u8>`..
     fn encode_packedfile_string_u8(&mut self, string: &str);
@@ -159,7 +159,7 @@ impl Encoder for Vec<u8> {
         string.encode_utf16().for_each(|character| self.encode_integer_u16(character));
     }
 
-    fn encode_string_u16_0padded(&mut self, (string, size): &(String, usize)) -> Result<()> {
+    fn encode_string_u16_0padded(&mut self, (string, size): &(&str, usize)) -> Result<()> {
         if string.len() * 2 <= *size {
             self.encode_string_u16(string);
             self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
