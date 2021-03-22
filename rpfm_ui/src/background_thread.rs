@@ -385,21 +385,45 @@ pub fn background_loop() {
                     }
                 }
                 if let Some(error) = it_broke {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.to_vec()));
                     CENTRAL_COMMAND.send_message_rust(Response::Error(error));
                 } else {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths));
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.to_vec()));
                     CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
+
+                // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let paths = added_paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect::<Vec<&[String]>>();
+                    let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths);
+                    packed_files.par_iter_mut()
+                        .filter(|x| [PackedFileType::DB, PackedFileType::Loc].contains(&x.get_packed_file_type(false)))
+                        .for_each(|x| {
+                        let _ = x.decode_no_locks(schema);
+                    });
                 }
             }
 
             // In case we want to add one or more entire folders to our PackFile...
             Command::AddPackedFilesFromFolder(paths, paths_to_ignore) => {
                 match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true) {
-                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(paths) => {
+                        CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
 
+                        // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                            let paths = paths.iter().map(|x| &**x).collect::<Vec<&[String]>>();
+                            let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths);
+                            packed_files.par_iter_mut()
+                                .filter(|x| [PackedFileType::DB, PackedFileType::Loc].contains(&x.get_packed_file_type(false)))
+                                .for_each(|x| {
+                                let _ = x.decode_no_locks(schema);
+                            });
+                        }
+                    }
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
+
             }
 
             // In case we want to move stuff from one PackFile to another...
@@ -409,7 +433,20 @@ pub fn background_loop() {
 
                     // Try to add the PackedFile to the main PackFile.
                     Some(pack_file) => match pack_file_decoded.add_from_packfile(&pack_file, &paths, true) {
-                        Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
+                        Ok(paths) => {
+                            CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.to_vec()));
+
+                            // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                            if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                                let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect::<Vec<&[String]>>();
+                                let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths);
+                                packed_files.par_iter_mut()
+                                    .filter(|x| [PackedFileType::DB, PackedFileType::Loc].contains(&x.get_packed_file_type(false)))
+                                    .for_each(|x| {
+                                    let _ = x.decode_no_locks(schema);
+                                });
+                            }
+                        }
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
 
                     }
