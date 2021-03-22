@@ -133,19 +133,36 @@ impl PartialEq for DecodedData {
 impl DecodedData {
 
     /// Default implementation of `DecodedData`.
-    pub fn default(field_type: &FieldType) -> Self {
-        match field_type {
-            FieldType::Boolean => DecodedData::Boolean(false),
-            FieldType::F32 => DecodedData::F32(0.0),
-            FieldType::I16 => DecodedData::I16(0),
-            FieldType::I32 => DecodedData::I32(0),
-            FieldType::I64 => DecodedData::I64(0),
-            FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
-            FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
-            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
-            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
-            FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Table::new(definition)),
-            FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Table::new(definition)),
+    pub fn default(field_type: &FieldType, default_value: &Option<String>) -> Self {
+        match default_value {
+            Some(default_value) => match field_type {
+                FieldType::Boolean => if let Ok(value) = parse_str_as_bool(default_value) { DecodedData::Boolean(value) } else { DecodedData::Boolean(false) },
+                FieldType::F32 => if let Ok(value) = default_value.parse::<f32>() { DecodedData::F32(value) } else { DecodedData::F32(0.0) },
+                FieldType::I16 => if let Ok(value) = default_value.parse::<i16>() { DecodedData::I16(value) } else { DecodedData::I16(0) },
+                FieldType::I32 => if let Ok(value) = default_value.parse::<i32>() { DecodedData::I32(value) } else { DecodedData::I32(0) },
+                FieldType::I64 => if let Ok(value) = default_value.parse::<i64>() { DecodedData::I64(value) } else { DecodedData::I64(0) },
+                FieldType::StringU8 => DecodedData::StringU8(default_value.to_owned()),
+                FieldType::StringU16 => DecodedData::StringU16(default_value.to_owned()),
+                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(default_value.to_owned()),
+                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(default_value.to_owned()),
+
+                // For these two ignore the default value.
+                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Table::new(definition)),
+                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Table::new(definition)),
+            }
+            None => match field_type {
+                FieldType::Boolean => DecodedData::Boolean(false),
+                FieldType::F32 => DecodedData::F32(0.0),
+                FieldType::I16 => DecodedData::I16(0),
+                FieldType::I32 => DecodedData::I32(0),
+                FieldType::I64 => DecodedData::I64(0),
+                FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
+                FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
+                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
+                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
+                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Table::new(definition)),
+                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Table::new(definition)),
+            }
         }
     }
 
@@ -364,7 +381,7 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type()));
+                    entry.push(DecodedData::default(&new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type(), &new_definition.get_fields_processed()[*new_pos as usize].get_default_value()));
                 }
 
                 // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
@@ -587,7 +604,7 @@ impl Table {
                                     }
                                     None => match row[data_column].convert_between_types(field.get_ref_field_type()) {
                                         Ok(data) => data,
-                                        Err(_) => DecodedData::default(field.get_ref_field_type())
+                                        Err(_) => DecodedData::default(field.get_ref_field_type(), field.get_default_value())
                                     }
                                 };
 
