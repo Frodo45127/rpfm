@@ -110,6 +110,7 @@ pub struct DiagnosticsUI {
     checkbox_invalid_escape: QBox<QCheckBox>,
     checkbox_duplicated_row: QBox<QCheckBox>,
     checkbox_invalid_dependency_packfile: QBox<QCheckBox>,
+    checkbox_invalid_loc_key: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -246,6 +247,7 @@ impl DiagnosticsUI {
         let label_invalid_escape = QLabel::from_q_string_q_widget(&qtr("label_invalid_escape"), &sidebar_scroll_area);
         let label_duplicated_row = QLabel::from_q_string_q_widget(&qtr("label_duplicated_row"), &sidebar_scroll_area);
         let label_invalid_dependency_packfile = QLabel::from_q_string_q_widget(&qtr("label_invalid_dependency_packfile"), &sidebar_scroll_area);
+        let label_invalid_loc_key = QLabel::from_q_string_q_widget(&qtr("label_invalid_loc_key"), &sidebar_scroll_area);
 
         let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
@@ -260,6 +262,7 @@ impl DiagnosticsUI {
         let checkbox_invalid_escape = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_duplicated_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_invalid_dependency_packfile = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_invalid_loc_key = QCheckBox::from_q_widget(&sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -274,6 +277,7 @@ impl DiagnosticsUI {
         checkbox_invalid_escape.set_checked(true);
         checkbox_duplicated_row.set_checked(true);
         checkbox_invalid_dependency_packfile.set_checked(true);
+        checkbox_invalid_loc_key.set_checked(true);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_outdated_table, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -288,6 +292,7 @@ impl DiagnosticsUI {
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_escape, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_duplicated_row, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_dependency_packfile, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_loc_key, QFlags::from(AlignmentFlag::AlignHCenter));
 
         sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_outdated_table, 2, 0, 1, 1);
@@ -302,6 +307,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&label_invalid_escape, 11, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_duplicated_row, 12, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_invalid_dependency_packfile, 13, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&label_invalid_loc_key, 14, 0, 1, 1);
 
         sidebar_grid.add_widget_5a(&checkbox_all, 1, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_outdated_table, 2, 1, 1, 1);
@@ -316,6 +322,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&checkbox_invalid_escape, 11, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_duplicated_row, 12, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_invalid_dependency_packfile, 13, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&checkbox_invalid_loc_key, 14, 1, 1, 1);
 
         // Add all the stuff to the main grid and hide the search widget.
         diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
@@ -356,7 +363,8 @@ impl DiagnosticsUI {
             checkbox_no_reference_table_nor_column_found_no_pak,
             checkbox_invalid_escape,
             checkbox_duplicated_row,
-            checkbox_invalid_dependency_packfile
+            checkbox_invalid_dependency_packfile,
+            checkbox_invalid_loc_key
         }
     }
 
@@ -830,6 +838,9 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_duplicated_row.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedRow));
         }
+        if diagnostics_ui.checkbox_invalid_loc_key.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidLocKey));
+        }
 
         if diagnostics_ui.checkbox_invalid_dependency_packfile.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName));
@@ -922,6 +933,7 @@ impl DiagnosticsUI {
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak => qtr("no_reference_table_nor_column_found_no_pak_explanation"),
             TableDiagnosticReportType::InvalidEscape => qtr("invalid_escape_explanation"),
             TableDiagnosticReportType::DuplicatedRow => qtr("duplicated_row_explanation"),
+            TableDiagnosticReportType::InvalidLocKey => qtr("invalid_loc_key_explanation"),
         };
 
         for item in items {

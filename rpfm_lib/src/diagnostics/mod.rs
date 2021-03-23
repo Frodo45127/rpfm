@@ -342,6 +342,16 @@ impl Diagnostics {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
+                if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: 0,
+                        row_number: row as i64,
+                        message: "Invalid localisation key.".to_string(),
+                        report_type: TableDiagnosticReportType::InvalidLocKey,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
+
                 if !ignored_fields.contains(&field_key_name) && !ignored_fields.contains(&field_text_name) {
                     if key.is_empty() && data.is_empty() {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {

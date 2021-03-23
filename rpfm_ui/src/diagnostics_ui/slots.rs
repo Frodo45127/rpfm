@@ -112,6 +112,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.toggle();
                 diagnostics_ui.checkbox_invalid_escape.toggle();
                 diagnostics_ui.checkbox_duplicated_row.toggle();
+                diagnostics_ui.checkbox_invalid_loc_key.toggle();
                 diagnostics_ui.checkbox_invalid_dependency_packfile.toggle();
             }
         ));

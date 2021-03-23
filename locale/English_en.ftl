@@ -835,6 +835,11 @@ duplicated_row_explanation = Table rows usually convey one specific data to the 
 
     This can cause problems and it's adviced to leave only one copy of each row in a table.
 
+invalid_loc_key_explanation = RPFM has detected that one row from your Loc file has a key with invalid characters in it. This can cause all sort of problems, including crashes, so it's better to fix it ASAP.
+    A common cause of this is an old bug in PFM code (yes, PFM) that causes Loc Keys to get invalid characters added at their end if you copy/paste them.
+
+    To fix it, edit the reported cell and delete any invalid (and often invisible) characters on it.
+
 invalid_dependency_pack_file_name_explanation = One of the PackFile Names in the Dependency Manager has an invalid format. Things that cause this error are:
     - Empty rows on the Dependency Manager.
     - A PackFile name not ended in ".pack".
@@ -866,3 +871,4 @@ are_you_sure_rescue_packfile = Are you sure you want to do this? This is a dange
 
 filter_group = Group
 are_you_sure_delete = Are you sure you want to delete the selected PackedFiles?
+label_invalid_loc_key = Invalid Loc Key:

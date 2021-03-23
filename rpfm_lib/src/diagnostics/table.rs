@@ -52,6 +52,7 @@ pub enum TableDiagnosticReportType {
     NoReferenceTableNorColumnFoundNoPak,
     InvalidEscape,
     DuplicatedRow,
+    InvalidLocKey,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -94,6 +95,7 @@ impl Display for TableDiagnosticReportType {
             Self::NoReferenceTableNorColumnFoundNoPak => "NoReferenceTableNorColumnFoundNoPak",
             Self::InvalidEscape => "InvalidEscape",
             Self::DuplicatedRow => "DuplicatedRow",
+            Self::InvalidLocKey => "InvalidLocKey",
         }, f)
     }
 }
