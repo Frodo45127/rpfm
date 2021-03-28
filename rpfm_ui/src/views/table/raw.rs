@@ -1171,7 +1171,7 @@ impl TableView {
             let mut values = vec![];
             for (row, columns) in &individual_cells {
                 for column in columns {
-                    let index = self.table_filter.index_2a(*row, *column);
+                    let index = self.table_model.index_2a(*row, *column);
                     if index.is_valid() {
                         match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
@@ -1186,7 +1186,7 @@ impl TableView {
                             FieldType::SequenceU16(_) |
                             FieldType::SequenceU32(_) => continue,
                         }
-                        real_cells.push(self.table_filter.map_to_source(&index));
+                        real_cells.push(index);
                     }
                 }
             }
