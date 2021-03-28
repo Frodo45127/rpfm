@@ -1616,8 +1616,7 @@ dependencies = [
 [[package]]
 name = "qt_macros"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d24b7e8b6a9d551e937f8d9ed222e8f1202f3166e3d38fc6d52bfc25e39aa71"
+source = "git+https://github.com/davidedelpapa/ritual/?branch=fix-issue#107#597cc8c44e332c099f76f6f503e2803791b8a82d"
 dependencies = [
  "proc-macro-hack",
  "proc-macro2",

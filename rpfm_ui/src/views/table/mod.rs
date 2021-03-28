@@ -191,7 +191,7 @@ pub struct TableView {
     context_menu_cascade_edition: QPtr<QAction>,
     smart_delete: QBox<QAction>,
 
-    context_menu_go_to: QBox<QMenu>,
+    _context_menu_go_to: QBox<QMenu>,
     context_menu_go_to_definition: QPtr<QAction>,
     context_menu_go_to_loc: Vec<QPtr<QAction>>,
 
@@ -547,7 +547,7 @@ impl TableView {
             context_menu_cascade_edition,
             smart_delete,
 
-            context_menu_go_to,
+            _context_menu_go_to: context_menu_go_to,
             context_menu_go_to_definition,
             context_menu_go_to_loc,
 

@@ -12,4 +12,5 @@
 Module with all the generic view's code.
 !*/
 
+pub mod debug;
 pub mod table;

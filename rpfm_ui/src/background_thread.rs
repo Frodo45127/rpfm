@@ -548,6 +548,7 @@ pub fn background_loop() {
                                         DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::UIC(uic) => CENTRAL_COMMAND.send_message_rust(Response::UICPackedFileInfo((uic.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::UnitVariant(_) => CENTRAL_COMMAND.send_message_rust(Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&**packed_file)))),
                                         _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
 
                                     }

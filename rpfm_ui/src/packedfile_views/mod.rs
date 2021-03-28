@@ -51,6 +51,7 @@ use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 use self::uic::PackedFileUICView;
+use self::unit_variant::PackedFileUnitVariantView;
 //use self::rigidmodel::PackedFileRigidModelView;
 
 pub mod anim_fragment;
@@ -65,6 +66,7 @@ pub mod packfile_settings;
 pub mod table;
 pub mod text;
 pub mod uic;
+pub mod unit_variant;
 
 pub mod utils;
 
@@ -104,6 +106,7 @@ pub enum View {
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
     UIC(Arc<PackedFileUICView>),
+    UnitVariant(Arc<PackedFileUnitVariantView>),
     None,
 }
 
@@ -297,6 +300,8 @@ impl PackedFileView {
                         //} else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                     },
 
+                    // UnitVariant use custom saving.
+                    PackedFileType::UnitVariant => return Ok(()),
                     PackedFileType::Unknown => return Ok(()),
                     _ => unimplemented!(),
                 };
@@ -441,6 +446,23 @@ impl PackedFileView {
                         }
                         else {
                             return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    // Debug views retun their entire file.
+                    Response::DecodedPackedFilePackedFileInfo((packed_file, packed_file_info)) => {
+                        match packed_file {
+                            DecodedPackedFile::UnitVariant(variant) => {
+                                if let View::UnitVariant(old_variant) = view {
+                                    old_variant.reload_view(&variant);
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                                }
+                                else {
+                                    return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                }
+                            }
+                            _ => return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into()),
                         }
                     },
 

@@ -283,6 +283,9 @@ pub enum ErrorKind {
     /// Error for when we're trying to do something we can't or shouldn't to a CA PackFile.
     PackFileIsACAPackFile,
 
+    /// Error for when we decode a PackedFile but it fails the index check.
+    PackedFileIncompleteDecoding,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -423,6 +426,16 @@ pub enum ErrorKind {
 
     /// Error for when an UIC PackedFile fails to decode. Contains the error message.
     UICDecode(String),
+
+    //--------------------------------//
+    // Unit Variant Errors
+    //--------------------------------//
+
+    /// Error for when an Unit Variant PackedFile fails to decode. Contains the error message.
+    UnitVariantDecode(String),
+
+    /// Error for when we try to decode a PackedFile that's not an Unit Variant as an Unit Variant.
+    PackedFileIsNotUnitVariant,
 
     //--------------------------------//
     // PAK File Errors
@@ -779,6 +792,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileSourceChanged => write!(f, "<p>The PackFile's data has been altered on disk outside RPFM. If you see this, it means you're using lazy-loading and another program has altered the data on disk before RPFM could load it to memory.</p><p><b>Basically, this means your PackFile got partially corrupted.</b></p><p>Luckily, not all is lost. Your original PackFile on disk should still be safe, and RPFM can recover part of the files inside the open PackFile: DB tables, Locs and any PackedFile open before this message appeared. To do that, go to Special Stuff and hit '<b><i>Rescue PackFile</i></b>', then choose a folder to save the clean PackFile.</p><p>That will create a PackFile with only the files that were confirmed as non-corrupted, so at least you can recover their data.</p><p>And some final words: If you intentionally opened the same PackFile in two instances of RPFM and tried to save on both, that was the cause of this. No, it's not a bug in RPFM. No, I can't magically fix it. It's how lazy-loading data from disk works. If you don't like it, you can disable lazy-loading in the settings. You'll be resistant to PackFile corruption, but RPFM will use a ton more RAM. So... choose your poison.</p><p><b>Note:</b> If this message appeared while adding files from a PackFile, you're save. Just close the 'Add From PackFile' tab and open it again.</p>"),
             ErrorKind::PackedFileTypeIsNotWhatWeExpected(found_type, expected_type) => write!(f, "<p>The PackedFile's type is not what we expected. We expected {} but found {}. This is either a bug or you did weird things with the game selected.</p>", expected_type, found_type),
             ErrorKind::PackFileIsACAPackFile => write!(f, "<p>You can't do that to a CA PackFile, you monster!</p>"),
+            ErrorKind::PackedFileIncompleteDecoding => write!(f, "<p>The PackedFile has been decoded, but there's still part of it undecoded. This means the decoder logic is incomplete for this PackedFile.</p>"),
 
             //--------------------------------//
             // Table Errors
@@ -858,6 +872,12 @@ impl Display for ErrorKind {
             // UIC Errors
             //--------------------------------//
             ErrorKind::UICDecode(cause) => write!(f, "<p>Error while trying to decode the UIC PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // UIC Errors
+            //--------------------------------//
+            ErrorKind::UnitVariantDecode(cause) => write!(f, "<p>Error while trying to decode the Unit Variant PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::PackedFileIsNotUnitVariant => write!(f, "<p>This PackedFile is not an Unit Variant</p>"),
 
             //--------------------------------//
             // PAK File Errors

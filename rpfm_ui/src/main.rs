@@ -294,7 +294,7 @@ fn main() {
 
     // If the config folder doesn't exist, and we failed to initialize it, force a crash.
     // If this fails, half the program will be broken in one way or another, so better safe than sorry.
-    if let Err(error) = init_config_path() { panic!(error); }
+    if let Err(error) = init_config_path() { panic!("{}", error); }
 
     //---------------------------------------------------------------------------------------//
     // Preparing the Program...

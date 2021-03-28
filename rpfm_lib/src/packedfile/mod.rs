@@ -32,6 +32,7 @@ use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable
 use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packedfile::uic::UIC;
+use crate::packedfile::unit_variant::UnitVariant;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::Schema;
 use crate::SCHEMA;
@@ -43,6 +44,7 @@ pub mod rigidmodel;
 pub mod table;
 pub mod text;
 pub mod uic;
+pub mod unit_variant;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -68,6 +70,7 @@ pub enum DecodedPackedFile {
     StarPos,
     Text(Text),
     UIC(UIC),
+    UnitVariant(UnitVariant),
     Unknown,
 }
 
@@ -90,6 +93,7 @@ pub enum PackedFileType {
     RigidModel,
     StarPos,
     UIC,
+    UnitVariant,
 
     /// This one is an exception, as it contains the MimeType of the Text PackedFile, so we can do things depending on the type.
     Text(TextType),
@@ -209,6 +213,12 @@ impl DecodedPackedFile {
                 }
             }
 
+            PackedFileType::UnitVariant => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = UnitVariant::read(&data)?;
+                Ok(DecodedPackedFile::UnitVariant(packed_file))
+            }
+
             _=> Ok(DecodedPackedFile::Unknown)
         }
     }
@@ -262,6 +272,12 @@ impl DecodedPackedFile {
                 let packed_file = UIC::read(&data, &schema)?;
                 Ok(DecodedPackedFile::UIC(packed_file))
             }
+
+            PackedFileType::UnitVariant => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = UnitVariant::read(&data)?;
+                Ok(DecodedPackedFile::UnitVariant(packed_file))
+            }
             _=> Ok(DecodedPackedFile::Unknown)
         }
     }
@@ -282,6 +298,8 @@ impl DecodedPackedFile {
 
             #[cfg(feature = "support_uic")]
             DecodedPackedFile::UIC(data) => Some(Ok(data.save())),
+
+            DecodedPackedFile::UnitVariant(data) => Some(data.save()),
             _=> None,
         }
     }
@@ -339,6 +357,7 @@ impl Display for PackedFileType {
             PackedFileType::RigidModel => write!(f, "RigidModel"),
             PackedFileType::StarPos => write!(f, "StartPos"),
             PackedFileType::UIC => write!(f, "UI Component"),
+            PackedFileType::UnitVariant => write!(f, "Unit Variant"),
             PackedFileType::Text(text_type) => write!(f, "Text, type: {:?}", text_type),
             PackedFileType::PackFileSettings => write!(f, "PackFile Settings"),
             PackedFileType::Unknown => write!(f, "Unknown"),
@@ -385,6 +404,10 @@ impl PackedFileType {
 
             if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
                 return Self::Text(*text_type);
+            }
+
+            if packedfile_name.ends_with(unit_variant::EXTENSION) {
+                return Self::UnitVariant
             }
 
             // If that failed, try types that need to be in a specific path.
@@ -462,6 +485,7 @@ impl PackedFileType {
             Self::StarPos |
             Self::PackFileSettings |
             Self::UIC |
+            Self::UnitVariant |
             Self::Unknown => self == other,
             Self::Text(_) => matches!(other, Self::Text(_)),
         }
@@ -489,6 +513,7 @@ impl PackedFileType {
             Self::StarPos |
             Self::PackFileSettings |
             Self::UIC |
+            Self::UnitVariant |
             Self::Unknown => others.contains(&self),
             Self::Text(_) => others.iter().any(|x| matches!(x, Self::Text(_))),
         }
@@ -514,6 +539,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::StarPos => PackedFileType::StarPos,
             DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
             DecodedPackedFile::UIC(_) => PackedFileType::UIC,
+            DecodedPackedFile::UnitVariant(_) => PackedFileType::UnitVariant,
             DecodedPackedFile::Unknown => PackedFileType::Unknown,
         }
     }

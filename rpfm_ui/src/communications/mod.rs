@@ -444,6 +444,11 @@ pub enum Response {
     /// Response to return `(UIC, PackedFileInfo)`.
     UICPackedFileInfo((UIC, PackedFileInfo)),
 
+    //UnitVariantPackedFileInfo((UnitVariant, PackedFileInfo)),
+
+    /// Response to return `(DecodedPackedFile, PackedFileInfo)`. For debug views.
+    DecodedPackedFilePackedFileInfo((DecodedPackedFile, PackedFileInfo)),
+
     /// Response to return `Text`.
     Text(Text),
 
@@ -542,7 +547,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_qt(&self, data: Command) {
         if self.sender_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -550,7 +555,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_rust(&self, data: Response) {
         if self.sender_rust.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -558,7 +563,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_qt_to_network(&self, data: Command) {
         if self.sender_qt_to_network.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -566,7 +571,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_network_to_qt(&self, data: Response) {
         if self.sender_network_to_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -574,7 +579,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_notification_to_qt(&self, data: Notification) {
         if self.sender_notification_to_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -582,7 +587,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_diagnostics_to_qt(&self, data: Diagnostics) {
         if self.sender_diagnostics_to_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -590,7 +595,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_diagnostics_update_to_qt(&self, data: (Diagnostics, Vec<PackedFileInfo>)) {
         if self.sender_diagnostics_update_to_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -598,7 +603,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_global_search_update_to_qt(&self, data: (GlobalSearch, Vec<PackedFileInfo>)) {
         if self.sender_global_search_update_to_qt.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -606,7 +611,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_save_packedfile(&self, data: Response) {
         if self.sender_save_packedfile.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
@@ -614,7 +619,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_save_packfile(&self, data: Response) {
         if self.sender_save_packfile.send(data).is_err() {
-            panic!(THREADS_SENDER_ERROR);
+            panic!("{}", THREADS_SENDER_ERROR);
         }
     }
 
