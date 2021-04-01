@@ -8,12 +8,11 @@ You need to download and install:
 - [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
 - ***MSVC*** (with C++ support from the Visual Studio installer).
 - ***Rust 1.32 with the MSVC toolchain*** (or superior).
-- The ***LZMA lib*** (find it, or get it compiled yourself).
 - ***Craft*** (from KDE).
 
 Then you need to:
-- Add the LZMA lib location to your PATH.
-- Open Craft and execute `craft -i ktexteditor`.
+- OPTIONAL: Go to `craft_patches`, and copy all files to `C:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\kde\frameworks\tier3\ktexteditor` or equivalent. This fixes some bugs in text views caused by the way RPFM uses them. It's not mandatory, but it helps.
+- Open Craft and execute `craft -i ktexteditor`. This takes a while, so go grab some coffee.
 
 Now you can open craft, move to RPFM's source code folder and call from that terminal:
 

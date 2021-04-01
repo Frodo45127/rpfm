@@ -28,7 +28,9 @@
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
+        
         <link rel="stylesheet" href="css/print.css" media="print">
+        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
@@ -130,9 +132,11 @@
                     <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
 
                     <div class="right-buttons">
+                        
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        
                         
                     </div>
                 </div>
@@ -161,7 +165,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#whats-rpfm" id="whats-rpfm">What's RPFM?</a></h1>
+                        <h1 id="whats-rpfm"><a class="header" href="#whats-rpfm">What's RPFM?</a></h1>
 <p><img src="./images/image1.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
 <p>This is <strong>Rusted PackFile Manager</strong>, a.k.a. <strong>RPFM</strong>, a modding tool for modern Total War Games.</p>
 <p>Before explaining what it does, a <strong>little explanation</strong> on how modding works in Total War games since Empire is due. Since Empire, most of the data of Total War games is in <code>.pack</code> files, packed together so it's faster to read for the game. Those <code>.pack</code> files are <em>containers</em>. Inside them there are a ton of files with the actual data of the game. Some of those files are:</p>
@@ -176,7 +180,7 @@
 <p>Now, how it's modding done in modern Total War Games? By creating a <code>mod</code> PackFile, adding some of those files, changing them, and then telling the launcher to use that mod with the changes you did. Simple isn't? Now, <em><strong>what is RPFM?</strong></em> It's a program that let's you create and edit those PackFiles, allowing you to edit the tables, locs,... inside them too. That's more or less what it is.</p>
 <p>But hey, isn't this familiar? If you have modded a modern Total War game, yep. RPFM it's a <em>complete reimplementation</em> in Rust and Qt5 of the old <strong>PackFile Manager</strong>, because PFM it's slow, buggy, and was unmaintained for more than half a year before someone picked it up. If you've used PFM before, you can see it has a similar UI, and most of the features are in the same place, or close by. It's done that way to make it <em><strong>easier to use for modders</strong></em> coming from PFM.</p>
 <p>So, you want to give it a try? Then read the <strong><img src="./chapter_2.html" alt="Initial Configuration" /></strong> section, as without it most of the <em>Advanced Features</em> RPFM has are disabled. And remember, you can always access this documentation in the <code>About</code> menu, by clicking on <code>Open Manual</code>.</p>
-<h1><a class="header" href="#initial-configuration" id="initial-configuration">Initial Configuration</a></h1>
+<h1 id="initial-configuration"><a class="header" href="#initial-configuration">Initial Configuration</a></h1>
 <p><img src="./images/image2.png" alt="Preferences... everyone has them." /></p>
 <p>After we start RPFM for the first time, we have to configure a couple of things.</p>
 <p>First, it should promt you to update your schemas/templates. Hit yes. Schemas and templates some extra files used for some features of RPFM, which we'll explain later. For now, just remember you should always have them up-to-date.</p>
@@ -196,10 +200,10 @@
 <p>When you're done with the settings, just hit <code>Save</code>. You can restore them to the defaults with the button of the left (same for the shortcuts with their <code>Restore Defaults</code> button). One thing to take into account is that, if any of the paths is invalid, RPFM will delete it when hitting <code>Save</code>.</p>
 <p>Now the last step. This is optional, but recommendable and it <strong>requires you to have the Assembly Kit</strong> for your games installed. We have to go to <code>Special Stuff</code> and, for each game we have, hit <code>Generate PAK File</code>. This will create a special file that will help RPFM with reference data for table columns. It's <strong>not enabled for Empire and Napoleon</strong> for now, but it should work for every other game.</p>
 <p>With that, we have completed the initial configuration. So now that we're done configuring RPFM, let's take a look at the features it has to offer.</p>
-<h1><a class="header" href="#buttons-and-what-they-do" id="buttons-and-what-they-do">Buttons and What They Do</a></h1>
+<h1 id="buttons-and-what-they-do"><a class="header" href="#buttons-and-what-they-do">Buttons and What They Do</a></h1>
 <p>In this chapter we will check every freaking <em>general use</em> button and hidden action RPFM has (PackedFile-specific actions are in their respective chapter), so you don't have to ask what they do. Just remember that, in addition to this chapter, you can <strong>hover with the mouse over almost every button</strong> in RPFM and in the status bar at the bottom will appear a short message explaining what the button do.</p>
 <p>Ere we go!</p>
-<h1><a class="header" href="#menu-bar" id="menu-bar">Menu Bar</a></h1>
+<h1 id="menu-bar"><a class="header" href="#menu-bar">Menu Bar</a></h1>
 <p>First, the top Menu bar. It has five menus in it, that'll be explained in the following chapters. But to give you an idea of what we have:</p>
 <ul>
 <li><code>PackFile</code>: It's where all the <em>basic</em> stuff like <code>New</code>, <code>Open</code> and <code>Save</code> is. Pretty straightforward.</li>
@@ -211,7 +215,7 @@
 <li><code>Debug</code>: Stay away from this.
 And now, let's begin!</li>
 </ul>
-<h1><a class="header" href="#packfile-menu" id="packfile-menu"><code>PackFile</code> Menu</a></h1>
+<h1 id="packfile-menu"><a class="header" href="#packfile-menu"><code>PackFile</code> Menu</a></h1>
 <p><img src="./images/image6.png" alt="Menuses..." /></p>
 <p>Here, we can find the <em>basic</em> actions:</p>
 <ul>
@@ -251,7 +255,7 @@ And now, let's begin!</li>
 <p>About these options, just take into account that any PackFile with any of these options enabled (except <code>Data Is Compressed</code>) will <strong>NOT BE RECOGNIZED</strong> as a mod by the launcher. And RPFM doesn't support saving PackFiles with <code>Index Is Encrypted</code>, <code>Data Is Encrypted</code> or <code>Header Is Extended</code> enabled.</p>
 <p>And, if you don't enable <code>Allow Editing of CA PackFiles</code>, RPFM will not let you save <code>Boot</code>, <code>Release</code> or <code>Patch</code> PackFiles.</p>
 <p>And with that, we finish the <code>PackFile</code> Menu. Next, the <code>MyMod</code> menu.</p>
-<h1><a class="header" href="#mymod-menu" id="mymod-menu"><code>MyMod</code> Menu</a></h1>
+<h1 id="mymod-menu"><a class="header" href="#mymod-menu"><code>MyMod</code> Menu</a></h1>
 <p><img src="./images/image7.png" alt="MyMod.... more like OurMod...." /></p>
 <p><code>MyMod</code> is a feature to help modders <strong>keep their mod's data organized</strong>. The system is almost a 1:1 clone of PFM's <em>MyMod</em> feature so it should be easy to use for veterans too.</p>
 <p>For those new with the concept, remember that <code>MyMod</code> folder we set in the settings? When we create a <code>MyMod</code>, in that folder will be created a folder for the game the mod's for (if it didn't exist before), and inside that there will be a PackFile and a folder, both with the name of your mod. Each time you extract something from the PackFile, it'll be automatically extracted in his folder, <strong>mirroring the structure it has in the PackFile</strong>. For example, extracting a table will result in the table being extracted at <code>mymod_folder/db/table_name/file</code>._ Adding Files/Folders from the MyMod folder <strong>will also add them mirroring the path they have</strong>. For example, adding a file from <code>mymod_folder/db/table_name/file</code>_ will add the file in <code>PackFile/db/table_name/file</code>.</p>
@@ -273,14 +277,14 @@ And now, let's begin!</li>
 <li>To be able to use <code>Install/Uninstall</code> you need to have your <code>MyMod</code> open.</li>
 <li>Only <code>MyMod</code> PackFiles opened from <code>XXX/yourmod.pack</code> will enjoy the <code>MyMod</code> features, like keeping the paths when adding/extracting files. Manually opened <code>MyMod</code> PackFiles will be treated as regular PackFiles.</li>
 </ul>
-<h1><a class="header" href="#view-menu" id="view-menu"><code>View</code> Menu</a></h1>
+<h1 id="view-menu"><a class="header" href="#view-menu"><code>View</code> Menu</a></h1>
 <p>In this menu you can hide/show certain panels of the UI:</p>
 <ul>
 <li><code>PackFile Contents</code>: That thing on the left with files and folders on it.</li>
 <li><code>Global Search</code>: A panel to search stuff through the entire open PackFile.</li>
 <li><code>Diagnostics</code>: A panel to show diagnostics results of the entire open PackFile.</li>
 </ul>
-<h1><a class="header" href="#game-selected-menu" id="game-selected-menu"><code>Game Selected</code> Menu</a></h1>
+<h1 id="game-selected-menu"><a class="header" href="#game-selected-menu"><code>Game Selected</code> Menu</a></h1>
 <p><img src="./images/image9.png" alt="I'm a man of many games..." /></p>
 <p>In this menu you can <strong>change the currently selected game</strong>. When opening PackFiles, RPFM tries to be smart and auto-select a game, but there are some PackFiles that are the same between games (for example, Attila and Warhammer 1 PackFiles are identical), so... just make sure the right game is selected after opening a PackFile, as that affects how many parts of the program work. The complete list of supported games is:</p>
 <ul>
@@ -302,7 +306,7 @@ And now, let's begin!</li>
 <li><code>Open Game's Assembly Kit Folder</code>: Open your currently selected game's assembly kit folder, if it has his path configured in the settings. Only for Rome 2 and later games.</li>
 <li><code>Open RPFM's Config Folder</code>: Open the config folder of RPFM, which contains configs, shortcuts, schemas, crashlogs, porn,....</li>
 </ul>
-<h1><a class="header" href="#special-stuff-menu" id="special-stuff-menu"><code>Special Stuff</code> Menu</a></h1>
+<h1 id="special-stuff-menu"><a class="header" href="#special-stuff-menu"><code>Special Stuff</code> Menu</a></h1>
 <p><img src="./images/image10.png" alt="Because you are S.P.E.C.I.A.L!" /></p>
 <p>This menu contains... special features implemented for specific games. Basically, any feature that <strong>doesn't really fit in any other place</strong> goes here. Here we have:</p>
 <ul>
@@ -317,7 +321,7 @@ And now, let's begin!</li>
 </li>
 <li><code>Generate PAK File</code>: generates a file from raw data from the Assembly Kit that allows RPFM to provide a ton of reference data from tables not in the game. Or easier to understand, if you use the dependency checker, you'll have <strong>far fewer blue columns</strong>. Doesn't work for Empire and Napoleon, yet.</li>
 </ul>
-<h1><a class="header" href="#about-menu" id="about-menu"><code>About</code> Menu</a></h1>
+<h1 id="about-menu"><a class="header" href="#about-menu"><code>About</code> Menu</a></h1>
 <p><img src="./images/image11.png" alt="What do you want to learn about me, honey?" /></p>
 <p>Pretty simple and straightforward menu:</p>
 <ul>
@@ -331,9 +335,9 @@ And now, let's begin!</li>
 </ul>
 <p>The <em>Schemas</em> I talked in the last point are what <strong>allows RPFM to decode and open the tables</strong> of all the supported games. Newer schemas means more tables to open. It's very common that after an update a few tables change his structure and are no longer decodables. To get them to work again, the schema has to be updated.</p>
 <p>And that's all for the top <code>Menu</code> Bar. Now we'll take a look at the thing you're going to use the most (or almost the most): the <code>TreeView</code>.</p>
-<h1><a class="header" href="#debug-menu" id="debug-menu"><code>Debug</code> Menu</a></h1>
+<h1 id="debug-menu"><a class="header" href="#debug-menu"><code>Debug</code> Menu</a></h1>
 <p>Stay away from this.</p>
-<h1><a class="header" href="#packfile-treeview" id="packfile-treeview">PackFile TreeView</a></h1>
+<h1 id="packfile-treeview"><a class="header" href="#packfile-treeview">PackFile TreeView</a></h1>
 <p><img src="./images/image12.png" alt="It's beautiful..." /></p>
 <p>That thing on the left with folders and stuff is the <strong>PackFile's TreeView</strong>. That's where all the files inside your PackFiles will show up. If you don't like it there, it can be moved elsewere, or even closed. When you Right-Click on any of them, this context menu will show up:</p>
 <p><img src="./images/image13.png" alt="Contextualize THIS!" /></p>
@@ -382,13 +386,13 @@ And now, let's begin!</li>
 <li><code>Auto-Expand Matches</code>: automatically expand all the matched folders/files. This combined with a ton of matches (empty pattern and +60k files in data.pack) can hang the program for a while, so be cautious on when do you use it.</li>
 <li><code>AaI</code>: the case sensitive button. Not too much to explain here.</li>
 </ul>
-<h1><a class="header" href="#dependency-manager" id="dependency-manager">Dependency Manager</a></h1>
+<h1 id="dependency-manager"><a class="header" href="#dependency-manager">Dependency Manager</a></h1>
 <p><img src="./images/image14.png" alt="Depending...." /></p>
 <p>The <code>Dependency Manager</code> allows you to modify a special list of PackFiles saved inside your mod's PackFile. When starting the game, the launcher will try to load the PackFiles in this list BEFORE your PackFile. If a PackFile is not found, it'll be ignored. This list can be used to hardcode dependencies into your PackFile. In his Contextual Menu (right-click) you can find more or less the same commands of a DB Table.</p>
-<h1><a class="header" href="#notes" id="notes">Notes</a></h1>
+<h1 id="notes"><a class="header" href="#notes">Notes</a></h1>
 <p><img src="./images/notes.png" alt="Note me, Sempai..." /></p>
 <p><code>Notes</code> is a system of simple notes stored in the PackFiles. It's just a way to keep non-standard things (like <em>&quot;this column is for X, remember it when changing Y!&quot;</em>) in your PackFiles. You can have one note per PackFile. Use it for whatever you want.</p>
-<h1><a class="header" href="#global-search" id="global-search">Global Search</a></h1>
+<h1 id="global-search"><a class="header" href="#global-search">Global Search</a></h1>
 <p><img src="./images/image15.png" alt="Gonna search you around the globe, with a satelite and infrared to see you move through the night..." /></p>
 <p><code>Global Search</code> allows you to perform a simple search (accepts Regex) across every DB/Loc/Text PackedFile inside your PackFile (and the schema of the currently selected game), providing you with a filterable list of results in the right of the screen.</p>
 <p>Pretty straightforward, just some notes:</p>
@@ -397,13 +401,13 @@ And now, let's begin!</li>
 <li>Replacing a result will close its PackedFile if open (To be fixed in a future update).</li>
 <li>Schema fields are not replaceable.</li>
 </ul>
-<h1><a class="header" href="#diagnostics-panel" id="diagnostics-panel">Diagnostics Panel</a></h1>
+<h1 id="diagnostics-panel"><a class="header" href="#diagnostics-panel">Diagnostics Panel</a></h1>
 <p><img src="./images/diagnostics.png" alt="Tell me, doctor, do I have the coronavirus?" /></p>
 <p><code>Diagnostics</code> panel allows you to quickly identify possible problems in your mod, so you can fix them before they're reflected in-game.</p>
 <p>It's pretty simple. You have three filters (Error, Warning and Info), and by default only errors are shown. The panel is updated when opening a PackFile/Editing a PackedFile. And to go to the error, just double-click it and it'll open you the file with the error and scroll down to it.</p>
-<h1><a class="header" href="#packedfiles" id="packedfiles">PackedFiles</a></h1>
+<h1 id="packedfiles"><a class="header" href="#packedfiles">PackedFiles</a></h1>
 <p>As explained before, RPFM can not only edit the PackFiles of modern Total War Games, but it can also edit the Files inside them (PackedFiles) without the need of extracting them. Ín this section we'll see what PackedFiles can RPFM see/edit.</p>
-<h1><a class="header" href="#db-tables" id="db-tables">DB Tables</a></h1>
+<h1 id="db-tables"><a class="header" href="#db-tables">DB Tables</a></h1>
 <p><img src="./images/image16.png" alt="Tables... Not as plain as you!" /></p>
 <p><code>DB Tables</code> are where most of the moddable data of the games is. For example, unit stats, faction colors, buildings info,... RPFM has a complete integrated editor for them. The screenshot above is how a DB Table looks in RPFM when opened.</p>
 <p>The editor includes <em><strong>cross-table references</strong></em>, which means that, if one column references another table, you'll get a combo when editing that column with data to input from the other table. Also, if you hover over the header of any column that references another table, is referenced on another table, or <strong>has a description in the schema</strong>, you can see in the tooltip the column's special info.</p>
@@ -449,22 +453,22 @@ And now, let's begin!</li>
 <li><strong>If you have a combination of both</strong> , it'll delete rows where all cells are selected, and it'll delete the contents of the cells where not all cells in a row are selected. Fancy.</li>
 </ul>
 <p>One thing to take into account is that if you want to write multiple lines in a cell (for example, for multiple paragraphs in one single cell) you <strong>can write <code>\\n</code> and RPFM will take care of saving it properly</strong>, so you see multiple lines ingame. Same with <code>\\t</code> for tablulations. And yes, two bars, not one.</p>
-<h1><a class="header" href="#loc-packedfiles" id="loc-packedfiles">LOC PackedFiles</a></h1>
+<h1 id="loc-packedfiles"><a class="header" href="#loc-packedfiles">LOC PackedFiles</a></h1>
 <p><img src="./images/image19.png" alt="Localizable at any hour...." /></p>
 <p>Loc PackedFiles are files that end in <code>.loc</code>, and <strong>contain most of the texts you see ingame</strong>. When you open them, you can see they work like a… DB Table. They are really an special type of table, so you can do to them exactly the same stuff you do can do to DB Tables. Loc PackedFiles uses the same colour code for cells and rows as the TreeView.</p>
-<h1><a class="header" href="#text-packedfiles" id="text-packedfiles">Text PackedFiles</a></h1>
+<h1 id="text-packedfiles"><a class="header" href="#text-packedfiles">Text PackedFiles</a></h1>
 <p><img src="./images/image20.png" alt="It's textual, you know?" /></p>
 <p>RPFM can open and edit a wide variety of Text PackedFiles, such as <code>XML, HTML, LUA, TXT,...</code>. It has native <strong>Undo/Redo support, Copy/Paste support, Syntax Highlighting...</strong> the normal things for a basic text editor.</p>
-<h1><a class="header" href="#images" id="images">Images</a></h1>
+<h1 id="images"><a class="header" href="#images">Images</a></h1>
 <p><img src="./images/image22.png" alt="Imagine how hard can be...." /></p>
 <p>RPFM can open a variety of image formats, such as <strong>PNG, JPG, TGA, DDS (most of them)...</strong> Just select the image you want to see, and it'll open in the right side of the window. If it doesn't open, it's a format it cannot (yet) open.</p>
-<h1><a class="header" href="#ca_vp8" id="ca_vp8">CA_VP8</a></h1>
+<h1 id="ca_vp8"><a class="header" href="#ca_vp8">CA_VP8</a></h1>
 <p><img src="./images/image21.png" alt="Imagine how hard can be...." /></p>
 <p>RPFM can decode the CA_VP8 video files CA uses in total war games, and convert them into VP8 IVF and back. Just press the button of the format you want, then press extract. Also, this is video only. No audio is converted.</p>
-<h1><a class="header" href="#animpack" id="animpack">AnimPack</a></h1>
+<h1 id="animpack"><a class="header" href="#animpack">AnimPack</a></h1>
 <p>NOTE: Only for Warhammer 2.</p>
 <p>RPFM can unpack AnimPacks, and allows you to edit the AnimTables, AnimFragments and MatchedCombat tables inside them, but this is still a bit of a WIP, so this section will be completed soon.</p>
-<h1><a class="header" href="#db-decoder" id="db-decoder">DB Decoder</a></h1>
+<h1 id="db-decoder"><a class="header" href="#db-decoder">DB Decoder</a></h1>
 <p><img src="./images/image23.png" alt="Decoding your life, one step at a time." /></p>
 <p>RPFM has an integrated <strong>DB decoder</strong>, to speed up a lot the decoding process of the <strong>definition</strong> of a table. It can be opened by right-clicking on a table file and selecting <code>Open/Open with Decoder</code>. Only works on tables.</p>
 <p>The decoder screen is a bit complex so, like Jack the Ripper, let's check it in parts, one at a time. Starting by the left we have this:</p>
@@ -493,7 +497,7 @@ And now, let's begin!</li>
 <li><code>Remove all fields</code>: removes all decoded fields, returning the table to a clean state.</li>
 <li><code>Finish It!</code>: Save the <code>Fields List</code> as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.</li>
 </ul>
-<h1><a class="header" href="#db-types" id="db-types">DB Types</a></h1>
+<h1 id="db-types"><a class="header" href="#db-types">DB Types</a></h1>
 <p>People have complained that the types used in the DB Decoder and, by extension, in the tables are <em><strong>not intuitive enough</strong></em>, so here is a little explanation to shut you up:</p>
 <ul>
 <li><code>Bool</code>: One byte. Can be 00 or 01.</li>
@@ -511,16 +515,16 @@ And now, let's begin!</li>
 <li><code>List</code>: It's... like a table inside a field. It's a complex type used in many <em>XXX_models</em> tables. Implemented in the backend, not fully in the UI.</li>
 </ul>
 <p>If you need more help to understand these types, please search on google.</p>
-<h1><a class="header" href="#templates" id="templates">Templates</a></h1>
+<h1 id="templates"><a class="header" href="#templates">Templates</a></h1>
 <p>Templates allows you to bootstrap mods for specific purpouses. The basic idea is this: you want to create a new building? Then just load the building template, fill the parameters you're asked for, hit Ok, and you will have a working mod. A new unit? Same, fill some fields, hit ok, done.</p>
 <p>It has some advantages over templated packfiles:</p>
 <ul>
 <li>Templates always makes sure all generated tables are valid and up-to-date, so it can be used in tutorials without need for updating in each patch.</li>
 <li>Templates are a bit dynamic, allowing you to change on the fly many parameters that otherwise would require you to manually go into many tables after importing them.</li>
 </ul>
-<h2><a class="header" href="#how-to-use-them" id="how-to-use-them">How to use them?</a></h2>
+<h2 id="how-to-use-them"><a class="header" href="#how-to-use-them">How to use them?</a></h2>
 <p>Just go to <code>About</code>/<code>Update Templates</code> and wait until it tells you you have the latest ones. Then, just go to <code>PackFile</code>/<code>Load Template</code> and click in the one you want to load. Fill the fields it asks you, then hit ok. That's all.</p>
-<h2><a class="header" href="#how-to-make-them" id="how-to-make-them">How to make them?</a></h2>
+<h2 id="how-to-make-them"><a class="header" href="#how-to-make-them">How to make them?</a></h2>
 <p>Making them is a bit more complicated. First, where are they? They're stored in RPFM's Config folder. There should be two folders there:</p>
 <ul>
 <li><code>templates</code>: templates downloaded from the official repo.</li>
@@ -538,7 +542,7 @@ And now, let's begin!</li>
 </ul>
 <p>You just need to make a valid json for your template, put it in the definitions folder of the game you want, and it should appear in RPFM next time you change the game selected.</p>
 <p>Keep in mind that the templates are community-driven, so if there is no template for what you want... feel free to make one yourself and do a PR on the template repo.</p>
-<h1><a class="header" href="#appendix" id="appendix">Appendix</a></h1>
+<h1 id="appendix"><a class="header" href="#appendix">Appendix</a></h1>
 <ul>
 <li>Basic shortcuts (non-editable) for EVERY Table View provided by Qt:</li>
 </ul>
@@ -554,21 +558,20 @@ And now, let's begin!</li>
 <p>If you still want to do it, disable the <code>Use Lazy-Loading</code> Setting in the <code>Preferences</code> and the entire PackFile will be loaded to RAM. Weird things may still happen, but if the PackFile is loaded to RAM, you can just click <code>Save PackFile As...</code> and your PackFile will be saved properly.</p>
 </li>
 </ul>
-<h1><a class="header" href="#compilation-instructions" id="compilation-instructions">Compilation Instructions</a></h1>
+<h1 id="compilation-instructions"><a class="header" href="#compilation-instructions">Compilation Instructions</a></h1>
 <p>Just in case someone wants to collaborate with code (who knows, maybe there is someone out there in the wild) here are the <strong>instructions to compile RPFM</strong> in the different supported OS:</p>
-<h2><a class="header" href="#windows" id="windows">Windows</a></h2>
+<h2 id="windows"><a class="header" href="#windows">Windows</a></h2>
 <p>You need to download and install:</p>
 <ul>
 <li><a href="https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk"><em><strong>Windows SDK</strong></em></a>.</li>
 <li><em><strong>MSVC</strong></em> (with C++ support from the Visual Studio installer).</li>
 <li><em><strong>Rust 1.32 with the MSVC toolchain</strong></em> (or superior).</li>
-<li>The <em><strong>LZMA lib</strong></em> (find it, or get it compiled yourself).</li>
 <li><em><strong>Craft</strong></em> (from KDE).</li>
 </ul>
 <p>Then you need to:</p>
 <ul>
-<li>Add the LZMA lib location to your PATH.</li>
-<li>Open Craft and execute <code>craft -i ktexteditor</code>.</li>
+<li>OPTIONAL: Go to <code>craft_patches</code>, and copy all files to <code>C:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\kde\frameworks\tier3\ktexteditor</code> or equivalent. This fixes some bugs in text views caused by the way RPFM uses them. It's not mandatory, but it helps.</li>
+<li>Open Craft and execute <code>craft -i ktexteditor</code>. This takes a while, so go grab some coffee.</li>
 </ul>
 <p>Now you can open craft, move to RPFM's source code folder and call from that terminal:</p>
 <pre><code class="language-bash"># To build the executable without optimisations.
@@ -580,7 +583,7 @@ cargo run --bin rpfm_ui
 # To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
-<h2><a class="header" href="#linux" id="linux">Linux</a></h2>
+<h2 id="linux"><a class="header" href="#linux">Linux</a></h2>
 <p>You need to install the following packages on your distro:</p>
 <ul>
 <li><em><strong>Rust 1.32</strong></em> (or superior).</li>
@@ -599,7 +602,7 @@ cargo run --bin rpfm_ui
 # To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
-<h2><a class="header" href="#macos" id="macos">MacOS</a></h2>
+<h2 id="macos"><a class="header" href="#macos">MacOS</a></h2>
 <p>Don't know. Don't have a Mac to compile to it and test.</p>
 <hr />
 <p>In case you just want to <strong>contribute to these docs</strong>, you just need to download this repo, install Rust, then move to the repo's folder and:</p>

@@ -1,0 +1,158 @@
+diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/.clang-format ktexteditor-5.80.0/.clang-format
+--- ktexteditor-5.80.0.orig/.clang-format   1970-01-01 01:00:00.000000000 +0100
++++ ktexteditor-5.80.0/.clang-format    2021-04-01 10:51:08.444630100 +0200
+@@ -0,0 +1,79 @@
++---
++# SPDX-FileCopyrightText: 2019 Christoph Cullmann <cullmann@kde.org>
++# SPDX-FileCopyrightText: 2019 Gernot Gebhard <gebhard@absint.com>
++#
++# SPDX-License-Identifier: MIT
++
++# Style for C++
++Language: Cpp
++
++# base is WebKit coding style: https://webkit.org/code-style-guidelines/
++# below are only things set that diverge from this style!
++BasedOnStyle: WebKit
++
++# enforce C++11 (e.g. for std::vector<std::vector<lala>>
++Standard: Cpp11
++
++# 4 spaces indent
++TabWidth: 4
++
++# 2 * 80 wide lines
++ColumnLimit: 160
++
++# sort includes inside line separated groups
++SortIncludes: true
++
++# break before braces on function, namespace and class definitions.
++BreakBeforeBraces: Linux
++
++# CrlInstruction *a;
++PointerAlignment: Right
++
++# horizontally aligns arguments after an open bracket.
++AlignAfterOpenBracket: Align
++
++# don't move all parameters to new line
++AllowAllParametersOfDeclarationOnNextLine: false
++
++# no single line functions
++AllowShortFunctionsOnASingleLine: None
++
++# always break before you encounter multi line strings
++AlwaysBreakBeforeMultilineStrings: true
++
++# don't move arguments to own lines if they are not all on the same
++BinPackArguments: false
++
++# don't move parameters to own lines if they are not all on the same
++BinPackParameters: false
++
++# In case we have an if statement whith multiple lines the operator should be at the beginning of the line
++# but we do not want to break assignments
++BreakBeforeBinaryOperators: NonAssignment
++
++# format C++11 braced lists like function calls
++Cpp11BracedListStyle: true
++
++# do not put a space before C++11 braced lists
++SpaceBeforeCpp11BracedList: false
++
++# remove empty lines
++KeepEmptyLinesAtTheStartOfBlocks: false
++
++# no namespace indentation to keep indent level low
++NamespaceIndentation: None
++
++# we use template< without space.
++SpaceAfterTemplateKeyword: false
++
++# Always break after template declaration
++AlwaysBreakTemplateDeclarations: true
++
++# macros for which the opening brace stays attached.
++ForEachMacros: [ foreach, Q_FOREACH, BOOST_FOREACH, forever, Q_FOREVER, QBENCHMARK, QBENCHMARK_ONCE ]
++
++# keep lambda formatting multi-line if not empty
++AllowShortLambdasOnASingleLine: Empty
++
++# We do not want clang-format to put all arguments on a new line
++AllowAllArgumentsOnNextLine: false
+diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/src/data/katepart5ui.rc ktexteditor-5.80.0/src/data/katepart5ui.rc
+--- ktexteditor-5.80.0.orig/src/data/katepart5ui.rc 2021-03-06 17:30:47.000000000 +0100
++++ ktexteditor-5.80.0/src/data/katepart5ui.rc  2021-04-01 11:14:45.567103600 +0200
+@@ -1,18 +1,6 @@
+ <!DOCTYPE gui SYSTEM "kpartgui.dtd">
+ <gui name="KatePartView" version="91" translationDomain="ktexteditor5">
+ <MenuBar>
+-  <Menu name="file" noMerge="1"><text>&amp;File</text>
+-    <Action name="file_save" group="save_merge" />
+-    <Action name="file_save_as" group="save_merge" />
+-    <Action name="file_save_as_with_encoding" group="save_merge" />
+-    <Action name="file_save_copy_as" group="save_merge" />
+-    <Action name="file_reload" group="revert_merge" />
+-    <Action name="file_print" group="print_merge" />
+-    <Action name="file_print_preview" group="print_merge" />
+-    <Separator group="print_merge" />
+-    <Action name="file_export_html" group="print_merge"/>
+-    <Separator group="print_merge" />
+-  </Menu>
+
+   <Menu name="edit" noMerge="1"><text>&amp;Edit</text>
+     <Action name="edit_undo" group="edit_undo_merge" />
+@@ -164,8 +152,6 @@
+ </Menu>
+
+ <ToolBar name="mainToolBar" noMerge="1"><text>Main Toolbar</text>
+-  <Action name="file_save" group="file_operations" />
+-  <Action name="file_save_as" group="file_operations" />
+   <Action name="edit_undo" group="edit_operations" />
+   <Action name="edit_redo" group="edit_operations" />
+ </ToolBar>
+diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/src/view/kateview.cpp ktexteditor-5.80.0/src/view/kateview.cpp
+--- ktexteditor-5.80.0.orig/src/view/kateview.cpp   2021-03-06 17:30:47.000000000 +0100
++++ ktexteditor-5.80.0/src/view/kateview.cpp    2021-04-01 11:35:47.269139600 +0200
+@@ -471,8 +471,8 @@
+     a->setWhatsThis(i18n("Swap the selected text with the clipboard contents"));
+
+     if (!doc()->readOnly()) {
+-        a = ac->addAction(KStandardAction::Save, m_doc, SLOT(documentSave()));
+-        a->setWhatsThis(i18n("Save the current document"));
++        //a = ac->addAction(KStandardAction::Save, m_doc, SLOT(documentSave()));
++        //a->setWhatsThis(i18n("Save the current document"));
+
+         a = m_editUndo = ac->addAction(KStandardAction::Undo, m_doc, SLOT(undo()));
+         a->setWhatsThis(i18n("Revert the most recent editing actions"));
+@@ -604,18 +604,18 @@
+     a->setWhatsThis(i18n("Reload the current document from disk."));
+     connect(a, &QAction::triggered, this, &KTextEditor::ViewPrivate::reloadFile);
+
+-    a = ac->addAction(KStandardAction::SaveAs, m_doc, SLOT(documentSaveAs()));
+-    a->setWhatsThis(i18n("Save the current document to disk, with a name of your choice."));
++    //a = ac->addAction(KStandardAction::SaveAs, m_doc, SLOT(documentSaveAs()));
++    //a->setWhatsThis(i18n("Save the current document to disk, with a name of your choice."));
+
+-    a = new KateViewEncodingAction(m_doc, this, i18n("Save As with Encoding..."), this, true /* special mode for save as */);
+-    a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
+-    ac->addAction(QStringLiteral("file_save_as_with_encoding"), a);
+-
+-    a = ac->addAction(QStringLiteral("file_save_copy_as"));
+-    a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
+-    a->setText(i18n("Save &Copy As..."));
+-    a->setWhatsThis(i18n("Save a copy of the current document to disk."));
+-    connect(a, &QAction::triggered, m_doc, &KTextEditor::DocumentPrivate::documentSaveCopyAs);
++    //a = new KateViewEncodingAction(m_doc, this, i18n("Save As with Encoding..."), this, true /* special mode for save as */);
++    //a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
++    //ac->addAction(QStringLiteral("file_save_as_with_encoding"), a);
++
++    //a = ac->addAction(QStringLiteral("file_save_copy_as"));
++    //a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
++    //a->setText(i18n("Save &Copy As..."));
++    //a->setWhatsThis(i18n("Save a copy of the current document to disk."));
++    //connect(a, &QAction::triggered, m_doc, &KTextEditor::DocumentPrivate::documentSaveCopyAs);
+
+     a = ac->addAction(KStandardAction::GotoLine, this, SLOT(gotoLine()));
+     a->setWhatsThis(i18n("This command opens a dialog and lets you choose a line that you want the cursor to move to."));

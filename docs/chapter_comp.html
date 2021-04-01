@@ -26,7 +26,9 @@
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
+        
         <link rel="stylesheet" href="css/print.css" media="print">
+        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
@@ -128,9 +130,11 @@
                     <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
 
                     <div class="right-buttons">
+                        
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
+                        
                         
                     </div>
                 </div>
@@ -159,21 +163,20 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#compilation-instructions" id="compilation-instructions">Compilation Instructions</a></h1>
+                        <h1 id="compilation-instructions"><a class="header" href="#compilation-instructions">Compilation Instructions</a></h1>
 <p>Just in case someone wants to collaborate with code (who knows, maybe there is someone out there in the wild) here are the <strong>instructions to compile RPFM</strong> in the different supported OS:</p>
-<h2><a class="header" href="#windows" id="windows">Windows</a></h2>
+<h2 id="windows"><a class="header" href="#windows">Windows</a></h2>
 <p>You need to download and install:</p>
 <ul>
 <li><a href="https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk"><em><strong>Windows SDK</strong></em></a>.</li>
 <li><em><strong>MSVC</strong></em> (with C++ support from the Visual Studio installer).</li>
 <li><em><strong>Rust 1.32 with the MSVC toolchain</strong></em> (or superior).</li>
-<li>The <em><strong>LZMA lib</strong></em> (find it, or get it compiled yourself).</li>
 <li><em><strong>Craft</strong></em> (from KDE).</li>
 </ul>
 <p>Then you need to:</p>
 <ul>
-<li>Add the LZMA lib location to your PATH.</li>
-<li>Open Craft and execute <code>craft -i ktexteditor</code>.</li>
+<li>OPTIONAL: Go to <code>craft_patches</code>, and copy all files to <code>C:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\kde\frameworks\tier3\ktexteditor</code> or equivalent. This fixes some bugs in text views caused by the way RPFM uses them. It's not mandatory, but it helps.</li>
+<li>Open Craft and execute <code>craft -i ktexteditor</code>. This takes a while, so go grab some coffee.</li>
 </ul>
 <p>Now you can open craft, move to RPFM's source code folder and call from that terminal:</p>
 <pre><code class="language-bash"># To build the executable without optimisations.
@@ -185,7 +188,7 @@ cargo run --bin rpfm_ui
 # To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
-<h2><a class="header" href="#linux" id="linux">Linux</a></h2>
+<h2 id="linux"><a class="header" href="#linux">Linux</a></h2>
 <p>You need to install the following packages on your distro:</p>
 <ul>
 <li><em><strong>Rust 1.32</strong></em> (or superior).</li>
@@ -204,7 +207,7 @@ cargo run --bin rpfm_ui
 # To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
-<h2><a class="header" href="#macos" id="macos">MacOS</a></h2>
+<h2 id="macos"><a class="header" href="#macos">MacOS</a></h2>
 <p>Don't know. Don't have a Mac to compile to it and test.</p>
 <hr />
 <p>In case you just want to <strong>contribute to these docs</strong>, you just need to download this repo, install Rust, then move to the repo's folder and:</p>
