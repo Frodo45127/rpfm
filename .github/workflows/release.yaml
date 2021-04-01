@@ -37,19 +37,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ilammy/msvc-dev-cmd@v1
-      #- uses: Vampire/setup-wsl@v1
-      #  with:
-      #      distribution: Ubuntu-20.04
-      #- uses: actions-rs/toolchain@v1
-      #  with:
-      #    profile: minimal
-      #    toolchain: ${{ matrix.rust }}
-      #    override: true
 
-      #- name: Get the version
-      #  id: get_version
-      #  run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-      #  shell: wsl-bash {0}
+      - anme: Get Version
+        id: get_version
+        uses: battila7/get-version-action@v2.2.1
 
       - if: matrix.os == 'self-hosted-ubuntu'
         name: Installing Qt5, KTextEditor & KImageFormats
@@ -189,7 +180,7 @@ jobs:
       - if: matrix.os == 'self-hosted-ubuntu'
         name: Prepare Assets for Release
         run: |
-          7z a rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
+          7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
       # Changelog step is common for all OS.
       - name: Get Changelog Entry
@@ -221,7 +212,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
       - if: matrix.os == 'self-hosted-ubuntu'
@@ -233,5 +224,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
