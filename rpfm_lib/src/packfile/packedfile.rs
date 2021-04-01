@@ -351,11 +351,21 @@ impl PackedFile {
 
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
     ///
-    /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
+    /// If the PackedFile is not decoded or has no saving support (encode returns None), it loads its data to memory.
     pub fn encode(&mut self) -> Result<()> {
         match self.decoded.encode() {
             Some(data) => self.raw.set_data(&data?),
             None => self.raw.load_data()?,
+        }
+        Ok(())
+    }
+
+    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
+    ///
+    /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
+    pub fn encode_no_load(&mut self) -> Result<()> {
+        if let Some(data) = self.decoded.encode() {
+            self.raw.set_data(&data?);
         }
         Ok(())
     }
@@ -417,7 +427,7 @@ impl PackedFile {
     pub fn extract_packed_file(&mut self, destination_path: &Path) -> Result<()> {
 
         // Save it, in case it's cached.
-        self.encode()?;
+        self.encode_no_load()?;
 
         // We get his internal path without his name.
         let mut internal_path = self.get_path().to_vec();

@@ -1227,7 +1227,7 @@ impl PackFile {
             Some(ref mut packed_file) => {
 
                 // Save it, in case it's cached.
-                packed_file.encode()?;
+                packed_file.encode_no_load()?;
 
                 // We get his internal path without his name.
                 let mut internal_path = packed_file.get_path().to_vec();
@@ -1315,12 +1315,15 @@ impl PackFile {
             4 | 5 | 6 | 7 => {
 
                 // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
-                for packed_file in self.get_ref_mut_packed_files_all() {
-                    match packed_file.extract_packed_file(extracted_path) {
-                        Ok(_) => files_extracted += 1,
-                        Err(_) => error_files.push(format!("{:?}", packed_file.get_path())),
-                    }
-                }
+                let mut packed_files = self.get_ref_mut_packed_files_all();
+                files_extracted = packed_files.len() as u32;
+
+                error_files = packed_files.par_iter_mut().filter_map(|packed_file| {
+                    if packed_file.extract_packed_file(extracted_path).is_err() {
+                        Some(format!("{:?}", packed_file.get_path()))
+                    } else { None }
+                }).collect();
+                files_extracted -= error_files.len() as u32;
             },
 
             // No paths selected, none selected, invalid path selected, or invalid value.

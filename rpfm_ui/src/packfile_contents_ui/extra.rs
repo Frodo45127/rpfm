@@ -354,7 +354,7 @@ impl PackFileContentsUI {
         else {
             CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(items_to_extract, extraction_path));
             app_ui.main_window.set_enabled(false);
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {
                 Response::String(result) => show_dialog(&app_ui.main_window, result, true),
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
