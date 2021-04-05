@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ilammy/msvc-dev-cmd@v1
 
-      - anme: Get Version
+      - name: Get Version
         id: get_version
         uses: battila7/get-version-action@v2.2.1
 
