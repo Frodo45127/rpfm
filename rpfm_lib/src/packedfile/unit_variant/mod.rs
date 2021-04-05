@@ -155,6 +155,9 @@ impl UnitVariant {
             for equipment in &category.equipments {
                 encoded_equipments.encode_string_u16_0padded(&(&equipment.0, 512))?;
                 encoded_equipments.encode_string_u16_0padded(&(&equipment.1, 512))?;
+
+                // Two bytes, not one!!!
+                encoded_equipments.push(0);
                 encoded_equipments.push(0);
             }
 
