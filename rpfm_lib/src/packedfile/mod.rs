@@ -193,6 +193,14 @@ impl DecodedPackedFile {
                     None => Err(ErrorKind::SchemaNotFound.into()),
                 }
             }
+
+            #[cfg(feature = "support_rigidmodel")]
+            PackedFileType::RigidModel => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = RigidModel::read(&data);
+                Ok(DecodedPackedFile::RigidModel(packed_file))
+            }
+
             PackedFileType::Text(text_type) => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
                 let mut packed_file = Text::read(&data)?;
@@ -264,6 +272,9 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::MatchedCombat(packed_file))
             }
 
+            #[cfg(feature = "support_rigidmodel")]
+            PackedFileType::RigidModel => Self::decode(raw_packed_file),
+
             PackedFileType::Text(_) => Self::decode(raw_packed_file),
 
             #[cfg(feature = "support_uic")]
@@ -294,6 +305,10 @@ impl DecodedPackedFile {
             DecodedPackedFile::DB(data) => Some(data.save()),
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
+
+            #[cfg(feature = "support_rigidmodel")]
+            DecodedPackedFile::RigidModel(data) => Some(Ok(data.save())),
+
             DecodedPackedFile::Text(data) => Some(data.save()),
 
             #[cfg(feature = "support_uic")]

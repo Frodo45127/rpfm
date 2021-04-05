@@ -50,9 +50,13 @@ use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
+
+#[cfg(feature = "support_rigidmodel")]
+use self::rigidmodel::PackedFileRigidModelView;
+
+#[cfg(feature = "support_uic")]
 use self::uic::PackedFileUICView;
 use self::unit_variant::PackedFileUnitVariantView;
-//use self::rigidmodel::PackedFileRigidModelView;
 
 pub mod anim_fragment;
 pub mod animpack;
@@ -62,9 +66,13 @@ pub mod external;
 pub mod image;
 pub mod packfile;
 pub mod packfile_settings;
-//pub mod rigidmodel;
+
+#[cfg(feature = "support_rigidmodel")]
+pub mod rigidmodel;
 pub mod table;
 pub mod text;
+
+#[cfg(feature = "support_uic")]
 pub mod uic;
 pub mod unit_variant;
 
@@ -102,9 +110,13 @@ pub enum View {
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
     PackFileSettings(Arc<PackFileSettingsView>),
-    //RigidModel(PackedFileRigidModelView),
+
+    #[cfg(feature = "support_rigidmodel")]
+    RigidModel(Arc<PackedFileRigidModelView>),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
+
+    #[cfg(feature = "support_uic")]
     UIC(Arc<PackedFileUICView>),
     UnitVariant(Arc<PackedFileUnitVariantView>),
     None,
@@ -254,7 +266,14 @@ impl PackedFileView {
                             return Ok(())
                         } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                     },
-                    PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
+
+                    #[cfg(feature = "support_rigidmodel")]
+                    PackedFileType::RigidModel => {
+                        if let View::RigidModel(view) = view {
+                            let data = view.save_view();
+                            DecodedPackedFile::RigidModel(data)
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                    }
 
                     PackedFileType::Text(_) => {
                         if let View::Text(view) = view {
@@ -293,6 +312,7 @@ impl PackedFileView {
                     },
 
                     // Disable saving UIC until support for saving them is wired up.
+                    #[cfg(feature = "support_uic")]
                     PackedFileType::UIC => {
                         return Ok(());
                         //if let View::UIC(view) = view {
@@ -430,6 +450,18 @@ impl PackedFileView {
                         if let View::Table(old_table) = view {
                             let old_table = old_table.get_ref_table();
                             old_table.reload_view(TableType::MatchedCombat(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    #[cfg(feature = "support_rigidmodel")]
+                    Response::RigidModelPackedFileInfo((rigidmodel, packed_file_info)) => {
+                        if let View::RigidModel(old_rigidmodel) = view {
+                            old_rigidmodel.reload_view(&rigidmodel);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }

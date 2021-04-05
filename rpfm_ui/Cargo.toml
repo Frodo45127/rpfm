@@ -7,9 +7,10 @@ description = "A modding tool for Total War games."
 edition = "2018"
 
 [features]
+support_rigidmodel = []
 support_uic = []
 
-default = []
+default = ["support_rigidmodel"]
 
 [dependencies]
 # Internal dependencies.

@@ -10,28 +10,29 @@
 
 /*!
 Module with all the code for managing the view for RigidModel PackedFiles.
+
+This module simply calls QtRME lib with some data and the lib is the one taking care of all the processing.
 !*/
 
+
+use qt_widgets::QGridLayout;
 use qt_widgets::QWidget;
 
-use cpp_core::Ptr;
+use qt_core::QBox;
+use qt_core::QByteArray;
+use qt_core::QPtr;
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::rigidmodel::RigidModel;
 
-use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::new_text_editor_safe;
-use crate::global_search_ui::GlobalSearchUI;
-use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
-
-use self::slots::PackedFileRigidModelViewSlots;
-
-pub mod slots;
+use crate::ffi::{new_rigid_model_view_safe, set_rigid_model_view_safe, get_rigid_model_from_view_safe};
+use crate::packedfile_views::{PackedFileView, View, ViewType};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -39,17 +40,7 @@ pub mod slots;
 
 /// This struct contains the view of a RigidModel PackedFile.
 pub struct PackedFileRigidModelView {
-    //editor: AtomicPtr<QWidget>,
-}
-
-/// This struct contains the raw version of each pointer in `PackedFileRigidViewRaw`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileRigidModelView`.
-#[derive(Clone)]
-pub struct PackedFileRigidModelViewRaw {
-    pub editor: Ptr<QWidget>,
-    pub path: Arc<RwLock<Vec<String>>>,
+    editor: QBox<QWidget>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,33 +50,51 @@ pub struct PackedFileRigidModelViewRaw {
 /// Implementation for `PackedFileRigidModelView`.
 impl PackedFileRigidModelView {
 
-    /// This function creates a new Text View, and sets up his slots and connections.
+    /// This function creates a new RigidModel View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        app_ui: &Rc<AppUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) -> Result<(TheOneSlot, PackedFileInfo)> {
+    ) -> Result<Option<PackedFileInfo>> {
 
-        // Get the decoded Text.
+        // Get the decoded data from the backend.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let (_rigid_model, packed_file_info) = match response {
+        let (rigid_model, packed_file_info) = match response {
             Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
+        // Create the new view and populate it.
+        let data = QByteArray::from_slice(&rigid_model.data);
+        let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
+        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr());
 
-        let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor, path: packed_file_view.get_path_raw()};
-        let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(&packed_file_rigid_model_view_raw, *app_ui, *global_search_ui, *pack_file_contents_ui);
-        let packed_file_rigid_model_view = Self { /*editor: atomic_from_q_ptr(packed_file_rigid_model_view_raw.editor)*/ };
+        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
-        packed_file_view.view = ViewType::Internal(View::RigidModel(packed_file_rigid_model_view));
+        let view = Arc::new(PackedFileRigidModelView{
+            editor,
+        });
 
-        // Return success.
-        Ok((TheOneSlot::RigidModel(packed_file_rigid_model_view_slots), packed_file_info))
+        packed_file_view.packed_file_type = PackedFileType::RigidModel;
+        packed_file_view.view = ViewType::Internal(View::RigidModel(view));
+
+        Ok(Some(packed_file_info))
+    }
+
+    /// Function to save the view and encode it into a RigidModel struct.
+    pub unsafe fn save_view(&self) -> RigidModel {
+        let qdata = get_rigid_model_from_view_safe(&self.editor);
+        let data = std::slice::from_raw_parts(qdata.data_mut() as *mut u8, qdata.length() as usize).to_vec();
+        RigidModel {
+            data
+        }
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&self, data: &RigidModel) {
+        let byte_array = QByteArray::from_slice(&data.data);
+        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr());
     }
 }

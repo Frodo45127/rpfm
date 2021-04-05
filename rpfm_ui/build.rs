@@ -22,6 +22,10 @@ use std::io::{stdout, Write};
 fn main() {
     common_config();
 
+    // Rigidmodel lib, only on windows.
+    #[cfg(feature = "support_rigidmodel")]
+    println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
+
     // These check whether you have qmake and nmake installed, because they're needed to get the custom widget's lib compiled.
     if Command::new("qmake").output().is_err() {
         stdout().write(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();

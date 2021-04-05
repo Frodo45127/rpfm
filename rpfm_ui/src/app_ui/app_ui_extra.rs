@@ -75,6 +75,9 @@ use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog};
 
+#[cfg(feature = "support_rigidmodel")]
+use crate::packedfile_views::rigidmodel::*;
+
 #[cfg(feature = "support_uic")]
 use crate::packedfile_views::uic::*;
 
@@ -1495,23 +1498,26 @@ impl AppUI {
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
                         }
-                        /*
-                        // If the file is a RigidModel PackedFile...
-                        PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
-                                Ok((slots, packed_file_info)) => {
 
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
+                        // If the file is a RigidModel PackedFile...
+                        #[cfg(feature = "support_rigidmodel")]
+                        PackedFileType::RigidModel => {
+                            match PackedFileRigidModelView::new_view(&mut tab) {
+                                Ok(packed_file_info) => {
+
+                                   // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    if let Some(packed_file_info) = packed_file_info {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
                             }
                         }
-                        */
+
                         // If the file is a Image PackedFile, ignore failures while opening.
                         PackedFileType::Image => {
                             if let Ok(packed_file_info) = PackedFileImageView::new_view(&mut tab) {

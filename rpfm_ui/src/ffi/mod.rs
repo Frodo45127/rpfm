@@ -23,6 +23,9 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::QAbstractItemModel;
 use qt_core::QBox;
+
+#[cfg(feature = "support_rigidmodel")]
+use qt_core::QByteArray;
 use qt_core::QObject;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -33,6 +36,8 @@ use qt_core::QTimer;
 use qt_core::QListOfInt;
 use qt_core::CaseSensitivity;
 
+#[cfg(feature = "support_rigidmodel")]
+use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use crate::locale::qtr;
@@ -182,6 +187,37 @@ pub fn set_pixmap_on_resizable_label_safe(label: &Ptr<QLabel>, pixmap: &Ptr<QPix
     unsafe { set_pixmap_on_resizable_label(label.as_mut_raw_ptr(), pixmap.as_mut_raw_ptr()); }
 }
 
+//---------------------------------------------------------------------------//
+// Rigidmodel stuff.
+//---------------------------------------------------------------------------//
+
+/// This function allow us to create a complete RigidModel view.
+#[cfg(feature = "support_rigidmodel")]
+extern "C" { fn createRMV2Widget(parent: *mut QWidget) -> *mut QWidget; }
+#[cfg(feature = "support_rigidmodel")]
+pub fn new_rigid_model_view_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
+    unsafe { QBox::from_raw(createRMV2Widget(parent.as_mut_raw_ptr())) }
+}
+
+/// This function allow us to get the data from a Rigidmodel view.
+#[cfg(feature = "support_rigidmodel")]
+extern "C" { fn getRMV2Data(parent: *mut QWidget, data: *mut QByteArray); }
+#[cfg(feature = "support_rigidmodel")]
+pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> CppBox<QByteArray> {
+    unsafe {
+        let data = QByteArray::new();
+        getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr());
+        data
+    }
+}
+
+/// This function allow us to manually load data into a RigidModel View.
+#[cfg(feature = "support_rigidmodel")]
+extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray); }
+#[cfg(feature = "support_rigidmodel")]
+pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) {
+    unsafe { setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) }
+}
 
 //---------------------------------------------------------------------------//
 // Special functions.

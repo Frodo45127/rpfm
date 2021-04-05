@@ -7,9 +7,10 @@ description = "RPFM Lib, where all the magic happens."
 edition = "2018"
 
 [features]
+support_rigidmodel = []
 support_uic = []
 
-default = []
+default = ["support_rigidmodel"]
 
 [lib]
 # Disable doctest, as we have none of them but still `cargo test` tries to execute `RON` code as doctests, and fails.
