@@ -6,6 +6,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented `Invalid Loc Key` diagnostic.
+- Implemented `Debug` PackedFile View.
+- Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
+
+### Changed
+- Improved memory usage when extracting large amounts of files in one go.
+
+### Fixed
+- Fixed false positives on the diagnostics tool after adding new tables to a PackFile.
+- Fixed `Update Table` not using the default value for the new columns.
+- Fixed smart delete deleting the wrong cell if the columns were sorted.
+- Fixed the infamous `Ambiguous Shortcut Ctrl+S` bug when trying to save with a Text PackedFile open.
+
 ## [2.4.3]
 ### Added
 - Implemented a more robust corruption detection system.
