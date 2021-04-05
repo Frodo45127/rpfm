@@ -11,6 +11,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Invalid Loc Key` diagnostic.
 - Implemented `Debug` PackedFile View.
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
+- Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
