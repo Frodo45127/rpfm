@@ -23,8 +23,9 @@ fn main() {
     common_config();
 
     // Rigidmodel lib, only on windows.
-    #[cfg(feature = "support_rigidmodel")]
-    println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
+    if cfg!(support_rigidmodel) {
+        println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
+    }
 
     // These check whether you have qmake and nmake installed, because they're needed to get the custom widget's lib compiled.
     if Command::new("qmake").output().is_err() {
