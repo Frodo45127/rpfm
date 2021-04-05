@@ -10,7 +10,7 @@ edition = "2018"
 support_rigidmodel = []
 support_uic = []
 
-default = ["support_rigidmodel"]
+default = []
 
 [dependencies]
 # Internal dependencies.

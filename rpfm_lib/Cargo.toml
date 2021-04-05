@@ -10,7 +10,7 @@ edition = "2018"
 support_rigidmodel = []
 support_uic = []
 
-default = ["support_rigidmodel"]
+default = []
 
 [lib]
 # Disable doctest, as we have none of them but still `cargo test` tries to execute `RON` code as doctests, and fails.
