@@ -85,7 +85,6 @@ use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
-use crate::packedfile::DecodedPackedFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;
@@ -412,12 +411,9 @@ impl Schema {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
         // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
-        if let Some(vanilla_table) = dependencies.get_ref_dependency_database().iter()
-            .filter(|x| x.get_path().len() == 3)
-            .find(|x| x.get_path()[0] == "db" && x.get_path()[1] == *table_name) {
-            if let DecodedPackedFile::DB(table) = vanilla_table.get_decoded_from_memory()? {
-                self.get_ref_versioned_file_db(table_name)?.get_version(table.get_ref_definition().get_version())
-            } else { Err(ErrorKind::SchemaDefinitionNotFound.into()) }
+        if let Some(table) = dependencies.get_db_tables_from_cache(table_name, true, false).iter()
+            .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
+            self.get_ref_versioned_file_db(table_name)?.get_version(table.get_ref_definition().get_version())
         }
 
         // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for

@@ -72,6 +72,9 @@ self_update = { version = "^0.22", features = ["archive-zip", "compression-zip-d
 tempfile = "^3.1"
 zip-extract = "^0.1"
 
+# Cache support
+filepath = "^0.1"
+
 # Pelite, because we need it to get the current version of a game's exe, and I have not a fucking clue how to pass a path to WinApi.
 pelite = "^0.9"
 

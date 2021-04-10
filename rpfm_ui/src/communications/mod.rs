@@ -142,9 +142,9 @@ pub enum Command {
     /// This command is used when we want to change the `Type` of the currently open `PackFile`. It contains the new type.
     SetPackFileType(PFHFileType),
 
-    /// This command is used when we want to generate a PAK file for the currently selected game. It contains the path of the
+    /// This command is used when we want to generate the dependencies cache for a game. It contains the path of the
     /// source files and the `Raw DB Version` of the currently selected game.
-    GeneratePakFile(PathBuf, i16),
+    GenerateDependenciesCache(PathBuf, i16),
 
     /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
     /// It contains the path of the source files, if needed.
@@ -335,8 +335,8 @@ pub enum Command {
     /// This command is used to trigger the debug missing table definition's code.
     GetMissingDefinitions,
 
-    /// This command is used to rebuild the dependencies of a PackFile.
-    RebuildDependencies,
+    /// This command is used to rebuild the dependencies of a PackFile. The bool is for rebuilding the whole dependencies, or just the mod-specific ones.
+    RebuildDependencies(bool),
 
     /// This command is used to trigger a cascade edition on all referenced data.
     CascadeEdition(CascadeEdition),

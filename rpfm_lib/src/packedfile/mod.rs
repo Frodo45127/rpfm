@@ -17,8 +17,7 @@ you can find in a `PackFile`. Here, you can find some generic enums used by the 
 For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
 !*/
 
-use rayon::prelude::*;
-
+use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::ops::Deref;
 
@@ -33,7 +32,7 @@ use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packedfile::uic::UIC;
 use crate::packedfile::unit_variant::UnitVariant;
-use crate::packfile::packedfile::RawPackedFile;
+use crate::packfile::packedfile::{CachedPackedFile, PackedFile, RawPackedFile};
 use crate::schema::Schema;
 use crate::SCHEMA;
 
@@ -325,11 +324,8 @@ impl DecodedPackedFile {
     pub fn update_table(&mut self, dependencies: &Dependencies) -> Result<(i32, i32)> {
         match self {
             DecodedPackedFile::DB(data) => {
-                let dep_db = dependencies.get_ref_dependency_database();
-                if let Some(vanilla_db) = dep_db.par_iter()
-                    .filter_map(|x| x.get_decoded_from_memory().ok())
-                    .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
-                    .filter(|x| x.name == data.name)
+                let dep_db = dependencies.get_db_tables_from_cache(data.get_ref_table_name(), true, false);
+                if let Some(vanilla_db) = dep_db.iter()
                     .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
 
                     let definition_new = vanilla_db.get_definition();
@@ -472,6 +468,77 @@ impl PackedFileType {
                     return Self::UIC;
                 }
             }
+        }
+
+        // If we reach this... we're clueless.
+        Self::Unknown
+    }
+
+    /// This function returns the type of the provided `CachedPackedFile` based on the info about them (path, name, extension,...).
+    ///
+    /// Strict mode also performs a search by checking the data directly if no type was found, but that's very slow. Think twice before using it.
+    pub fn get_cached_packed_file_type(packed_file: &CachedPackedFile, strict_mode: bool) -> Self {
+
+        // First, try with extensions.
+        let path = packed_file.get_ref_packed_file_path().to_lowercase();
+        if path.ends_with(table::loc::EXTENSION) {
+            return Self::Loc;
+        }
+
+        if path.ends_with(rigidmodel::EXTENSION) {
+            return Self::RigidModel
+        }
+
+        if path.ends_with(table::anim_fragment::EXTENSION) {
+            return Self::AnimFragment;
+        }
+
+        if path.ends_with(animpack::EXTENSION) {
+            return Self::AnimPack
+        }
+
+        if path.ends_with(ca_vp8::EXTENSION) {
+            return Self::CaVp8;
+        }
+
+        if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+            return Self::Image;
+        }
+
+        if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| path.ends_with(x)) {
+            return Self::Text(*text_type);
+        }
+
+        if path.ends_with(unit_variant::EXTENSION) {
+            return Self::UnitVariant
+        }
+
+        // If that failed, try types that need to be in a specific path.
+        let path_str = path.split("/").collect::<Vec<&str>>();
+        if path.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
+            return Self::MatchedCombat;
+        }
+
+        if path.ends_with(table::animtable::EXTENSION) && path_str.starts_with(&table::animtable::BASE_PATH) {
+            return Self::AnimTable;
+        }
+
+        // If that failed, check if it's in a folder which is known to only have specific files.
+        if let Some(folder) = path_str.get(0) {
+            let base_folder = folder.to_lowercase();
+            if &base_folder == "db" {
+                return Self::DB;
+            }
+
+            if &base_folder == "ui" && (!path.contains(".") || path.ends_with(uic::EXTENSION)) {
+                return Self::UIC;
+            }
+        }
+
+        // If nothing worked, turn it into a proper PackedFile and try to get the type that way.
+        // NOTE: EXTREMELY SLOW!!!!!!
+        if strict_mode {
+            Self::get_packed_file_type(PackedFile::try_from(packed_file).unwrap().get_ref_raw(), strict_mode);
         }
 
         // If we reach this... we're clueless.

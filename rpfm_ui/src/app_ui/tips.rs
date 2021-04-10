@@ -77,26 +77,26 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     //-----------------------------------------------//
     // `Special Stuff` menu tips.
     //-----------------------------------------------//
-    let generate_pak_file = qtr("tt_generate_pak_file");
+    let generate_dependencies_cache = qtr("tt_generate_dependencies_cache");
     let optimize_packfile = qtr("tt_optimize_packfile");
     let patch_siege_ai_tip = qtr("tt_patch_siege_ai");
-    app_ui.special_stuff_troy_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_troy_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_troy_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_three_k_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_three_k_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_three_k_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_wh2_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_wh2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_wh2_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_wh2_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);
-    app_ui.special_stuff_wh_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_wh_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_wh_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_wh_patch_siege_ai.set_status_tip(&patch_siege_ai_tip);
-    app_ui.special_stuff_tob_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_tob_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_tob_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_att_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_att_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_att_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_rom2_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_rom2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_rom2_optimize_packfile.set_status_tip(&optimize_packfile);
-    app_ui.special_stuff_sho2_generate_pak_file.set_status_tip(&generate_pak_file);
+    app_ui.special_stuff_sho2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_sho2_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_nap_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_emp_optimize_packfile.set_status_tip(&optimize_packfile);

@@ -117,7 +117,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Special Stuff` menu slots.
     //-----------------------------------------------//
-    pub special_stuff_generate_pak_file: QBox<SlotOfBool>,
+    pub special_stuff_generate_dependencies_cache: QBox<SlotOfBool>,
     pub special_stuff_optimize_packfile: QBox<SlotOfBool>,
     pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
@@ -251,7 +251,7 @@ impl AppUISlots {
                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                     // Force a dependency rebuild.
-                    CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies);
+                    CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(false));
                 }
             }
         ));
@@ -978,8 +978,8 @@ impl AppUISlots {
         // `Special Stuff` menu logic.
         //-----------------------------------------------------//
 
-        // What happens when we trigger the "Generate Pak File" action.
-        let special_stuff_generate_pak_file = SlotOfBool::new(&app_ui.main_window, clone!(
+        // What happens when we trigger the "Generate Dependencies Cache" action.
+        let special_stuff_generate_dependencies_cache = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
@@ -1034,10 +1034,10 @@ impl AppUISlots {
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
 
-                    CENTRAL_COMMAND.send_message_qt(Command::GeneratePakFile(path, version));
+                    CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(path, version));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
-                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_pak_success"), true),
+                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
@@ -1569,7 +1569,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Special Stuff` menu slots.
             //-----------------------------------------------//
-            special_stuff_generate_pak_file,
+            special_stuff_generate_dependencies_cache,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,
             special_stuff_rescue_packfile,

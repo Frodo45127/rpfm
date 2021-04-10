@@ -67,7 +67,9 @@ pub fn background_loop() {
     let mut pack_file_decoded = PackFile::new();
     let mut pack_files_decoded_extra = BTreeMap::new();
 
+    // Preload the default game's dependencies.
     let mut dependencies = Dependencies::default();
+    let _ = dependencies.rebuild(&[], false);
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -262,15 +264,15 @@ pub fn background_loop() {
                 }
             }
 
-            // In case we want to generate a new Pak File for our Game Selected...
-            Command::GeneratePakFile(path, version) => {
-                match generate_pak_file(&path, version, &dependencies) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+            // In case we want to generate the dependencies cache for our Game Selected...
+            Command::GenerateDependenciesCache(path, version) => {
+                match dependencies.generate_dependencies_cache(&path, version) {
+                    Ok(_) => match dependencies.save_to_binary() {
+                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
-
-                // Reload the `fake dependency_database` for that game.
-                *dependencies.get_ref_mut_fake_dependency_database() = DB::read_pak_file();
             }
 
             // In case we want to update the Schema for our Game Selected...
@@ -313,7 +315,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!dependencies.get_ref_dependency_database().is_empty())),
+            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!dependencies.get_ref_vanilla_packed_files_cache().read().unwrap().is_empty())),
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
@@ -621,7 +623,7 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
-                let tables = (*dependencies.get_ref_dependency_database()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
+                let tables = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true).iter().map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
                 CENTRAL_COMMAND.send_message_rust(Response::VecString(tables));
             }
 
@@ -649,7 +651,7 @@ pub fn background_loop() {
                     if let PathType::File(path) = path_type {
                         if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                             match packed_file.decode_return_ref_mut_no_locks(&schema) {
-                                Ok(packed_file) => match packed_file.update_table(&dependencies, schema) {
+                                Ok(packed_file) => match packed_file.update_table(&dependencies) {
                                     Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
                                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 }
@@ -680,6 +682,8 @@ pub fn background_loop() {
                     &pack_file_decoded,
                     &table_name,
                     &definition,
+                    &[],
+                    &[],
                     &dependencies,
                     &files_to_ignore,
                 );
@@ -956,15 +960,21 @@ pub fn background_loop() {
 
                     // If it worked, we have to update the currently open schema with the one we just downloaded and rebuild cache/dependencies with it.
                     Ok(_) => {
-                        CENTRAL_COMMAND.send_message_rust(Response::Success);
 
                         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
+
+                        // Encode the decoded tables with the old schema, then re-decode them with the new one.
                         pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
                         *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
                         }
-                        dependencies.rebuild(pack_file_decoded.get_packfiles_list());
+
+                        // Then rebuild the dependencies stuff.
+                        match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
+                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
                     },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -1068,7 +1078,10 @@ pub fn background_loop() {
                 }
             }
 
-            Command::RebuildDependencies => dependencies.rebuild(pack_file_decoded.get_packfiles_list()),
+            // Ignore errors for now.
+            Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
+                let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), rebuild_only_current_mod_dependencies);
+            },
 
             Command::CascadeEdition(editions) => {
                 let edited_paths = DB::cascade_edition(&editions, &mut pack_file_decoded);

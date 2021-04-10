@@ -48,7 +48,7 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::diagnostics::{*, table::*, dependency_manager::*};
+use rpfm_lib::diagnostics::{*, config::*, table::*, dependency_manager::*};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -111,6 +111,7 @@ pub struct DiagnosticsUI {
     checkbox_duplicated_row: QBox<QCheckBox>,
     checkbox_invalid_dependency_packfile: QBox<QCheckBox>,
     checkbox_invalid_loc_key: QBox<QCheckBox>,
+    checkbox_dependencies_cache_not_generated: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -248,6 +249,7 @@ impl DiagnosticsUI {
         let label_duplicated_row = QLabel::from_q_string_q_widget(&qtr("label_duplicated_row"), &sidebar_scroll_area);
         let label_invalid_dependency_packfile = QLabel::from_q_string_q_widget(&qtr("label_invalid_dependency_packfile"), &sidebar_scroll_area);
         let label_invalid_loc_key = QLabel::from_q_string_q_widget(&qtr("label_invalid_loc_key"), &sidebar_scroll_area);
+        let label_dependencies_cache_not_generated = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_not_generated"), &sidebar_scroll_area);
 
         let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
@@ -263,6 +265,7 @@ impl DiagnosticsUI {
         let checkbox_duplicated_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_invalid_dependency_packfile = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_invalid_loc_key = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_dependencies_cache_not_generated = QCheckBox::from_q_widget(&sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -278,6 +281,7 @@ impl DiagnosticsUI {
         checkbox_duplicated_row.set_checked(true);
         checkbox_invalid_dependency_packfile.set_checked(true);
         checkbox_invalid_loc_key.set_checked(true);
+        checkbox_dependencies_cache_not_generated.set_checked(true);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_outdated_table, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -293,6 +297,7 @@ impl DiagnosticsUI {
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_duplicated_row, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_dependency_packfile, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_loc_key, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_not_generated, QFlags::from(AlignmentFlag::AlignHCenter));
 
         sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_outdated_table, 2, 0, 1, 1);
@@ -308,6 +313,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&label_duplicated_row, 12, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_invalid_dependency_packfile, 13, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_invalid_loc_key, 14, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&label_dependencies_cache_not_generated, 15, 0, 1, 1);
 
         sidebar_grid.add_widget_5a(&checkbox_all, 1, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_outdated_table, 2, 1, 1, 1);
@@ -323,6 +329,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&checkbox_duplicated_row, 12, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_invalid_dependency_packfile, 13, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_invalid_loc_key, 14, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_not_generated, 15, 1, 1, 1);
 
         // Add all the stuff to the main grid and hide the search widget.
         diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
@@ -364,7 +371,8 @@ impl DiagnosticsUI {
             checkbox_invalid_escape,
             checkbox_duplicated_row,
             checkbox_invalid_dependency_packfile,
-            checkbox_invalid_loc_key
+            checkbox_invalid_loc_key,
+            checkbox_dependencies_cache_not_generated
         }
     }
 
@@ -565,6 +573,55 @@ impl DiagnosticsUI {
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                         }
                     }
+
+                    DiagnosticType::Config(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            let qlist_boi = QListOfQStandardItem::new();
+
+                            // Create an empty row.
+                            let level = QStandardItem::new();
+                            let diag_type = QStandardItem::new();
+                            let fill1 = QStandardItem::new();
+                            let fill2 = QStandardItem::new();
+                            let fill3 = QStandardItem::new();
+                            let message = QStandardItem::new();
+                            let report_type = QStandardItem::new();
+                            let (result_type, color) = match result.level {
+                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
+                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
+                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
+                            };
+
+                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
+                            level.set_text(&QString::from_std_str(result_type));
+                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
+                            message.set_text(&QString::from_std_str(&result.message));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+
+                            level.set_editable(false);
+                            diag_type.set_editable(false);
+                            fill1.set_editable(false);
+                            fill2.set_editable(false);
+                            fill3.set_editable(false);
+                            message.set_editable(false);
+                            report_type.set_editable(false);
+
+                            // Set the tooltips to the diag type and description columns.
+                            Self::set_tooltips_config(&[&level, &fill3, &message], &result.report_type);
+
+                            // Add an empty row to the list.
+                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+
+                            // Append the new row.
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                        }
+                    }
                 }
 
                 // After that, check if the table is open, and paint the results into it.
@@ -611,11 +668,10 @@ impl DiagnosticsUI {
         pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
 
         // If the path is empty, we're looking for the dependency manager.
-        if path.is_empty() {
+        let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
+        if path.is_empty() && diagnostic_type == "DependencyManager" {
             AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
-        }
-
-        else {
+        } else if !path.is_empty() {
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
         }
 
@@ -846,6 +902,10 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName));
         }
 
+        if diagnostics_ui.checkbox_dependencies_cache_not_generated.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::DependenciesCacheNotGenerated));
+        }
+
         diagnostic_type_pattern.pop();
 
         if diagnostic_type_pattern.is_empty() {
@@ -877,6 +937,10 @@ impl DiagnosticsUI {
                  DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
                     .iter()
                     .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .count(),
+                 DiagnosticType::Config(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
                     .count()
             }).sum::<usize>();
 
@@ -892,6 +956,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .count(),
+                DiagnosticType::Config(ref diag) => diag.get_ref_result()
                     .iter()
                     .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
                     .count()
@@ -910,6 +978,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level, DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .count(),
+                DiagnosticType::Config(ref diag) => diag.get_ref_result()
                     .iter()
                     .filter(|y| matches!(y.level, DiagnosticLevel::Error))
                     .count()
@@ -944,6 +1016,16 @@ impl DiagnosticsUI {
     pub unsafe fn set_tooltips_dependency_manager(items: &[&CppBox<QStandardItem>], report_type: &DependencyManagerDiagnosticReportType) {
         let tool_tip = match report_type {
             DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName => qtr("invalid_dependency_pack_file_name_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
+    pub unsafe fn set_tooltips_config(items: &[&CppBox<QStandardItem>], report_type: &ConfigDiagnosticReportType) {
+        let tool_tip = match report_type {
+            ConfigDiagnosticReportType::DependenciesCacheNotGenerated => qtr("dependencies_cache_not_generated_explanation"),
         };
 
         for item in items {

@@ -17,13 +17,17 @@ meaning the code that takes care of loading/writing their data from/to disk.
 You'll rarely have to touch anything here.
 !*/
 
+use filepath::FilePath;
+
 use std::collections::hash_map::DefaultHasher;
+use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::io::prelude::*;
 use std::io::{BufReader, Read, SeekFrom};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 
+use rpfm_macros::*;
 use rpfm_error::Error;
 
 use crate::packedfile::animpack::AnimPacked;
@@ -95,6 +99,20 @@ pub struct RawOnDisk {
 
     /// Hash of the PackedFile's data, to ensure we don't grab the wrong data.
     hash: Arc<Mutex<u64>>,
+}
+
+/// This struct contains a "Cached" version of a PackedFile, so we can serialize it and store it.
+///
+/// This is mostly a 1:1 map of the RawOnDisk with extras.
+#[derive(Clone, Debug, GetRef, Serialize, Deserialize)]
+pub struct CachedPackedFile {
+    pack_file_path: String,
+    packed_file_path: String,
+    data_start: u64,
+    data_size: u32,
+    is_compressed: bool,
+    is_encrypted: Option<PFHVersion>,
+    last_modified_date_pack: i64,
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
@@ -450,6 +468,13 @@ impl PackedFile {
     /// This function returns the type of the Provided PackedFile, according to it's path.
     pub fn get_packed_file_type(&self, strict_mode: bool) -> PackedFileType {
         PackedFileType::get_packed_file_type(self.get_ref_raw(), strict_mode)
+    }
+
+    /// This function returns the inner data of the PackedFile.
+    ///
+    /// For internal use only.
+    pub(crate) fn get_ref_raw_inner_data(&self) -> &PackedFileData {
+        &self.raw.data
     }
 }
 
@@ -818,5 +843,56 @@ impl From<&AnimPacked> for PackedFile {
         let mut packed_file = Self::new(anim_packed.get_ref_path().to_owned(), String::new());
         packed_file.set_raw_data(anim_packed.get_ref_data());
         packed_file
+    }
+}
+
+/// Implementation to try to create a `CachedPackedFile` from a `PackedFile`.
+impl TryFrom<&PackedFile> for CachedPackedFile {
+    type Error = Error;
+    fn try_from(packed_file: &PackedFile) -> Result<Self> {
+        if let PackedFileData::OnDisk(data) = packed_file.get_ref_raw_inner_data() {
+            Ok(Self {
+                pack_file_path: data.reader.lock().unwrap().get_ref().path()?.to_string_lossy().to_string(),
+                packed_file_path: packed_file.get_path().join("/"),
+                data_start: data.start,
+                data_size: data.size,
+                is_compressed: data.is_compressed,
+                is_encrypted: data.is_encrypted,
+                last_modified_date_pack: data.last_modified_date_pack,
+            })
+        }
+
+        // If this fails, it means the PackedFile has been already loaded to memory.
+        else {
+            Err(ErrorKind::Generic.into())
+        }
+    }
+}
+
+/// Implementation to try to create a `PackedFile` from a `CachedPackedFile`.
+impl TryFrom<&CachedPackedFile> for PackedFile {
+    type Error = Error;
+    fn try_from(cached_packed_file: &CachedPackedFile) -> Result<Self> {
+        Ok(Self {
+            decoded: DecodedPackedFile::Unknown,
+            raw: RawPackedFile {
+                path: cached_packed_file.packed_file_path.split('/').map(|x| x.to_owned()).collect(),
+                packfile_name: cached_packed_file.pack_file_path.to_owned(),
+                timestamp: cached_packed_file.last_modified_date_pack,
+                should_be_compressed: cached_packed_file.is_compressed,
+                should_be_encrypted: cached_packed_file.is_encrypted,
+                data: PackedFileData::OnDisk(
+                    RawOnDisk {
+                        reader: Arc::new(Mutex::new(BufReader::new(File::open(PathBuf::from(&cached_packed_file.pack_file_path))?))),
+                        start: cached_packed_file.data_start,
+                        size: cached_packed_file.data_size,
+                        is_compressed: cached_packed_file.is_compressed,
+                        is_encrypted: cached_packed_file.is_encrypted,
+                        last_modified_date_pack: cached_packed_file.last_modified_date_pack,
+                        hash: Arc::new(Mutex::new(0)),
+                    }
+                ),
+            }
+        })
     }
 }

@@ -602,44 +602,44 @@ impl AppUI {
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_troy_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_THREE_KINGDOMS => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_three_k_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_WARHAMMER_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh2_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_THRONES_OF_BRITANNIA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_tob_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_ATTILA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_att_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_ROME_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_rom2_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_SHOGUN_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_sho2_generate_pak_file.set_enabled(true);
+                    app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_NAPOLEON => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
@@ -661,37 +661,37 @@ impl AppUI {
 
             // Disable Troy actions...
             app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_troy_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(false);
 
             // Disable Three Kingdoms actions...
             app_ui.special_stuff_three_k_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_three_k_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(false);
 
             // Disable Warhammer 2 actions...
             app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_wh2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(false);
 
             // Disable Warhammer actions...
             app_ui.special_stuff_wh_patch_siege_ai.set_enabled(false);
             app_ui.special_stuff_wh_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_wh_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(false);
 
             // Disable Thrones of Britannia actions...
             app_ui.special_stuff_tob_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_tob_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(false);
 
             // Disable Attila actions...
             app_ui.special_stuff_att_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_att_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(false);
 
             // Disable Rome 2 actions...
             app_ui.special_stuff_rom2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_rom2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(false);
 
             // Disable Shogun 2 actions...
             app_ui.special_stuff_sho2_optimize_packfile.set_enabled(false);
-            app_ui.special_stuff_sho2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(false);
 
             // Disable Napoleon actions...
             app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
@@ -2352,7 +2352,9 @@ impl AppUI {
         let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
+        let mut game_changed = false;
         if new_game_selected != *GAME_SELECTED.read().unwrap() || SCHEMA.read().unwrap().is_none() {
+            game_changed = true;
 
             // Disable the Main Window (so we can't do other stuff).
             app_ui.main_window.set_enabled(false);
@@ -2388,7 +2390,7 @@ impl AppUI {
 
         // Always trigger the missing definitions code and the rebuilt for dependencies.
         if rebuild_dependencies {
-            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies);
+            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
         }
         CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
     }

@@ -37,6 +37,7 @@ use rpfm_error::{Result, Error, ErrorKind};
 use crate::assembly_kit::get_raw_definition_paths;
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::dependencies::Dependencies;
+use crate::packedfile::DecodedPackedFile;
 use super::*;
 
 //---------------------------------------------------------------------------//
@@ -114,13 +115,15 @@ impl RawDefinition {
         let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
         match version {
             2 | 1 => {
-                let dependency_db = dependencies.get_ref_dependency_database();
+                let dependency_db = dependencies.get_db_and_loc_tables_from_cache(true, false, true, false);
                 Ok(definitions.par_iter()
                     .filter(|x| !BLACKLISTED_TABLES.contains(&x.file_name().unwrap().to_str().unwrap()))
                     .filter(|x| if skip_ingame_tables {
                             let base_name = x.file_stem().unwrap().to_str().unwrap().split_at(5).1;
                             let name_table = format!("{}_tables", base_name);
-                            dependency_db.iter().all(|x| x.get_path()[1] != name_table)
+                            dependency_db.iter().map(|x| x.get_ref_decoded()).all(|x| if let DecodedPackedFile::DB(db) = x {
+                                db.get_ref_table_name() != &name_table
+                            } else { false })
                         } else { true }
                     )
                     .partition_map(|x|

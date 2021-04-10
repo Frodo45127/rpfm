@@ -106,14 +106,14 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_nap_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_emp_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
 
-    app_ui.special_stuff_troy_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_three_k_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_wh2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_wh_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_tob_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_att_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_rom2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
-    app_ui.special_stuff_sho2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
+    app_ui.special_stuff_troy_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_three_k_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_wh2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_wh_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_tob_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_att_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_rom2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
+    app_ui.special_stuff_sho2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
 
     app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
 

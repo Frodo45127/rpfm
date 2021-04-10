@@ -27,6 +27,7 @@ use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
@@ -48,6 +49,7 @@ use crate::packfile::packedfile::*;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::{Loc, TSV_NAME_LOC};
+use crate::packedfile::text::TextType;
 
 mod compression;
 mod crypto;
@@ -220,7 +222,7 @@ pub struct ManifestEntry {
 }
 
 /// This enum represents the **Version** of a PackFile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PFHVersion {
 
     /// Used in Troy since patch 1.3.0 for mods.
@@ -1695,56 +1697,59 @@ impl PackFile {
 
         // List of PackedFiles to delete.
         let mut files_to_delete: Vec<Vec<String>> = vec![];
-        let dependencies = dependencies.get_ref_dependency_database();
 
-        // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
-        // Otherwise, they may have to be decoded multiple times, making this function take ages to finish.
-        let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter()
-            .filter(|x| (x.get_path().len() == 3 && x.get_path()[0] == "db") || (x.get_path().last().unwrap().ends_with(".loc")))
-            .map(|x| x.get_decoded_from_memory())
-            .filter(|x| x.is_ok())
-            .map(|x| x.unwrap())
-            .partition_map(|x| match x {
-                DecodedPackedFile::DB(db) => Either::Left(db),
-                DecodedPackedFile::Loc(loc) => Either::Right(loc),
-                _ => unreachable!()
-            });
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            let dependencies = dependencies.get_db_and_loc_tables_from_cache(true, true, true, true);
 
-        // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
-        for packed_file in self.get_ref_mut_packed_files_all() {
-            let path = packed_file.get_path().to_vec();
+            // Get a list of every Loc and DB PackedFiles in our dependency's files.
+            let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter()
+                .filter_map(|packed_file| packed_file.get_decoded_from_memory().ok())
+                .partition_map(|x| match x {
+                    DecodedPackedFile::DB(db) => Either::Left(db),
+                    DecodedPackedFile::Loc(loc) => Either::Right(loc),
+                    _ => unreachable!()
+                }
+            );
 
-            // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
-            // as those are probably intended to overwrite vanilla files, not to be optimized.
-            if dependencies.iter().map(|x| x.get_path().to_vec()).any(|x| x == path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+            // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
+            for packed_file in self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc, PackedFileType::Text(TextType::Plain)], false) {
+                let path = packed_file.get_path().to_vec();
 
-            // If it's a DB table, try to optimize it.
-            if path.len() == 3 && path[0] == "db" && !game_dbs.is_empty() {
+                // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
+                // as those are probably intended to overwrite vanilla files, not to be optimized.
+                if dependencies.iter().map(|x| x.get_path()).any(|x| x == &path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
 
-                // Try to decode our table.
-                match packed_file.decode_return_ref_mut() {
-                    Ok(data) => if let DecodedPackedFile::DB(db) = data {
-                        let is_empty = db.optimize_table(&game_dbs);
-                        if is_empty { files_to_delete.push(path.to_vec()); }
-                    },
-                    Err(_) => continue,
-                };
-            }
+                match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
 
-            // If it's a Loc table, try to optimize it.
-            else if path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
-                match packed_file.decode_return_ref_mut() {
-                    Ok(data) => if let DecodedPackedFile::Loc(loc) = data {
-                        let is_empty = loc.optimize_table(&game_locs);
-                        if is_empty { files_to_delete.push(path.to_vec()); }
-                    },
-                    Err(_) => continue,
-                };
-            }
+                    PackedFileType::DB => {
+                        match packed_file.decode_return_ref_mut_no_locks(schema) {
+                            Ok(data) => if let DecodedPackedFile::DB(db) = data {
+                                let is_empty = db.optimize_table(&game_dbs);
+                                if is_empty { files_to_delete.push(path.to_vec()); }
+                            },
+                            Err(_) => continue,
+                        };
+                    }
 
-            // If it's an xml in a map folder, remove it.
-            else if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && path.last().unwrap().ends_with(".xml") {
-                files_to_delete.push(path.to_vec());
+                    PackedFileType::Loc => {
+                        match packed_file.decode_return_ref_mut_no_locks(schema) {
+                            Ok(data) => if let DecodedPackedFile::Loc(loc) = data {
+                                let is_empty = loc.optimize_table(&game_locs);
+                                if is_empty { files_to_delete.push(path.to_vec()); }
+                            },
+                            Err(_) => continue,
+                        };
+                    }
+
+                    PackedFileType::Text(text_type) => {
+                        if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
+                            files_to_delete.push(path.to_vec());
+                        }
+                    }
+
+                    // Ignore the rest.
+                    _ => {}
+                }
             }
         }
 
@@ -2077,51 +2082,15 @@ impl PackFile {
         else { Ok("<p>All exportable files have been exported.</p>".to_owned()) }
     }
 
-    /// This function loads to memory the vanilla (made by CA) dependencies of a `PackFile`.
-    fn load_vanilla_dependency_packfiles(packed_files: &mut Vec<PackedFile>) {
-
-        // Get all the paths we need.
-        let main_db_pack_paths = get_game_selected_db_pack_path();
-        let main_loc_pack_paths = get_game_selected_loc_pack_path();
-
-        // Get all the DB Tables from the main DB `PackFiles`, if it's configured.
-        if let Some(paths) = main_db_pack_paths {
-            if let Ok(pack_file) = PackFile::open_packfiles(&paths, true, false, false) {
-                for packed_file in pack_file.get_ref_packed_files_by_type(PackedFileType::DB, false) {
-
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                        packed_files.push(packed_file);
-                    }
-                }
-            }
-        }
-
-        // Get all the Loc PackedFiles from the main Loc `PackFiles`, if it's configured.
-        if let Some(paths) = main_loc_pack_paths {
-             if let Ok(pack_file) = PackFile::open_packfiles(&paths, true, false, false) {
-                for packed_file in pack_file.get_ref_packed_files_by_type(PackedFileType::Loc, false) {
-
-                    // Clone the PackedFile, and add it to the list.
-                    let mut packed_file = packed_file.clone();
-                    if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                        packed_files.push(packed_file);
-                    }
-                }
-            }
-        }
-    }
-
     /// This function loads a `PackFile` as dependency, loading all his dependencies in the process.
     fn load_single_dependency_packfile(
-        packed_files: &mut Vec<PackedFile>,
+        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
+        cached_packed_files: &mut Vec<CachedPackedFile>,
         packfile_name: &str,
         already_loaded_dependencies: &mut Vec<String>,
         data_paths: &Option<Vec<PathBuf>>,
         contents_paths: &Option<Vec<PathBuf>>,
     ) {
-
         // Do not process already processed packfiles.
         if !already_loaded_dependencies.contains(&packfile_name.to_owned()) {
 
@@ -2132,13 +2101,14 @@ impl PackFile {
 
                         // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
                         already_loaded_dependencies.push(packfile_name.to_owned());
-                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
+                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                        }
 
-                            // Clone the PackedFile, and add it to the list.
-                            let mut packed_file = packed_file.clone();
-                            if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                                packed_files.push(packed_file);
+                        for packed_file in pack_file.get_ref_packed_files_all() {
+                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                                cached_packed_files.push(cached_packed_file);
                             }
                         }
                     }
@@ -2152,13 +2122,14 @@ impl PackFile {
 
                         // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
                         already_loaded_dependencies.push(packfile_name.to_owned());
-                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
+                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                        }
 
-                            // Clone the PackedFile, and add it to the list.
-                            let mut packed_file = packed_file.clone();
-                            if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                                packed_files.push(packed_file);
+                        for packed_file in pack_file.get_ref_packed_files_all() {
+                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                                cached_packed_files.push(cached_packed_file);
                             }
                         }
                     }
@@ -2168,11 +2139,14 @@ impl PackFile {
     }
 
     /// This function loads to memory the custom (made by modders) dependencies of a `PackFile`.
+    /// The packed_files Vec is for the PackedFiles that needs decoding.
+    /// The cached one is for all files, to set up quickaccess to them.
     ///
     /// To avoid entering into an infinite loop while calling this recursively, we have to pass the
     /// list of loaded `PackFiles` each time we execute this.
-    fn load_custom_dependency_packfiles(
-        packed_files: &mut Vec<PackedFile>,
+    pub fn load_custom_dependency_packfiles(
+        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
+        cached_packed_files: &mut Vec<CachedPackedFile>,
         pack_file_names: &[String],
     ) {
 
@@ -2180,22 +2154,7 @@ impl PackFile {
         let content_packs_paths = get_game_selected_content_packfiles_paths();
         let mut loaded_packfiles = vec![];
 
-        pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
-    }
-
-    /// This function loads to memory the dependencies of a `PackFile`. Well.... most of them.
-    ///
-    /// This function loads to memory all DB and Loc `PackedFiles` from vanilla `PackFiles` and
-    /// from any `PackFile` the provided `PackFile` has as a dependency.
-    pub fn load_all_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
-
-        // Create the empty list.
-        let mut packed_files = vec![];
-
-        Self::load_vanilla_dependency_packfiles(&mut packed_files);
-        Self::load_custom_dependency_packfiles(&mut packed_files, dependencies);
-
-        packed_files
+        pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
     }
 
     /// This function allows you to open all CA PackFiles as one for the currently selected Game.

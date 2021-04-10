@@ -660,6 +660,7 @@ label_no_reference_table_nor_column_found_no_pak = No reference Table/Column/PAK
 label_invalid_escape = Invalid escape:
 label_duplicated_row = Duplicated row:
 label_invalid_dependency_packfile = Invalid dependency PackFile:
+label_dependencies_cache_not_generated = Dependencies Cache not generated:
 
 diagnostics_button_show_more_filters = Show more filters
 diagnostics_colum_report_type = Report Type
@@ -877,3 +878,12 @@ category_title = Category {"{"}{"}"}
 equipment_title = Equipments
 save_changes = Save Changes
 debug_view_save_success = PackedFile Saved.
+special_stuff_generate_dependencies_cache = Generate Dependencies Cache
+tt_generate_dependencies_cache = Generates a dependency cache for the currently selected game, so RPFM can quickly access the game's data without using too much memory.
+generate_dependency_cache_success = Dependencies Cache successfully created and reloaded.
+
+dependencies_cache_not_generated_explanation = The dependencies cache hasn't been generated for the game selected. Without it, RPFM can't perform certain operations that depends on it, like diagnostics on tables, or reference checks for tables.
+
+    To generate it, go to "Special Stuff/yourgame/Generate Dependencies Cache" and wait until it finish.
+
+    Remember to do this after a game patch too, so the cache gets updated with the new changes.

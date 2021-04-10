@@ -23,14 +23,15 @@ use crate::DB;
 use crate::dependencies::Dependencies;
 use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
-use crate::packfile::packedfile::PackedFileInfo;
-use crate::schema::{FieldType, Schema};
-use crate::SCHEMA;
+use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
+use crate::schema::FieldType;
 
+use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
 use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
 use self::packfile::PackFileDiagnostic;
 use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
 
+pub mod config;
 pub mod dependency_manager;
 pub mod packfile;
 pub mod table;
@@ -49,6 +50,7 @@ pub enum DiagnosticType {
     Loc(TableDiagnostic),
     PackFile(PackFileDiagnostic),
     DependencyManager(DependencyManagerDiagnostic),
+    Config(ConfigDiagnostic),
 }
 
 /// This enum defines the possible results for a result of a diagnostic check.
@@ -77,6 +79,7 @@ impl DiagnosticType {
             Self::Loc(ref diag) => diag.get_path(),
             Self::PackFile(ref diag) => diag.get_path(),
             Self::DependencyManager(_) => &[],
+            Self::Config(_) => &[],
         }
     }
 }
@@ -94,7 +97,25 @@ impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
     pub fn check(&mut self, pack_file: &PackFile, dependencies: &Dependencies) {
-        let schema = SCHEMA.read().unwrap();
+
+        // Clear the diagnostics first.
+        self.0.clear();
+
+        // First, check if the dependencies are generated. We can't do shit without them.
+        if !dependencies.game_has_dependencies_generated() {
+            let mut diagnostic = ConfigDiagnostic::new();
+            diagnostic.get_ref_mut_result().push(
+                ConfigDiagnosticReport {
+                    message: "Dependency Cache not generated for the currently selected game.".to_owned(),
+                    report_type: ConfigDiagnosticReportType::DependenciesCacheNotGenerated,
+                    level: DiagnosticLevel::Error,
+                }
+            );
+
+            self.0.push(DiagnosticType::Config(diagnostic));
+
+            return;
+        }
 
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
@@ -110,6 +131,10 @@ impl Diagnostics {
                 }
             }).collect::<Vec<(Vec<String>, Vec<String>)>>()
         });
+
+        // Prefetch them here, so we don't need to re-search them again.
+        let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
+        let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
         self.0 = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter().filter_map(|packed_file| {
 
@@ -127,7 +152,7 @@ impl Diagnostics {
             }
 
             match packed_file.get_packed_file_type(false) {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,
             }
@@ -148,7 +173,8 @@ impl Diagnostics {
         packed_file: &DecodedPackedFile,
         path: &[String],
         dependencies: &Dependencies,
-        _schema: &Option<Schema>,
+        vanilla_dependencies: &[PackedFile],
+        asskit_dependencies: &[DB],
         ignored_fields: &[String]
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
@@ -157,6 +183,8 @@ impl Diagnostics {
                 &pack_file,
                 table.get_ref_table_name(),
                 table.get_ref_definition(),
+                vanilla_dependencies,
+                asskit_dependencies,
                 &dependencies,
                 &[],
             );
@@ -167,7 +195,7 @@ impl Diagnostics {
             let mut keys = vec![];
 
             // Before anything else, check if the table is outdated.
-            if table.is_outdated(&dependencies.get_ref_dependency_database()) {
+            if table.is_outdated(&dependencies) {
                 diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                     column_number: 0,
                     row_number: -1,
@@ -297,7 +325,7 @@ impl Diagnostics {
             }
 
             for column in &columns_with_reference_table_and_no_column {
-                if dependencies.get_ref_fake_dependency_database().is_empty() {
+                if !dependencies.game_has_asskit_data_loaded() {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: *column as u32,
                         row_number: -1,
@@ -466,8 +494,6 @@ impl Diagnostics {
             self.get_ref_mut_diagnostics().retain(|x| x.get_path() != &**path);
         }
 
-        let schema = SCHEMA.read().unwrap();
-
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
             files.iter().filter_map(|x| {
@@ -483,6 +509,10 @@ impl Diagnostics {
             }).collect::<Vec<(Vec<String>, Vec<String>)>>()
         });
 
+        // Prefetch them here, so we don't need to re-search them again.
+        let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
+        let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
+
         for packed_file in pack_file.get_ref_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect()) {
             let mut ignored_fields = vec![];
             if let Some(ref files_to_ignore) = files_to_ignore {
@@ -497,7 +527,7 @@ impl Diagnostics {
             }
 
             let diagnostic = match packed_file.get_packed_file_type(false) {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema, &ignored_fields),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
                 _ => None,
             };
@@ -528,6 +558,7 @@ impl Diagnostics {
 impl Display for DiagnosticType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
+            Self::Config(_) => "Config",
             Self::DB(_) => "DB",
             Self::Loc(_) => "Loc",
             Self::PackFile(_) => "Packfile",

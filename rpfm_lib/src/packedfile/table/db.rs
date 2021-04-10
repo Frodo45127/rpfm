@@ -36,8 +36,8 @@ use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::Dependencies;
 use crate::packedfile::PackedFileType;
-use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
+use crate::packfile::PackFile;
 use crate::schema::*;
 use crate::SETTINGS;
 use crate::SCHEMA;
@@ -358,7 +358,7 @@ impl DB {
     /// This function returns the dependency/lookup data of a column from the dependency database.
     ///
     /// Returns true if anything was found. Otherwise returns false.
-    fn get_dependency_data_from_real_dependencies(
+    fn get_dependency_data_from_vanilla_and_modded_tables(
         references: &mut DependencyData,
         reference_info: (&str, &str, &[String]),
         real_dep_db: &[PackedFile],
@@ -367,54 +367,55 @@ impl DB {
         // Scan the dependency data for references. The process is simple: keep finding referenced tables,
         // Then open them and get the column we need. Here, we do it on the real dependencies (vanilla + mod).
         let mut data_found = false;
-        let ref_table = reference_info.0;
+        let ref_table_tables = format!("{}_tables", reference_info.0);
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        real_dep_db.iter().filter(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])).for_each(|packed_file| {
-            if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                for row in &db.get_table_data() {
-                    let mut reference_data = String::new();
-                    let mut lookup_data = vec![];
 
-                    // First, we get the reference data.
-                    if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+        real_dep_db.iter()
+            .filter(|x| x.get_path()[1] == ref_table_tables)
+            .filter_map(|packed_file| if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() { Some(db) } else { None })
+            .for_each(|db| {
+            for row in db.get_ref_table_data() {
+                let mut reference_data = String::new();
+                let mut lookup_data = vec![];
+
+                // First, we get the reference data.
+                if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
+                    match row[index] {
+                        DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::StringU8(ref entry) |
+                        DecodedData::StringU16(ref entry) |
+                        DecodedData::OptionalStringU8(ref entry) |
+                        DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                        _ => {}
+                    }
+                }
+
+                // Then, we get the lookup data.
+                for column in ref_lookup_columns {
+                    if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                         match row[index] {
-                            DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                            DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
-                            DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
-                            DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
-                            DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
+                            DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::StringU8(ref entry) |
                             DecodedData::StringU16(ref entry) |
                             DecodedData::OptionalStringU8(ref entry) |
-                            DecodedData::OptionalStringU16(ref entry) => reference_data = entry.to_owned(),
+                            DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
                             _ => {}
                         }
                     }
+                }
+                references.data.insert(reference_data, lookup_data.join(" "));
 
-                    // Then, we get the lookup data.
-                    for column in ref_lookup_columns {
-                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
-                            match row[index] {
-                                DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                                DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
-                                DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
-                                DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
-                                DecodedData::StringU8(ref entry) |
-                                DecodedData::StringU16(ref entry) |
-                                DecodedData::OptionalStringU8(ref entry) |
-                                DecodedData::OptionalStringU16(ref entry) => lookup_data.push(entry.to_owned()),
-                                _ => {}
-                            }
-                        }
-                    }
-
-                    references.data.insert(reference_data, lookup_data.join(" "));
-
-                    if !data_found {
-                        data_found = true;
-                    }
+                if !data_found {
+                    data_found = true;
                 }
             }
         });
@@ -422,7 +423,7 @@ impl DB {
     }
 
     /// This function returns the dependency/lookup data of a column from the fake dependency database.
-    fn get_dependency_data_from_fake_dependencies(
+    fn get_dependency_data_from_asskit_only_tables(
         references: &mut DependencyData,
         reference_info: (&str, &str, &[String]),
         fake_dep_db: &[DB],
@@ -498,7 +499,7 @@ impl DB {
             .filter(|x| !files_to_ignore.contains(&x.get_path().to_vec()))
             .for_each(|packed_file| {
             if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                for row in &db.get_table_data() {
+                for row in db.get_ref_table_data() {
                     let mut reference_data = String::new();
                     let mut lookup_data = vec![];
 
@@ -555,6 +556,8 @@ impl DB {
         pack_file: &PackFile,
         table_name: &str,
         table_definition: &Definition,
+        vanilla_dependencies: &[PackedFile],
+        asskit_dependencies: &[DB],
         dependencies: &Dependencies,
         files_to_ignore: &[Vec<String>]
     ) -> BTreeMap<i32, DependencyData> {
@@ -573,7 +576,7 @@ impl DB {
             match cache {
                 Some(cached_data) => cached_data,
                 None => {
-                    let cached_data = table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
+                    let cached_data = table_definition.get_fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
                         if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
                             if !ref_table.is_empty() && !ref_column.is_empty() {
 
@@ -581,8 +584,13 @@ impl DB {
                                 let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                                 let mut references = DependencyData::default();
 
-                                let fake_found = Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_fake_dependency_database());
-                                let real_found = Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_dependency_database());
+                                let fake_found = if asskit_dependencies.is_empty() {
+                                    Self::get_dependency_data_from_asskit_only_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &dependencies.get_ref_asskit_only_db_tables())
+                                } else { Self::get_dependency_data_from_asskit_only_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &asskit_dependencies) };
+
+                                let real_found = if vanilla_dependencies.is_empty() {
+                                    Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true))
+                                } else { Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &vanilla_dependencies) };
 
                                 if fake_found && !real_found {
                                     references.referenced_table_is_ak_only = true;
@@ -638,12 +646,11 @@ impl DB {
     }
 
     /// This function is used to check if a table is outdated or not.
-    pub fn is_outdated(&self, dependencies: &[PackedFile]) -> bool {
-        if let Some(vanilla_db) = dependencies.iter().find(|x| x.get_path().starts_with(&["db".to_owned(), self.get_table_name()])) {
-            if let Ok(DecodedPackedFile::DB(db)) = vanilla_db.get_decoded_from_memory() {
-                if db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
-                    return true;
-                }
+    pub fn is_outdated(&self, dependencies: &Dependencies) -> bool {
+        if let Some(vanilla_db) = dependencies.get_db_tables_from_cache(self.get_ref_table_name(), true, false).iter()
+            .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
+            if vanilla_db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
+                return true;
             }
         }
 

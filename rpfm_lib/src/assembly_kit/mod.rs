@@ -22,18 +22,16 @@ use rayon::prelude::*;
 use serde_xml_rs::from_reader;
 
 use std::borrow::BorrowMut;
-use std::fs::{File, DirBuilder, read_dir};
-use std::io::{BufReader, Write};
+use std::fs::{File, read_dir};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use rpfm_error::{Result, ErrorKind};
 
 use crate::assembly_kit::table_definition::RawDefinition;
-use crate::assembly_kit::table_data::RawTable;
 use crate::assembly_kit::localisable_fields::RawLocalisableFields;
 use crate::{GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
-use crate::config::get_config_path;
 use crate::dependencies::Dependencies;
 use crate::packfile::PackFile;
 use crate::packedfile::table::db::DB;
@@ -65,37 +63,6 @@ const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//
-
-/// This function generates a PAK (Processed Assembly Kit) file from the raw tables found in the provided path.
-///
-/// This works by processing all the tables from the game's raw table folder and turning them into a single processed file,
-/// as fake tables with version -1. That will allow us to use them for dependency checking and for populating combos.
-///
-/// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK file.
-pub fn generate_pak_file(
-    raw_db_path: &PathBuf,
-    version: i16,
-    dependencies: &Dependencies
-) -> Result<()> {
-    let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, dependencies)?;
-    let tables: Vec<DB> = raw_tables.par_iter().map(From::from).collect();
-
-    // Save our new PAK File where it should be.
-    let mut pak_path = get_config_path()?;
-    let game_selected = GAME_SELECTED.read().unwrap();
-    let pak_name = SUPPORTED_GAMES.get(&**game_selected).unwrap().pak_file.clone().unwrap();
-    pak_path.push("pak_files");
-
-    DirBuilder::new().recursive(true).create(&pak_path)?;
-    pak_path.push(pak_name);
-
-    let mut file = File::create(pak_path)?;
-    let serialized_data = bincode::serialize(&tables)?;
-    file.write_all(&serialized_data)?;
-
-    // If we reach this point, return success.
-    Ok(())
-}
 
 /// This function updates the current Schema with the information of the provided Assembly Kit.
 ///

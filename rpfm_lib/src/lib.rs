@@ -60,7 +60,7 @@ lazy_static! {
     pub static ref GAME_SELECTED: Arc<RwLock<String>> = Arc::new(RwLock::new(SETTINGS.read().unwrap().settings_string["default_game"].to_owned()));
 
     /// Currently loaded schema.
-    pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
+    pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(Schema::load(&SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().schema).ok()));
 }
 
 pub const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";

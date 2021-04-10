@@ -187,37 +187,37 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
 
     // Troy actions.
-    pub special_stuff_troy_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_troy_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_troy_optimize_packfile: QPtr<QAction>,
 
     // Three Kingdoms actions.
-    pub special_stuff_three_k_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_three_k_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_three_k_optimize_packfile: QPtr<QAction>,
 
     // Warhammer 2's actions.
-    pub special_stuff_wh2_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_wh2_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_wh2_optimize_packfile: QPtr<QAction>,
     pub special_stuff_wh2_patch_siege_ai: QPtr<QAction>,
 
     // Warhammer's actions.
-    pub special_stuff_wh_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_wh_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_wh_optimize_packfile: QPtr<QAction>,
     pub special_stuff_wh_patch_siege_ai: QPtr<QAction>,
 
     // Thrones of Britannia's actions.
-    pub special_stuff_tob_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_tob_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_tob_optimize_packfile: QPtr<QAction>,
 
     // Attila's actions.
-    pub special_stuff_att_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_att_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_att_optimize_packfile: QPtr<QAction>,
 
     // Rome 2's actions.
-    pub special_stuff_rom2_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_rom2_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_rom2_optimize_packfile: QPtr<QAction>,
 
     // Shogun 2's actions.
-    pub special_stuff_sho2_generate_pak_file: QPtr<QAction>,
+    pub special_stuff_sho2_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_sho2_optimize_packfile: QPtr<QAction>,
 
     // Napoleon's actions.
@@ -564,23 +564,23 @@ impl AppUI {
         let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.
-        let special_stuff_troy_generate_pak_file = menu_troy.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_troy_generate_dependencies_cache = menu_troy.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_troy_optimize_packfile = menu_troy.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_three_k_generate_pak_file = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_three_k_generate_dependencies_cache = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_three_k_optimize_packfile = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_wh2_generate_pak_file = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_wh2_generate_dependencies_cache = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_wh2_optimize_packfile = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_wh2_patch_siege_ai = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
-        let special_stuff_wh_generate_pak_file = menu_warhammer.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_wh_generate_dependencies_cache = menu_warhammer.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_wh_optimize_packfile = menu_warhammer.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_wh_patch_siege_ai = menu_warhammer.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
-        let special_stuff_tob_generate_pak_file = menu_thrones_of_britannia.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_tob_generate_dependencies_cache = menu_thrones_of_britannia.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_tob_optimize_packfile = menu_thrones_of_britannia.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_att_generate_pak_file = menu_attila.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_att_generate_dependencies_cache = menu_attila.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_att_optimize_packfile = menu_attila.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_rom2_generate_pak_file = menu_rome_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_rom2_generate_dependencies_cache = menu_rome_2.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_rom2_optimize_packfile = menu_rome_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_sho2_generate_pak_file = menu_shogun_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_sho2_generate_dependencies_cache = menu_shogun_2.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_sho2_optimize_packfile = menu_shogun_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_nap_optimize_packfile = menu_napoleon.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_emp_optimize_packfile = menu_empire.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
@@ -746,37 +746,37 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
 
             // Troy actions.
-            special_stuff_troy_generate_pak_file,
+            special_stuff_troy_generate_dependencies_cache,
             special_stuff_troy_optimize_packfile,
 
             // Three Kingdoms actions.
-            special_stuff_three_k_generate_pak_file,
+            special_stuff_three_k_generate_dependencies_cache,
             special_stuff_three_k_optimize_packfile,
 
             // Warhammer 2's actions.
-            special_stuff_wh2_generate_pak_file,
+            special_stuff_wh2_generate_dependencies_cache,
             special_stuff_wh2_optimize_packfile,
             special_stuff_wh2_patch_siege_ai,
 
             // Warhammer's actions.
-            special_stuff_wh_generate_pak_file,
+            special_stuff_wh_generate_dependencies_cache,
             special_stuff_wh_optimize_packfile,
             special_stuff_wh_patch_siege_ai,
 
             // Thrones of Britannia's actions.
-            special_stuff_tob_generate_pak_file,
+            special_stuff_tob_generate_dependencies_cache,
             special_stuff_tob_optimize_packfile,
 
             // Attila's actions.
-            special_stuff_att_generate_pak_file,
+            special_stuff_att_generate_dependencies_cache,
             special_stuff_att_optimize_packfile,
 
             // Rome 2's actions.
-            special_stuff_rom2_generate_pak_file,
+            special_stuff_rom2_generate_dependencies_cache,
             special_stuff_rom2_optimize_packfile,
 
             // Shogun 2's actions.
-            special_stuff_sho2_generate_pak_file,
+            special_stuff_sho2_generate_dependencies_cache,
             special_stuff_sho2_optimize_packfile,
 
             // Napoleon's actions.

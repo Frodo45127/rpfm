@@ -47,4 +47,5 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_duplicated_row.toggled().connect(&slots.toggle_filters);
     ui.checkbox_invalid_dependency_packfile.toggled().connect(&slots.toggle_filters);
     ui.checkbox_invalid_loc_key.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_dependencies_cache_not_generated.toggled().connect(&slots.toggle_filters);
 }
