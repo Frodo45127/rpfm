@@ -18,14 +18,16 @@ use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
 use qt_widgets::QWidget;
 
+#[cfg(feature = "support_modern_dds")]
+use qt_gui::QImage;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
+#[cfg(any(feature = "support_rigidmodel", feature = "support_modern_dds"))]
+use qt_core::QByteArray;
+
 use qt_core::QAbstractItemModel;
 use qt_core::QBox;
-
-#[cfg(feature = "support_rigidmodel")]
-use qt_core::QByteArray;
 use qt_core::QObject;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -185,6 +187,14 @@ pub fn new_resizable_label_safe(parent: &Ptr<QWidget>, pixmap: &Ptr<QPixmap>) ->
 extern "C" { fn set_pixmap_on_resizable_label(label: *mut QLabel, pixmap: *mut QPixmap); }
 pub fn set_pixmap_on_resizable_label_safe(label: &Ptr<QLabel>, pixmap: &Ptr<QPixmap>) {
     unsafe { set_pixmap_on_resizable_label(label.as_mut_raw_ptr(), pixmap.as_mut_raw_ptr()); }
+}
+
+/// This function allow us to create a QImage with the contents of a DDS Texture.
+#[cfg(feature = "support_modern_dds")]
+extern "C" { fn getDDS_QImage(data: *const QByteArray) -> *mut QImage; }
+#[cfg(feature = "support_modern_dds")]
+pub fn get_dds_qimage(data: &Ptr<QByteArray>) -> Ptr<QImage> {
+    unsafe { Ptr::from_raw(getDDS_QImage(data.as_mut_raw_ptr())) }
 }
 
 //---------------------------------------------------------------------------//

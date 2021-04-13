@@ -8,6 +8,7 @@ edition = "2018"
 
 [features]
 support_rigidmodel = []
+support_modern_dds = []
 support_uic = []
 
 default = []

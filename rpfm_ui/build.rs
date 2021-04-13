@@ -22,8 +22,12 @@ use std::io::{stdout, Write};
 fn main() {
     common_config();
 
+    #[cfg(feature = "support_modern_dds")] {
+        println!("cargo:rustc-link-lib=dylib=QImage_DDS");
+    }
+
     // Rigidmodel lib, only on windows.
-    if cfg!(support_rigidmodel) {
+    #[cfg(feature = "support_rigidmodel")] {
         println!("cargo:rustc-link-lib=dylib=QtRMV2Widget");
     }
 

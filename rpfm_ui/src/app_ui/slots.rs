@@ -1243,6 +1243,7 @@ impl AppUISlots {
                         <ul style=\"list-style-type: disc\">
                             <li>Created and Programmed by: <b>Frodo45127</b>.</li>
                             <li>Extra programming work by: <b>Vandy</b>.</li>
+                            <li>Modern DDS Read support by: <b>Phazer</b>.</li>
 
                             <li>App Icons until v1.6.2 by: <b>Maruka</b>.</li>
                             <li>App Icons since v2.0.0 by: <b>Jake Armitage</b>.</li>
