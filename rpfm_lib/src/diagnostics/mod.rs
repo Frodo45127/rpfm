@@ -218,6 +218,29 @@ impl Diagnostics {
                 });
             }
 
+            // Check if the table name has a number at the end, which causes very annoying bugs.
+            if let Some(ref name) = path.last() {
+                if name.ends_with("0") ||
+                    name.ends_with("1") ||
+                    name.ends_with("2") ||
+                    name.ends_with("3") ||
+                    name.ends_with("4") ||
+                    name.ends_with("5") ||
+                    name.ends_with("6") ||
+                    name.ends_with("7") ||
+                    name.ends_with("8") ||
+                    name.ends_with("9") {
+
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: 0,
+                        row_number: -1,
+                        message: "Table name ends in number.".to_owned(),
+                        report_type: TableDiagnosticReportType::TableNameEndsInNumber,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
+            }
+
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;

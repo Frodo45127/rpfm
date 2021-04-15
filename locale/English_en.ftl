@@ -890,4 +890,10 @@ dependencies_cache_not_generated_explanation = The dependencies cache hasn't bee
 
 label_invalid_packfile_name = Invalid PackFile Name:
 invalid_packfile_name_explanation = PackFile names cannot contain whitespace characters.
-    Please, replace any whitespace in the PackFile's name with underscores.
+
+    To fix it, replace any whitespace in the PackFile's name with underscores.
+
+label_table_name_ends_in_number = Table name ends in number:
+table_name_ends_in_number_explanation = Numbers at the end of a DB Table's name usually cause a very weird issue, where a mod crashes for anyone but the modder who makes it.
+
+    To fix it, remove the number at the end of the name of the reported DB Table.

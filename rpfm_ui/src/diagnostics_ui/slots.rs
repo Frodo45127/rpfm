@@ -116,6 +116,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_invalid_dependency_packfile.toggle();
                 diagnostics_ui.checkbox_dependencies_cache_not_generated.toggle();
                 diagnostics_ui.checkbox_invalid_packfile_name.toggle();
+                diagnostics_ui.checkbox_table_name_ends_in_number.toggle();
             }
         ));
 
