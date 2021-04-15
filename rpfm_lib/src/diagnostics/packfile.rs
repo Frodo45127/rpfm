@@ -14,15 +14,17 @@ Module with all the code related to the `Diagnostics`.
 This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
 !*/
 
+use std::{fmt, fmt::Display};
+
 use super::DiagnosticLevel;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// This struct contains the PackFile-wide diagnostic results done over a PackFile.
 #[derive(Debug, Clone, Default)]
 pub struct PackFileDiagnostic {
-    path: Vec<String>,
     result: Vec<PackFileDiagnosticReport>
 }
 
@@ -30,7 +32,13 @@ pub struct PackFileDiagnostic {
 #[derive(Debug, Clone)]
 pub struct PackFileDiagnosticReport {
     pub message: String,
+    pub report_type: PackFileDiagnosticReportType,
     pub level: DiagnosticLevel,
+}
+
+#[derive(Debug, Clone)]
+pub enum PackFileDiagnosticReportType {
+    InvalidPackFileName
 }
 
 //---------------------------------------------------------------p----------------//
@@ -41,13 +49,8 @@ pub struct PackFileDiagnosticReport {
 impl PackFileDiagnostic {
     pub fn new() -> Self {
         Self {
-            path: vec![],
             result: vec![],
         }
-    }
-
-    pub fn get_path(&self) -> &[String] {
-        &self.path
     }
 
     pub fn get_ref_result(&self) -> &[PackFileDiagnosticReport] {
@@ -56,5 +59,13 @@ impl PackFileDiagnostic {
 
     pub fn get_ref_mut_result(&mut self) -> &mut Vec<PackFileDiagnosticReport> {
         &mut self.result
+    }
+}
+
+impl Display for PackFileDiagnosticReportType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::InvalidPackFileName => "InvalidPackFileName",
+        }, f)
     }
 }

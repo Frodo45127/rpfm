@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use fancy_regex::Regex;
 
 use std::{fmt, fmt::Display};
+use std::cmp::Ordering;
 
 use crate::DB;
 use crate::dependencies::Dependencies;
@@ -28,7 +29,7 @@ use crate::schema::FieldType;
 
 use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
 use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
-use self::packfile::PackFileDiagnostic;
+use self::packfile::{PackFileDiagnostic, PackFileDiagnosticReport, PackFileDiagnosticReportType};
 use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
 
 pub mod config;
@@ -77,7 +78,7 @@ impl DiagnosticType {
         match self {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.get_path(),
-            Self::PackFile(ref diag) => diag.get_path(),
+            Self::PackFile(_) => &[],
             Self::DependencyManager(_) => &[],
             Self::Config(_) => &[],
         }
@@ -162,9 +163,21 @@ impl Diagnostics {
             self.0.push(diagnostics);
         }
 
-        if let Some(diagnostics) = Self::check_packfile() {
+        if let Some(diagnostics) = Self::check_packfile(pack_file) {
             self.0.push(diagnostics);
         }
+
+        self.get_ref_mut_diagnostics().sort_by(|a, b| {
+            if !a.get_path().is_empty() && !b.get_path().is_empty() {
+                a.get_path().cmp(b.get_path())
+            } else if a.get_path().is_empty() && !b.get_path().is_empty() {
+                Ordering::Greater
+            } else if !a.get_path().is_empty() && b.get_path().is_empty() {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        });
     }
 
     /// This function takes care of checking the db tables of your mod for errors.
@@ -437,8 +450,18 @@ impl Diagnostics {
     }
 
     /// This function takes care of checking for PackFile-Related for errors.
-    fn check_packfile() ->Option<DiagnosticType> {
-        let diagnostic = PackFileDiagnostic::new();
+    fn check_packfile(pack_file: &PackFile) -> Option<DiagnosticType> {
+        let mut diagnostic = PackFileDiagnostic::new();
+
+        let name = pack_file.get_file_name();
+        if name.contains(' ') {
+            diagnostic.get_ref_mut_result().push(PackFileDiagnosticReport {
+                message: format!("Invalid PackFile name: {}", name),
+                report_type: PackFileDiagnosticReportType::InvalidPackFileName,
+                level: DiagnosticLevel::Error,
+            });
+        }
+
         if !diagnostic.get_ref_result().is_empty() {
             Some(DiagnosticType::PackFile(diagnostic))
         } else { None }
@@ -475,6 +498,22 @@ impl Diagnostics {
     /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
     /// use the normal check function, because it's a lot more efficient than this one.
     pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
+
+        // First, check if the dependencies are generated. We can't do shit without them.
+        if !dependencies.game_has_dependencies_generated() {
+            let mut diagnostic = ConfigDiagnostic::new();
+            diagnostic.get_ref_mut_result().push(
+                ConfigDiagnosticReport {
+                    message: "Dependency Cache not generated for the currently selected game.".to_owned(),
+                    report_type: ConfigDiagnosticReportType::DependenciesCacheNotGenerated,
+                    level: DiagnosticLevel::Error,
+                }
+            );
+
+            self.0.push(DiagnosticType::Config(diagnostic));
+
+            return;
+        }
 
         // Turn all our updated packs into `PackedFile` paths, and get them.
         let mut paths = vec![];
@@ -538,13 +577,26 @@ impl Diagnostics {
         }
 
         // Check for the dependency manager.
-        if paths.contains(&vec![]) {
-            if let Some(diagnostic) = Self::check_dependency_manager(pack_file) {
-                self.get_ref_mut_diagnostics().push(diagnostic);
-            }
+        if let Some(diagnostics) = Self::check_dependency_manager(pack_file) {
+            self.0.push(diagnostics);
         }
 
-        self.get_ref_mut_diagnostics().sort_by(|a, b| a.get_path().cmp(b.get_path()));
+        // Check for the PackFile.
+        if let Some(diagnostics) = Self::check_packfile(pack_file) {
+            self.0.push(diagnostics);
+        }
+
+        self.get_ref_mut_diagnostics().sort_by(|a, b| {
+            if !a.get_path().is_empty() && !b.get_path().is_empty() {
+                a.get_path().cmp(b.get_path())
+            } else if a.get_path().is_empty() && !b.get_path().is_empty() {
+                Ordering::Greater
+            } else if !a.get_path().is_empty() && b.get_path().is_empty() {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        });
     }
 
     /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.

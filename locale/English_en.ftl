@@ -887,3 +887,7 @@ dependencies_cache_not_generated_explanation = The dependencies cache hasn't bee
     To generate it, go to "Special Stuff/yourgame/Generate Dependencies Cache" and wait until it finish.
 
     Remember to do this after a game patch too, so the cache gets updated with the new changes.
+
+label_invalid_packfile_name = Invalid PackFile Name:
+invalid_packfile_name_explanation = PackFile names cannot contain whitespace characters.
+    Please, replace any whitespace in the PackFile's name with underscores.

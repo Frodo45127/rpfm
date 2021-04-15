@@ -114,6 +114,8 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_duplicated_row.toggle();
                 diagnostics_ui.checkbox_invalid_loc_key.toggle();
                 diagnostics_ui.checkbox_invalid_dependency_packfile.toggle();
+                diagnostics_ui.checkbox_dependencies_cache_not_generated.toggle();
+                diagnostics_ui.checkbox_invalid_packfile_name.toggle();
             }
         ));
 
