@@ -69,7 +69,6 @@ pub fn background_loop() {
 
     // Preload the default game's dependencies.
     let mut dependencies = Dependencies::default();
-    let _ = dependencies.rebuild(&[], false);
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
