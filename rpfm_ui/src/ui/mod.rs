@@ -157,7 +157,7 @@ impl UI {
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
             _ => unimplemented!()
         }
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, false);
+        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, true);
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
