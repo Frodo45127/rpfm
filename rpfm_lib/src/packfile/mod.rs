@@ -594,7 +594,7 @@ impl PackFile {
     ///
     /// This is a convenience function to add just one PackedFile to our PackFile.
     pub fn add_packed_file(&mut self, packed_file: &PackedFile, overwrite: bool) -> Result<Vec<String>> {
-        self.add_packed_files(&[packed_file], overwrite).map(|x| x[0].to_vec())
+        self.add_packed_files(&[packed_file], overwrite, true).map(|x| x[0].to_vec())
     }
 
     /// This function adds one or more `PackedFiles` to an existing `PackFile`.
@@ -603,7 +603,7 @@ impl PackFile {
     /// in case of conflict the destination `PackedFiles`, if exists, are overwritten. If set to false, they'll be renamed instead.
     ///
     /// NOTE: This assumes the paths of the list of PackedFiles you pass it are unique among themselfs. It'll do weird things otherwise.
-    pub fn add_packed_files(&mut self, packed_files: &[&PackedFile], overwrite: bool) -> Result<Vec<Vec<String>>> {
+    pub fn add_packed_files(&mut self, packed_files: &[&PackedFile], overwrite: bool, update_packfile_name: bool) -> Result<Vec<Vec<String>>> {
 
         // If we hit a reserved name, stop. Don't add anything.
         let pack_file_name = self.get_file_name();
@@ -623,7 +623,9 @@ impl PackFile {
             .filter(|(_, _, position)| position.is_none())
             .map(|(_, packed_file, _)| {
                 let mut packed_file = (*packed_file).clone();
-                packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+                if update_packfile_name {
+                    packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+                }
                 packed_file
             })
             .collect::<Vec<PackedFile>>();
@@ -658,7 +660,9 @@ impl PackFile {
                 .map(|(path, packed_file, _)| {
                     let mut path = path.to_vec();
                     let mut packed_file = (*packed_file).clone();
-                    packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+                    if update_packfile_name {
+                        packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+                    }
 
                     let name_current = path.last().unwrap().to_owned();
                     let name_splitted = name_current.split('.').collect::<Vec<&str>>();
@@ -717,7 +721,7 @@ impl PackFile {
             packed_files.push(PackedFile::new_from_raw(&raw_data));
         }
         let ref_packed_files = packed_files.iter().collect::<Vec<&PackedFile>>();
-        self.add_packed_files(&ref_packed_files, overwrite)
+        self.add_packed_files(&ref_packed_files, overwrite, true)
     }
 
     /// This function is used to add multiple folders from disk to a `PackFile`, turning their files into `PackedFiles`.
@@ -764,7 +768,7 @@ impl PackFile {
             }
         }
 
-        self.add_packed_files(&packed_files_to_add.iter().collect::<Vec<&PackedFile>>(), overwrite)
+        self.add_packed_files(&packed_files_to_add.iter().collect::<Vec<&PackedFile>>(), overwrite, true)
     }
 
     /// This function is used to add a `PackedFile` from one `PackFile` into another.
@@ -797,7 +801,7 @@ impl PackFile {
             let mut packed_files = source.get_packed_files_all();
             packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
             let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
-            paths = self.add_packed_files(&packed_files, overwrite)?;
+            paths = self.add_packed_files(&packed_files, overwrite, true)?;
         }
 
         // If we only have files, get all the files we have at once, then add them all together.
@@ -808,7 +812,7 @@ impl PackFile {
             let mut packed_files = source.get_packed_files_by_paths(paths_files);
             packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
             let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
-            paths = self.add_packed_files(&packed_files, overwrite)?;
+            paths = self.add_packed_files(&packed_files, overwrite, true)?;
         }
 
         // Otherwise, we have a mix of Files and Folders (or folders only).
@@ -828,7 +832,7 @@ impl PackFile {
 
             packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
             let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
-            paths = self.add_packed_files(&packed_files, overwrite)?;
+            paths = self.add_packed_files(&packed_files, overwrite, true)?;
         }
 
         Ok(paths.par_iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>())
@@ -1987,7 +1991,7 @@ impl PackFile {
 
             // We add all the files to the PackFile, and return success.
             let packed_files_to_add = packed_files.iter().collect::<Vec<&PackedFile>>();
-            self.add_packed_files(&packed_files_to_add, true)?;
+            self.add_packed_files(&packed_files_to_add, true, true)?;
             Ok((packed_files_to_remove, tree_path))
         }
         else {
@@ -2261,11 +2265,11 @@ impl PackFile {
             movie_files.reverse();
             movie_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(patch_files.iter().collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true)?;
-            pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            pack_file.add_packed_files(&(patch_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
 
             // Set it as type "Other(200)", so we can easely identify it as fake in other places.
             // Used to lock the CA Files.

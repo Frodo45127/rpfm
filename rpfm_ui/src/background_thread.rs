@@ -494,7 +494,7 @@ pub fn background_loop() {
                 };
 
                 let packed_files_to_add = packed_files_to_add.iter().collect::<Vec<&PackedFile>>();
-                match pack_file_decoded.add_packed_files(&packed_files_to_add, true) {
+                match pack_file_decoded.add_packed_files(&packed_files_to_add, true, true) {
                     Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }

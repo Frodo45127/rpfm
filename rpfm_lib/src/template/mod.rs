@@ -285,7 +285,7 @@ impl Template {
                 }
 
                 // Then, if nothing broke, add the new PackedFiles to the PackFile.
-                pack_file.add_packed_files(&packed_files.iter().collect::<Vec<&PackedFile>>(), true)?;
+                pack_file.add_packed_files(&packed_files.iter().collect::<Vec<&PackedFile>>(), true, true)?;
                 Ok(paths)
             }
             None => Err(ErrorKind::SchemaNotFound.into()),
