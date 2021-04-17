@@ -681,8 +681,8 @@ pub fn background_loop() {
                     &pack_file_decoded,
                     &table_name,
                     &definition,
-                    &[],
-                    &[],
+                    &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true),
+                    &dependencies.get_ref_asskit_only_db_tables(),
                     &dependencies,
                     &files_to_ignore,
                 );
