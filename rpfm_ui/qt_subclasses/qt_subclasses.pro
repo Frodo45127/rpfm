@@ -28,6 +28,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    src/extended_q_styled_item_delegate.cpp \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
@@ -45,6 +46,7 @@ INCLUDEPATH += include
 INCLUDEPATH += C:\CraftRoot\include
 
 HEADERS += \
+    include/extended_q_styled_item_delegate.h \
     include/qt_subclasses_global.h \
     include/tableview_command_palette.h \
     include/tableview_filter.h \

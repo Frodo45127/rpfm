@@ -42,31 +42,48 @@ use qt_core::CaseSensitivity;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+use rpfm_lib::SETTINGS;
+
 use crate::locale::qtr;
 use crate::UI_STATE;
 
+//---------------------------------------------------------------------------//
+// Custom delegates stuff.
+//---------------------------------------------------------------------------//
+
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32, timer: *mut QTimer); }
-pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32, timer: &Ptr<QTimer>) {
-    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_lenght, timer.as_mut_raw_ptr()) }
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_lenght, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
-extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer); }
-pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>) {
-    unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr()) }
+extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 /// This function changes the default editor widget for F32 cells on tables with a numeric one.
-extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer); }
-pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>) {
-    unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr()) }
+extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
-/// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema..
-extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32, timer: *mut QTimer); }
-pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_lenght: i32, timer: &Ptr<QTimer>) {
-    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_lenght, timer.as_mut_raw_ptr()) }
+/// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
+extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_lenght: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_lenght, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
+}
+
+/// This function changes the default delegate for all cell types that doesn't have a specific delegate already.
+extern "C" { fn new_generic_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 /// This function setup the special filter used for the PackFile Contents `TreeView`.

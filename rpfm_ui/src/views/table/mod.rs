@@ -90,6 +90,13 @@ pub static COLUMN_SIZE_BOOLEAN: i32 = 100;
 pub static COLUMN_SIZE_NUMBER: i32 = 140;
 pub static COLUMN_SIZE_STRING: i32 = 350;
 
+
+pub static ITEM_IS_KEY: i32 = 20;
+pub static ITEM_IS_ADDED: i32 = 21;
+pub static ITEM_IS_MODIFIED: i32 = 22;
+pub static ITEM_HAS_ERROR: i32 = 25;
+pub static ITEM_HAS_WARNING: i32 = 26;
+pub static ITEM_HAS_INFO: i32 = 27;
 pub static ITEM_HAS_SOURCE_VALUE: i32 = 30;
 pub static ITEM_SOURCE_VALUE: i32 = 31;
 pub static ITEM_IS_SEQUENCE: i32 = 35;

@@ -190,7 +190,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
 
 /// This function generates a *Default* StandardItem for the provided field.
 pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
-    match field.get_ref_field_type() {
+    let item = match field.get_ref_field_type() {
         FieldType::Boolean => {
             let item = QStandardItem::new();
             item.set_editable(false);
@@ -314,7 +314,13 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
             item
         }
+    };
+
+    if field.get_is_key() {
+        item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_KEY);
     }
+
+    item
 }
 
 /// This function "process" the column names of a table, so they look like they should.
@@ -371,10 +377,11 @@ pub unsafe fn load_data(
 
         // Load the data, row by row.
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+        let keys = definition.get_fields_processed().iter().enumerate().filter_map(|(x, y)| if y.get_is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
         for (row, entry) in data.iter().enumerate() {
             let qlist = QListOfQStandardItem::new();
-            for field in entry {
-                let item = get_item_from_decoded_data(field);
+            for (column, field) in entry.iter().enumerate() {
+                let item = get_item_from_decoded_data(field, &keys, column);
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
             if row == data.len() - 1 {
@@ -401,8 +408,8 @@ pub unsafe fn load_data(
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
-pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
-    match *data {
+pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], column: usize) -> CppBox<QStandardItem> {
+    let item = match *data {
 
         // This one needs a couple of changes before turning it into an item in the table.
         DecodedData::Boolean(ref data) => {
@@ -486,7 +493,14 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             item.set_data_2a(&QVariant::from_q_string(&table), ITEM_SEQUENCE_DATA);
             item
         }
+    };
+
+    if keys.contains(&(column as i32)) {
+        item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_KEY);
+
     }
+
+    item
 }
 
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
@@ -743,39 +757,45 @@ pub unsafe fn setup_item_delegates(
                 field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr());
-            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr());
+            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr(), true);
         }
 
         else {
             match field.get_ref_field_type() {
-                FieldType::Boolean => {},
+                FieldType::Boolean => {
+                    new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                },
                 FieldType::F32 => {
-                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr());
-                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr());
+                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                 },
                 FieldType::I16 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr());
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
                 },
                 FieldType::I32 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr());
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
                 },
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
                 FieldType::I64 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr());
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr());
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
                 },
                 FieldType::StringU8 |
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
                 FieldType::OptionalStringU16 => {
-                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr());
-                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr());
+                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr(), true);
+                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr(), true);
                 },
-                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {}
+                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {
+                    new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                }
             }
         }
     }

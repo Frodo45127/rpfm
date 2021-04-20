@@ -60,11 +60,12 @@ use crate::CENTRAL_COMMAND;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr};
-use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, get_color_error_foreground, get_color_warning_foreground, TreeViewOperation};
+use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::utils::create_grid_layout;
+use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
 
 pub mod connections;
 pub mod slots;
@@ -759,9 +760,9 @@ impl DiagnosticsUI {
                                     // At this point, is possible the row is no longer valid, so we have to check it out first.
                                     if table_model_index.is_valid() {
                                         match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
-                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
-                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                            DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                            DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                            DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
                                         }
                                     }
                                 }
@@ -776,9 +777,9 @@ impl DiagnosticsUI {
                                     // At this point, is possible the row is no longer valid, so we have to check it out first.
                                     if table_model_index.is_valid() {
                                         match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
-                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning_foreground())))),
-                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                            DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                            DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                            DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
                                         }
                                     }
                                 }
@@ -789,8 +790,7 @@ impl DiagnosticsUI {
 
                     // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
                     blocker.unblock();
-                    table_view.clear_focus();
-                    table_view.set_focus_0a();
+                    table_view.viewport().repaint();
                 }
             }
         }
@@ -807,7 +807,7 @@ impl DiagnosticsUI {
                     let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                    let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
                     // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
                     let base_qbrush = QBrush::new();
@@ -821,11 +821,19 @@ impl DiagnosticsUI {
                         for column in 0..table_model.column_count_0a() {
                             let item = table_model.item_2a(row, column);
 
-                            if item.foreground().color().rgb() != base_qbrush.color().rgb() {
-                                item.set_foreground(&base_qbrush);
+                            if item.data_1a(ITEM_HAS_ERROR).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
+                            }
+                            if item.data_1a(ITEM_HAS_WARNING).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
+                            }
+                            if item.data_1a(ITEM_HAS_INFO).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
                             }
                         }
                     }
+                    blocker.unblock();
+                    table_view.viewport().repaint();
                 }
             }
         }

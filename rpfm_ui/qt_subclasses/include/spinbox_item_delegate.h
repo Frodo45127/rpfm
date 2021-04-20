@@ -2,20 +2,21 @@
 #define SPINBOX_ITEM_DELEGATE_H
 
 #include "qt_subclasses_global.h"
+#include "extended_q_styled_item_delegate.h"
 #include <QStyledItemDelegate>
 #include <QAbstractItemDelegate>
 #include <QSpinBox>
 #include <QTimer>
 
-extern "C" void new_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, const int integer_type = 0, QTimer* timer = nullptr);
+extern "C" void new_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, const int integer_type = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
 
-class QSpinBoxItemDelegate : public QStyledItemDelegate
+class QSpinBoxItemDelegate : public QExtendedStyledItemDelegate
 {
     Q_OBJECT
 
 public:
 
-    explicit QSpinBoxItemDelegate(QObject *parent = nullptr, const int integer_type = 0, QTimer* timer = nullptr);
+    explicit QSpinBoxItemDelegate(QObject *parent = nullptr, const int integer_type = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;

@@ -56,7 +56,6 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::{
-    YELLOW_BRIGHT,
     YELLOW_MEDIUM,
     YELLOW_DARK,
     GREEN_BRIGHT,
@@ -71,12 +70,10 @@ use crate::{
     ERROR_UNPRESSED_LIGHT,
     ERROR_PRESSED_DARK,
     ERROR_PRESSED_LIGHT,
-    ERROR_FOREGROUND_LIGHT,
     WARNING_UNPRESSED_DARK,
     WARNING_UNPRESSED_LIGHT,
     WARNING_PRESSED_DARK,
     WARNING_PRESSED_LIGHT,
-    WARNING_FOREGROUND_LIGHT,
     INFO_UNPRESSED_DARK,
     INFO_UNPRESSED_LIGHT,
     INFO_PRESSED_DARK,
@@ -1789,33 +1786,6 @@ unsafe fn sort_item_in_tree_view(
     }
 }
 
-pub unsafe fn get_color_added() -> Ptr<QColor> {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*GREEN_DARK)).into_ptr()
-    } else {
-        QColor::from_q_string(&QString::from_std_str(*GREEN_BRIGHT)).into_ptr()
-    }
-}
-
-pub unsafe fn get_color_modified() -> Ptr<QColor> {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*YELLOW_DARK)).into_ptr()
-    } else {
-        QColor::from_q_string(&QString::from_std_str(*YELLOW_BRIGHT)).into_ptr()
-    }
-}
-
-pub unsafe fn get_color_added_modified() -> Ptr<QColor> {
-    let color_added = get_color_added();
-    let color_modified = get_color_modified();
-    let color = QColor::new();
-    color.set_red((color_added.red() + color_modified.red()) / 2);
-    color.set_green((color_added.green() + color_modified.green()) / 2);
-    color.set_blue((color_added.blue() + color_modified.blue()) / 2);
-    color.set_alpha((color_added.alpha() + color_modified.alpha()) / 2);
-    color.into_ptr()
-}
-
 pub unsafe fn get_color_unmodified() -> Ptr<QColor> {
     QColor::from_global_color(GlobalColor::Transparent).into_ptr()
 }
@@ -1860,27 +1830,11 @@ pub unsafe fn get_color_warning() -> String {
     }
 }
 
-pub unsafe fn get_color_warning_foreground() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        WARNING_UNPRESSED_DARK.to_owned()
-    } else {
-        WARNING_FOREGROUND_LIGHT.to_owned()
-    }
-}
-
 pub unsafe fn get_color_error() -> String {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
         ERROR_UNPRESSED_DARK.to_owned()
     } else {
         ERROR_UNPRESSED_LIGHT.to_owned()
-    }
-}
-
-pub unsafe fn get_color_error_foreground() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        ERROR_UNPRESSED_DARK.to_owned()
-    } else {
-        ERROR_FOREGROUND_LIGHT.to_owned()
     }
 }
 

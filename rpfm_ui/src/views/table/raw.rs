@@ -21,7 +21,6 @@ use qt_widgets::QPushButton;
 use qt_widgets::QSpinBox;
 use qt_widgets::q_header_view::ResizeMode;
 
-use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
 use qt_gui::QStandardItemModel;
 
@@ -46,6 +45,7 @@ use std::sync::atomic::Ordering;
 use rpfm_lib::packedfile::table::db::CascadeEdition;
 use rpfm_lib::packedfile::table::Table;
 
+use crate::ffi::*;
 use crate::locale::tr;
 use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
@@ -894,7 +894,6 @@ impl TableView {
 
         let rows = if clone {
             let mut rows = vec![];
-            let color = get_color_added_modified();
             for index in indexes_sorted.iter() {
                 row_numbers.push(index.row());
 
@@ -903,7 +902,7 @@ impl TableView {
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
-                    item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                    item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                     qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
 
@@ -911,10 +910,9 @@ impl TableView {
             }
             rows
         } else {
-            let color = get_color_added();
             let row = get_new_row(&self.get_ref_table_definition());
             for index in 0..row.count_0a() {
-                row.value_1a(index).set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
             vec![row]
         };
@@ -977,21 +975,19 @@ impl TableView {
 
             // If we want to clone, we copy the currently selected row. If not, we just create a new one.
             let row = if clone {
-                let color = get_color_added_modified();
                 let columns = self.table_model.column_count_0a();
                 let qlist = QListOfQStandardItem::new();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
-                    item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                    item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                     qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
                 qlist
             } else {
-                let color = get_color_added();
                 let row = get_new_row(&self.get_ref_table_definition());
                 for index in 0..row.count_0a() {
-                    row.value_1a(index).set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                    row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
                 row
             };
@@ -1350,8 +1346,7 @@ impl TableView {
         }
 
         // Trick to properly update the view.
-        self.table_view_primary.clear_focus();
-        self.table_view_primary.set_focus_0a();
+        self.table_view_primary.viewport().repaint();
 
         self.start_delayed_updates_timer();
     }
@@ -1368,7 +1363,7 @@ impl TableView {
             let operation = TableOperations::Editing(edition);
             self.history_undo.write().unwrap().push(operation);
 
-            item.set_background(&QBrush::from_q_color(get_color_modified().as_ref().unwrap()));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
         }
     }
 

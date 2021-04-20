@@ -5,14 +5,16 @@
 #include <QDoubleSpinBox>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QDoubleSpinBoxItemDelegate.
-extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column, QTimer* timer) {
-    QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent, timer);
+extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter) {
+    QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent, timer, is_dark_theme_enabled, has_filter);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QDoubleSpinBoxItemDelegate. Empty, as we don't need to do anything special with it.
-QDoubleSpinBoxItemDelegate::QDoubleSpinBoxItemDelegate(QObject *parent, QTimer* timer): QStyledItemDelegate(parent) {
+QDoubleSpinBoxItemDelegate::QDoubleSpinBoxItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent) {
     diag_timer = timer;
+    dark_theme = is_dark_theme_enabled;
+    use_filter = has_filter;
 }
 
 // Function called when the spinbox it's created. Here we configure the limits and decimals of the spinbox.

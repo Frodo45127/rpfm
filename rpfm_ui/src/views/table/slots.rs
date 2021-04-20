@@ -18,7 +18,6 @@ use qt_widgets::q_file_dialog::AcceptMode;
 use qt_widgets::SlotOfIntSortOrder;
 use qt_widgets::q_header_view::ResizeMode;
 
-use qt_gui::QBrush;
 use qt_gui::QCursor;
 use qt_gui::SlotOfQStandardItem;
 
@@ -40,7 +39,6 @@ use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
-use crate::pack_tree::*;
 use crate::utils::{check_regex, log_to_status_bar, show_dialog};
 use crate::UI_STATE;
 
@@ -202,9 +200,7 @@ impl TableViewSlots {
                         {
                             // We block the saving for painting, so this doesn't get rettriggered again.
                             let blocker = QSignalBlocker::from_q_object(&view.table_model);
-                            let color = get_color_modified();
-                            let item = item;
-                            item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
                             blocker.unblock();
                         }
 
