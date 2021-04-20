@@ -118,6 +118,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_invalid_packfile_name.toggle();
                 diagnostics_ui.checkbox_table_name_ends_in_number.toggle();
                 diagnostics_ui.checkbox_table_name_has_space.toggle();
+                diagnostics_ui.checkbox_table_is_datacoring.toggle();
             }
         ));
 

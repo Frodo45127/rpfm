@@ -899,4 +899,19 @@ table_name_ends_in_number_explanation = Numbers at the end of a DB Table's name 
     To fix it, remove the number at the end of the name of the reported DB Table.
 
 label_table_name_has_space = Table name has spaces:
-table_name_has_space_explanation = Cataph doesn't like them.
+table_name_has_space_explanation = Cataph doesn't like them. Also, this causes tables to sometimes not being loaded at all.
+
+    Replace any whitespace in the table's name with underscores.
+
+label_table_is_datacoring = Table is datacoring:
+table_is_datacoring_explanation = When your mod has a table (or any file, really) with the exact same path as a vanilla file, your mod overwrites it entirely.
+
+    When this happens with tables, it's called "Datacoring", and it's something to be aware of. Datacoring replaces the vanilla tables with yours, and thus it causes your
+    mod to be incompatible with anything that also replaces that same tables or depends on data of the replaced tables, if that data is not also present in your modded table.
+    And so, "Datacoring" is something that should be avoided except when it's the only way to do something, like if you want to actually remove a row from a vanilla table.
+
+    This warning is to notice you that you are, either intentionally or accidentally, datacoring a table. If it's accidentally, change the name of the reported table with
+    another one. If it's intentionally, you can hide this message by going to the PackFile Settings ("Right-click the PackFile/Open.../Open PackFile Settings") and blacklisting
+    this warning for this table there.
+
+

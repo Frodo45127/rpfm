@@ -55,6 +55,7 @@ pub enum TableDiagnosticReportType {
     InvalidLocKey,
     TableNameEndsInNumber,
     TableNameHasSpace,
+    TableIsDataCoring,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -100,6 +101,7 @@ impl Display for TableDiagnosticReportType {
             Self::InvalidLocKey => "InvalidLocKey",
             Self::TableNameEndsInNumber => "TableNameEndsInNumber",
             Self::TableNameHasSpace => "TableNameHasSpace",
+            Self::TableIsDataCoring => "TableIsDataCoring",
         }, f)
     }
 }

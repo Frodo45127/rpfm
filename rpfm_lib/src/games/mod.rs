@@ -86,6 +86,9 @@ pub struct GameInfo {
 
     /// Name of the big icon used to display the game as `Game Selected`, in an UI.
     pub game_selected_big_icon: String,
+
+    /// Logic used to name vanilla tables.
+    pub vanilla_db_table_name_logic: VanillaDBTableNameLogic,
 }
 
 /// This enum holds the info needed to deal with particularities of the games if they're installed from X or Y store.
@@ -100,6 +103,17 @@ pub enum InstallType {
 
     /// Wargaming Variant.
     Wargaming,
+}
+
+/// This enum holds the info about each game approach at naming db tables.
+#[derive(Clone, Debug)]
+pub enum VanillaDBTableNameLogic {
+
+    /// This variant is for games where the table name is their folder's name.
+    FolderName,
+
+    /// This variant is for games where all tables are called the same.
+    DefaultName(String),
 }
 
 /// This function returns a `SupportedGames` struct with the list of all games supported by this lib inside.
@@ -134,6 +148,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_troy.png".to_owned(),
         game_selected_big_icon: "gs_big_troy.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Three Kingdoms
@@ -164,6 +179,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_3k.png".to_owned(),
         game_selected_big_icon: "gs_big_3k.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Warhammer 2
@@ -194,6 +210,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_wh2.png".to_owned(),
         game_selected_big_icon: "gs_big_wh2.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
     });
 
     // Warhammer
@@ -228,6 +245,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_wh.png".to_owned(),
         game_selected_big_icon: "gs_big_wh.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Thrones of Britannia
@@ -258,6 +276,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_tob.png".to_owned(),
         game_selected_big_icon: "gs_big_tob.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Attila
@@ -288,6 +307,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_att.png".to_owned(),
         game_selected_big_icon: "gs_big_att.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Rome 2
@@ -318,6 +338,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_rom2.png".to_owned(),
         game_selected_big_icon: "gs_big_rom2.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Shogun 2
@@ -348,6 +369,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_sho2.png".to_owned(),
         game_selected_big_icon: "gs_big_sho2.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Napoleon
@@ -398,6 +420,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_nap.png".to_owned(),
         game_selected_big_icon: "gs_big_nap.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // Empire
@@ -449,6 +472,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_emp.png".to_owned(),
         game_selected_big_icon: "gs_big_emp.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -467,6 +491,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: false,
         game_selected_icon: "gs_are.png".to_owned(),
         game_selected_big_icon: "gs_big_are.png".to_owned(),
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
     });
 
     list

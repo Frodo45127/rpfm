@@ -22,10 +22,13 @@ use std::cmp::Ordering;
 
 use crate::DB;
 use crate::dependencies::Dependencies;
+use crate::games::VanillaDBTableNameLogic;
+use crate::GAME_SELECTED;
 use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 use crate::schema::FieldType;
+use crate::SUPPORTED_GAMES;
 
 use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
 use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
@@ -248,6 +251,34 @@ impl Diagnostics {
                         report_type: TableDiagnosticReportType::TableNameHasSpace,
                         level: DiagnosticLevel::Error,
                     });
+                }
+
+                if let Some(supported_game) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()) {
+                    match supported_game.vanilla_db_table_name_logic {
+                        VanillaDBTableNameLogic::FolderName => {
+                            if *name == &path[1] {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    column_number: 0,
+                                    row_number: -1,
+                                    message: "Table is datacoring.".to_owned(),
+                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                    level: DiagnosticLevel::Warning,
+                                });
+                            }
+                        }
+
+                        VanillaDBTableNameLogic::DefaultName(ref default_name) => {
+                            if *name == default_name {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    column_number: 0,
+                                    row_number: -1,
+                                    message: "Table is datacoring.".to_owned(),
+                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                    level: DiagnosticLevel::Warning,
+                                });
+                            }
+                        }
+                    }
                 }
             }
 
