@@ -654,7 +654,19 @@ impl GlobalSearchUI {
             path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect()
         };
 
-        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+
+        // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
+        UI_STATE.set_packfile_contents_read_only(true);
+
+        if let Some(ref tree_index) = tree_index {
+            if tree_index.is_valid() {
+                pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+            }
+        }
+
+        UI_STATE.set_packfile_contents_read_only(false);
         AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
 
         // If it's a table, focus on the matched cell.

@@ -700,13 +700,25 @@ impl DiagnosticsUI {
         let item_path = model.item_2a(model_index.row(), 4);
         let path = item_path.text().to_std_string();
         let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
-        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
 
         // If the path is empty, we're looking for the dependency manager.
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if path.is_empty() && diagnostic_type == "DependencyManager" {
             AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
         } else if !path.is_empty() {
+
+            // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
+            UI_STATE.set_packfile_contents_read_only(true);
+
+            if let Some(ref tree_index) = tree_index {
+                if tree_index.is_valid() {
+                    pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                    pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                }
+            }
+
+            UI_STATE.set_packfile_contents_read_only(false);
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
         }
 
