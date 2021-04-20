@@ -239,6 +239,16 @@ impl Diagnostics {
                         level: DiagnosticLevel::Error,
                     });
                 }
+
+                if name.contains(' ') {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: 0,
+                        row_number: -1,
+                        message: "Table name contains spaces.".to_owned(),
+                        report_type: TableDiagnosticReportType::TableNameHasSpace,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
             }
 
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {

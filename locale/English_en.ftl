@@ -897,3 +897,6 @@ label_table_name_ends_in_number = Table name ends in number:
 table_name_ends_in_number_explanation = Numbers at the end of a DB Table's name usually cause a very weird issue, where a mod crashes for anyone but the modder who makes it.
 
     To fix it, remove the number at the end of the name of the reported DB Table.
+
+label_table_name_has_space = Table name has spaces:
+table_name_has_space_explanation = Cataph doesn't like them.

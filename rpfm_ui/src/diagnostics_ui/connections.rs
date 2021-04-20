@@ -50,4 +50,5 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_dependencies_cache_not_generated.toggled().connect(&slots.toggle_filters);
     ui.checkbox_invalid_packfile_name.toggled().connect(&slots.toggle_filters);
     ui.checkbox_table_name_ends_in_number.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_table_name_has_space.toggled().connect(&slots.toggle_filters);
 }

@@ -54,6 +54,7 @@ pub enum TableDiagnosticReportType {
     DuplicatedRow,
     InvalidLocKey,
     TableNameEndsInNumber,
+    TableNameHasSpace,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -98,6 +99,7 @@ impl Display for TableDiagnosticReportType {
             Self::DuplicatedRow => "DuplicatedRow",
             Self::InvalidLocKey => "InvalidLocKey",
             Self::TableNameEndsInNumber => "TableNameEndsInNumber",
+            Self::TableNameHasSpace => "TableNameHasSpace",
         }, f)
     }
 }
