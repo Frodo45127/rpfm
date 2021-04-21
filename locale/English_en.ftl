@@ -687,7 +687,7 @@ pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The Pa
         <i><b>db/land_units_tables;field1,field2</b></i> => Only those two fields of all tables in that folder will be ignored.
         </li>
         <li>
-        <i><b>db/land_units_tables/table1;;FilterId1,FilterId2</b></i> => Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.
+        <i><b>db/land_units_tables/table1;;DiagId1,DiagId2</b></i> => Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.
         </li>
     </ul>
     <br/>
