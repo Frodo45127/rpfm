@@ -672,7 +672,7 @@ dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a Pack
 
 context_menu_open_packfile_settings = Open PackFile Settings
 pfs_diagnostics_files_to_ignore_label = <p><b><i>PackedFiles to Ignore on Diagnostics Check</i></b></p>
-pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other things (like providing reference data) but they will not be analyzed.</p><p><b>One path per line.</b> The following are valid examples</p>
+pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other things (like providing reference data) but they will not be analyzed.</p><p><b>One path per line. Comment lines with #.</b> The following are valid examples</p>
     <ul>
         <li>
         <i><b>db/land_units_tables</b></i> => All tables in that folder will be ignored.
@@ -685,6 +685,9 @@ pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The Pa
         </li>
         <li>
         <i><b>db/land_units_tables;field1,field2</b></i> => Only those two fields of all tables in that folder will be ignored.
+        </li>
+        <li>
+        <i><b>db/land_units_tables/table1;;FilterId1,FilterId2</b></i> => Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.
         </li>
     </ul>
     <br/>

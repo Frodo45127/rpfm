@@ -2858,6 +2858,30 @@ impl PackFileSettings {
 
         Ok(settings)
     }
+
+    pub fn get_diagnostics_files_to_ignore(&self) -> Option<Vec<(Vec<String>, Vec<String>, Vec<String>)>> {
+        self.settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
+            let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
+
+            // Ignore commented out rows.
+            files.iter().filter_map(|x| {
+                if !x.starts_with('#') {
+                    let path = x.splitn(3, ';').collect::<Vec<&str>>();
+                    if path.len() == 3 {
+                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), path[2].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
+                    } else if path.len() == 2 {
+                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
+                    } else if path.len() == 1 {
+                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![], vec![]))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }).collect::<Vec<(Vec<String>, Vec<String>, Vec<String>)>>()
+        })
+    }
 }
 
 /// Implementaion of trait `Default` for `PFHFlags`.

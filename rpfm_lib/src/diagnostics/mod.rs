@@ -122,20 +122,7 @@ impl Diagnostics {
             return;
         }
 
-        let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
-            let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
-            files.iter().filter_map(|x| {
-                let path = x.splitn(2, ';').collect::<Vec<&str>>();
-                if path.len() == 2 {
-                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
-                } else if path.len() == 1 {
-                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
-                }
-                else {
-                    None
-                }
-            }).collect::<Vec<(Vec<String>, Vec<String>)>>()
-        });
+        let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
         let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
@@ -175,20 +162,28 @@ impl Diagnostics {
 
                 // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
                 let mut ignored_fields = vec![];
+                let mut ignored_diagnostics = vec![];
                 if let Some(ref files_to_ignore) = files_to_ignore {
-                    for (file_to_ignore, fields) in files_to_ignore {
-                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                    for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
+                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
                             return None;
-                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
-                            ignored_fields = fields.to_vec();
+                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
+                            if !fields.is_empty() {
+                                ignored_fields = fields.to_vec();
+                            }
+
+                            if !diags_to_ignore.is_empty() {
+                                ignored_diagnostics = diags_to_ignore.to_vec();
+                            }
+
                             break;
                         }
                     }
                 }
 
                 let diagnostic = match packed_file.get_packed_file_type(false) {
-                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &mut data_prev),
-                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &mut data_prev),
+                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
                     _ => None,
                 };
 
@@ -230,6 +225,7 @@ impl Diagnostics {
         vanilla_dependencies: &[PackedFile],
         asskit_dependencies: &[DB],
         ignored_fields: &[String],
+        ignored_diagnostics: &[String],
         previous_data: &mut Vec<Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
@@ -250,14 +246,16 @@ impl Diagnostics {
             let mut keys = vec![];
 
             // Before anything else, check if the table is outdated.
-            if table.is_outdated(&dependencies) {
-                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                    column_number: 0,
-                    row_number: -1,
-                    message: "Possibly outdated table.".to_owned(),
-                    report_type: TableDiagnosticReportType::OutdatedTable,
-                    level: DiagnosticLevel::Error,
-                });
+            if ignored_diagnostics.iter().all(|x| x != "OutdatedTable") {
+                if table.is_outdated(&dependencies) {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: 0,
+                        row_number: -1,
+                        message: "Possibly outdated table.".to_owned(),
+                        report_type: TableDiagnosticReportType::OutdatedTable,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
             }
 
             // Check if the table name has a number at the end, which causes very annoying bugs.
@@ -273,48 +271,54 @@ impl Diagnostics {
                     name.ends_with("8") ||
                     name.ends_with("9") {
 
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: -1,
-                        message: "Table name ends in number.".to_owned(),
-                        report_type: TableDiagnosticReportType::TableNameEndsInNumber,
-                        level: DiagnosticLevel::Error,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "TableNameEndsInNumber") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: -1,
+                            message: "Table name ends in number.".to_owned(),
+                            report_type: TableDiagnosticReportType::TableNameEndsInNumber,
+                            level: DiagnosticLevel::Error,
+                        });
+                    }
                 }
 
                 if name.contains(' ') {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: -1,
-                        message: "Table name contains spaces.".to_owned(),
-                        report_type: TableDiagnosticReportType::TableNameHasSpace,
-                        level: DiagnosticLevel::Error,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "TableNameHasSpace") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: -1,
+                            message: "Table name contains spaces.".to_owned(),
+                            report_type: TableDiagnosticReportType::TableNameHasSpace,
+                            level: DiagnosticLevel::Error,
+                        });
+                    }
                 }
 
-                if let Some(supported_game) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()) {
-                    match supported_game.vanilla_db_table_name_logic {
-                        VanillaDBTableNameLogic::FolderName => {
-                            if *name == &path[1] {
-                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                    column_number: 0,
-                                    row_number: -1,
-                                    message: "Table is datacoring.".to_owned(),
-                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
-                                    level: DiagnosticLevel::Warning,
-                                });
+                if ignored_diagnostics.iter().all(|x| x != "TableIsDataCoring") {
+                    if let Some(supported_game) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()) {
+                        match supported_game.vanilla_db_table_name_logic {
+                            VanillaDBTableNameLogic::FolderName => {
+                                if *name == &path[1] {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        column_number: 0,
+                                        row_number: -1,
+                                        message: "Table is datacoring.".to_owned(),
+                                        report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                        level: DiagnosticLevel::Warning,
+                                    });
+                                }
                             }
-                        }
 
-                        VanillaDBTableNameLogic::DefaultName(ref default_name) => {
-                            if *name == default_name {
-                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                    column_number: 0,
-                                    row_number: -1,
-                                    message: "Table is datacoring.".to_owned(),
-                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
-                                    level: DiagnosticLevel::Warning,
-                                });
+                            VanillaDBTableNameLogic::DefaultName(ref default_name) => {
+                                if *name == default_name {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        column_number: 0,
+                                        row_number: -1,
+                                        message: "Table is datacoring.".to_owned(),
+                                        report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                        level: DiagnosticLevel::Warning,
+                                    });
+                                }
                             }
                         }
                     }
@@ -354,13 +358,15 @@ impl Diagnostics {
 
                                 // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
                                 else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
-                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                        column_number: column as u32,
-                                        row_number: row as i64,
-                                        message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
-                                        report_type: TableDiagnosticReportType::InvalidReference,
-                                        level: DiagnosticLevel::Error,
-                                    });
+                                    if ignored_diagnostics.iter().all(|x| x != "InvalidReference") {
+                                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                            column_number: column as u32,
+                                            row_number: row as i64,
+                                            message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
+                                            report_type: TableDiagnosticReportType::InvalidReference,
+                                            level: DiagnosticLevel::Error,
+                                        });
+                                    }
                                 }
                             }
                             None => {
@@ -381,13 +387,15 @@ impl Diagnostics {
                     }
 
                     if field.get_is_key() && field.get_field_type() != FieldType::OptionalStringU8 && field.get_field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: column as u32,
-                            row_number: row as i64,
-                            message: format!("Empty key for column \"{}\".", field.get_name()),
-                            report_type: TableDiagnosticReportType::EmptyKeyField,
-                            level: DiagnosticLevel::Warning,
-                        });
+                        if ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                column_number: column as u32,
+                                row_number: row as i64,
+                                message: format!("Empty key for column \"{}\".", field.get_name()),
+                                report_type: TableDiagnosticReportType::EmptyKeyField,
+                                level: DiagnosticLevel::Warning,
+                            });
+                        }
                     }
 
                     if field.get_is_key() {
@@ -396,33 +404,39 @@ impl Diagnostics {
                 }
 
                 if row_is_empty {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Empty row.".to_string(),
-                        report_type: TableDiagnosticReportType::EmptyRow,
-                        level: DiagnosticLevel::Error,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "EmptyRow") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Empty row.".to_string(),
+                            report_type: TableDiagnosticReportType::EmptyRow,
+                            level: DiagnosticLevel::Error,
+                        });
+                    }
                 }
 
                 if row_keys_are_empty {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Empty key fields.".to_string(),
-                        report_type: TableDiagnosticReportType::EmptyKeyFields,
-                        level: DiagnosticLevel::Warning,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "EmptyKeyFields") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Empty key fields.".to_string(),
+                            report_type: TableDiagnosticReportType::EmptyKeyFields,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
                 }
 
                 if !local_keys.is_empty() && (keys.contains(&local_keys) || previous_data.contains(&local_keys)) {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: format!("Duplicated combined keys: {}.", local_keys.join("| |")),
-                        report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                        level: DiagnosticLevel::Error,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "DuplicatedCombinedKeys") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: format!("Duplicated combined keys: {}.", local_keys.join("| |")),
+                            report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                            level: DiagnosticLevel::Error,
+                        });
+                    }
                 }
                 else {
                     keys.push(local_keys);
@@ -431,33 +445,39 @@ impl Diagnostics {
 
             // Checks that only need to be done once per table.
             for column in &columns_without_reference_table {
-                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                    column_number: *column as u32,
-                    row_number: -1,
-                    message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
-                    report_type: TableDiagnosticReportType::NoReferenceTableFound,
-                    level: DiagnosticLevel::Info,
-                });
+                if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableFound") {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        column_number: *column as u32,
+                        row_number: -1,
+                        message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        report_type: TableDiagnosticReportType::NoReferenceTableFound,
+                        level: DiagnosticLevel::Info,
+                    });
+                }
             }
 
             for column in &columns_with_reference_table_and_no_column {
                 if !dependencies.game_has_asskit_data_loaded() {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: *column as u32,
-                        row_number: -1,
-                        message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
-                        report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak,
-                        level: DiagnosticLevel::Warning,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableNorColumnFoundNoPak") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: *column as u32,
+                            row_number: -1,
+                            message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                            report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
                 }
                 else {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: *column as u32,
-                        row_number: -1,
-                        message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
-                        report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
-                        level: DiagnosticLevel::Info,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableNorColumnFoundPak") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: *column as u32,
+                            row_number: -1,
+                            message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                            report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
+                            level: DiagnosticLevel::Info,
+                        });
+                    }
                 }
             }
 
@@ -475,6 +495,7 @@ impl Diagnostics {
         packed_file: &DecodedPackedFile,
         path: &[String],
         ignored_fields: &[String],
+        ignored_diagnostics: &[String],
         previous_data: &mut Vec<Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::Loc(table) = packed_file {
@@ -491,58 +512,68 @@ impl Diagnostics {
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
                 if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: row as i64,
-                        message: "Invalid localisation key.".to_string(),
-                        report_type: TableDiagnosticReportType::InvalidLocKey,
-                        level: DiagnosticLevel::Error,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "InvalidLocKey") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 0,
+                            row_number: row as i64,
+                            message: "Invalid localisation key.".to_string(),
+                            report_type: TableDiagnosticReportType::InvalidLocKey,
+                            level: DiagnosticLevel::Error,
+                        });
+                    }
                 }
 
                 if !ignored_fields.contains(&field_key_name) && !ignored_fields.contains(&field_text_name) {
                     if key.is_empty() && data.is_empty() {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
-                            message: "Empty row.".to_string(),
-                            report_type: TableDiagnosticReportType::EmptyRow,
-                            level: DiagnosticLevel::Warning,
-                        });
+                        if ignored_diagnostics.iter().all(|x| x != "EmptyRow") {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                column_number: 0,
+                                row_number: row as i64,
+                                message: "Empty row.".to_string(),
+                                report_type: TableDiagnosticReportType::EmptyRow,
+                                level: DiagnosticLevel::Warning,
+                            });
+                        }
                     }
 
                     if key.is_empty() && !data.is_empty() {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
-                            message: "Empty key.".to_string(),
-                            report_type: TableDiagnosticReportType::EmptyKeyField,
-                            level: DiagnosticLevel::Warning,
-                        });
+                        if ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                column_number: 0,
+                                row_number: row as i64,
+                                message: "Empty key.".to_string(),
+                                report_type: TableDiagnosticReportType::EmptyKeyField,
+                                level: DiagnosticLevel::Warning,
+                            });
+                        }
                     }
                 }
 
                 // Magic Regex. It works. Don't ask why.
                 if !ignored_fields.contains(&field_text_name) && !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
-                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 1,
-                        row_number: row as i64,
-                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
-                        report_type: TableDiagnosticReportType::InvalidEscape,
-                        level: DiagnosticLevel::Warning,
-                    });
+                    if ignored_diagnostics.iter().all(|x| x != "InvalidEscape") {
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                            column_number: 1,
+                            row_number: row as i64,
+                            message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
+                            report_type: TableDiagnosticReportType::InvalidEscape,
+                            level: DiagnosticLevel::Warning,
+                        });
+                    }
                 }
 
                 if !ignored_fields.contains(&field_key_name) {
                     let local_keys = vec![key.to_owned(), data.to_owned()];
                     if keys.contains(&local_keys) || previous_data.contains(&local_keys) {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
-                            message: "Duplicated row.".to_string(),
-                            report_type: TableDiagnosticReportType::DuplicatedRow,
-                            level: DiagnosticLevel::Warning,
-                        });
+                        if ignored_diagnostics.iter().all(|x| x != "DuplicatedRow") {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                column_number: 0,
+                                row_number: row as i64,
+                                message: "Duplicated row.".to_string(),
+                                report_type: TableDiagnosticReportType::DuplicatedRow,
+                                level: DiagnosticLevel::Warning,
+                            });
+                        }
                     }
                     else {
                         keys.push(local_keys);
@@ -668,20 +699,7 @@ impl Diagnostics {
             self.get_ref_mut_diagnostics().retain(|x| x.get_path() != packed_file.get_path());
         }
 
-        let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
-            let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
-            files.iter().filter_map(|x| {
-                let path = x.splitn(2, ';').collect::<Vec<&str>>();
-                if path.len() == 2 {
-                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
-                } else if path.len() == 1 {
-                    Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
-                }
-                else {
-                    None
-                }
-            }).collect::<Vec<(Vec<String>, Vec<String>)>>()
-        });
+        let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
         let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
@@ -715,20 +733,28 @@ impl Diagnostics {
 
             for packed_file in packed_files {
                 let mut ignored_fields = vec![];
+                let mut ignored_diagnostics = vec![];
                 if let Some(ref files_to_ignore) = files_to_ignore {
-                    for (file_to_ignore, fields) in files_to_ignore {
-                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                    for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
+                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
                             continue;
-                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
-                            ignored_fields = fields.to_vec();
+                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
+                            if !fields.is_empty() {
+                                ignored_fields = fields.to_vec();
+                            }
+
+                            if !diags_to_ignore.is_empty() {
+                                ignored_diagnostics = diags_to_ignore.to_vec();
+                            }
+
                             break;
                         }
                     }
                 }
 
                 let diagnostic = match packed_file.get_packed_file_type(false) {
-                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &mut data_prev),
-                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &mut data_prev),
+                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
                     _ => None,
                 };
 
