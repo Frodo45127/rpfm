@@ -19,6 +19,7 @@ use fancy_regex::Regex;
 
 use std::{fmt, fmt::Display};
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 
 use crate::DB;
 use crate::dependencies::Dependencies;
@@ -140,27 +141,64 @@ impl Diagnostics {
         let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
-        self.0 = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter().filter_map(|packed_file| {
+        // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
+        // To do that, we have to sort/split the file list, the process that.
+        let packed_files = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
+        let mut packed_files_split: BTreeMap<&str, Vec<&PackedFile>> = BTreeMap::new();
 
-            // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
-            let mut ignored_fields = vec![];
-            if let Some(ref files_to_ignore) = files_to_ignore {
-                for (file_to_ignore, fields) in files_to_ignore {
-                    if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
-                        return None;
-                    } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
-                        ignored_fields = fields.to_vec();
-                        break;
+        for packed_file in &packed_files {
+            match packed_file.get_packed_file_type(false) {
+                PackedFileType::DB => {
+                    if let Some(table_set) = packed_files_split.get_mut(&*packed_file.get_path()[1]) {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert(&packed_file.get_path()[1], vec![packed_file]);
                     }
+                },
+                PackedFileType::Loc => {
+                    if let Some(table_set) = packed_files_split.get_mut("locs") {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert("locs", vec![packed_file]);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        // Process the files in batches.
+        self.0 = packed_files_split.into_par_iter().filter_map(|(_, packed_files)| {
+
+            let mut diagnostics = Vec::with_capacity(packed_files.len());
+            let mut data_prev = Vec::with_capacity(packed_files.len());
+            for packed_file in packed_files {
+
+                // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
+                let mut ignored_fields = vec![];
+                if let Some(ref files_to_ignore) = files_to_ignore {
+                    for (file_to_ignore, fields) in files_to_ignore {
+                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                            return None;
+                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
+                            ignored_fields = fields.to_vec();
+                            break;
+                        }
+                    }
+                }
+
+                let diagnostic = match packed_file.get_packed_file_type(false) {
+                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &mut data_prev),
+                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &mut data_prev),
+                    _ => None,
+                };
+
+                if let Some(diagnostic) = diagnostic {
+                    diagnostics.push(diagnostic);
                 }
             }
 
-            match packed_file.get_packed_file_type(false) {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields),
-                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
-                _ => None,
-            }
-        }).collect();
+            Some(diagnostics)
+        }).flatten().collect();
 
         if let Some(diagnostics) = Self::check_dependency_manager(pack_file) {
             self.0.push(diagnostics);
@@ -191,7 +229,8 @@ impl Diagnostics {
         dependencies: &Dependencies,
         vanilla_dependencies: &[PackedFile],
         asskit_dependencies: &[DB],
-        ignored_fields: &[String]
+        ignored_fields: &[String],
+        previous_data: &mut Vec<Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
@@ -376,7 +415,7 @@ impl Diagnostics {
                     });
                 }
 
-                if local_keys.len() > 1 && keys.contains(&local_keys) {
+                if !local_keys.is_empty() && (keys.contains(&local_keys) || previous_data.contains(&local_keys)) {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
@@ -422,6 +461,9 @@ impl Diagnostics {
                 }
             }
 
+            // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
+            previous_data.append(&mut keys);
+
             if !diagnostic.get_ref_result().is_empty() {
                 Some(DiagnosticType::DB(diagnostic))
             } else { None }
@@ -432,7 +474,8 @@ impl Diagnostics {
     fn check_loc(
         packed_file: &DecodedPackedFile,
         path: &[String],
-        ignored_fields: &[String]
+        ignored_fields: &[String],
+        previous_data: &mut Vec<Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::Loc(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
@@ -491,8 +534,8 @@ impl Diagnostics {
                 }
 
                 if !ignored_fields.contains(&field_key_name) {
-                    let local_keys = vec![key, data];
-                    if keys.contains(&local_keys) {
+                    let local_keys = vec![key.to_owned(), data.to_owned()];
+                    if keys.contains(&local_keys) || previous_data.contains(&local_keys) {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                             column_number: 0,
                             row_number: row as i64,
@@ -506,6 +549,9 @@ impl Diagnostics {
                     }
                 }
             }
+
+            // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
+            previous_data.append(&mut keys);
 
             if !diagnostic.get_ref_result().is_empty() {
                 Some(DiagnosticType::Loc(diagnostic))
@@ -579,22 +625,47 @@ impl Diagnostics {
             return;
         }
 
-        // Turn all our updated packs into `PackedFile` paths, and get them.
-        let mut paths = vec![];
+        // Turn all our updated packs into `PackedFile` paths, and get them. Keep in mind we need to also get:
+        // - Other tables related with the ones we update.
+        // - Other locs, if a loc is on the list.
+        let mut packed_files = vec![];
         for path_type in updated_paths {
             match path_type {
-                PathType::File(path) => paths.push(path.to_vec()),
-                PathType::Folder(path) => paths.append(&mut pack_file.get_ref_packed_files_by_path_start(path).iter().map(|x| x.get_path().to_vec()).collect()),
+                PathType::File(path) => if let Some(packed_file) = pack_file.get_ref_packed_file_by_path(path) { packed_files.push(packed_file) },
+                PathType::Folder(path) => packed_files.append(&mut pack_file.get_ref_packed_files_by_path_start(path)),
 
                 // PackFile in this instance means the dependency manager.
-                PathType::PackFile => paths.push(vec![]),
+                PathType::PackFile => {}
                 _ => unimplemented!()
             }
         }
 
+        let mut packed_files_complete: Vec<&PackedFile> = vec![];
+        let mut locs_added = false;
+        for packed_file in &packed_files {
+            match packed_file.get_packed_file_type(false) {
+                PackedFileType::DB => {
+                    let tables = pack_file.get_ref_packed_files_by_path_start(&packed_file.get_path()[..=1]);
+                    for table in tables {
+                        if !packed_files_complete.contains(&table) {
+                            packed_files_complete.push(table);
+                        }
+                    }
+                },
+                PackedFileType::Loc => {
+                    if !locs_added {
+                        packed_files_complete.append(&mut pack_file.get_ref_packed_files_by_type(PackedFileType::Loc, false));
+                        locs_added = true;
+                    }
+                }
+
+                _ => packed_files_complete.push(packed_file),
+            }
+        }
+
         // We remove the added/edited/deleted files from all the search.
-        for path in &paths {
-            self.get_ref_mut_diagnostics().retain(|x| x.get_path() != &**path);
+        for packed_file in &packed_files_complete {
+            self.get_ref_mut_diagnostics().retain(|x| x.get_path() != packed_file.get_path());
         }
 
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
@@ -616,27 +687,54 @@ impl Diagnostics {
         let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
-        for packed_file in pack_file.get_ref_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect()) {
-            let mut ignored_fields = vec![];
-            if let Some(ref files_to_ignore) = files_to_ignore {
-                for (file_to_ignore, fields) in files_to_ignore {
-                    if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
-                        continue;
-                    } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
-                        ignored_fields = fields.to_vec();
-                        break;
+        // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
+        // To do that, we have to sort/split the file list, the process that.
+        let mut packed_files_split: BTreeMap<&str, Vec<&PackedFile>> = BTreeMap::new();
+        for packed_file in &packed_files_complete {
+            match packed_file.get_packed_file_type(false) {
+                PackedFileType::DB => {
+                    if let Some(table_set) = packed_files_split.get_mut(&*packed_file.get_path()[1]) {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert(&packed_file.get_path()[1], vec![packed_file]);
+                    }
+                },
+                PackedFileType::Loc => {
+                    if let Some(table_set) = packed_files_split.get_mut("locs") {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert("locs", vec![packed_file]);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        for (_, packed_files) in &packed_files_split {
+            let mut data_prev = Vec::with_capacity(packed_files.len());
+
+            for packed_file in packed_files {
+                let mut ignored_fields = vec![];
+                if let Some(ref files_to_ignore) = files_to_ignore {
+                    for (file_to_ignore, fields) in files_to_ignore {
+                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() {
+                            continue;
+                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && !fields.is_empty() {
+                            ignored_fields = fields.to_vec();
+                            break;
+                        }
                     }
                 }
-            }
 
-            let diagnostic = match packed_file.get_packed_file_type(false) {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields),
-                PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields),
-                _ => None,
-            };
+                let diagnostic = match packed_file.get_packed_file_type(false) {
+                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &mut data_prev),
+                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &mut data_prev),
+                    _ => None,
+                };
 
-            if let Some(diagnostic) = diagnostic {
-                self.get_ref_mut_diagnostics().push(diagnostic);
+                if let Some(diagnostic) = diagnostic {
+                    self.get_ref_mut_diagnostics().push(diagnostic);
+                }
             }
         }
 
