@@ -677,15 +677,29 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition, files_to_ignore) => {
-                let dependency_data = DB::get_dependency_data(
-                    &pack_file_decoded,
-                    &table_name,
-                    &definition,
-                    &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true),
-                    &dependencies.get_ref_asskit_only_db_tables(),
-                    &dependencies,
-                    &files_to_ignore,
-                );
+
+                // This is a heavy function, so first check if we have the data we want in the cache.
+                let dependency_data = if dependencies.get_ref_cached_data().read().unwrap().get(&table_name).is_some() {
+                    DB::get_dependency_data(
+                        &pack_file_decoded,
+                        &table_name,
+                        &definition,
+                        &[],
+                        &[],
+                        &dependencies,
+                        &files_to_ignore,
+                    )
+                } else {
+                    DB::get_dependency_data(
+                        &pack_file_decoded,
+                        &table_name,
+                        &definition,
+                        &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true),
+                        &dependencies.get_ref_asskit_only_db_tables(),
+                        &dependencies,
+                        &files_to_ignore,
+                    )
+                };
 
                 CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32DependencyData(dependency_data));
             }
