@@ -1597,6 +1597,11 @@ impl AppUI {
         }
 
         Self::update_views_names(app_ui);
+
+        // Try to paint the diagnostics results, if any.
+        for diagnostic_type in UI_STATE.get_diagnostics().get_ref_diagnostics() {
+            DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
+        }
     }
 
     /// This function is used to open the PackedFile Decoder.
