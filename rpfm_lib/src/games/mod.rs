@@ -148,7 +148,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_troy.png".to_owned(),
         game_selected_big_icon: "gs_big_troy.png".to_owned(),
-        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
     });
 
     // Three Kingdoms
@@ -179,7 +179,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         supports_editing: true,
         game_selected_icon: "gs_3k.png".to_owned(),
         game_selected_big_icon: "gs_big_3k.png".to_owned(),
-        vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
     });
 
     // Warhammer 2

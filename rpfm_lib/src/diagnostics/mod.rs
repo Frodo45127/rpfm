@@ -298,7 +298,7 @@ impl Diagnostics {
                     if let Some(supported_game) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()) {
                         match supported_game.vanilla_db_table_name_logic {
                             VanillaDBTableNameLogic::FolderName => {
-                                if *name == &path[1] {
+                                if table.get_table_name_without_tables() == path[1] {
                                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                         column_number: 0,
                                         row_number: -1,
