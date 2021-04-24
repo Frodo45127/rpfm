@@ -72,7 +72,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                 if (dark_theme) {
                     colorBrush.setRgbF(82, 82, 0, 0.1);
                 } else {
-                    colorBrush.setRgbF(255, 255, 221, 0.1);
+                    colorBrush.setRgbF(255, 255, 0, 0.1);
                 }
 
                 QBrush qBrush(colorBrush);
@@ -95,7 +95,8 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                     QColor colorPen = Qt::GlobalColor::yellow;
                     pen.setColor(colorPen);
                 } else {
-                    QColor colorPen = Qt::GlobalColor::darkYellow;
+                    QColor colorPen;
+                    colorPen.setRgb(230, 126, 34);
                     pen.setColor(colorPen);
                 }
 
@@ -113,7 +114,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                     QColor colorPen = Qt::GlobalColor::green;
                     pen.setColor(colorPen);
                 } else {
-                    QColor colorPen = Qt::GlobalColor::darkGreen;
+                    QColor colorPen = Qt::GlobalColor::green;
                     pen.setColor(colorPen);
                 }
 
@@ -132,7 +133,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                     QColor colorPen = Qt::GlobalColor::blue;
                     pen.setColor(colorPen);
                 } else {
-                    QColor colorPen = Qt::GlobalColor::darkBlue;
+                    QColor colorPen = Qt::GlobalColor::blue;
                     pen.setColor(colorPen);
                 }
 
@@ -151,7 +152,8 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                     QColor colorPen = Qt::GlobalColor::yellow;
                     pen.setColor(colorPen);
                 } else {
-                    QColor colorPen = Qt::GlobalColor::darkYellow;
+                    QColor colorPen;
+                    colorPen.setRgb(190, 190, 0);
                     pen.setColor(colorPen);
                 }
 
@@ -170,7 +172,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                     QColor colorPen = Qt::GlobalColor::red;
                     pen.setColor(colorPen);
                 } else {
-                    QColor colorPen = Qt::GlobalColor::darkRed;
+                    QColor colorPen = Qt::GlobalColor::red;
                     pen.setColor(colorPen);
                 }
 
