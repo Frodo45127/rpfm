@@ -9,9 +9,19 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [Unreleased]
 ### Added
 - Implemented `Invalid Loc Key` diagnostic.
+- Implemented `Invalid PackFile Name` diagnostic.
+- Implemented `Table name ends in number` diagnostic.
+- Implemented `Table name contains spaces` diagnostic.
+- Implemented `Table is datacoring` diagnostic.
+- Implemented `Dependencies Cache not yet generated` diagnostic.
 - Implemented `Debug` PackedFile View.
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
 - Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
+- Implemented `Game-Wide` caché (replaces the old PAKs).
+- Implemented read support for modern DDS files (by [@phazer](https://github.com/mr-phazer)).
+- Reworked cell painting on tables, so it should no longer left unreadable cells on painting.
+- Implemented support for ignoring specific diagnostics per PackFile.
+- Key columns now have a distinct background.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
@@ -21,6 +31,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed `Update Table` not using the default value for the new columns.
 - Fixed smart delete deleting the wrong cell if the columns were sorted.
 - Fixed the infamous `Ambiguous Shortcut Ctrl+S` bug when trying to save with a Text PackedFile open.
+- Fixed incorrect original PackFile being reported on the PackedFile's tooltips when using Load All CA PAckFiles or opening multiple PackFiles at once.
+- Fixed scroll/selection not working on TreeView when opening diagnostics/tables.
+- Fixed duplicate diagnostics not checking across files.
+- Fixed duplicate keys diagnostics not working on tables with just one key column.
+- Fixed diagnostics not being painted to tables after opening them.
 
 ## [2.4.3]
 ### Added
