@@ -138,11 +138,18 @@ impl Dependencies {
                 .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some(data) } else { None })
                 .collect::<Vec<CachedPackedFile>>();
 
-            // Pre-decode all tables/locs to memory.
+            // Preload all tables/locs to cache.
             if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                    let _ = x.1.decode_no_locks(schema);
-                });
+                self.vanilla_packed_files_cache.write().unwrap().append(&mut self.vanilla_cached_packed_files.par_iter()
+                    .filter_map(|cached_packed_file| {
+                        let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
+                        if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
+                            if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
+                                let _ = packed_file.decode_no_locks(schema);
+                                Some((packed_file.get_path().to_vec(), packed_file))
+                            } else { None }
+                        } else { None }
+                    }).collect());
             }
         }
 
