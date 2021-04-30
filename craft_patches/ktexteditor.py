@@ -4,8 +4,8 @@ import info
 class subinfo(info.infoclass):
     def setTargets(self):
         self.versionInfo.setDefaultValues()
-        self.patchToApply["5.80.0"] = [("001-ktexteditor-fix-save-shortcut.patch", 1)]
-        self.patchLevel["5.80.0"] = 1
+        self.patchToApply["5.81.0"] = [("001-ktexteditor-fix-save-shortcut.patch", 1)]
+        self.patchLevel["5.81.0"] = 1
         self.description = "KTextEditor provides an advanced embeddable text editor"
 
     def setDependencies(self):

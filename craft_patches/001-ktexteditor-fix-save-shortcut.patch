@@ -1,6 +1,6 @@
-diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/.clang-format ktexteditor-5.80.0/.clang-format
---- ktexteditor-5.80.0.orig/.clang-format   1970-01-01 01:00:00.000000000 +0100
-+++ ktexteditor-5.80.0/.clang-format    2021-04-01 10:51:08.444630100 +0200
+diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.81.0.orig/.clang-format ktexteditor-5.81.0/.clang-format
+--- ktexteditor-5.81.0.orig/.clang-format   1970-01-01 01:00:00.000000000 +0100
++++ ktexteditor-5.81.0/.clang-format    2021-04-28 18:49:42.854227400 +0200
 @@ -0,0 +1,79 @@
 +---
 +# SPDX-FileCopyrightText: 2019 Christoph Cullmann <cullmann@kde.org>
@@ -81,40 +81,9 @@ diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.
 +
 +# We do not want clang-format to put all arguments on a new line
 +AllowAllArgumentsOnNextLine: false
-diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/src/data/katepart5ui.rc ktexteditor-5.80.0/src/data/katepart5ui.rc
---- ktexteditor-5.80.0.orig/src/data/katepart5ui.rc 2021-03-06 17:30:47.000000000 +0100
-+++ ktexteditor-5.80.0/src/data/katepart5ui.rc  2021-04-01 11:14:45.567103600 +0200
-@@ -1,18 +1,6 @@
- <!DOCTYPE gui SYSTEM "kpartgui.dtd">
- <gui name="KatePartView" version="91" translationDomain="ktexteditor5">
- <MenuBar>
--  <Menu name="file" noMerge="1"><text>&amp;File</text>
--    <Action name="file_save" group="save_merge" />
--    <Action name="file_save_as" group="save_merge" />
--    <Action name="file_save_as_with_encoding" group="save_merge" />
--    <Action name="file_save_copy_as" group="save_merge" />
--    <Action name="file_reload" group="revert_merge" />
--    <Action name="file_print" group="print_merge" />
--    <Action name="file_print_preview" group="print_merge" />
--    <Separator group="print_merge" />
--    <Action name="file_export_html" group="print_merge"/>
--    <Separator group="print_merge" />
--  </Menu>
-
-   <Menu name="edit" noMerge="1"><text>&amp;Edit</text>
-     <Action name="edit_undo" group="edit_undo_merge" />
-@@ -164,8 +152,6 @@
- </Menu>
-
- <ToolBar name="mainToolBar" noMerge="1"><text>Main Toolbar</text>
--  <Action name="file_save" group="file_operations" />
--  <Action name="file_save_as" group="file_operations" />
-   <Action name="edit_undo" group="edit_operations" />
-   <Action name="edit_redo" group="edit_operations" />
- </ToolBar>
-diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.80.0.orig/src/view/kateview.cpp ktexteditor-5.80.0/src/view/kateview.cpp
---- ktexteditor-5.80.0.orig/src/view/kateview.cpp   2021-03-06 17:30:47.000000000 +0100
-+++ ktexteditor-5.80.0/src/view/kateview.cpp    2021-04-01 11:35:47.269139600 +0200
+diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.txt.user ktexteditor-5.81.0.orig/src/view/kateview.cpp ktexteditor-5.81.0/src/view/kateview.cpp
+--- ktexteditor-5.81.0.orig/src/view/kateview.cpp   2021-04-04 13:47:44.000000000 +0200
++++ ktexteditor-5.81.0/src/view/kateview.cpp    2021-04-30 15:28:45.619720300 +0200
 @@ -471,8 +471,8 @@
      a->setWhatsThis(i18n("Swap the selected text with the clipboard contents"));
 
@@ -126,33 +95,3 @@ diff -Nrub -x '*~' -x '*\.rej' -x '*\.orig' -x '*\.o' -x '*\.pyc' -x CMakeLists.
 
          a = m_editUndo = ac->addAction(KStandardAction::Undo, m_doc, SLOT(undo()));
          a->setWhatsThis(i18n("Revert the most recent editing actions"));
-@@ -604,18 +604,18 @@
-     a->setWhatsThis(i18n("Reload the current document from disk."));
-     connect(a, &QAction::triggered, this, &KTextEditor::ViewPrivate::reloadFile);
-
--    a = ac->addAction(KStandardAction::SaveAs, m_doc, SLOT(documentSaveAs()));
--    a->setWhatsThis(i18n("Save the current document to disk, with a name of your choice."));
-+    //a = ac->addAction(KStandardAction::SaveAs, m_doc, SLOT(documentSaveAs()));
-+    //a->setWhatsThis(i18n("Save the current document to disk, with a name of your choice."));
-
--    a = new KateViewEncodingAction(m_doc, this, i18n("Save As with Encoding..."), this, true /* special mode for save as */);
--    a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
--    ac->addAction(QStringLiteral("file_save_as_with_encoding"), a);
--
--    a = ac->addAction(QStringLiteral("file_save_copy_as"));
--    a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
--    a->setText(i18n("Save &Copy As..."));
--    a->setWhatsThis(i18n("Save a copy of the current document to disk."));
--    connect(a, &QAction::triggered, m_doc, &KTextEditor::DocumentPrivate::documentSaveCopyAs);
-+    //a = new KateViewEncodingAction(m_doc, this, i18n("Save As with Encoding..."), this, true /* special mode for save as */);
-+    //a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
-+    //ac->addAction(QStringLiteral("file_save_as_with_encoding"), a);
-+
-+    //a = ac->addAction(QStringLiteral("file_save_copy_as"));
-+    //a->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
-+    //a->setText(i18n("Save &Copy As..."));
-+    //a->setWhatsThis(i18n("Save a copy of the current document to disk."));
-+    //connect(a, &QAction::triggered, m_doc, &KTextEditor::DocumentPrivate::documentSaveCopyAs);
-
-     a = ac->addAction(KStandardAction::GotoLine, this, SLOT(gotoLine()));
-     a->setWhatsThis(i18n("This command opens a dialog and lets you choose a line that you want the cursor to move to."));
