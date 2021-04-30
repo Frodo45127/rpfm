@@ -54,6 +54,7 @@ jobs:
         name: Build RPFM
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
+          cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
           cd C:\actions-runner\_work\rpfm\rpfm
           cargo build --release
           cd rpfm_ui
