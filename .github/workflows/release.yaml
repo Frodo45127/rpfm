@@ -55,7 +55,8 @@ jobs:
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
           cd C:\actions-runner\_work\rpfm\rpfm
-          cargo build --release --features "support_rigidmodel support_modern_dds"
+          cargo build --release
+          cargo build --release --bin rpfm_ui --features "support_rigidmodel support_modern_dds"
         shell: pwsh
 
       - if: matrix.os == 'self-hosted-ubuntu'
