@@ -14,6 +14,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Table name contains spaces` diagnostic.
 - Implemented `Table is datacoring` diagnostic.
 - Implemented `Dependencies Cache not yet generated` diagnostic.
+- Implemented `Dependencies Cache outdated` diagnostic.
+- Implemented `Dependencies Cache could not be loaded` diagnostic.
 - Implemented `Debug` PackedFile View.
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
 - Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
@@ -25,6 +27,7 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
+- Updated Qt dependencies to 5.15.2 (this time for real).
 
 ### Fixed
 - Fixed false positives on the diagnostics tool after adding new tables to a PackFile.
@@ -36,6 +39,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed duplicate diagnostics not checking across files.
 - Fixed duplicate keys diagnostics not working on tables with just one key column.
 - Fixed diagnostics not being painted to tables after opening them.
+- Fixed RPFM failing to reload the dependencies on cache generation.
+- Fixed jpg images not loading.
 
 ## [2.4.3]
 ### Added
