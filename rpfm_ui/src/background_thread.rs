@@ -314,7 +314,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!dependencies.get_ref_vanilla_packed_files_cache().read().unwrap().is_empty())),
+            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(dependencies.game_has_vanilla_data_loaded())),
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),

@@ -38,7 +38,9 @@ pub struct ConfigDiagnosticReport {
 
 #[derive(Debug, Clone)]
 pub enum ConfigDiagnosticReportType {
-    DependenciesCacheNotGenerated
+    DependenciesCacheNotGenerated,
+    DependenciesCacheOutdated,
+    DependenciesCacheCouldNotBeLoaded(String)
 }
 
 //---------------------------------------------------------------p----------------//
@@ -66,6 +68,8 @@ impl Display for ConfigDiagnosticReportType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
             Self::DependenciesCacheNotGenerated => "DependenciesCacheNotGenerated",
+            Self::DependenciesCacheOutdated => "DependenciesCacheOutdated",
+            Self::DependenciesCacheCouldNotBeLoaded(_) => "DependenciesCacheCouldNotBeLoaded",
         }, f)
     }
 }

@@ -2166,26 +2166,7 @@ impl PackFile {
     /// This function tries to get the list of CA PackFile of the currently selected game from the manifest.txt on /data,
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
-        let data_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
-
-        // Try to get the manifest, if exists. If not, default to the old "Load everything except mods".
-        let pack_file_paths = match Manifest::read_from_game_selected() {
-            Ok(manifest) => {
-                let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
-                pack_file_names.iter().map(|x| {
-                    let mut pack_file_path = data_path.to_path_buf();
-                    pack_file_path.push(x);
-                    pack_file_path
-                }).collect::<Vec<PathBuf>>()
-            }
-            Err(_) => get_files_from_subdir(&data_path)?.iter()
-                .filter_map(|x| if let Some(extension) = x.extension() {
-                    if extension.to_string_lossy().to_lowercase() == "pack" {
-                        Some(x.to_owned())
-                    } else { None }
-                } else { None }).collect::<Vec<PathBuf>>()
-        };
-
+        let pack_file_paths = get_all_ca_packfiles_paths()?;
         Self::open_packfiles(&pack_file_paths, true, true, true)
     }
 

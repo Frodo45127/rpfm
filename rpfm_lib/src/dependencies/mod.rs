@@ -28,6 +28,7 @@ use rpfm_macros::*;
 use rpfm_error::{Result, Error};
 
 use crate::assembly_kit::table_data::RawTable;
+use crate::common::*;
 use crate::config::get_config_path;
 use crate::DB;
 use crate::GAME_SELECTED;
@@ -49,6 +50,9 @@ const DEPENDENCIES_FOLDER: &str = "dependencies";
 /// This struct contains the dependency data for the different features within RPFM.
 #[derive(Default, Debug, Clone, GetRef, GetRefMut, Serialize, Deserialize)]
 pub struct Dependencies {
+
+    /// Date of the generation of this dependencies cache. For checking if it needs an update.
+    build_date: i64,
 
     /// Cached data for already checked tables. This is for runtime caching, and it must not be serialized to disk.
     #[serde(skip_serializing, skip_deserializing)]
@@ -84,55 +88,62 @@ impl Dependencies {
     ///
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
-        if !only_parent_mods {
+        if let Ok(needs_updating) = self.needs_updating() {
+            if !needs_updating {
+                if !only_parent_mods {
 
-            // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
-            // the bastart triggers a memory leak in the next step. Not sure why.
-            self.vanilla_cached_packed_files.clear();
-            self.asskit_only_db_tables.clear();
-            self.cached_data.write().unwrap().clear();
-            self.vanilla_packed_files_cache.write().unwrap().clear();
+                    // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
+                    // the bastart triggers a memory leak in the next step. Not sure why.
+                    self.vanilla_cached_packed_files.clear();
+                    self.asskit_only_db_tables.clear();
+                    self.cached_data.write().unwrap().clear();
+                    self.vanilla_packed_files_cache.write().unwrap().clear();
 
-            self.vanilla_cached_packed_files = vec![];
-            self.asskit_only_db_tables = vec![];
-            *self.cached_data.write().unwrap() = BTreeMap::new();
-            *self.vanilla_packed_files_cache.write().unwrap() = BTreeMap::new();
+                    self.vanilla_cached_packed_files = vec![];
+                    self.asskit_only_db_tables = vec![];
+                    *self.cached_data.write().unwrap() = BTreeMap::new();
+                    *self.vanilla_packed_files_cache.write().unwrap() = BTreeMap::new();
 
-            // Preload the data from the game that only changes on updates.
-            let stored_data = Self::load_from_binary()?;
-            self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
-            self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
-            self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
+                    // Preload the data from the game that only changes on updates.
+                    let stored_data = Self::load_from_binary()?;
+                    self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
+                    self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
+                    self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
 
-            // Pre-decode all tables/locs to memory.
-            if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                    let _ = x.1.decode_no_locks(schema);
-                });
+                    // Pre-decode all tables/locs to memory.
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
+                            let _ = x.1.decode_no_locks(schema);
+                        });
+                    }
+                }
+
+                // Preload parent mods of the currently open PackFile.
+                self.parent_cached_packed_files.clear();
+                self.parent_cached_packed_files = vec![];
+
+                self.parent_packed_files_cache.write().unwrap().clear();
+                *self.parent_packed_files_cache.write().unwrap() = BTreeMap::new();
+
+                PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
+
+                // Pre-decode all tables/locs to memory.
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
+                        let _ = x.1.decode_no_locks(schema);
+                    });
+                };
             }
         }
-
-        // Preload parent mods of the currently open PackFile.
-        self.parent_cached_packed_files.clear();
-        self.parent_cached_packed_files = vec![];
-
-        self.parent_packed_files_cache.write().unwrap().clear();
-        *self.parent_packed_files_cache.write().unwrap() = BTreeMap::new();
-
-        PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
-
-        // Pre-decode all tables/locs to memory.
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                let _ = x.1.decode_no_locks(schema);
-            });
-        };
 
         Ok(())
     }
 
     /// This function generates the entire dependency cache for the currently selected game.
     pub fn generate_dependencies_cache(&mut self, path: &PathBuf, version: i16) -> Result<()> {
+
+        self.build_date = get_current_time();
+
         if let Ok(pack_file) = PackFile::open_all_ca_packfiles() {
             self.vanilla_cached_packed_files = pack_file.get_ref_packed_files_all().par_iter()
                 .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some(data) } else { None })
@@ -255,6 +266,11 @@ impl Dependencies {
         file_path.is_file()
     }
 
+    /// This function checks if the current Game Selected has the vanilla data loaded in the dependencies.
+    pub fn game_has_vanilla_data_loaded(&self) -> bool {
+        !self.vanilla_packed_files_cache.read().unwrap().is_empty()
+    }
+
     /// This function checks if the current Game Selected has the asskit data loaded in the dependencies.
     pub fn game_has_asskit_data_loaded(&self) -> bool {
         !self.asskit_only_db_tables.is_empty()
@@ -299,5 +315,12 @@ impl Dependencies {
         // Never serialize directly into the file. It's bloody slow!!!
         let serialized: Vec<u8> = bincode::serialize(&self)?;
         file.write_all(&serialized).map_err(From::from)
+    }
+
+    /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
+    pub fn needs_updating(&self) -> Result<bool> {
+        let ca_paths = get_all_ca_packfiles_paths()?;
+        let last_date = get_last_modified_time_from_files(&ca_paths)?;
+        Ok(last_date > self.build_date)
     }
 }

@@ -915,3 +915,18 @@ table_is_datacoring_explanation = When your mod has a table (or any file, really
     this warning for this table there.
 
 
+label_dependencies_cache_outdated = Dependencies Cache is outdated:
+label_dependencies_cache_could_not_be_loaded = Dependencies Cache could not be loaded:
+
+dependencies_cache_outdated_explanation = The dependencies cache is outdated and must be regenerated. This usually happens due to a game update, or due to someone modifing the game files.
+
+    RPFM needs the dependencies cache up-to-date in order to provide diagnostics, table completions, table creations, etc... so it's important to keep it updated.
+
+    To fix it, go to "Special Stuff/yourgame/Generate Dependencies Cache" and wait until it finish.
+
+dependencies_cache_could_not_be_loaded_explanation = RPFM failed to load the dependencies cache. This can be caused by multiple reasons, for example:
+    - RPFM being unable to read the game files due to another program locking them, or due to them being missing.
+    - RPFM not being able to read the dependencies cache itself, or its folder.
+    - Many more. Too many to count them.
+
+    The error message returned is: {"{"}{"}"}
