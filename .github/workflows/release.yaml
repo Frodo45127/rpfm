@@ -168,6 +168,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\zlib.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\zlib1.dll
 
           # Required since this week it seems.
+          cp ${{ matrix.DDISK }}:\Craft\bin\freetype.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\jpeg62.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\harfbuzz.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libbzip2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
