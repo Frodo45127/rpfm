@@ -1441,16 +1441,16 @@ impl AppUISlots {
                     if !disable_autosaves {
                         CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
                         log_to_status_bar(&tr("autosaving"));
-                        app_ui.main_window.set_enabled(false);
-                        let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
-                        match response {
-                            Response::Success => log_to_status_bar(&tr("autosaved")),
-                            Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
-                                log_to_status_bar(&tr("error_autosave_non_editable"))
-                            } else { log_to_status_bar(&error.to_terminal()) },
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }
-                        app_ui.main_window.set_enabled(true);
+                        //app_ui.main_window.set_enabled(false);
+                        //let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
+                        //match response {
+                        //    Response::Success => log_to_status_bar(&tr("autosaved")),
+                        //    Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
+                        //        log_to_status_bar(&tr("error_autosave_non_editable"))
+                        //    } else { log_to_status_bar(&error.to_terminal()) },
+                        //    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        //}
+                        //app_ui.main_window.set_enabled(true);
 
                         // Reset the timer.
                         let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);

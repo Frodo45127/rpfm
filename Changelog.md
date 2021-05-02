@@ -28,6 +28,7 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
 - Updated Qt dependencies to 5.15.2 (this time for real).
+- Removed greying out on Autosave.
 
 ### Fixed
 - Fixed false positives on the diagnostics tool after adding new tables to a PackFile.

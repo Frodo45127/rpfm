@@ -1003,17 +1003,10 @@ pub fn background_loop() {
 
             // When we want to update our program...
             Command::TriggerBackupAutosave => {
-                match get_oldest_file_in_folder(&get_backup_autosave_path().unwrap()) {
-                    Ok(file) => match file {
-                        Some(file) => {
-                            match pack_file_decoded.clone().save(Some(file)) {
-                                Ok(_) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Done),
-                                Err(error) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
-                            }
-                        }
-                        None => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric("No autosave files found.".to_owned())))),
-                    }
-                    Err(_) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric("No autosave files found.".to_string())))),
+
+                // Note: we no longer notify the UI of success or error to not hang it up.
+                if let Ok(Some(file)) = get_oldest_file_in_folder(&get_backup_autosave_path().unwrap()) {
+                    let _ = pack_file_decoded.clone().save(Some(file));
                 }
             }
 
