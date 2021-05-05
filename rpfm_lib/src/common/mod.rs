@@ -103,10 +103,12 @@ pub fn get_last_modified_time_from_buffered_file(file: &BufReader<File>) -> i64 
 pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
     let mut last_time = 0;
     for path in paths {
-        let file = File::open(path).unwrap();
-        let time = get_last_modified_time_from_file(&file);
-        if time > last_time {
-            last_time = time
+        if path.is_file() {
+            let file = File::open(path).unwrap();
+            let time = get_last_modified_time_from_file(&file);
+            if time > last_time {
+                last_time = time
+            }
         }
     }
 
