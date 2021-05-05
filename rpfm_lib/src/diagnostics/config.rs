@@ -36,7 +36,7 @@ pub struct ConfigDiagnosticReport {
     pub report_type: ConfigDiagnosticReportType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConfigDiagnosticReportType {
     DependenciesCacheNotGenerated,
     DependenciesCacheOutdated,

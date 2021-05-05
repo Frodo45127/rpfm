@@ -116,31 +116,32 @@ impl Diagnostics {
                     level: DiagnosticLevel::Error,
                 }
             );
-        }
+        } else {
 
-        // Second, check if the dependencies are valid. we can't actually use them if not.
-        match dependencies.needs_updating() {
-            Ok(needs_updating) => {
-                if needs_updating {
+            // Second, check if the dependencies are valid. we can't actually use them if not.
+            match dependencies.needs_updating() {
+                Ok(needs_updating) => {
+                    if needs_updating {
+                        config_diagnostic.get_ref_mut_result().push(
+                            ConfigDiagnosticReport {
+                                message: "Dependency Cache for the selected game is outdated and could not be loaded.".to_owned(),
+                                report_type: ConfigDiagnosticReportType::DependenciesCacheOutdated,
+                                level: DiagnosticLevel::Error,
+                            }
+                        );
+                    }
+                }
+
+                Err(error) => {
                     config_diagnostic.get_ref_mut_result().push(
                         ConfigDiagnosticReport {
-                            message: "Dependency Cache for the selected game is outdated and could not be loaded.".to_owned(),
-                            report_type: ConfigDiagnosticReportType::DependenciesCacheOutdated,
+                            message: "Dependency Cache couldn't be loaded for the game selected, due to errors reading the game's folder.".to_owned(),
+                            report_type: ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string()),
                             level: DiagnosticLevel::Error,
                         }
                     );
+
                 }
-            }
-
-            Err(error) => {
-                config_diagnostic.get_ref_mut_result().push(
-                    ConfigDiagnosticReport {
-                        message: "Dependency Cache couldn't be loaded for the game selected, due to errors reading the game's folder.".to_owned(),
-                        report_type: ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string()),
-                        level: DiagnosticLevel::Error,
-                    }
-                );
-
             }
         }
 
@@ -668,19 +669,59 @@ impl Diagnostics {
     /// use the normal check function, because it's a lot more efficient than this one.
     pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
 
+        self.0.iter_mut().for_each(|x| {
+            if let DiagnosticType::Config(config) = x {
+                config.get_ref_mut_result().retain(|x|
+                    match x.report_type {
+                        ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
+                        ConfigDiagnosticReportType::DependenciesCacheOutdated |
+                        ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => false
+                    }
+                );
+            }
+        });
+
         // First, check if the dependencies are generated. We can't do shit without them.
+        let mut config_diagnostic = ConfigDiagnostic::new();
         if !dependencies.game_has_dependencies_generated() {
-            let mut diagnostic = ConfigDiagnostic::new();
-            diagnostic.get_ref_mut_result().push(
+            config_diagnostic.get_ref_mut_result().push(
                 ConfigDiagnosticReport {
                     message: "Dependency Cache not generated for the currently selected game.".to_owned(),
                     report_type: ConfigDiagnosticReportType::DependenciesCacheNotGenerated,
                     level: DiagnosticLevel::Error,
                 }
             );
+        } else {
 
-            self.0.push(DiagnosticType::Config(diagnostic));
+            // Second, check if the dependencies are valid. we can't actually use them if not.
+            match dependencies.needs_updating() {
+                Ok(needs_updating) => {
+                    if needs_updating {
+                        config_diagnostic.get_ref_mut_result().push(
+                            ConfigDiagnosticReport {
+                                message: "Dependency Cache for the selected game is outdated and could not be loaded.".to_owned(),
+                                report_type: ConfigDiagnosticReportType::DependenciesCacheOutdated,
+                                level: DiagnosticLevel::Error,
+                            }
+                        );
+                    }
+                }
 
+                Err(error) => {
+                    config_diagnostic.get_ref_mut_result().push(
+                        ConfigDiagnosticReport {
+                            message: "Dependency Cache couldn't be loaded for the game selected, due to errors reading the game's folder.".to_owned(),
+                            report_type: ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string()),
+                            level: DiagnosticLevel::Error,
+                        }
+                    );
+
+                }
+            }
+        }
+
+        if !config_diagnostic.get_ref_result().is_empty() {
+            self.0.push(DiagnosticType::Config(config_diagnostic));
             return;
         }
 
