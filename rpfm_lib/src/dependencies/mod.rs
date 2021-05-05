@@ -40,7 +40,7 @@ use crate::packedfile::table::DependencyData;
 use crate::SCHEMA;
 use crate::SUPPORTED_GAMES;
 
-const BINARY_EXTENSION: &str = ".pak2";
+const BINARY_EXTENSION: &str = "pak2";
 const DEPENDENCIES_FOLDER: &str = "dependencies";
 
 //-------------------------------------------------------------------------------//
