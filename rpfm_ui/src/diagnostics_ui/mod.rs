@@ -49,6 +49,8 @@ use cpp_core::Ptr;
 use std::rc::Rc;
 
 use rpfm_lib::diagnostics::{*, config::*, table::*, dependency_manager::*, packfile::*};
+use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::games::*;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -765,6 +767,31 @@ impl DiagnosticsUI {
                 }
             }
 
+            // Config matches have to open their relevant config issue.
+            "Config" => {
+                match &*model.item_2a(model_index.row(), 6).text().to_std_string() {
+
+                    // For these, we will trigger the action to generate the dependencies cache.
+                    "DependenciesCacheNotGenerated" |
+                    "DependenciesCacheOutdated" |
+                    "DependenciesCacheCouldNotBeLoaded" => {
+                        match &**GAME_SELECTED.read().unwrap() {
+                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache.trigger(),
+                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache.trigger(),
+                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache.trigger(),
+                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache.trigger(),
+                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache.trigger(),
+                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache.trigger(),
+                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            KEY_SHOGUN_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            KEY_NAPOLEON => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            KEY_EMPIRE => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
     }

@@ -982,70 +982,73 @@ impl AppUISlots {
         let special_stuff_generate_dependencies_cache = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
-                // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-                let path = match version {
+                if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
 
-                    // Post-Shogun 2 games.
-                    2 => {
-                        if let Some(ref path) = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()] {
-                            let mut path = path.to_path_buf();
-                            path.push("assembly_kit");
+                    // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
+                    let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
+                    let path = match version {
+
+                        // Post-Shogun 2 games.
+                        2 => {
+                            if let Some(ref path) = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()] {
+                                let mut path = path.to_path_buf();
+                                path.push("assembly_kit");
+                                path.push("raw_data");
+                                path.push("db");
+                                path
+                            }
+                            else {
+                                return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                            }
+                        }
+
+                        // Shogun 2.
+                        1 => {
+
+                            // Create the FileDialog to get the path of the Assembly Kit.
+                            let file_dialog = QFileDialog::from_q_widget_q_string(
+                                &app_ui.main_window,
+                                &qtr("special_stuff_select_ak_folder"),
+                            );
+
+                            // Set it to only search Folders.
+                            file_dialog.set_file_mode(FileMode::Directory);
+                            file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            let mut path = if file_dialog.exec() == 1 {
+                                PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
+                            } else {
+                                return show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
+                            };
+
                             path.push("raw_data");
                             path.push("db");
                             path
                         }
-                        else {
-                            return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+
+                        // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
+                        _ => return show_dialog(&app_ui.main_window, tr("game_selected_unsupported_operation"), false),
+                    };
+
+                    if path.is_dir() {
+
+                        // If there is no problem, ere we go.
+                        app_ui.main_window.set_enabled(false);
+
+                        CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(path, version));
+                        let response = CENTRAL_COMMAND.recv_message_qt_try();
+                        match response {
+                            Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
+                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
+
+                        app_ui.main_window.set_enabled(true);
                     }
-
-                    // Shogun 2.
-                    1 => {
-
-                        // Create the FileDialog to get the path of the Assembly Kit.
-                        let file_dialog = QFileDialog::from_q_widget_q_string(
-                            &app_ui.main_window,
-                            &qtr("special_stuff_select_ak_folder"),
-                        );
-
-                        // Set it to only search Folders.
-                        file_dialog.set_file_mode(FileMode::Directory);
-                        file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
-
-                        // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = if file_dialog.exec() == 1 {
-                            PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
-                        } else {
-                            return show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
-                        };
-
-                        path.push("raw_data");
-                        path.push("db");
-                        path
+                    else {
+                        show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
                     }
-
-                    // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                    _ => return show_dialog(&app_ui.main_window, tr("game_selected_unsupported_operation"), false),
-                };
-
-                if path.is_dir() {
-
-                    // If there is no problem, ere we go.
-                    app_ui.main_window.set_enabled(false);
-
-                    CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(path, version));
-                    let response = CENTRAL_COMMAND.recv_message_qt_try();
-                    match response {
-                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                    }
-
-                    app_ui.main_window.set_enabled(true);
-                }
-                else {
-                    show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
                 }
             }
         ));
@@ -1056,29 +1059,32 @@ impl AppUISlots {
             pack_file_contents_ui,
             global_search_ui => move |_| {
 
-                // If there is no problem, ere we go.
-                app_ui.main_window.set_enabled(false);
+                if AppUI::are_you_sure_edition(&app_ui, "optimize_packfile_are_you_sure") {
 
-                if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
-                    return show_dialog(&app_ui.main_window, error, false);
-                }
+                    // If there is no problem, ere we go.
+                    app_ui.main_window.set_enabled(false);
 
-                GlobalSearchUI::clear(&global_search_ui);
-
-                CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
-                match response {
-                    Response::VecVecString(response) => {
-                        let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
-                        show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
+                    if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
+                        return show_dialog(&app_ui.main_window, error, false);
                     }
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
 
-                // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                    GlobalSearchUI::clear(&global_search_ui);
+
+                    CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::VecVecString(response) => {
+                            let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
+                            show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
+                        }
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
+                    // Re-enable the Main Window.
+                    app_ui.main_window.set_enabled(true);
+                }
             }
         ));
 

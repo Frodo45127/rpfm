@@ -930,3 +930,18 @@ dependencies_cache_could_not_be_loaded_explanation = RPFM failed to load the dep
     - Many more. Too many to count them.
 
     The error message returned is: {"{"}{"}"}
+
+generate_dependencies_cache_are_you_sure = Do you want to generate the dependencies cache?
+
+optimize_packfile_are_you_sure = <p><b>Are you sure you want to optimze this PackFile?</b></p>
+    <p>
+        Please, do a backup before using this. What this does is:
+        <ul>
+            <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+            <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+            <li><b>Remove empty DB tables</b>.</li>
+            <li><b>Remove empty LOC files</b>.</li>
+            <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+        </ul>
+        So again, are you sure you want to do it?
+    </p>
