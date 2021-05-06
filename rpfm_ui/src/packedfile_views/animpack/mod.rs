@@ -15,6 +15,7 @@ Module with all the code for managing the view for AnimPack PackedFiles.
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QTreeView;
+use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
@@ -112,6 +113,7 @@ impl PackedFileAnimPackView {
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
         // Create and configure the left `TreeView`, AKA the open PackFile.
+        let instructions = QLabel::from_q_string_q_widget(&qtr("animpack_view_instructions"), packed_file_view.get_mut_widget());
         let pack_tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
         let tree_model = &pack_file_contents_ui.packfile_contents_tree_model;
         let pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.get_mut_widget().static_upcast());
@@ -144,10 +146,11 @@ impl PackedFileAnimPackView {
         pack_tree_view.add_action(&pack_collapse_all);
 
         // Add everything to the main widget's Layout.
-        layout.add_widget_5a(&pack_tree_view, 0, 0, 1, 2);
-        layout.add_widget_5a(&pack_filter_line_edit, 1, 0, 1, 2);
-        layout.add_widget_5a(&pack_filter_autoexpand_matches_button, 2, 0, 1, 1);
-        layout.add_widget_5a(&pack_filter_case_sensitive_button, 2, 1, 1, 1);
+        layout.add_widget_5a(&instructions, 0, 0, 1, 4);
+        layout.add_widget_5a(&pack_tree_view, 1, 0, 1, 2);
+        layout.add_widget_5a(&pack_filter_line_edit, 2, 0, 1, 2);
+        layout.add_widget_5a(&pack_filter_autoexpand_matches_button, 3, 0, 1, 1);
+        layout.add_widget_5a(&pack_filter_case_sensitive_button, 3, 1, 1, 1);
 
         // Create and configure the right `TreeView`, AKA the AnimPack.
         let anim_pack_tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
@@ -181,10 +184,10 @@ impl PackedFileAnimPackView {
         anim_pack_tree_view.add_action(&anim_pack_delete);
 
         // Add everything to the main widget's Layout.
-        layout.add_widget_5a(&anim_pack_tree_view, 0, 2, 1, 2);
-        layout.add_widget_5a(&anim_pack_filter_line_edit, 1, 2, 1, 2);
-        layout.add_widget_5a(&anim_pack_filter_autoexpand_matches_button, 2, 2, 1, 1);
-        layout.add_widget_5a(&anim_pack_filter_case_sensitive_button, 2, 3, 1, 1);
+        layout.add_widget_5a(&anim_pack_tree_view, 1, 2, 1, 2);
+        layout.add_widget_5a(&anim_pack_filter_line_edit, 2, 2, 1, 2);
+        layout.add_widget_5a(&anim_pack_filter_autoexpand_matches_button, 3, 2, 1, 1);
+        layout.add_widget_5a(&anim_pack_filter_case_sensitive_button, 3, 3, 1, 1);
 
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
             path: packed_file_view.get_path_raw(),
