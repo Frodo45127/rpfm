@@ -47,7 +47,7 @@ mod encoder_test;
 
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 #[allow(dead_code)]
-pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
+pub fn get_files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
     let mut file_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
         Ok(files_in_current_path) => {
@@ -60,8 +60,8 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
 
                         // If it's a file, add it to the list. If it's a folder, add his files to the list.
                         if file_path.is_file() { file_list.push(file_path); }
-                        else if file_path.is_dir() {
-                            let mut subfolder_files_path = get_files_from_subdir(&file_path)?;
+                        else if file_path.is_dir() && scan_subdirs {
+                            let mut subfolder_files_path = get_files_from_subdir(&file_path, scan_subdirs)?;
                             file_list.append(&mut subfolder_files_path);
                         }
                     }
@@ -118,7 +118,7 @@ pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
 /// This function gets the oldest modified file in a folder and return it.
 #[allow(dead_code)]
 pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
-    let mut files = get_files_from_subdir(current_path)?;
+    let mut files = get_files_from_subdir(current_path, false)?;
     files.sort();
     files.sort_by(|a, b| {
         let a = File::open(a).unwrap();
@@ -132,7 +132,7 @@ pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>>
 /// This function gets the files in a folder sorted from newest to oldest.
 #[allow(dead_code)]
 pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = get_files_from_subdir(current_path)?;
+    let mut files = get_files_from_subdir(current_path, false)?;
     files.sort();
     files.sort_by(|a, b| {
         let a = File::open(a).unwrap();
@@ -199,7 +199,7 @@ pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
     let mut paths = vec![];
     let data_path = get_game_selected_data_path()?;
 
-    for path in get_files_from_subdir(&data_path).ok()?.iter() {
+    for path in get_files_from_subdir(&data_path, false).ok()?.iter() {
         match path.extension() {
             Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
             None => continue,
@@ -234,7 +234,7 @@ pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
 
     let mut paths = vec![];
 
-    for path in get_files_from_subdir(&path).ok()?.iter() {
+    for path in get_files_from_subdir(&path, true).ok()?.iter() {
         match path.extension() {
             Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
             None => continue,
@@ -266,7 +266,7 @@ pub fn get_game_selected_template_definitions_paths() -> Option<Vec<(bool, PathB
     let definitions_path = get_template_definitions_path().ok()?;
 
     let mut paths = vec![];
-    for path in get_files_from_subdir(&definitions_path).ok()?.iter() {
+    for path in get_files_from_subdir(&definitions_path, false).ok()?.iter() {
         match path.extension() {
             Some(extension) => if extension == "json" { paths.push((false, path.to_path_buf())); }
             None => continue,
@@ -274,7 +274,7 @@ pub fn get_game_selected_template_definitions_paths() -> Option<Vec<(bool, PathB
     }
 
     if let Ok(definitions_path) = get_custom_template_definitions_path() {
-        if let Ok(json_paths) = get_files_from_subdir(&definitions_path) {
+        if let Ok(json_paths) = get_files_from_subdir(&definitions_path, false) {
             for path in &json_paths {
                 match path.extension() {
                     Some(extension) => if extension == "json" { paths.push((true, path.to_path_buf())); }
@@ -292,7 +292,7 @@ pub fn get_game_selected_template_assets_paths() -> Option<Vec<PathBuf>> {
     let assets_path = get_template_assets_path().ok()?;
 
     let mut paths = vec![];
-    for path in get_files_from_subdir(&assets_path).ok()?.iter() {
+    for path in get_files_from_subdir(&assets_path, true).ok()?.iter() {
         paths.push(path.to_path_buf());
     }
     Some(paths)
@@ -492,14 +492,19 @@ pub fn get_all_ca_packfiles_paths() -> Result<Vec<PathBuf>> {
     // Try to get the manifest, if exists. If not, default to the old "Load everything except mods".
     match Manifest::read_from_game_selected() {
         Ok(manifest) => {
-            let pack_file_names = manifest.0.iter().filter_map(|x| if x.get_ref_relative_path().ends_with(".pack") { Some(x.get_ref_relative_path().to_owned()) } else { None }).collect::<Vec<String>>();
+            let pack_file_names = manifest.0.iter().filter_map(|x|
+                if x.get_ref_relative_path().ends_with(".pack") {
+                    Some(x.get_ref_relative_path().to_owned())
+                } else { None }
+                ).collect::<Vec<String>>();
+
             Ok(pack_file_names.iter().map(|x| {
                 let mut pack_file_path = data_path.to_path_buf();
                 pack_file_path.push(x);
                 pack_file_path
             }).collect::<Vec<PathBuf>>())
         }
-        Err(_) => Ok(get_files_from_subdir(&data_path)?.iter()
+        Err(_) => Ok(get_files_from_subdir(&data_path, false)?.iter()
             .filter_map(|x| if let Some(extension) = x.extension() {
                 if extension.to_string_lossy().to_lowercase() == "pack" {
                     Some(x.to_owned())

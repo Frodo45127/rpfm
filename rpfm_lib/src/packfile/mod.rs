@@ -737,7 +737,7 @@ impl PackFile {
 
         let mut packed_files_to_add = vec![];
         for (path, base_path) in paths_as_folder_and_destination {
-            match get_files_from_subdir(path) {
+            match get_files_from_subdir(path, true) {
                 Ok(file_paths) => {
                     for file_path in &file_paths {
 

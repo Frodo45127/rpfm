@@ -100,7 +100,7 @@ impl Locale {
     /// This function returns a list of all the languages we have translation files for in the `("English", "en")` form.
     pub fn get_available_locales() -> Result<Vec<(String, LanguageIdentifier)>> {
         let mut languages = vec![];
-        for file in get_files_from_subdir(&ASSETS_PATH.to_path_buf().join(Path::new("locale")))? {
+        for file in get_files_from_subdir(&ASSETS_PATH.to_path_buf().join(Path::new("locale")), false)? {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {

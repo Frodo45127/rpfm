@@ -106,7 +106,7 @@ pub fn update_main_program() -> Result<()> {
     let mut dest_base_path = current_exe()?;
     dest_base_path.pop();
 
-    for updated_file in &get_files_from_subdir(&tmp_dir.path())? {
+    for updated_file in &get_files_from_subdir(&tmp_dir.path(), true)? {
 
         // Ignore the downloaded ZIP.
         if let Some(extension) = updated_file.extension() {

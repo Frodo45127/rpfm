@@ -696,7 +696,7 @@ impl PackTree for QBox<QTreeView> {
             useless_prefix.pop();
 
             // Get the paths of all the files inside that folder, recursively.
-            let file_list = get_files_from_subdir(&file_path).unwrap();
+            let file_list = get_files_from_subdir(&file_path, true).unwrap();
 
             // Then, for each file, remove his prefix, leaving only the path from the folder onwards.
             for file_path in &file_list {

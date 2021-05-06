@@ -53,7 +53,7 @@ fn check_data() -> String {
         },
     };
 
-    let files = match get_files_from_subdir(&data_path) {
+    let files = match get_files_from_subdir(&data_path, true) {
         Ok(files) => files,
         Err(error) => {
             println!("Error while trying to identify the mods inside /data: {}", error.to_terminal());
@@ -87,7 +87,7 @@ fn check_content() -> String {
         Err(error) => return error.to_string(),
     };
 
-    let files = match get_files_from_subdir(&content_path) {
+    let files = match get_files_from_subdir(&content_path, true) {
         Ok(files) => files,
         Err(error) => {
             println!("Error while trying to identify the mods inside /mods: {}", error.to_terminal());

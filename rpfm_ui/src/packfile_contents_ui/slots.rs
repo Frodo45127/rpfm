@@ -574,7 +574,7 @@ impl PackFileContentsSlots {
 
                                 // Get the Paths of the files inside the folders we want to add.
                                 let mut paths: Vec<PathBuf> = vec![];
-                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path, true).unwrap()); }
 
                                 // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
                                 if paths[0].starts_with(&assets_folder) {
