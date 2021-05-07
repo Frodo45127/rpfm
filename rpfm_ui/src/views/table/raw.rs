@@ -505,7 +505,7 @@ impl TableView {
         let (base_index_visual, mut visual_row) = if !indexes.is_empty() {
             (Some(&indexes[0]), vertical_header.visual_index(indexes[0].row()))
         } else {
-            (None, self.table_model.row_count_0a())
+            (None, -1)
         };
 
         let definition = self.get_ref_table_definition();
@@ -519,11 +519,13 @@ impl TableView {
                 None => 0,
             };
 
+            let mut real_row = self.table_filter.map_to_source(&self.table_filter.index_2a(visual_row, visual_column)).row();
+
             for text in row {
 
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
                 let real_column = horizontal_header.logical_index(visual_column);
-                let mut real_row = vertical_header.logical_index(visual_row);
+
                 if let Some(field) = fields_processed.get(real_column as usize) {
 
                     // Check if, according to the definition, we have a valid value for the type.
@@ -1379,9 +1381,13 @@ impl TableView {
             self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 
-        // Re-sort the table, as it's not automatically done.
+        // Re-sort and re-filter the table, as it's not automatically done.
         self.table_filter.set_dynamic_sort_filter(false);
         self.table_filter.set_dynamic_sort_filter(true);
+
+        self.table_filter.invalidate();
+        self.filter_table();
+
         self.table_view_primary.viewport().repaint();
     }
 
