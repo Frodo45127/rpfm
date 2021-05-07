@@ -385,9 +385,6 @@ impl TableView {
 
     /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
     pub unsafe fn paste_as_new_row(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-
-        // Get the current selection. We treat it like a TSV, for compatibility with table editors.
-        // Also, if the text ends in \n, remove it. Excel things.
         let mut text = QGuiApplication::clipboard().text().to_std_string();
         if text.ends_with('\n') { text.pop(); }
         let rows = text.split('\n').collect::<Vec<&str>>();
@@ -511,6 +508,9 @@ impl TableView {
             (None, self.table_model.row_count_0a())
         };
 
+        let definition = self.get_ref_table_definition();
+        let fields_processed = definition.get_fields_processed();
+
         let mut real_cells = vec![];
         let mut added_rows = 0;
         for row in text {
@@ -524,8 +524,7 @@ impl TableView {
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
                 let real_column = horizontal_header.logical_index(visual_column);
                 let mut real_row = vertical_header.logical_index(visual_row);
-                let definition = self.get_ref_table_definition();
-                if let Some(field) = definition.get_fields_processed().get(real_column as usize) {
+                if let Some(field) = fields_processed.get(real_column as usize) {
 
                     // Check if, according to the definition, we have a valid value for the type.
                     let is_valid_data = match field.get_ref_field_type() {
@@ -553,10 +552,10 @@ impl TableView {
                         if real_row == -1 {
                             let row = get_new_row(&self.get_ref_table_definition());
                             self.table_model.append_row_q_list_of_q_standard_item(&row);
-                            real_row = self.table_filter.row_count_0a() - 1;
+                            real_row = self.table_model.row_count_0a() - 1;
                             added_rows += 1;
                         }
-                        real_cells.push((self.table_filter.map_to_source(&self.table_filter.index_2a(real_row, real_column)), *text));
+                        real_cells.push((self.table_model.index_2a(real_row, real_column), *text));
                     }
                 }
                 visual_column += 1;
@@ -1379,6 +1378,11 @@ impl TableView {
         if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
             self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
+
+        // Re-sort the table, as it's not automatically done.
+        self.table_filter.set_dynamic_sort_filter(false);
+        self.table_filter.set_dynamic_sort_filter(true);
+        self.table_view_primary.viewport().repaint();
     }
 
     /// This function triggers a cascade edition through the entire program of the selected cells.
