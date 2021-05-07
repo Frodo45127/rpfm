@@ -45,7 +45,6 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::packfile::PathType;
 use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
 
 use crate::app_ui::AppUI;
@@ -447,43 +446,6 @@ impl GlobalSearchUI {
         Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
         Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
         Self::load_schema_matches_to_ui(&model_schema, &tree_view_schema, &global_search.matches_schema);
-        UI_STATE.set_global_search(&global_search);
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
-    }
-
-    /// This function takes care of updating the results of a global search for the provided paths.
-    ///
-    /// NOTE: This only works in the `editable` search results, which are DB Tables, Locs and Text PackedFiles.
-    pub unsafe fn search_on_path(
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<Self>,
-        paths: Vec<PathType>
-    ) {
-
-        // Create the global search and populate it with all the settings for the search.
-        let global_search = UI_STATE.get_global_search();
-
-        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchUpdate(global_search, paths));
-
-        // While we wait for an answer, we need to clear the current results panels.
-        let tree_view_db = &global_search_ui.global_search_matches_db_tree_view;
-        let tree_view_loc = &global_search_ui.global_search_matches_loc_tree_view;
-        let tree_view_text = &global_search_ui.global_search_matches_text_tree_view;
-
-        let model_db = &global_search_ui.global_search_matches_db_tree_model;
-        let model_loc = &global_search_ui.global_search_matches_loc_tree_model;
-        let model_text = &global_search_ui.global_search_matches_text_tree_model;
-
-        model_db.clear();
-        model_loc.clear();
-        model_text.clear();
-
-        // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-        let (global_search, packed_files_info) = CENTRAL_COMMAND.recv_message_global_search_update_to_qt_try();
-
-        Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
-        Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
-        Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
         UI_STATE.set_global_search(&global_search);
         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
     }

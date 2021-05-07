@@ -47,7 +47,7 @@ use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Notification, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::{tr, tre};
 use crate::RPFM_PATH;
 use crate::views::table::TableType;
@@ -229,13 +229,6 @@ pub fn background_loop() {
             Command::GlobalSearch(mut global_search) => {
                 global_search.search(&mut pack_file_decoded);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_global_search_update_to_qt((global_search, packed_files_info));
-            }
-
-            // In case we want to update the results of a global search on a `PackFile`...
-            Command::GlobalSearchUpdate(mut global_search, path_types) => {
-                global_search.update(&mut pack_file_decoded, &path_types);
-                let packed_files_info = global_search.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
                 CENTRAL_COMMAND.send_message_global_search_update_to_qt((global_search, packed_files_info));
             }
 
