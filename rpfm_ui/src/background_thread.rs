@@ -1140,6 +1140,8 @@ pub fn background_loop() {
                 }
             },
 
+            Command::GetPackFileName => CENTRAL_COMMAND.send_message_rust(Response::String(pack_file_decoded.get_file_name())),
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

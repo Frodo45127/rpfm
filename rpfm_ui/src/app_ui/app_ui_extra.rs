@@ -2126,7 +2126,12 @@ impl AppUI {
         let table_filter = QSortFilterProxyModel::new_1a(&dialog);
         let table_model = QStandardItemModel::new_1a(&dialog);
 
-        name_line_edit.set_text(&qtr("new_file_default"));
+        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
+
+        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
         table_dropdown.set_model(&table_model);
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
@@ -2217,10 +2222,15 @@ impl AppUI {
         let name_line_edit = QLineEdit::new();
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        name_line_edit.set_text(&qtr("trololol"));
+        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
 
-        main_grid.add_widget_5a(& name_line_edit, 1, 0, 1, 1);
-        main_grid.add_widget_5a(& accept_button, 1, 1, 1, 1);
+        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
+
+        main_grid.add_widget_5a(&name_line_edit, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 1, 1, 1, 1);
 
         accept_button.released().connect(dialog.slot_accept());
 
@@ -2239,22 +2249,28 @@ impl AppUI {
 
         // Create the main Grid.
         let main_grid = create_grid_layout(dialog.static_upcast());
-        let name = QLineEdit::new();
-        name.set_placeholder_text(&qtr("merge_tables_new_name"));
+        let name_line_edit = QLineEdit::new();
+
+        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
+
+        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
 
         let delete_source_tables = QCheckBox::from_q_string(&qtr("merge_tables_delete_option"));
 
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
-        main_grid.add_widget_5a(& name, 0, 0, 1, 1);
-        main_grid.add_widget_5a(& delete_source_tables, 1, 0, 1, 1);
-        main_grid.add_widget_5a(& accept_button, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&name_line_edit, 0, 0, 1, 1);
+        main_grid.add_widget_5a(&delete_source_tables, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 2, 0, 1, 1);
 
         // What happens when we hit the "Search" button.
         accept_button.released().connect(dialog.slot_accept());
 
         // Execute the dialog.
         if dialog.exec() == 1 {
-            let text = name.text().to_std_string();
+            let text = name_line_edit.text().to_std_string();
             let delete_source_tables = delete_source_tables.is_checked();
             if !text.is_empty() { Some((text, delete_source_tables)) }
             else { None }

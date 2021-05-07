@@ -351,7 +351,10 @@ pub enum Command {
     GoToLoc(String),
 
     /// This command is used to get the type of a PackedFile.
-    GetPackedFileType(Vec<String>)
+    GetPackedFileType(Vec<String>),
+
+    /// This command is used to get the name of the currently open PackFile.
+    GetPackFileName,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
