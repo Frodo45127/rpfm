@@ -26,7 +26,7 @@ use std::panic::PanicInfo;
 use std::path::Path;
 use std::panic;
 
-use crate::{ErrorKind, Result, VERSION};
+use crate::{ErrorKind, Result, SENTRY_DSN, VERSION};
 
 /// This struct contains all the info to write into a `CrashReport` file.
 #[derive(Debug, Serialize)]
@@ -67,7 +67,15 @@ impl CrashReport {
 			panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
 				Self::new(info, VERSION).save(&config_path).unwrap();
 			}));
+
+            // Sentry guard, for testing sentry reports.
+            let _guard = sentry::init((SENTRY_DSN, sentry::ClientOptions {
+                release: sentry::release_name!(),
+                sample_rate: 1.0,
+                ..Default::default()
+            }));
 		}
+
 		Ok(())
 	}
 

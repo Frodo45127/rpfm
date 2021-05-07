@@ -38,6 +38,9 @@ pub type Result<T> = result::Result<T, Error>;
 /// Current version of the crate.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// This is the DSN needed for Sentry reports to work. Don't change it.
+const SENTRY_DSN: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/1205298";
+
 //---------------------------------------------------------------------------//
 //                      Definition of the Types
 //---------------------------------------------------------------------------//
