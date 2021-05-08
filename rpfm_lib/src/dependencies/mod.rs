@@ -88,6 +88,9 @@ impl Dependencies {
     ///
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
+        let stored_data = Self::load_from_binary()?;
+        self.build_date = stored_data.build_date;
+
         if let Ok(needs_updating) = self.needs_updating() {
             if !needs_updating {
                 if !only_parent_mods {
@@ -105,7 +108,6 @@ impl Dependencies {
                     *self.vanilla_packed_files_cache.write().unwrap() = BTreeMap::new();
 
                     // Preload the data from the game that only changes on updates.
-                    let stored_data = Self::load_from_binary()?;
                     self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
                     self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
                     self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
