@@ -24,11 +24,17 @@ If you're looking for the changes included in the latest beta (against the lates
 - Reworked cell painting on tables, so it should no longer left unreadable cells on painting.
 - Implemented support for ignoring specific diagnostics per PackFile.
 - Key columns now have a distinct background.
+- Added instructions to the AnimPack view.
+- Added a dialog before generating the dependencies cache.
+- Added a dialog before optimizing a PackFile, explaining what the optimizer does, and asking the user to make a backup before using it.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
 - Updated Qt dependencies to 5.15.2 (this time for real).
 - Removed greying out on Autosave.
+- Re-enable automatic crash report with Sentry.
+- Now double-clicking diagnostics related to RPFM configuration opens the relevant configuration.
+- Open From Data should no longer check subdirs for Packs.
 
 ### Fixed
 - Fixed false positives on the diagnostics tool after adding new tables to a PackFile.
@@ -42,6 +48,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed diagnostics not being painted to tables after opening them.
 - Fixed RPFM failing to reload the dependencies on cache generation.
 - Fixed jpg images not loading.
+- Fixed some paste operations not pasting where they should if a filter/sorting was applied to the table before the operation.
+- Fixed table not updating correctly after a certain operations.
+- Fixed warnings.
+- Fixed a hang on opening/creating PackFiles if the user had a game installed with missing Packs.
+- Fixed a few issues related to the dependencies cache.
 
 ## [2.4.3]
 ### Added
