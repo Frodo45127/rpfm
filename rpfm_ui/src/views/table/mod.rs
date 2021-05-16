@@ -655,8 +655,12 @@ impl TableView {
 
         // Update the stored definition.
         let table_definition = match data {
+            TableType::AnimFragment(ref table) => table.get_definition(),
+            TableType::AnimTable(ref table) => table.get_definition(),
             TableType::DB(ref table) => table.get_definition(),
             TableType::Loc(ref table) => table.get_definition(),
+            TableType::MatchedCombat(ref table) => table.get_definition(),
+            TableType::NormalTable(ref table) => table.get_definition(),
             _ => unimplemented!(),
         };
 
