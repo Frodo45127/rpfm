@@ -53,6 +53,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed warnings.
 - Fixed a hang on opening/creating PackFiles if the user had a game installed with missing Packs.
 - Fixed a few issues related to the dependencies cache.
+- Fixed CTD on certain table view reloads.
 
 ## [2.4.3]
 ### Added
