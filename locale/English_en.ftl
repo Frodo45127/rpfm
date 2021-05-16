@@ -950,5 +950,5 @@ animpack_view_instructions = <p><b>How to use this view:</b></p>
     <ul>
         <li><b>If you want to add stuff from the PackFile to the AnimPack</b>: double-click the files you want to add on the left panel.</li>
         <li><b>If you want to extract files from the AnimPack into the PackFile</b>: double-click the files you want to add on the right panel.</li>
-        <li><b>If you want to delete files from the AnimPack</b>: right-click what you want to delete on the right panel, then hit delete.</li>
+        <li><b>If you want to delete files from the AnimPack</b>: select what you want to delete on the right panel, then hit delete.</li>
     </ul>
