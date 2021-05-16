@@ -42,7 +42,9 @@ use qt_core::CaseSensitivity;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+#[cfg(feature = "support_rigidmodel")]
 use rpfm_error::{Result, ErrorKind};
+
 use rpfm_lib::SETTINGS;
 
 use crate::locale::qtr;
