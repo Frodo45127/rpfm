@@ -42,6 +42,7 @@ use qt_core::CaseSensitivity;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::SETTINGS;
 
 use crate::locale::qtr;
@@ -228,22 +229,29 @@ pub fn new_rigid_model_view_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
 
 /// This function allow us to get the data from a Rigidmodel view.
 #[cfg(feature = "support_rigidmodel")]
-extern "C" { fn getRMV2Data(parent: *mut QWidget, data: *mut QByteArray); }
+extern "C" { fn getRMV2Data(parent: *mut QWidget, data: *mut QByteArray) -> bool; }
 #[cfg(feature = "support_rigidmodel")]
-pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> CppBox<QByteArray> {
+pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<QByteArray>> {
     unsafe {
         let data = QByteArray::new();
-        getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr());
-        data
+        if getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr()) {
+            Ok(data)
+        } else {
+           Err(ErrorKind::RigidModelParseError.into())
+        }
     }
 }
 
 /// This function allow us to manually load data into a RigidModel View.
 #[cfg(feature = "support_rigidmodel")]
-extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray); }
+extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray) -> bool; }
 #[cfg(feature = "support_rigidmodel")]
-pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) {
-    unsafe { setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) }
+pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) -> Result<()> {
+    if unsafe { setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) } {
+        Ok(())
+    } else {
+        Err(ErrorKind::RigidModelParseError.into())
+    }
 }
 
 //---------------------------------------------------------------------------//

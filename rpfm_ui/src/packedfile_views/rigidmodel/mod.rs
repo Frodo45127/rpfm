@@ -68,7 +68,7 @@ impl PackedFileRigidModelView {
         // Create the new view and populate it.
         let data = QByteArray::from_slice(&rigid_model.data);
         let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
-        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr());
+        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
@@ -84,8 +84,10 @@ impl PackedFileRigidModelView {
     }
 
     /// Function to save the view and encode it into a RigidModel struct.
+    ///
+    /// FIXME: there is a rare chance this fails.
     pub unsafe fn save_view(&self) -> RigidModel {
-        let qdata = get_rigid_model_from_view_safe(&self.editor);
+        let qdata = get_rigid_model_from_view_safe(&self.editor).unwrap();
         let data = std::slice::from_raw_parts(qdata.data_mut() as *mut u8, qdata.length() as usize).to_vec();
         RigidModel {
             data
@@ -93,8 +95,10 @@ impl PackedFileRigidModelView {
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
+    ///
+    /// FIXME: there is a rare chance this fails.
     pub unsafe fn reload_view(&self, data: &RigidModel) {
         let byte_array = QByteArray::from_slice(&data.data);
-        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr());
+        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr()).unwrap();
     }
 }

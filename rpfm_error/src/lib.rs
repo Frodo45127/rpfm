@@ -334,6 +334,9 @@ pub enum ErrorKind {
     /// Error for when a RigidModel fails to decode. Contains the error message.
     RigidModelDecode(String),
 
+    /// Error for when QtRME fails to parse a RigidModel.
+    RigidModelParseError,
+
     /// Error for when we try to decode an unsupported RigidModel File.
     RigidModelNotSupportedFile,
 
@@ -819,6 +822,7 @@ impl Display for ErrorKind {
             // RigidModel Errors
             //--------------------------------//
             ErrorKind::RigidModelDecode(cause) => write!(f, "<p>Error while trying to decode the RigidModel PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::RigidModelParseError => write!(f, "<p>This Rigidmodel cannot be correctly parsed yet.</p>"),
             ErrorKind::RigidModelNotSupportedFile => write!(f, "<p>This file is not a Supported RigidModel file.</p>"),
             ErrorKind::RigidModelNotSupportedType => write!(f, "<p>This RigidModel's Type is not currently supported.</p>"),
             ErrorKind::RigidModelPatchToWarhammer(cause) => write!(f, "<p>Error while trying to patch the RigidModel file:</p><p>{}</p>", cause),
