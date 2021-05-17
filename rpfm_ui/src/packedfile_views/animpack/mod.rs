@@ -136,6 +136,7 @@ impl PackedFileAnimPackView {
         let pack_filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.get_mut_widget());
         let pack_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.get_mut_widget());
         pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        pack_filter_line_edit.set_clear_button_enabled(true);
         pack_filter_autoexpand_matches_button.set_checkable(true);
         pack_filter_case_sensitive_button.set_checkable(true);
 
@@ -171,6 +172,7 @@ impl PackedFileAnimPackView {
         let anim_pack_filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.get_mut_widget());
         let anim_pack_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.get_mut_widget());
         anim_pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        anim_pack_filter_line_edit.set_clear_button_enabled(true);
         anim_pack_filter_autoexpand_matches_button.set_checkable(true);
         anim_pack_filter_case_sensitive_button.set_checkable(true);
 

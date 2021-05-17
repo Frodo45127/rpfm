@@ -419,6 +419,8 @@ impl TableView {
 
         search_search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
         search_replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
+        search_search_line_edit.set_clear_button_enabled(true);
+        search_replace_line_edit.set_clear_button_enabled(true);
 
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
