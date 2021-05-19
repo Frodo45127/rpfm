@@ -47,6 +47,7 @@ use rpfm_lib::SETTINGS;
 
 use crate::ffi::*;
 use crate::locale::{qtr, tr, tre};
+use crate::packedfile_views::DataSource;
 use crate::utils::*;
 use crate::UI_STATE;
 use super::*;
@@ -354,6 +355,7 @@ pub unsafe fn load_data(
     dependency_data: &RwLock<BTreeMap<i32, DependencyData>>,
     data: &TableType,
     timer: &QBox<QTimer>,
+    data_source: DataSource,
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -382,6 +384,11 @@ pub unsafe fn load_data(
             let qlist = QListOfQStandardItem::new();
             for (column, field) in entry.iter().enumerate() {
                 let item = get_item_from_decoded_data(field, &keys, column);
+
+                if data_source != DataSource::PackFile {
+                    item.set_editable(false);
+                }
+
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
             if row == data.len() - 1 {
@@ -676,7 +683,7 @@ pub unsafe fn get_column_tooltips(
 pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, DependencyData>> {
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-    let files_to_ignore = UI_STATE.get_open_packedfiles().iter().map(|x| x.get_path()).collect();
+    let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
     CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
 
     let reference_data = definition.get_reference_data();
@@ -688,26 +695,28 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         let mut dependency_data_visual_column = BTreeMap::new();
         for packed_file_view in open_packedfiles.iter() {
             let path = packed_file_view.get_ref_path();
-            if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
-                if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
-                    let table = table.get_ref_table();
-                    let column = clean_column_names(column);
-                    let table_model = &table.table_model;
-                    for column_index in 0..table_model.column_count_0a() {
-                        if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
-                            for row in 0..table_model.row_count_0a() {
-                                let item = table_model.item_2a(row, column_index);
-                                let value = item.text().to_std_string();
-                                let lookup_value = match lookup {
-                                    Some(columns) => {
-                                        let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
-                                            columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
-                                        }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
-                                        data.join(" ")
-                                    },
-                                    None => String::new(),
-                                };
-                                dependency_data_visual_column.insert(value, lookup_value);
+            if packed_file_view.get_data_source() == DataSource::PackFile {
+                if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
+                    if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
+                        let table = table.get_ref_table();
+                        let column = clean_column_names(column);
+                        let table_model = &table.table_model;
+                        for column_index in 0..table_model.column_count_0a() {
+                            if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
+                                for row in 0..table_model.row_count_0a() {
+                                    let item = table_model.item_2a(row, column_index);
+                                    let value = item.text().to_std_string();
+                                    let lookup_value = match lookup {
+                                        Some(columns) => {
+                                            let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
+                                                columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
+                                            }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
+                                            data.join(" ")
+                                        },
+                                        None => String::new(),
+                                    };
+                                    dependency_data_visual_column.insert(value, lookup_value);
+                                }
                             }
                         }
                     }
@@ -882,6 +891,7 @@ pub unsafe fn open_subtable(
     pack_file_contents_ui: &Rc<PackFileContentsUI>,
     diagnostics_ui: &Rc<DiagnosticsUI>,
     table_data: TableType,
+    data_source: Arc<RwLock<DataSource>>
 ) -> Option<String> {
 
     // Create and configure the dialog.
@@ -895,7 +905,7 @@ pub unsafe fn open_subtable(
     let _widget_grid = create_grid_layout(main_widget.static_upcast());
     let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
-    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
+    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None, data_source).unwrap();
 
     main_grid.add_widget_5a(&main_widget, 0, 0, 1, 1);
     main_grid.add_widget_5a(&accept_button, 1, 0, 1, 1);

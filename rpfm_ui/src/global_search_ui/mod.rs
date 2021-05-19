@@ -55,7 +55,7 @@ use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::packedfile_views::{View, ViewType};
+use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::QString;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::UI_STATE;
@@ -506,7 +506,7 @@ impl GlobalSearchUI {
                         _ => unimplemented!(),
                     };
 
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == path) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
                             show_dialog(&app_ui.main_window, error, false);
                         }
@@ -569,7 +569,7 @@ impl GlobalSearchUI {
                 Self::search(pack_file_contents_ui, global_search_ui);
 
                 for path in packed_files_info.iter().map(|x| &x.path) {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
                             show_dialog(&app_ui.main_window, error, false);
                         }
@@ -629,11 +629,11 @@ impl GlobalSearchUI {
         }
 
         UI_STATE.set_packfile_contents_read_only(false);
-        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
 
         // If it's a table, focus on the matched cell.
         if is_match {
-            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {

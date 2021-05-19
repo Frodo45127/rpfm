@@ -69,7 +69,7 @@ use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{View, ViewType};
+use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::utils::atomic_from_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
@@ -225,6 +225,7 @@ pub struct TableView {
 
     table_name: Option<String>,
     table_uuid: Option<String>,
+    data_source: Arc<RwLock<DataSource>>,
     packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     packed_file_type: Arc<PackedFileType>,
     table_definition: Arc<RwLock<Definition>>,
@@ -270,7 +271,8 @@ impl TableView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         table_data: TableType,
-        packed_file_path: Option<Arc<RwLock<Vec<String>>>>
+        packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+        data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
 
         let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
@@ -585,6 +587,7 @@ impl TableView {
             table_uuid,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
+            data_source: data_source.clone(),
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
 
@@ -604,7 +607,7 @@ impl TableView {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            packed_file_path.clone(),
+            packed_file_path.clone()
         );
 
         // Build the first filter.
@@ -618,7 +621,8 @@ impl TableView {
             &packed_file_table_view.table_definition.read().unwrap(),
             &packed_file_table_view.dependency_data,
             &table_data,
-            &packed_file_table_view.timer_delayed_updates
+            &packed_file_table_view.timer_delayed_updates,
+            packed_file_table_view.get_data_source()
         );
 
         // Initialize the undo model.
@@ -676,7 +680,8 @@ impl TableView {
             &self.get_ref_table_definition(),
             &self.dependency_data,
             &data,
-            &self.timer_delayed_updates
+            &self.timer_delayed_updates,
+            self.get_data_source()
         );
 
         // Prepare the diagnostic pass.
@@ -972,6 +977,11 @@ impl TableView {
         }
     }
 
+    /// This function returns a copy of the datasource of this table.
+    pub fn get_data_source(&self) -> DataSource {
+        self.data_source.read().unwrap().clone()
+    }
+
     pub unsafe fn start_delayed_updates_timer(&self) {
         self.timer_delayed_updates.set_interval(1500);
         self.timer_delayed_updates.start_0a();
@@ -1255,6 +1265,11 @@ impl TableSearch {
                     parent.search_replace_all_button.set_enabled(true);
                 }
             }
+        }
+
+        if parent.get_data_source() != DataSource::PackFile {
+            parent.search_replace_current_button.set_enabled(false);
+            parent.search_replace_all_button.set_enabled(false);
         }
     }
 

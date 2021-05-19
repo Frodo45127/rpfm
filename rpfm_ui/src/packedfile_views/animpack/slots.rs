@@ -23,6 +23,7 @@ use std::sync::Arc;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::packedfile_views::DataSource;
 use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -81,7 +82,7 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.pack_tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
 
                     // Save the files in question to the background, to ensure we have all their data updated.
-                    for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
                         let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
                     }
 
@@ -141,7 +142,7 @@ impl PackedFileAnimPackViewSlots {
                             for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
                                     if let TreePathType::File(path) = path_ok {
-                                        if path == &packed_file_view.get_path() {
+                                        if path == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
                                             let _ = packed_file_view.reload(&path, &pack_file_contents_ui);
                                         }
                                     }

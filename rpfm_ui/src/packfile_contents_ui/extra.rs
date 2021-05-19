@@ -45,6 +45,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter_safe;
 use crate::locale::{qtr, qtre};
+use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::{create_grid_layout, show_dialog};
@@ -80,7 +81,7 @@ impl PackFileContentsUI {
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths_packedfile.iter().filter_map(|path| {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             Some(path.to_vec())
                         } else { None }
@@ -88,7 +89,7 @@ impl PackFileContentsUI {
                 }).collect::<Vec<Vec<String>>>();
 
                 for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 
@@ -128,7 +129,7 @@ impl PackFileContentsUI {
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths_packedfile.iter().filter_map(|path| {
                     if let PathType::File(path) = path {
-                        if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path) {
+                        if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                                 Some(path.to_vec())
                             } else { None }
@@ -137,7 +138,7 @@ impl PackFileContentsUI {
                 }).collect::<Vec<Vec<String>>>();
 
                 for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 
@@ -347,6 +348,7 @@ impl PackFileContentsUI {
         // TODO: Make this more... optimal.
         if let Err(error) = UI_STATE.get_open_packedfiles()
             .iter()
+            .filter(|x| x.get_data_source() == DataSource::PackFile)
             .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
             show_dialog(&app_ui.main_window, error, false);
         }

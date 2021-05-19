@@ -66,7 +66,7 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
@@ -187,13 +187,14 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         path: &[String],
+        data_source: DataSource,
         save_before_deleting: bool
     ) -> Result<()> {
 
         let mut did_it_worked = Ok(());
 
         // Black magic to remove widgets.
-        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path);
+        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path && x.get_data_source() == data_source);
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
@@ -899,9 +900,9 @@ impl AppUI {
                                                     // Try to reload all open files which data we altered, and close those that failed.
                                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                                     packed_file_paths.iter().for_each(|path| {
-                                                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                                                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                                                             if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false) {
+                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false) {
                                                                     show_dialog(&app_ui.main_window, error, false);
                                                                 }
                                                             }
@@ -1293,11 +1294,23 @@ impl AppUI {
         packed_file_path: Option<Vec<String>>,
         is_preview: bool,
         is_external: bool,
+        data_source: DataSource,
     ) {
 
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        // Also, only open the selection when there is only one thing selected.
-        if !UI_STATE.get_packfile_contents_read_only() {
+        // Conditions to open:
+        // - Local PackedFile && the treeview not being locked.
+        // - Remote PackedFile.
+        let should_be_opened = if let DataSource::PackFile = data_source {
+            if !UI_STATE.get_packfile_contents_read_only() {
+                true
+            } else {
+                false
+            }
+        } else {
+            true
+        };
+
+        if should_be_opened {
             let item_type = match packed_file_path {
                 Some(packed_file_path) => TreePathType::File(packed_file_path),
                 None => {
@@ -1305,20 +1318,23 @@ impl AppUI {
                     if selected_items.len() == 1 { selected_items[0].clone() } else { return }
                 }
             };
+
             if let TreePathType::File(ref path) = item_type {
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let open_path = packed_file_view.get_ref_path();
                     let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
+                    if (data_source != packed_file_view.get_data_source() ||
+                        (data_source == packed_file_view.get_data_source() && *open_path != *path)) &&
+                        packed_file_view.get_is_preview() && index != -1 {
                         app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
                 // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path && x.get_data_source() == data_source) {
                     if !is_external {
                         let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
@@ -1339,9 +1355,9 @@ impl AppUI {
                     }
                 }
 
-                // If we have a PackedFile open, but we want to open it as a External file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
-                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &pack_file_contents_ui, &path, true) {
+                // If we have a PackedFile open, but we want to open it as a external file, close it here.
+                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path && x.get_data_source() == data_source) {
+                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &pack_file_contents_ui, &path, data_source, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
@@ -1350,6 +1366,15 @@ impl AppUI {
                 tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
                 tab.set_path(&path);
+
+                if let DataSource::PackFile = data_source {
+                    tab.set_is_read_only(false);
+                } else {
+                    tab.set_is_read_only(true);
+                }
+
+                tab.set_data_source(data_source);
+
                 if !is_external {
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_vec());
@@ -1643,7 +1668,7 @@ impl AppUI {
                 }
 
                 // If the decoder is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == fake_path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == fake_path) {
                     let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                     if index == -1 {
@@ -1704,7 +1729,7 @@ impl AppUI {
             }
 
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
                 let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -1763,7 +1788,7 @@ impl AppUI {
             }
 
             // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
                 let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -1820,7 +1845,7 @@ impl AppUI {
             }
 
             // If the settings are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
                 let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -2305,10 +2330,24 @@ impl AppUI {
             let widget = packed_file_view.get_mut_widget();
             if let Some(widget_name) = packed_file_view.get_ref_path().last() {
                 if let Some(count) = names.get(widget_name) {
-                    let mut name = if count > &1 {
-                        packed_file_view.get_ref_path().join("/")
+                    let mut name = String::new();
+                    match packed_file_view.get_data_source() {
+                        DataSource::PackFile => name.push_str("Local"),
+                        DataSource::ParentFiles => name.push_str("Parent"),
+                        DataSource::GameFiles => name.push_str("Game"),
+                        DataSource::AssKitFiles => name.push_str("AssKit"),
+                    }
+
+                    if packed_file_view.get_is_read_only() {
+                        name.push_str("-RO:");
                     } else {
-                        widget_name.to_owned()
+                        name.push(':');
+                    }
+
+                    if count > &1 {
+                        name.push_str(&packed_file_view.get_ref_path().join("/"));
+                    } else {
+                        name.push_str(&widget_name.to_owned());
                     };
 
                     if packed_file_view.get_is_preview() {
@@ -2352,7 +2391,7 @@ impl AppUI {
         indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, false); });
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::PackFile, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);

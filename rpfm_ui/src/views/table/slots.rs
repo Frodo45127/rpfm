@@ -37,6 +37,7 @@ use crate::app_ui::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::utils::{check_regex, log_to_status_bar, show_dialog};
@@ -134,9 +135,9 @@ impl TableViewSlots {
             view => move || {
 
             // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
-            if !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
+            if view.get_data_source() == DataSource::PackFile && !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
+                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
                         } else {
@@ -419,7 +420,8 @@ impl TableViewSlots {
                                     &view.get_ref_table_definition(),
                                     &view.dependency_data,
                                     &data,
-                                    &view.timer_delayed_updates
+                                    &view.timer_delayed_updates,
+                                    view.get_data_source()
                                 );
 
                                 // Prepare the diagnostic pass.
@@ -460,36 +462,37 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
+                if view.get_data_source() == DataSource::PackFile {
+                    if let Some(ref packed_file_path) = view.packed_file_path {
 
-                if let Some(ref packed_file_path) = view.packed_file_path {
+                        // Create a File Chooser to get the destination path and configure it.
+                        let file_dialog = QFileDialog::from_q_widget_q_string(
+                            &view.table_view_primary,
+                            &qtr("tsv_export_title")
+                        );
 
-                    // Create a File Chooser to get the destination path and configure it.
-                    let file_dialog = QFileDialog::from_q_widget_q_string(
-                        &view.table_view_primary,
-                        &qtr("tsv_export_title")
-                    );
+                        file_dialog.set_accept_mode(AcceptMode::AcceptSave);
+                        file_dialog.set_confirm_overwrite(true);
+                        file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+                        file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
 
-                    file_dialog.set_accept_mode(AcceptMode::AcceptSave);
-                    file_dialog.set_confirm_overwrite(true);
-                    file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
-                    file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
+                        // Run it and, if we receive 1 (Accept), export the DB Table, saving it's contents first.
+                        if file_dialog.exec() == 1 {
 
-                    // Run it and, if we receive 1 (Accept), export the DB Table, saving it's contents first.
-                    if file_dialog.exec() == 1 {
-
-                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
-                            if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
-                                return show_dialog(&view.table_view_primary, error, false);
+                            let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                            if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
+                                if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
+                                    return show_dialog(&view.table_view_primary, error, false);
+                                }
                             }
-                        }
 
-                        CENTRAL_COMMAND.send_message_qt(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
-                        let response = CENTRAL_COMMAND.recv_message_qt_try();
-                        match response {
-                            Response::Success => return,
-                            Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            CENTRAL_COMMAND.send_message_qt(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                            let response = CENTRAL_COMMAND.recv_message_qt_try();
+                            match response {
+                                Response::Success => return,
+                                Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            }
                         }
                     }
                 }
@@ -680,7 +683,8 @@ impl TableViewSlots {
                         &global_search_ui,
                         &pack_file_contents_ui,
                         &diagnostics_ui,
-                        table_data
+                        table_data,
+                        view.data_source.clone()
                     ) {
                         view.table_filter.set_data_3a(
                             model_index,

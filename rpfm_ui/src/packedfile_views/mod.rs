@@ -18,6 +18,7 @@ use qt_widgets::QWidget;
 
 use qt_core::QBox;
 
+use std::{fmt, fmt::Display};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
@@ -88,7 +89,7 @@ pub struct PackedFileView {
     widget: Arc<QBox<QWidget>>,
     is_preview: AtomicBool,
     is_read_only: AtomicBool,
-    data_source: DataSource,
+    data_source: Arc<RwLock<DataSource>>,
     view: ViewType,
     packed_file_type: PackedFileType,
 }
@@ -104,6 +105,7 @@ pub enum ViewType {
 }
 
 /// This enum represents the source of the data in the view.
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum DataSource {
 
     /// This means the data is from somewhere in our PackFile.
@@ -153,7 +155,7 @@ impl Default for PackedFileView {
         let widget = Arc::new(widget_ptr);
         let is_preview = AtomicBool::new(false);
         let is_read_only = AtomicBool::new(false);
-        let data_source = DataSource::PackFile;
+        let data_source = Arc::new(RwLock::new(DataSource::PackFile));
         let view = ViewType::Internal(View::None);
         let packed_file_type = PackedFileType::Unknown;
         Self {
@@ -221,13 +223,13 @@ impl PackedFileView {
     }
 
     /// This function returns the DataSource of the specific `PackedFile`.
-    pub fn get_data_source(&self) -> &DataSource {
-        &self.data_source
+    pub fn get_data_source(&self) -> DataSource {
+        self.data_source.read().unwrap().clone()
     }
 
     /// This function sets the DataSource of the specific `PackedFile`.
     pub fn set_data_source(&mut self, data_source: DataSource) {
-        self.data_source = data_source;
+        *self.data_source.write().unwrap() = data_source;
     }
 
     /// This function returns the ViewType of the specific `PackedFile`.
@@ -409,10 +411,11 @@ impl PackedFileView {
         path: &[String],
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
+        let data_source = self.get_data_source();
          match self.get_ref_mut_view() {
             ViewType::Internal(view) => {
 
-                CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec()));
+                CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec(), data_source));
                 let response = CENTRAL_COMMAND.recv_message_qt();
 
                 match response {
@@ -560,5 +563,16 @@ impl PackedFileView {
             // External views don't need reloading.
             ViewType::External(_) => Ok(())
         }
+    }
+}
+
+impl Display for DataSource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::PackFile => "PackFile",
+            Self::GameFiles => "GameFiles",
+            Self::ParentFiles => "ParentFiles",
+            Self::AssKitFiles => "AssKitFiles",
+        }, f)
     }
 }

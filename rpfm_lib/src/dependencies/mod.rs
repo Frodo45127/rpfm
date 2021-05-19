@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use rpfm_macros::*;
-use rpfm_error::{Result, Error};
+use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::*;
@@ -324,5 +324,70 @@ impl Dependencies {
         let ca_paths = get_all_ca_packfiles_paths()?;
         let last_date = get_last_modified_time_from_files(&ca_paths)?;
         Ok(last_date > self.build_date)
+    }
+
+    /// This function returns the provided file, if exists, or an error if not, from the game files.
+    pub fn get_packedfile_from_game_files(&self, path: &[String]) -> Result<PackedFile> {
+        let packed_file = self.vanilla_packed_files_cache.read().unwrap().par_iter()
+            .find_map_any(|(cached_path, packed_file)| if cached_path == path { Some(packed_file.clone()) } else { None })
+            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound));
+
+        // If we found it in the cache, return it.
+        if packed_file.is_ok() {
+            return packed_file;
+        }
+
+        // If not, check on the big list.
+        else {
+            let path_str = path.join("/");
+            let packed_file = self.vanilla_cached_packed_files.par_iter()
+                .find_map_any(|cache_packed_file| if cache_packed_file.get_ref_pack_file_path() == &path_str {
+                    Some(PackedFile::try_from(cache_packed_file))
+                } else { None })
+                .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
+
+            // If we found one, add it to the cache to reduce load times later on.
+            self.vanilla_packed_files_cache.write().unwrap().insert(path.to_vec(), packed_file.clone());
+
+            return Ok(packed_file);
+        }
+    }
+
+    /// This function returns the provided file, if exists, or an error if not, from the parent mod files.
+    pub fn get_packedfile_from_parent_files(&self, path: &[String]) -> Result<PackedFile> {
+        let packed_file = self.parent_packed_files_cache.read().unwrap().par_iter()
+            .find_map_any(|(cached_path, packed_file)| if cached_path == path { Some(packed_file.clone()) } else { None })
+            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound));
+
+        // If we found it in the cache, return it.
+        if packed_file.is_ok() {
+            return packed_file;
+        }
+
+        // If not, check on the big list.
+        else {
+            let path_str = path.join("/");
+            let packed_file = self.parent_cached_packed_files.par_iter()
+                .find_map_any(|cache_packed_file| if cache_packed_file.get_ref_pack_file_path() == &path_str {
+                    Some(PackedFile::try_from(cache_packed_file))
+                } else { None })
+                .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
+
+            // If we found one, add it to the cache to reduce load times later on.
+            self.parent_packed_files_cache.write().unwrap().insert(path.to_vec(), packed_file.clone());
+
+            return Ok(packed_file);
+        }
+    }
+
+    /// This function returns the provided file, if exists, or an error if not, from the asskit files.
+    pub fn get_packedfile_from_asskit_files(&self, path: &[String]) -> Result<DB> {
+
+        // From the asskit we only have tables, so no need for the full path.
+        if let Some(table_name) = path.get(1) {
+            self.asskit_only_db_tables.par_iter()
+            .find_map_any(|x| if x.get_table_name() == *table_name { Some(x.clone()) } else { None })
+            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))
+        } else { Err(ErrorKind::PackedFileNotFound.into()) }
     }
 }

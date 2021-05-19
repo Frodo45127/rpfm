@@ -22,6 +22,7 @@ use rpfm_lib::packfile::PathType;
 use crate::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 
@@ -70,7 +71,7 @@ impl DiagnosticsUISlots {
             diagnostics_ui => move || {
                 app_ui.main_window.set_disabled(true);
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
-                let path_types = UI_STATE.get_open_packedfiles().iter().map(|x| PathType::File(x.get_ref_path().to_vec())).collect::<Vec<PathType>>();
+                let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| PathType::File(x.get_ref_path().to_vec())).collect::<Vec<PathType>>();
                 DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
                 app_ui.main_window.set_disabled(false);
             }

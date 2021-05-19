@@ -23,6 +23,7 @@ use rpfm_lib::packfile::PathType;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::utils::show_dialog;
@@ -81,9 +82,9 @@ impl PackFileExtraViewSlots {
                             for path in &paths_ok {
                                 if let PathType::File(path) = path {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                                    if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                                    if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                                         if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                                         }
                                     }
                                 }

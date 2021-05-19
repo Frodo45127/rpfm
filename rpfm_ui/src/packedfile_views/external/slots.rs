@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::PackedFileExternalView;
+use crate::packedfile_views::{DataSource, PackedFileExternalView};
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -57,7 +57,7 @@ impl PackedFileExternalViewSlots {
             app_ui,
             pack_file_contents_ui,
             packed_file_path => move || {
-                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), true) {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, true) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
             }

@@ -80,7 +80,7 @@ impl PackedFileAnimFragmentView {
 
         // Get the decoded Table.
         if packed_file_view.get_ref_path().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
-        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path())); }
+        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source())); }
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (data, packed_file_info) = match response {
@@ -131,6 +131,7 @@ impl PackedFileAnimFragmentView {
             diagnostics_ui,
             TableType::AnimFragment(From::from(table_data_1)),
             None,
+            packed_file_view.data_source.clone()
         )?;
 
         let table_view_2 = TableView::new_view(
@@ -141,6 +142,7 @@ impl PackedFileAnimFragmentView {
             diagnostics_ui,
             TableType::AnimFragment(From::from(table_data_2)),
             None,
+            packed_file_view.data_source.clone()
         )?;
 
         let packed_file_table_view = Self {

@@ -61,7 +61,7 @@ impl PackedFileTableView {
 
         // Get the decoded Table.
         if packed_file_view.get_ref_path().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
-        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path())); }
+        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source())); }
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (table_data, packed_file_info) = match response {
@@ -95,6 +95,7 @@ impl PackedFileTableView {
             diagnostics_ui,
             table_data,
             Some(packed_file_view.get_path_raw()),
+            packed_file_view.data_source.clone()
         )?;
 
         let packed_file_table_view = Self {

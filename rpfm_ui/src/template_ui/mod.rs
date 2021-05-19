@@ -41,6 +41,7 @@ use qt_core::QPtr;
 
 use cpp_core::Ref;
 
+use std::sync::{Arc, RwLock};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -54,6 +55,7 @@ use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::utils::create_grid_layout;
@@ -419,7 +421,7 @@ impl TemplateUI {
             // These are semi-full tables, without cells referencing params.
             ParamType::Table(definition) => {
                 let table_data = TableType::NormalTable(Table::new(definition));
-                let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
+                let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
                 ui.params.borrow_mut().push((param.get_ref_key().to_owned(), table_view.get_mut_ptr_table_view_primary().static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
         }

@@ -48,6 +48,7 @@ use rpfm_lib::packedfile::table::Table;
 use crate::ffi::*;
 use crate::locale::tr;
 use crate::packedfile_views::utils::set_modified;
+use crate::packedfile_views::DataSource;
 use crate::pack_tree::*;
 use crate::UI_STATE;
 use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
@@ -63,51 +64,104 @@ impl TableView {
     /// This function updates the state of the actions in the context menu.
     pub unsafe fn context_menu_update(&self) {
 
-        // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
-        let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
+        if let DataSource::PackFile = self.get_data_source() {
 
-        // If we have something selected, enable these actions.
-        if indexes.count_0a() > 0 {
-            self.context_menu_clone_and_append.set_enabled(true);
-            self.context_menu_clone_and_insert.set_enabled(true);
-            self.context_menu_copy.set_enabled(true);
-            self.context_menu_copy_as_lua_table.set_enabled(true);
-            self.context_menu_delete_rows.set_enabled(true);
-            self.context_menu_generate_ids.set_enabled(true);
-            self.context_menu_rewrite_selection.set_enabled(true);
-            self.context_menu_cascade_edition.set_enabled(true);
+            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
+            let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
 
-            if *self.packed_file_type == PackedFileType::DB {
-                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
-            } else {
+            // If we have something selected, enable these actions.
+            if indexes.count_0a() > 0 {
+                self.context_menu_clone_and_append.set_enabled(true);
+                self.context_menu_clone_and_insert.set_enabled(true);
+                self.context_menu_copy.set_enabled(true);
+                self.context_menu_copy_as_lua_table.set_enabled(true);
+                self.context_menu_delete_rows.set_enabled(true);
+                self.context_menu_generate_ids.set_enabled(true);
+                self.context_menu_rewrite_selection.set_enabled(true);
+                self.context_menu_cascade_edition.set_enabled(true);
+
+                if *self.packed_file_type == PackedFileType::DB {
+                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
+                } else {
+                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+                }
+
+                if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
+                    self.context_menu_go_to_definition.set_enabled(true);
+                } else {
+                    self.context_menu_go_to_definition.set_enabled(false);
+                }
+
+            }
+
+            // Otherwise, disable them.
+            else {
+                self.context_menu_generate_ids.set_enabled(false);
+                self.context_menu_rewrite_selection.set_enabled(false);
+                self.context_menu_clone_and_append.set_enabled(false);
+                self.context_menu_clone_and_insert.set_enabled(false);
+                self.context_menu_copy.set_enabled(false);
+                self.context_menu_copy_as_lua_table.set_enabled(false);
+                self.context_menu_delete_rows.set_enabled(false);
+                self.context_menu_cascade_edition.set_enabled(false);
+                self.context_menu_go_to_definition.set_enabled(false);
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
             }
 
-            if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
-                self.context_menu_go_to_definition.set_enabled(true);
-            } else {
-                self.context_menu_go_to_definition.set_enabled(false);
+            if !self.undo_lock.load(Ordering::SeqCst) {
+                self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
+                self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
             }
-
         }
 
-        // Otherwise, disable them.
+        // Tables from out of our mod should not be able to edit anything.
         else {
-            self.context_menu_generate_ids.set_enabled(false);
-            self.context_menu_rewrite_selection.set_enabled(false);
+
+            self.context_menu_add_rows.set_enabled(false);
+            self.context_menu_insert_rows.set_enabled(false);
             self.context_menu_clone_and_append.set_enabled(false);
             self.context_menu_clone_and_insert.set_enabled(false);
-            self.context_menu_copy.set_enabled(false);
-            self.context_menu_copy_as_lua_table.set_enabled(false);
             self.context_menu_delete_rows.set_enabled(false);
+            self.context_menu_delete_rows_not_in_filter.set_enabled(false);
+            self.context_menu_paste.set_enabled(false);
+            self.context_menu_paste_as_new_row.set_enabled(false);
+            self.context_menu_rewrite_selection.set_enabled(false);
+            self.context_menu_generate_ids.set_enabled(false);
+            self.context_menu_undo.set_enabled(false);
+            self.context_menu_redo.set_enabled(false);
+            self.context_menu_import_tsv.set_enabled(false);
             self.context_menu_cascade_edition.set_enabled(false);
-            self.context_menu_go_to_definition.set_enabled(false);
-            self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
-        }
+            self.smart_delete.set_enabled(false);
 
-        if !self.undo_lock.load(Ordering::SeqCst) {
-            self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
-            self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
+            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
+            let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
+
+            // If we have something selected, enable these actions.
+            if indexes.count_0a() > 0 {
+                self.context_menu_copy.set_enabled(true);
+                self.context_menu_copy_as_lua_table.set_enabled(true);
+
+                if *self.packed_file_type == PackedFileType::DB {
+                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
+                } else {
+                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+                }
+
+                if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
+                    self.context_menu_go_to_definition.set_enabled(true);
+                } else {
+                    self.context_menu_go_to_definition.set_enabled(false);
+                }
+
+            }
+
+            // Otherwise, disable them.
+            else {
+                self.context_menu_copy.set_enabled(false);
+                self.context_menu_copy_as_lua_table.set_enabled(false);
+                self.context_menu_go_to_definition.set_enabled(false);
+                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+            }
         }
     }
 
@@ -1442,7 +1496,7 @@ impl TableView {
             });
 
             // Now that we know what to edit, save all views of referencing files, so we only have to deal with them in the background.
-            UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+            UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
 
                 // Check for tables.
                 if let Some(folder) = packed_file_view.get_path().get(0) {
@@ -1480,9 +1534,9 @@ impl TableView {
                     // Before finishing, reload all edited views.
                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                     edited_paths.iter().for_each(|path| {
-                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
                         }
                     });
@@ -1577,7 +1631,7 @@ impl TableView {
             if let Some((ref_table, ref_column, ref_data)) = ref_info {
 
                 // Save the tables that may be the source before searching, to ensure their data is updated.
-                UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+                UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
                     if let Some(folder) = packed_file_view.get_path().get(0) {
                         if folder.to_lowercase() == "db" {
                             if let Some(table_name) = packed_file_view.get_path().get(1) {
@@ -1595,19 +1649,21 @@ impl TableView {
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::VecStringUsizeUsize(path, column, row) => {
-                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+                    Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
+                        if let DataSource::PackFile = data_source {
+                            pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+                        }
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path) {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path && x.get_data_source() == self.get_data_source()) {
                                 packed_file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), true, false);
-                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), true, false, data_source);
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.get_mut_ptr_table_view_primary();
@@ -1657,7 +1713,7 @@ impl TableView {
             if let PackedFileType::DB = *self.packed_file_type {
 
                 // Save the currently open locs, to ensure the backend has the most up-to-date data.
-                UI_STATE.get_open_packedfiles().iter().for_each(|packed_file_view| {
+                UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
                     if let PackedFileType::Loc = packed_file_view.get_packed_file_type() {
                         let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
                     }
@@ -1681,19 +1737,21 @@ impl TableView {
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::VecStringUsizeUsize(path, column, row) => {
-                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+                    Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
+                        if let DataSource::PackFile = data_source {
+                            pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+                        }
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path) {
+                            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path && x.get_data_source() == self.get_data_source()) {
                                 packed_file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), true, false);
-                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), true, false, data_source);
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.get_mut_ptr_table_view_primary();

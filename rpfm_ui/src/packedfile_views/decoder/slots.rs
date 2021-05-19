@@ -42,6 +42,7 @@ use rpfm_lib::schema::{Definition, FieldType};
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
 use crate::utils::show_debug_dialog;
@@ -613,7 +614,7 @@ impl PackedFileDecoderViewSlots {
 
                 // Save and close all PackedFiles that use our definition.
                 let mut packed_files_to_save = vec![];
-                for open_path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
+                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
                     if open_path.len() > 2 &&
                         open_path[0] == view.packed_file_path[0] &&
                         open_path[1] == view.packed_file_path[1] &&
@@ -627,6 +628,7 @@ impl PackedFileDecoderViewSlots {
                         &app_ui,
                         &pack_file_contents_ui,
                         path,
+                        DataSource::PackFile,
                         true,
                     ) {
                         show_dialog(&view.table_view, error, false);

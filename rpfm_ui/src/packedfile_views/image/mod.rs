@@ -60,7 +60,7 @@ impl PackedFileImageView {
     ) -> Result<PackedFileInfo> {
 
         // Get the path of the extracted Image.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (image, packed_file_info) = match response {
             Response::ImagePackedFileInfo((image, packed_file_info)) => (image, packed_file_info),

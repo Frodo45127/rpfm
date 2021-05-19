@@ -63,7 +63,7 @@ use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
 use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::utils::create_grid_layout;
@@ -737,14 +737,14 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.
         match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
             "DB" | "Loc" | "DependencyManager" => {
 
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
@@ -809,7 +809,7 @@ impl DiagnosticsUI {
             _ => return,
         };
 
-        if let Some(view) = UI_STATE.get_open_packedfiles().iter().find(|view| view.get_path() == path) {
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| view.get_path() == path) {
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
@@ -868,7 +868,7 @@ impl DiagnosticsUI {
     }
 
     pub unsafe fn clean_diagnostics_from_views(app_ui: &Rc<AppUI>) {
-        for view in UI_STATE.get_open_packedfiles().iter() {
+        for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
 
             // Only update the visible tables.
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
@@ -936,7 +936,7 @@ impl DiagnosticsUI {
         // Check for currently open files filter.
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
-            let open_packedfiles_ref = open_packedfiles.iter().filter(|x| app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1).collect::<Vec<&PackedFileView>>();
+            let open_packedfiles_ref = open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1).collect::<Vec<&PackedFileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {
                 if !pattern.is_empty() {

@@ -40,6 +40,7 @@ use rpfm_lib::template::Template;
 use rpfm_lib::updater::APIResponse;
 
 use crate::app_ui::NewPackedFile;
+use crate::packedfile_views::DataSource;
 use crate::views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
 
@@ -190,8 +191,8 @@ pub enum Command {
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
     AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>, Option<Vec<PathBuf>>)),
 
-    /// This command is used when we want to decode a PackedFile to be shown on the UI.
-    DecodePackedFile(Vec<String>),
+    /// This command is used when we want to decode a PackedFile to be shown on the UI. It contains the path of the file, and were it is.
+    DecodePackedFile(Vec<String>, DataSource),
 
     /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
@@ -482,8 +483,8 @@ pub enum Response {
     /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
     VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),
 
-    /// Response to return `Vec<String>, usize, usize`.
-    VecStringUsizeUsize(Vec<String>, usize, usize),
+    /// Response to return `DataSource, Vec<String>, usize, usize`.
+    DataSourceVecStringUsizeUsize(DataSource, Vec<String>, usize, usize),
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),

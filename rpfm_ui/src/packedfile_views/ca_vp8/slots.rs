@@ -22,6 +22,7 @@ use std::sync::Arc;
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 
 use crate::app_ui::AppUI;
+use crate::packedfile_views::DataSource;
 use crate::packedfile_views::ca_vp8::PackedFileCaVp8View;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -57,7 +58,7 @@ impl PackedFileCaVp8ViewSlots {
             view => move || {
                 view.set_current_format(SupportedFormats::Camv);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Camv)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
                     let _ = packed_file.save(&app_ui, &pack_file_contents_ui);
@@ -72,7 +73,7 @@ impl PackedFileCaVp8ViewSlots {
             view => move || {
                 view.set_current_format(SupportedFormats::Ivf);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Ivf)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
                     let _ = packed_file.save(&app_ui, &pack_file_contents_ui);
