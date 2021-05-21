@@ -20,13 +20,16 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
 - Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
 - Implemented `Game-Wide` caché (replaces the old PAKs).
+- Implemented support for steam's `MFH` packs.
 - Implemented read support for modern DDS files (by [@phazer](https://github.com/mr-phazer)).
+- Implemented support to open references from out of the Packfile when using `Go To Definition` or `Go To Loc`.
 - Reworked cell painting on tables, so it should no longer left unreadable cells on painting.
 - Implemented support for ignoring specific diagnostics per PackFile.
 - Key columns now have a distinct background.
 - Added instructions to the AnimPack view.
 - Added a dialog before generating the dependencies cache.
 - Added a dialog before optimizing a PackFile, explaining what the optimizer does, and asking the user to make a backup before using it.
+- Added clear filter buttons to `Add From PackFile` and `AnimPack` filters.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
