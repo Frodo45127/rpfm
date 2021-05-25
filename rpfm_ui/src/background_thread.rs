@@ -1045,9 +1045,12 @@ pub fn background_loop() {
                         }
 
                         // Then rebuild the dependencies stuff.
-                        match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
-                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        // TODO: This needs a better error message.
+                        if dependencies.game_has_dependencies_generated() {
+                            match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
+                                Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            }
                         }
                     },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
