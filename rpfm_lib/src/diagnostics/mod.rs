@@ -768,6 +768,15 @@ impl Diagnostics {
             self.get_ref_mut_diagnostics().retain(|x| x.get_path() != packed_file.get_path());
         }
 
+        // Also remove Dependency/PackFile diagnostics, as they're going to be regenerated.
+        self.get_ref_mut_diagnostics().retain(|x| match x {
+            DiagnosticType::Config(_) => true,
+            DiagnosticType::DB(_) => true,
+            DiagnosticType::DependencyManager(_) => false,
+            DiagnosticType::Loc(_) => true,
+            DiagnosticType::PackFile(_) => false,
+        });
+
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
