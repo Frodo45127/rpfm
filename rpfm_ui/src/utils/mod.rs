@@ -13,8 +13,11 @@ Module with all the utility functions, to make our programming lives easier.
 !*/
 
 use qt_widgets::QApplication;
+use qt_widgets::QDialog;
 use qt_widgets::QGridLayout;
+use qt_widgets::QLabel;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
+use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
 
@@ -23,6 +26,7 @@ use qt_core::QFlags;
 use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QObject;
+use qt_core::SlotNoArgs;
 
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
@@ -33,18 +37,22 @@ use cpp_core::StaticUpcast;
 use log::info;
 
 use regex::Regex;
+use sentry::Envelope;
+use sentry::Level;
+use sentry::protocol::{Attachment, EnvelopeItem, Event};
 
 use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_error::SENTRY_GUARD;
+use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
 
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::{new_text_editor_safe, set_text_safe};
-use crate::locale::qtr;
+use crate::locale::{qtr, qtre};
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
 use crate::MEDIUM_DARKER_GREY;
@@ -138,23 +146,86 @@ pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<P
     window_ptr.show();
 }
 
-/*
-/// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!
-pub fn display_help_tips(app_ui: &AppUI) {
+/// This function creates a modal dialog with an extra "Send for decoding" button, for showing
+/// errors and sending tables to be decoded.
+///
+/// It requires:
+/// - parent: a pointer to the widget that'll be the parent of the dialog.
+/// - text: something that implements the trait `Display`, to put in the dialog window.
+/// - table_name: name/type of the table to decode.
+/// - table_data: data of the table to decode.
+pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: T, table_name: &str, table_data: &[u8]) {
+    let table_name = table_name.to_owned();
+    let table_data = table_data.to_owned();
 
-    // Create the widget that'll act as a container for the view.
-    let widget = Widget::new().into_raw();
-    let widget_layout = create_grid_layout_unsafe(widget);
-    unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
+    // Create and run the dialog.
+    let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+        Icon::Critical,
+        &qtr("title_error"),
+        &QString::from_std_str(&text.to_string()),
+        QFlags::from(0),
+        parent,
+    );
 
-    let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
-    - Read the manual. It's in 'About/Open Manual'. It explains how to configure RPFM and how to use it.
-    - To know what each option in 'Preferences' do, left the mouse over the option for one second and a tooltip will pop up.
-    - In the 'About' Menu, in 'About RPFM' you can find links to the Source Code and the Patreon of the Project.")).into_raw();
+    let send_table_button = dialog.add_button_q_string_button_role(&qtr("send_table_for_decoding"), qt_widgets::q_message_box::ButtonRole::AcceptRole);
+    dialog.add_button_standard_button(StandardButton::Ok);
 
-    unsafe { widget_layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
+    let send_table_slot = SlotNoArgs::new(&dialog, move || {
+        show_undecoded_table_report_dialog(parent, &table_name, &table_data);
+    });
+    send_table_button.released().connect(&send_table_slot);
+
+    dialog.exec();
 }
-*/
+
+/// This function creates a modal dialog, for sending tables to be decoded.
+///
+/// It requires:
+/// - parent: a pointer to the widget that'll be the parent of the dialog.
+/// - table_name: the name of the table to decode.
+/// - table_data: data of the table to decode.
+pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_name: &str, table_data: &[u8]) {
+    let table_name = table_name.to_owned();
+    let table_data = table_data.to_owned();
+
+    // Create and configure the dialog.
+    let dialog = QDialog::new_1a(parent);
+    dialog.set_window_title(&qtr("send_table_for_decoding"));
+    dialog.set_modal(true);
+    dialog.resize_2a(400, 50);
+
+    let main_grid = create_grid_layout(dialog.static_upcast());
+    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap(), &table_name]), &dialog);
+    let cancel_button = QPushButton::from_q_string(&qtr("cancel"));
+    let accept_button = QPushButton::from_q_string(&qtr("send"));
+
+    main_grid.add_widget_5a(&explanation_label, 0, 0, 1, 2);
+    main_grid.add_widget_5a(&cancel_button, 6, 0, 1, 1);
+    main_grid.add_widget_5a(&accept_button, 6, 1, 1, 1);
+
+    let send_table_slot = SlotNoArgs::new(&dialog, move || {
+        if let Some(ref guard) = *SENTRY_GUARD.read().unwrap() {
+            let mut event = Event::new();
+            event.level = Level::Info;
+            event.message = Some(format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap(), table_name));
+
+            let mut envelope = Envelope::from(event);
+            let attatchment = Attachment {
+                buffer: table_data.to_owned(),
+                filename: table_name.to_owned(),
+                ty: None
+            };
+
+            envelope.add_item(EnvelopeItem::Attachment(attatchment));
+            guard.send_envelope(envelope);
+        }
+    });
+
+    accept_button.released().connect(&send_table_slot);
+    accept_button.released().connect(dialog.slot_accept());
+    cancel_button.released().connect(dialog.slot_close());
+    dialog.exec();
+}
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
 pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {

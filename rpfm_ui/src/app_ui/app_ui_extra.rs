@@ -73,7 +73,7 @@ use crate::QString;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
-use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog};
+use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button};
 
 #[cfg(feature = "support_rigidmodel")]
 use crate::packedfile_views::rigidmodel::*;
@@ -1484,7 +1484,19 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                                Err(error) => {
+
+                                    // Try to get the data of the table to send it for decoding.
+                                    CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileRawData(path.to_vec()));
+                                    let response = CENTRAL_COMMAND.recv_message_qt();
+                                    let data = match response {
+                                        Response::VecU8(data) => data,
+                                        Response::Error(_) => return show_dialog(&app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                    };
+
+                                    return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), ErrorKind::DBTableDecode(format!("{}", error)), &path[1], &data);
+                                },
                             }
                         }
 

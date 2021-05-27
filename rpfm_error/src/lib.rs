@@ -19,13 +19,16 @@ If you need a custom `From` implementation for any error of any lib, add it here
 
 use fluent::{FluentError, FluentResource};
 use fluent_syntax::parser::ParserError;
+use lazy_static::lazy_static;
 use log::SetLoggerError;
+use sentry::ClientInitGuard;
 use serde_json::error::Category;
 
 use std::boxed::Box;
 use std::{fmt, fmt::Display};
 use std::io;
 use std::num::{ParseIntError, ParseFloatError};
+use std::sync::{Arc, RwLock};
 use std::path::PathBuf;
 use std::result;
 use std::string;
@@ -40,6 +43,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// This is the DSN needed for Sentry reports to work. Don't change it.
 const SENTRY_DSN: &str = "https://a8bf0a98ed43467d841ec433fb3d75a8@sentry.io/1205298";
+
+// Statics, so we don't need to pass them everywhere to use them.
+lazy_static! {
+
+    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    pub static ref SENTRY_GUARD: Arc<RwLock<Option<ClientInitGuard>>> = Arc::new(RwLock::new(None));
+}
 
 //---------------------------------------------------------------------------//
 //                      Definition of the Types

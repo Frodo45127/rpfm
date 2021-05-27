@@ -353,6 +353,9 @@ pub enum Command {
 
     /// This command is used to get the name of the currently open PackFile.
     GetPackFileName,
+
+    /// This command is used to get the raw data of a PackedFile.
+    GetPackedFileRawData(Vec<String>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -491,6 +494,9 @@ pub enum Response {
 
     /// Response to return `PackedFileType`.
     PackedFileType(PackedFileType),
+
+    /// Response to return `Vec<u8>`.
+    VecU8(Vec<u8>),
 }
 
 #[allow(dead_code)]

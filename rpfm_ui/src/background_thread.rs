@@ -1273,6 +1273,17 @@ pub fn background_loop() {
                 CENTRAL_COMMAND.send_message_rust(Response::PackedFileType(PackedFileType::get_packed_file_type(&packed_file, false)));
             }
             Command::GetPackFileName => CENTRAL_COMMAND.send_message_rust(Response::String(pack_file_decoded.get_file_name())),
+            Command::GetPackedFileRawData(path) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.get_ref_raw().get_raw_data() {
+                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::VecU8(data.clone())),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+            },
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

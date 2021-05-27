@@ -27,4 +27,7 @@ fluent-syntax = "^0.10"
 log = "^0.4"
 git2 = "^0.13"
 self_update = "^0.22"
-sentry = "^0.21"
+sentry = "^0.22"
+
+# Config dependencies.
+lazy_static = "^1.2"

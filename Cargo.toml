@@ -16,6 +16,3 @@ incremental = true
 [profile.release]
 lto = true
 debug = true
-
-[patch.crates-io]
-qt_macros = { git = 'https://github.com/davidedelpapa/ritual/', branch = 'fix-issue#107' }

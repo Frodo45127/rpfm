@@ -952,3 +952,16 @@ animpack_view_instructions = <p><b>How to use this view:</b></p>
         <li><b>If you want to extract files from the AnimPack into the PackFile</b>: double-click the files you want to add on the right panel.</li>
         <li><b>If you want to delete files from the AnimPack</b>: select what you want to delete on the right panel, then hit delete.</li>
     </ul>
+
+send_table_for_decoding = Send Table for Decoding
+cancel = Cancel
+send = Send
+send_table_for_decoding_explanation = <p>You are about to send a table for being decoded by RPFM's author.</p>
+    <p>Please, make sure the following data is correct before hitting send, and cancel if it's not:
+        <ul>
+            <li><b>Game selected</b>: {"{"}{"}"}.</li>
+            <li><b>Table type to decode</b>: {"{"}{"}"}.</li>
+        </ul>
+        Is that correct? If so, hit send, and if nothing broke, the table should be sent in the background.
+    </p>
+
