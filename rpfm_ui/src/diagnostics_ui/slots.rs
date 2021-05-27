@@ -13,6 +13,8 @@ Module with all the code related to the main `DiagnosticsUISlots`.
 !*/
 
 use qt_core::QBox;
+use qt_core::QObject;
+use qt_core::QSignalBlocker;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
 use std::rc::Rc;
@@ -101,7 +103,31 @@ impl DiagnosticsUISlots {
         }));
 
         let toggle_filters_types = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
             diagnostics_ui => move || {
+
+                // Lock all signals except the last one, so the filters only trigger once.
+                let _blocker_00 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_outdated_table.static_upcast::<QObject>());
+                let _blocker_01 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_reference.static_upcast::<QObject>());
+                let _blocker_02 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_empty_row.static_upcast::<QObject>());
+                let _blocker_03 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_empty_key_field.static_upcast::<QObject>());
+                let _blocker_04 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_empty_key_fields.static_upcast::<QObject>());
+                let _blocker_05 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_duplicated_combined_keys.static_upcast::<QObject>());
+                let _blocker_06 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_no_reference_table_found.static_upcast::<QObject>());
+                let _blocker_07 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.static_upcast::<QObject>());
+                let _blocker_08 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.static_upcast::<QObject>());
+                let _blocker_09 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_escape.static_upcast::<QObject>());
+                let _blocker_10 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_duplicated_row.static_upcast::<QObject>());
+                let _blocker_11 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_loc_key.static_upcast::<QObject>());
+                let _blocker_12 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_dependency_packfile.static_upcast::<QObject>());
+                let _blocker_13 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_dependencies_cache_not_generated.static_upcast::<QObject>());
+                let _blocker_14 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_invalid_packfile_name.static_upcast::<QObject>());
+                let _blocker_15 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_table_name_ends_in_number.static_upcast::<QObject>());
+                let _blocker_16 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_table_name_has_space.static_upcast::<QObject>());
+                let _blocker_17 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_table_is_datacoring.static_upcast::<QObject>());
+                let _blocker_18 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_dependencies_cache_outdated.static_upcast::<QObject>());
+                let _blocker_19 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.static_upcast::<QObject>());
+
                 diagnostics_ui.checkbox_outdated_table.toggle();
                 diagnostics_ui.checkbox_invalid_reference.toggle();
                 diagnostics_ui.checkbox_empty_row.toggle();
@@ -122,6 +148,8 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_table_is_datacoring.toggle();
                 diagnostics_ui.checkbox_dependencies_cache_outdated.toggle();
                 diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.toggle();
+
+                DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
             }
         ));
 
