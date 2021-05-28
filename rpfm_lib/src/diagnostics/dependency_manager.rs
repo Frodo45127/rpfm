@@ -31,8 +31,7 @@ pub struct DependencyManagerDiagnostic {
 /// This struct defines an individual diagnostic result.
 #[derive(Debug, Clone)]
 pub struct DependencyManagerDiagnosticReport {
-    pub column_number: u32,
-    pub row_number: i64,
+    pub cells_affected: Vec<(i32, i32)>,
     pub message: String,
     pub report_type: DependencyManagerDiagnosticReportType,
     pub level: DiagnosticLevel,

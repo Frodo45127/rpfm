@@ -632,8 +632,8 @@ diagnostics_button_info = Info
 diagnostics_button_only_current_packed_file = Open PackedFiles Only
 
 diagnostics_colum_level = Level
-diagnostics_colum_column = Column
-diagnostics_colum_row = Row
+diagnostics_colum_diag = Diagnostic
+diagnostics_colum_cells_affected = Cells Affected
 diagnostics_colum_path = Path
 diagnostics_colum_message = Message
 

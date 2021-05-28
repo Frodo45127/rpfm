@@ -32,8 +32,9 @@ pub struct TableDiagnostic {
 /// This struct defines an individual diagnostic result.
 #[derive(Debug, Clone)]
 pub struct TableDiagnosticReport {
-    pub column_number: u32,
-    pub row_number: i64,
+
+    /// List of cells, in "row, column" format. If the full row or full column are affected, use -1.
+    pub cells_affected: Vec<(i32, i32)>,
     pub message: String,
     pub report_type: TableDiagnosticReportType,
     pub level: DiagnosticLevel,

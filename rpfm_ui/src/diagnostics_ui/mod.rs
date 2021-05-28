@@ -483,8 +483,7 @@ impl DiagnosticsUI {
                             // Create an empty row.
                             let level = QStandardItem::new();
                             let diag_type = QStandardItem::new();
-                            let column = QStandardItem::new();
-                            let row = QStandardItem::new();
+                            let cells_affected = QStandardItem::new();
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
@@ -497,16 +496,14 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            column.set_data_2a(&QVariant::from_uint(result.column_number), 2);
-                            row.set_data_2a(&QVariant::from_i64(result.row_number + 1), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
                             path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
                             message.set_text(&QString::from_std_str(&result.message));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
-                            column.set_editable(false);
-                            row.set_editable(false);
+                            cells_affected.set_editable(false);
                             path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
@@ -517,8 +514,7 @@ impl DiagnosticsUI {
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
@@ -537,7 +533,6 @@ impl DiagnosticsUI {
                             let diag_type = QStandardItem::new();
                             let fill1 = QStandardItem::new();
                             let fill2 = QStandardItem::new();
-                            let fill3 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
                             let (result_type, color) = match result.level {
@@ -556,19 +551,17 @@ impl DiagnosticsUI {
                             diag_type.set_editable(false);
                             fill1.set_editable(false);
                             fill2.set_editable(false);
-                            fill3.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_packfile(&[&level, &fill3, &message], &result.report_type);
+                            Self::set_tooltips_packfile(&[&level, &fill2, &message], &result.report_type);
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
 
@@ -583,9 +576,8 @@ impl DiagnosticsUI {
                             // Create an empty row.
                             let level = QStandardItem::new();
                             let diag_type = QStandardItem::new();
-                            let column = QStandardItem::new();
-                            let row = QStandardItem::new();
-                            let fill3 = QStandardItem::new();
+                            let cells_affected = QStandardItem::new();
+                            let fill2 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
                             let (result_type, color) = match result.level {
@@ -597,28 +589,25 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            column.set_data_2a(&QVariant::from_uint(result.column_number), 2);
-                            row.set_data_2a(&QVariant::from_i64(result.row_number + 1), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
                             message.set_text(&QString::from_std_str(&result.message));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
-                            column.set_editable(false);
-                            row.set_editable(false);
-                            fill3.set_editable(false);
+                            cells_affected.set_editable(false);
+                            fill2.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_dependency_manager(&[&level, &fill3, &message], &result.report_type);
+                            Self::set_tooltips_dependency_manager(&[&level, &fill2, &message], &result.report_type);
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
 
@@ -636,7 +625,6 @@ impl DiagnosticsUI {
                             let diag_type = QStandardItem::new();
                             let fill1 = QStandardItem::new();
                             let fill2 = QStandardItem::new();
-                            let fill3 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
                             let (result_type, color) = match result.level {
@@ -655,19 +643,17 @@ impl DiagnosticsUI {
                             diag_type.set_editable(false);
                             fill1.set_editable(false);
                             fill2.set_editable(false);
-                            fill3.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_config(&[&level, &fill3, &message], &result.report_type);
+                            Self::set_tooltips_config(&[&level, &fill2, &message], &result.report_type);
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
 
@@ -682,19 +668,17 @@ impl DiagnosticsUI {
             }
 
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_row")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_diag")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_cells_affected")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_report_type")));
 
             // Hide the column number column for tables.
             diagnostics_ui.diagnostics_table_view.hide_column(1);
             diagnostics_ui.diagnostics_table_view.hide_column(2);
-            diagnostics_ui.diagnostics_table_view.hide_column(3);
-            diagnostics_ui.diagnostics_table_view.hide_column(6);
-            diagnostics_ui.diagnostics_table_view.sort_by_column_2a(4, SortOrder::AscendingOrder);
+            diagnostics_ui.diagnostics_table_view.hide_column(5);
+            diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
 
             diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
             diagnostics_ui.diagnostics_table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
@@ -715,7 +699,7 @@ impl DiagnosticsUI {
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
 
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
-        let item_path = model.item_2a(model_index.row(), 4);
+        let item_path = model.item_2a(model_index.row(), 3);
         let path = item_path.text().to_std_string();
         let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
         let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
@@ -754,14 +738,15 @@ impl DiagnosticsUI {
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
 
-                        let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
-                        let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
-
-                        let table_model_index = table_model.index_2a(row, column);
-                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                        if table_model_index_filtered.is_valid() {
-                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        table_selection_model.clear_selection();
+                        let cells_affected: Vec<(i32, i32)> = serde_json::from_str(&model.item_2a(model_index.row(), 2).text().to_std_string()).unwrap();
+                        for (row, column) in cells_affected {
+                            let table_model_index = table_model.index_2a(row, column);
+                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                            if table_model_index_filtered.is_valid() {
+                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                            }
                         }
                     }
                 }
@@ -823,17 +808,48 @@ impl DiagnosticsUI {
                         DiagnosticType::DB(ref diagnostic) |
                         DiagnosticType::Loc(ref diagnostic) => {
                             for result in diagnostic.get_ref_result() {
+                                for (row, column) in &result.cells_affected {
+                                    if *row != -1 || *column != -1 {
+                                        if *column == -1 {
+                                            for column in 0..table_model.column_count_0a() {
+                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                if result.row_number >= 0 {
-                                    let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
-                                    let table_model_item = table_model.item_from_index(&table_model_index);
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else if *row == -1 {
+                                            for row in 0..table_model.row_count_0a() {
+                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                    // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                    if table_model_index.is_valid() {
-                                        match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                            DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                            DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -841,16 +857,49 @@ impl DiagnosticsUI {
                         },
                         DiagnosticType::DependencyManager(ref diagnostic) => {
                             for result in diagnostic.get_ref_result() {
-                                if result.row_number >= 0 {
-                                    let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
-                                    let table_model_item = table_model.item_from_index(&table_model_index);
+                                for (row, column) in &result.cells_affected {
+                                    if *row != -1 || *column != -1 {
 
-                                    // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                    if table_model_index.is_valid() {
-                                        match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                            DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                            DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                        if *column == -1 {
+                                            for column in 0..table_model.column_count_0a() {
+                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else if *row == -1 {
+                                            for row in 0..table_model.row_count_0a() {
+                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -936,7 +985,9 @@ impl DiagnosticsUI {
         // Check for currently open files filter.
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
-            let open_packedfiles_ref = open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1).collect::<Vec<&PackedFileView>>();
+            let open_packedfiles_ref = open_packedfiles.iter()
+                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1)
+                .collect::<Vec<&PackedFileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {
                 if !pattern.is_empty() {
@@ -950,7 +1001,7 @@ impl DiagnosticsUI {
                 pattern.push_str("empty");
             }
 
-            columns.push(4);
+            columns.push(3);
             patterns.push(QString::from_std_str(pattern).into_ptr());
             sensitivity.push(CaseSensitivity::CaseSensitive);
         }
@@ -1028,7 +1079,7 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str("empty");
         }
 
-        columns.push(6);
+        columns.push(5);
         patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
         let show_blank_lines = vec![false; sensitivity.len()];

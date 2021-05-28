@@ -12,10 +12,16 @@
 Module with all the code related to the `Diagnostics`.
 
 This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
+
+Notes on cells_affected:
+- Both -1: affects the entire table.
+- Row -1: affects all rows in single column.
+- Column -1: affects all columns in single row.
 !*/
 
-use rayon::prelude::*;
+use itertools::Itertools;
 use fancy_regex::Regex;
+use rayon::prelude::*;
 
 use std::{fmt, fmt::Display};
 use std::cmp::Ordering;
@@ -186,7 +192,7 @@ impl Diagnostics {
         self.0 = packed_files_split.into_par_iter().filter_map(|(_, packed_files)| {
 
             let mut diagnostics = Vec::with_capacity(packed_files.len());
-            let mut data_prev = Vec::with_capacity(packed_files.len());
+            let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
             for packed_file in packed_files {
 
                 // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
@@ -255,7 +261,7 @@ impl Diagnostics {
         asskit_dependencies: &[DB],
         ignored_fields: &[String],
         ignored_diagnostics: &[String],
-        previous_data: &mut Vec<Vec<String>>,
+        previous_data: &mut BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
@@ -272,14 +278,14 @@ impl Diagnostics {
             // Check all the columns with reference data.
             let mut columns_without_reference_table = vec![];
             let mut columns_with_reference_table_and_no_column = vec![];
-            let mut keys = vec![];
+            let mut keys: BTreeMap<i32, BTreeMap<i32, String>> = BTreeMap::new();
+            let mut duplicated_combined_keys_already_marked = vec![];
 
             // Before anything else, check if the table is outdated.
             if ignored_diagnostics.iter().all(|x| x != "OutdatedTable") {
                 if table.is_outdated(&dependencies) {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: 0,
-                        row_number: -1,
+                        cells_affected: vec![],
                         message: "Possibly outdated table.".to_owned(),
                         report_type: TableDiagnosticReportType::OutdatedTable,
                         level: DiagnosticLevel::Error,
@@ -302,8 +308,7 @@ impl Diagnostics {
 
                     if ignored_diagnostics.iter().all(|x| x != "TableNameEndsInNumber") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: -1,
+                            cells_affected: vec![],
                             message: "Table name ends in number.".to_owned(),
                             report_type: TableDiagnosticReportType::TableNameEndsInNumber,
                             level: DiagnosticLevel::Error,
@@ -314,8 +319,7 @@ impl Diagnostics {
                 if name.contains(' ') {
                     if ignored_diagnostics.iter().all(|x| x != "TableNameHasSpace") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: -1,
+                            cells_affected: vec![],
                             message: "Table name contains spaces.".to_owned(),
                             report_type: TableDiagnosticReportType::TableNameHasSpace,
                             level: DiagnosticLevel::Error,
@@ -329,8 +333,7 @@ impl Diagnostics {
                             VanillaDBTableNameLogic::FolderName => {
                                 if table.get_table_name_without_tables() == path[1] {
                                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                        column_number: 0,
-                                        row_number: -1,
+                                        cells_affected: vec![],
                                         message: "Table is datacoring.".to_owned(),
                                         report_type: TableDiagnosticReportType::TableIsDataCoring,
                                         level: DiagnosticLevel::Warning,
@@ -341,8 +344,7 @@ impl Diagnostics {
                             VanillaDBTableNameLogic::DefaultName(ref default_name) => {
                                 if *name == default_name {
                                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                        column_number: 0,
-                                        row_number: -1,
+                                        cells_affected: vec![],
                                         message: "Table is datacoring.".to_owned(),
                                         report_type: TableDiagnosticReportType::TableIsDataCoring,
                                         level: DiagnosticLevel::Warning,
@@ -357,7 +359,7 @@ impl Diagnostics {
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
-                let mut local_keys = vec![];
+                let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                 for (column, field) in table.get_ref_definition().get_fields_processed().iter().enumerate() {
                     if ignored_fields.contains(&field.get_name().to_owned()) {
                         continue;
@@ -389,8 +391,7 @@ impl Diagnostics {
                                 else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
                                     if ignored_diagnostics.iter().all(|x| x != "InvalidReference") {
                                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                            column_number: column as u32,
-                                            row_number: row as i64,
+                                            cells_affected: vec![(row as i32, column as i32)],
                                             message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
                                             report_type: TableDiagnosticReportType::InvalidReference,
                                             level: DiagnosticLevel::Error,
@@ -418,8 +419,7 @@ impl Diagnostics {
                     if field.get_is_key() && field.get_field_type() != FieldType::OptionalStringU8 && field.get_field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
                         if ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
                             diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                column_number: column as u32,
-                                row_number: row as i64,
+                                cells_affected: vec![(row as i32, column as i32)],
                                 message: format!("Empty key for column \"{}\".", field.get_name()),
                                 report_type: TableDiagnosticReportType::EmptyKeyField,
                                 level: DiagnosticLevel::Warning,
@@ -428,15 +428,14 @@ impl Diagnostics {
                     }
 
                     if field.get_is_key() {
-                        local_keys.push(cell_data);
+                        row_keys.insert(column as i32, cell_data);
                     }
                 }
 
                 if row_is_empty {
                     if ignored_diagnostics.iter().all(|x| x != "EmptyRow") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
+                            cells_affected: vec![(row as i32, -1 as i32)],
                             message: "Empty row.".to_string(),
                             report_type: TableDiagnosticReportType::EmptyRow,
                             level: DiagnosticLevel::Error,
@@ -447,8 +446,7 @@ impl Diagnostics {
                 if row_keys_are_empty {
                     if ignored_diagnostics.iter().all(|x| x != "EmptyKeyFields") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
+                            cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
                             message: "Empty key fields.".to_string(),
                             report_type: TableDiagnosticReportType::EmptyKeyFields,
                             level: DiagnosticLevel::Warning,
@@ -456,28 +454,63 @@ impl Diagnostics {
                     }
                 }
 
-                if !local_keys.is_empty() && (keys.contains(&local_keys) || previous_data.contains(&local_keys)) {
-                    if ignored_diagnostics.iter().all(|x| x != "DuplicatedCombinedKeys") {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
-                            message: format!("Duplicated combined keys: {}.", local_keys.join("| |")),
-                            report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                            level: DiagnosticLevel::Error,
+                if ignored_diagnostics.iter().all(|x| x != "DuplicatedCombinedKeys") {
+
+                    // Get duplicated rows within the same table.
+                    keys.iter().for_each(|(previous_row, previous_keys)| {
+                        if *previous_keys == row_keys {
+
+                            // Mark previous row, if not yet marked.
+                            if !duplicated_combined_keys_already_marked.contains(previous_row) {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: previous_keys.keys().map(|column| (*previous_row, *column)).collect::<Vec<(i32, i32)>>(),
+                                    message: format!("Duplicated combined keys: {}.", row_keys.values().join("| |")),
+                                    report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                                    level: DiagnosticLevel::Error,
+                                });
+
+                                duplicated_combined_keys_already_marked.push(*previous_row);
+                            }
+
+                            // Mark current row, if not yet marked.
+                            if !duplicated_combined_keys_already_marked.contains(&(row as i32)) {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
+                                    message: format!("Duplicated combined keys: {}.", row_keys.values().join("| |")),
+                                    report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                                    level: DiagnosticLevel::Error,
+                                });
+
+                                duplicated_combined_keys_already_marked.push(row as i32);
+                            }
+                        }
+                    });
+
+                    // Get duplicated rows against other tables.
+                    //
+                    // TODO: fix this duplicate diagnostic.
+                    /*previous_data.iter().for_each(|(path, previous_keys)| {
+                        previous_keys.iter().for_each(|(previous_row, previous_keys_per_row)| {
+                            if *previous_keys_per_row == row_keys {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
+                                    message: format!("Duplicated combined keys: {}.", row_keys.values().join("| |")),
+                                    report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                                    level: DiagnosticLevel::Error,
+                                });
+                            }
                         });
-                    }
+                    });*/
                 }
-                else {
-                    keys.push(local_keys);
-                }
+
+                keys.insert(row as i32, row_keys);
             }
 
             // Checks that only need to be done once per table.
             for column in &columns_without_reference_table {
                 if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableFound") {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                        column_number: *column as u32,
-                        row_number: -1,
+                        cells_affected: vec![(-1, *column as i32)],
                         message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
                         report_type: TableDiagnosticReportType::NoReferenceTableFound,
                         level: DiagnosticLevel::Info,
@@ -489,8 +522,7 @@ impl Diagnostics {
                 if !dependencies.game_has_asskit_data_loaded() {
                     if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableNorColumnFoundNoPak") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: *column as u32,
-                            row_number: -1,
+                            cells_affected: vec![(-1, *column as i32)],
                             message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
                             report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak,
                             level: DiagnosticLevel::Warning,
@@ -500,8 +532,7 @@ impl Diagnostics {
                 else {
                     if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableNorColumnFoundPak") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: *column as u32,
-                            row_number: -1,
+                            cells_affected: vec![(-1, *column as i32)],
                             message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
                             report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
                             level: DiagnosticLevel::Info,
@@ -511,7 +542,7 @@ impl Diagnostics {
             }
 
             // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
-            previous_data.append(&mut keys);
+            previous_data.insert(path.to_vec(), keys);
 
             if !diagnostic.get_ref_result().is_empty() {
                 Some(DiagnosticType::DB(diagnostic))
@@ -525,16 +556,17 @@ impl Diagnostics {
         path: &[String],
         ignored_fields: &[String],
         ignored_diagnostics: &[String],
-        previous_data: &mut Vec<Vec<String>>,
+        previous_data: &mut BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::Loc(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
 
             // Check all the columns with reference data.
-            let mut keys = vec![];
+            let mut keys: BTreeMap<i32, BTreeMap<i32, String>> = BTreeMap::new();
             let fields = table.get_ref_definition().get_fields_processed();
             let field_key_name = fields[0].get_name().to_owned();
             let field_text_name = fields[1].get_name().to_owned();
+            let mut duplicated_rows_already_marked = vec![];
 
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
@@ -543,8 +575,7 @@ impl Diagnostics {
                 if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
                     if ignored_diagnostics.iter().all(|x| x != "InvalidLocKey") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 0,
-                            row_number: row as i64,
+                            cells_affected: vec![(row as i32, 0)],
                             message: "Invalid localisation key.".to_string(),
                             report_type: TableDiagnosticReportType::InvalidLocKey,
                             level: DiagnosticLevel::Error,
@@ -556,8 +587,7 @@ impl Diagnostics {
                     if key.is_empty() && data.is_empty() {
                         if ignored_diagnostics.iter().all(|x| x != "EmptyRow") {
                             diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                column_number: 0,
-                                row_number: row as i64,
+                                cells_affected: vec![(row as i32, -1)],
                                 message: "Empty row.".to_string(),
                                 report_type: TableDiagnosticReportType::EmptyRow,
                                 level: DiagnosticLevel::Warning,
@@ -568,8 +598,7 @@ impl Diagnostics {
                     if key.is_empty() && !data.is_empty() {
                         if ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
                             diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                column_number: 0,
-                                row_number: row as i64,
+                                cells_affected: vec![(row as i32, 0)],
                                 message: "Empty key.".to_string(),
                                 report_type: TableDiagnosticReportType::EmptyKeyField,
                                 level: DiagnosticLevel::Warning,
@@ -582,8 +611,7 @@ impl Diagnostics {
                 if !ignored_fields.contains(&field_text_name) && !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
                     if ignored_diagnostics.iter().all(|x| x != "InvalidEscape") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            column_number: 1,
-                            row_number: row as i64,
+                            cells_affected: vec![(row as i32, 1)],
                             message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
                             report_type: TableDiagnosticReportType::InvalidEscape,
                             level: DiagnosticLevel::Warning,
@@ -592,26 +620,62 @@ impl Diagnostics {
                 }
 
                 if !ignored_fields.contains(&field_key_name) {
-                    let local_keys = vec![key.to_owned(), data.to_owned()];
-                    if keys.contains(&local_keys) || previous_data.contains(&local_keys) {
-                        if ignored_diagnostics.iter().all(|x| x != "DuplicatedRow") {
-                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                column_number: 0,
-                                row_number: row as i64,
-                                message: "Duplicated row.".to_string(),
-                                report_type: TableDiagnosticReportType::DuplicatedRow,
-                                level: DiagnosticLevel::Warning,
+                    let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
+                    row_keys.insert(0, key.to_owned());
+                    row_keys.insert(1, data.to_owned());
+
+                    if ignored_diagnostics.iter().all(|x| x != "DuplicatedRow") {
+
+                        // Get duplicated rows within the same loc.
+                        keys.iter().for_each(|(previous_row, previous_keys)| {
+                            if *previous_keys == row_keys  {
+                                if !duplicated_rows_already_marked.contains(previous_row) {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: vec![(*previous_row, 0), (*previous_row, 1)],
+                                        message: "Duplicated row.".to_string(),
+                                        report_type: TableDiagnosticReportType::DuplicatedRow,
+                                        level: DiagnosticLevel::Warning,
+                                    });
+
+                                    duplicated_rows_already_marked.push(*previous_row);
+                                }
+
+                                if !duplicated_rows_already_marked.contains(&(row as i32)) {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: vec![(row as i32, 0), (row as i32, 1)],
+                                        message: "Duplicated row.".to_string(),
+                                        report_type: TableDiagnosticReportType::DuplicatedRow,
+                                        level: DiagnosticLevel::Warning,
+                                    });
+
+                                    duplicated_rows_already_marked.push(row as i32);
+                                }
+                            }
+                        });
+
+                        // Get duplicated rows against other locs.
+                        //
+                        // TODO: fix this duplicate diagnostic.
+                        /*previous_data.iter().for_each(|(path, previous_keys)| {
+                            previous_keys.iter().for_each(|(previous_row, previous_keys_per_row)| {
+                                if *previous_keys_per_row == row_keys {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: vec![(row as i32, 0), (row as i32, 1)],
+                                        message: "Duplicated row.".to_string(),
+                                        report_type: TableDiagnosticReportType::DuplicatedRow,
+                                        level: DiagnosticLevel::Warning,
+                                    });
+                                }
                             });
-                        }
+                        });*/
                     }
-                    else {
-                        keys.push(local_keys);
-                    }
+
+                    keys.insert(row as i32, row_keys);
                 }
             }
 
             // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
-            previous_data.append(&mut keys);
+            previous_data.insert(path.to_vec(), keys);
 
             if !diagnostic.get_ref_result().is_empty() {
                 Some(DiagnosticType::Loc(diagnostic))
@@ -645,8 +709,7 @@ impl Diagnostics {
             // TODO: Make it so this also checks if the PackFile actually exists,
             if pack_file.is_empty() || !pack_file.ends_with(".pack") || pack_file.contains(' ') {
                 diagnostic.get_ref_mut_result().push(DependencyManagerDiagnosticReport {
-                    column_number: 0,
-                    row_number: index as i64,
+                    cells_affected: vec![(index as i32, 0)],
                     message: format!("Invalid dependency PackFile name: {}", pack_file),
                     report_type: DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName,
                     level: DiagnosticLevel::Error,
@@ -807,7 +870,7 @@ impl Diagnostics {
         }
 
         for (_, packed_files) in &packed_files_split {
-            let mut data_prev = Vec::with_capacity(packed_files.len());
+            let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
 
             for packed_file in packed_files {
                 let mut ignored_fields = vec![];
