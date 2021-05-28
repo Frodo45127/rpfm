@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
-use rpfm_lib::common::get_files_from_subdir;
+use rpfm_lib::{common::get_files_from_subdir, packfile::RESERVED_NAME_NOTES};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};
@@ -971,7 +971,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move |_| {
-            AppUI::open_notes(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.

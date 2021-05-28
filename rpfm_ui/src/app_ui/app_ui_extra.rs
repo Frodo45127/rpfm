@@ -1604,11 +1604,8 @@ impl AppUI {
                             }
                         }
 
-                        // For any other PackedFile, just restore the display tips.
-                        _ => {
-                            //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                            //display_help_tips(&app_ui);
-                        }
+                        // Ignore anything else.
+                        _ => {}
                     }
                 }
 
@@ -1627,7 +1624,7 @@ impl AppUI {
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
                         }
-                        Err(error) => show_dialog(&app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
                     }
                 }
             }
@@ -1763,65 +1760,6 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
 
             match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                Ok(_) => {
-
-                    // Add the manager to the 'Currently open' list and make it visible.
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    UI_STATE.set_open_packedfiles().push(tab);
-                },
-                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
-            }
-        }
-
-        Self::update_views_names(app_ui);
-    }
-
-    /// This function is used to open the notes embebed into a PackFile.
-    pub unsafe fn open_notes(
-        app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-    ) {
-
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        if !UI_STATE.get_packfile_contents_read_only() {
-
-            // Close all preview views except the file we're opening. The path used for the notes is reserved.
-            let path = vec![RESERVED_NAME_NOTES.to_owned()];
-            let name = qtr("notes");
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.get_ref_path();
-                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
-                    app_ui.tab_bar_packed_file.remove_tab(index);
-                }
-            }
-
-            // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
-                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                if index == -1 {
-                    let icon_type = IconType::PackFile(true);
-                    let icon = icon_type.get_icon_from_path();
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
-                }
-
-                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                return;
-            }
-
-            // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = PackedFileView::default();
-            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
-            tab.set_is_preview(false);
-            let icon_type = IconType::PackFile(true);
-            let icon = icon_type.get_icon_from_path();
-            tab.set_path(&path);
-
-            match PackedFileTextView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                 Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.
@@ -2327,9 +2265,11 @@ impl AppUI {
             let widget = packed_file_view.get_mut_widget();
             if app_ui.tab_bar_packed_file.index_of(widget) != -1 {
 
-                // If there is no path, is a dependency manager.
+                // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
-                if let Some(name) = path.last() {
+                if *path == &[RESERVED_NAME_NOTES.to_owned()] {
+                    names.insert("Notes".to_owned(), 1);
+                } else if let Some(name) = path.last() {
                     match names.get_mut(name) {
                         Some(name) => *name += 1,
                         None => { names.insert(name.to_owned(), 1); },
@@ -2340,35 +2280,41 @@ impl AppUI {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = packed_file_view.get_mut_widget();
-            if let Some(widget_name) = packed_file_view.get_ref_path().last() {
-                if let Some(count) = names.get(widget_name) {
-                    let mut name = String::new();
-                    match packed_file_view.get_data_source() {
-                        DataSource::PackFile => name.push_str("Local"),
-                        DataSource::ParentFiles => name.push_str("Parent"),
-                        DataSource::GameFiles => name.push_str("Game"),
-                        DataSource::AssKitFiles => name.push_str("AssKit"),
-                    }
+            let widget_name = if *packed_file_view.get_ref_path() == &[RESERVED_NAME_NOTES.to_owned()] {
+                "Notes".to_owned()
+            } else if let Some(widget_name) = packed_file_view.get_ref_path().last() {
+                widget_name.to_owned()
+            } else {
+                "".to_owned()
+            };
 
-                    if packed_file_view.get_is_read_only() {
-                        name.push_str("-RO:");
-                    } else {
-                        name.push(':');
-                    }
-
-                    if count > &1 {
-                        name.push_str(&packed_file_view.get_ref_path().join("/"));
-                    } else {
-                        name.push_str(&widget_name.to_owned());
-                    };
-
-                    if packed_file_view.get_is_preview() {
-                        name.push_str(" (Preview)");
-                    }
-
-                    let index = app_ui.tab_bar_packed_file.index_of(widget);
-                    app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+            if let Some(count) = names.get(&widget_name) {
+                let mut name = String::new();
+                match packed_file_view.get_data_source() {
+                    DataSource::PackFile => name.push_str("Local"),
+                    DataSource::ParentFiles => name.push_str("Parent"),
+                    DataSource::GameFiles => name.push_str("Game"),
+                    DataSource::AssKitFiles => name.push_str("AssKit"),
                 }
+
+                if packed_file_view.get_is_read_only() {
+                    name.push_str("-RO:");
+                } else {
+                    name.push(':');
+                }
+
+                if count > &1 {
+                    name.push_str(&packed_file_view.get_ref_path().join("/"));
+                } else {
+                    name.push_str(&widget_name.to_owned());
+                };
+
+                if packed_file_view.get_is_preview() {
+                    name.push_str(" (Preview)");
+                }
+
+                let index = app_ui.tab_bar_packed_file.index_of(widget);
+                app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
             }
         }
     }

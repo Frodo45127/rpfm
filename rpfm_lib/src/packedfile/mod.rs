@@ -23,7 +23,7 @@ use std::ops::Deref;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use crate::dependencies::Dependencies;
+use crate::{dependencies::Dependencies, packfile::RESERVED_NAME_NOTES};
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
@@ -386,6 +386,12 @@ impl PackedFileType {
 
         // First, try with extensions.
         let path = packed_file.get_path();
+
+        // Reserved PackedFiles.
+        if &path == &[RESERVED_NAME_NOTES] {
+            return Self::Text(TextType::Markdown);
+        }
+
         if let Some(packedfile_name) = path.last() {
             let packedfile_name = packedfile_name.to_lowercase();
 
