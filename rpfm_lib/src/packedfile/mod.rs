@@ -23,7 +23,7 @@ use std::ops::Deref;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use crate::{dependencies::Dependencies, packfile::RESERVED_NAME_NOTES};
+use crate::{dependencies::Dependencies, packfile::{RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}};
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
@@ -99,6 +99,9 @@ pub enum PackedFileType {
 
     /// This one is special. It's used just in case we want to open the Dependency PackFile List as a PackedFile.
     DependencyPackFilesList,
+
+    /// To identify PackFiles in a PackedFile context.
+    PackFile,
     PackFileSettings,
     Unknown,
 }
@@ -365,6 +368,7 @@ impl Display for PackedFileType {
             PackedFileType::GroupFormations => write!(f, "Group Formations"),
             PackedFileType::Loc => write!(f, "Loc Table"),
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
+            PackedFileType::PackFile => write!(f, "PackFile"),
             PackedFileType::RigidModel => write!(f, "RigidModel"),
             PackedFileType::StarPos => write!(f, "StartPos"),
             PackedFileType::UIC => write!(f, "UI Component"),
@@ -390,6 +394,10 @@ impl PackedFileType {
         // Reserved PackedFiles.
         if &path == &[RESERVED_NAME_NOTES] {
             return Self::Text(TextType::Markdown);
+        }
+
+        if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
+            return Self::PackFile;
         }
 
         if let Some(packedfile_name) = path.last() {
@@ -569,6 +577,7 @@ impl PackedFileType {
             Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
+            Self::PackFile |
             Self::RigidModel |
             Self::StarPos |
             Self::PackFileSettings |
@@ -597,6 +606,7 @@ impl PackedFileType {
             Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
+            Self::PackFile |
             Self::RigidModel |
             Self::StarPos |
             Self::PackFileSettings |

@@ -35,6 +35,7 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use rpfm_error::Result;
+use rpfm_lib::packedfile::PackedFileType;
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -149,6 +150,7 @@ impl PackFileExtraView {
 
         connections::set_connections(&view, &slots);
         shortcuts::set_shortcuts(&view);
+        pack_file_view.packed_file_type = PackedFileType::PackFile;
         pack_file_view.view = ViewType::Internal(View::PackFile(view));
 
         // Return success.

@@ -119,6 +119,9 @@ pub enum DataSource {
 
     /// This means the data comes from the AssKit files.
     AssKitFiles,
+
+    /// This means the data comes from an external file.
+    ExternalFile,
 }
 
 /// This enum is used to hold in a common way all the view types we have.
@@ -369,7 +372,9 @@ impl PackedFileView {
 
                             // UnitVariant use custom saving.
                             PackedFileType::UnitVariant => return Ok(()),
-                            PackedFileType::Unknown => return Ok(()),
+
+                            // Ignore these ones.
+                            PackedFileType::Unknown | PackedFileType::PackFile => return Ok(()),
                             _ => unimplemented!(),
                         };
 
@@ -412,156 +417,160 @@ impl PackedFileView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
         let data_source = self.get_data_source();
-         match self.get_ref_mut_view() {
-            ViewType::Internal(view) => {
+        if data_source != DataSource::ExternalFile {
+            match self.get_ref_mut_view() {
+                ViewType::Internal(view) => {
 
-                CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec(), data_source));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                    CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec(), data_source));
+                    let response = CENTRAL_COMMAND.recv_message_qt();
 
-                match response {
+                    match response {
 
-                    Response::AnimFragmentPackedFileInfo((fragment, packed_file_info)) => {
-                        if let View::AnimFragment(old_fragment) = view {
-                            if old_fragment.reload_view(fragment).is_err() {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                            }
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::AnimPackPackedFileInfo((anim_pack, packed_file_info)) => {
-                        if let View::AnimPack(old_anim_pack) = view {
-                            old_anim_pack.reload_view(anim_pack);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::AnimTablePackedFileInfo((table, packed_file_info)) => {
-                        if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_table();
-                            old_table.reload_view(TableType::AnimTable(table));
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::CaVp8PackedFileInfo((ca_vp8, packed_file_info)) => {
-                        if let View::CaVp8(old_ca_vp8) = view {
-                            old_ca_vp8.reload_view(&ca_vp8);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::DBPackedFileInfo((table, packed_file_info)) => {
-                        if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_table();
-                            old_table.reload_view(TableType::DB(table));
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::ImagePackedFileInfo((image, packed_file_info)) => {
-                        if let View::Image(old_image) = view {
-                            old_image.reload_view(&image);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::LocPackedFileInfo((table, packed_file_info)) => {
-                        if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_table();
-                            old_table.reload_view(TableType::Loc(table));
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
-                        if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_table();
-                            old_table.reload_view(TableType::MatchedCombat(table));
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    #[cfg(feature = "support_rigidmodel")]
-                    Response::RigidModelPackedFileInfo((rigidmodel, packed_file_info)) => {
-                        if let View::RigidModel(old_rigidmodel) = view {
-                            old_rigidmodel.reload_view(&rigidmodel);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    Response::TextPackedFileInfo((text, packed_file_info)) => {
-                        if let View::Text(old_text) = view {
-                            old_text.reload_view(&text);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                        }
-                        else {
-                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
-                        }
-                    },
-
-                    // Debug views retun their entire file.
-                    Response::DecodedPackedFilePackedFileInfo((packed_file, packed_file_info)) => {
-                        match packed_file {
-                            DecodedPackedFile::UnitVariant(variant) => {
-                                if let View::UnitVariant(old_variant) = view {
-                                    old_variant.reload_view(&variant);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
-                                }
-                                else {
+                        Response::AnimFragmentPackedFileInfo((fragment, packed_file_info)) => {
+                            if let View::AnimFragment(old_fragment) = view {
+                                if old_fragment.reload_view(fragment).is_err() {
                                     return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
                                 }
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
                             }
-                            _ => return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into()),
-                        }
-                    },
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
 
-                    Response::Error(error) => return Err(error),
-                    Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
+                        Response::AnimPackPackedFileInfo((anim_pack, packed_file_info)) => {
+                            if let View::AnimPack(old_anim_pack) = view {
+                                old_anim_pack.reload_view(anim_pack);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
-                Ok(())
-            },
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
 
-            // External views don't need reloading.
-            ViewType::External(_) => Ok(())
+                        Response::AnimTablePackedFileInfo((table, packed_file_info)) => {
+                            if let View::Table(old_table) = view {
+                                let old_table = old_table.get_ref_table();
+                                old_table.reload_view(TableType::AnimTable(table));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::CaVp8PackedFileInfo((ca_vp8, packed_file_info)) => {
+                            if let View::CaVp8(old_ca_vp8) = view {
+                                old_ca_vp8.reload_view(&ca_vp8);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::DBPackedFileInfo((table, packed_file_info)) => {
+                            if let View::Table(old_table) = view {
+                                let old_table = old_table.get_ref_table();
+                                old_table.reload_view(TableType::DB(table));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::ImagePackedFileInfo((image, packed_file_info)) => {
+                            if let View::Image(old_image) = view {
+                                old_image.reload_view(&image);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::LocPackedFileInfo((table, packed_file_info)) => {
+                            if let View::Table(old_table) = view {
+                                let old_table = old_table.get_ref_table();
+                                old_table.reload_view(TableType::Loc(table));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
+                            if let View::Table(old_table) = view {
+                                let old_table = old_table.get_ref_table();
+                                old_table.reload_view(TableType::MatchedCombat(table));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        #[cfg(feature = "support_rigidmodel")]
+                        Response::RigidModelPackedFileInfo((rigidmodel, packed_file_info)) => {
+                            if let View::RigidModel(old_rigidmodel) = view {
+                                old_rigidmodel.reload_view(&rigidmodel);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        Response::TextPackedFileInfo((text, packed_file_info)) => {
+                            if let View::Text(old_text) = view {
+                                old_text.reload_view(&text);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                            }
+                            else {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
+                        },
+
+                        // Debug views retun their entire file.
+                        Response::DecodedPackedFilePackedFileInfo((packed_file, packed_file_info)) => {
+                            match packed_file {
+                                DecodedPackedFile::UnitVariant(variant) => {
+                                    if let View::UnitVariant(old_variant) = view {
+                                        old_variant.reload_view(&variant);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                                    }
+                                    else {
+                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                    }
+                                }
+                                _ => return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into()),
+                            }
+                        },
+
+                        Response::Error(error) => return Err(error),
+                        Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
+                    Ok(())
+                },
+
+                // External views don't need reloading.
+                ViewType::External(_) => Ok(())
+            }
+        } else {
+            Ok(())
         }
     }
 }
@@ -573,6 +582,7 @@ impl Display for DataSource {
             Self::GameFiles => "GameFiles",
             Self::ParentFiles => "ParentFiles",
             Self::AssKitFiles => "AssKitFiles",
+            Self::ExternalFile => "ExternalFile",
         }, f)
     }
 }

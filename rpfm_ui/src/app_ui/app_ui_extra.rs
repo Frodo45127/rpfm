@@ -66,7 +66,7 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
@@ -1604,6 +1604,19 @@ impl AppUI {
                             }
                         }
 
+                        PackedFileType::PackFile => {
+                            let path_str = &tab.get_path()[1..].join("/");
+                            let path = PathBuf::from(path_str.to_owned());
+                            match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, path) {
+                                Ok(_) => {
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                    UI_STATE.set_open_packedfiles().push(tab);
+                                }
+                                Err(error) => show_dialog(&app_ui.main_window, error, false),
+                            }
+                        }
+
                         // Ignore anything else.
                         _ => {}
                     }
@@ -2295,6 +2308,7 @@ impl AppUI {
                     DataSource::ParentFiles => name.push_str("Parent"),
                     DataSource::GameFiles => name.push_str("Game"),
                     DataSource::AssKitFiles => name.push_str("AssKit"),
+                    DataSource::ExternalFile => name.push_str("External"),
                 }
 
                 if packed_file_view.get_is_read_only() {

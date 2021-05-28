@@ -620,6 +620,8 @@ pub fn background_loop() {
                             Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         }
                     }
+
+                    DataSource::ExternalFile => {}
                 }
             }
 

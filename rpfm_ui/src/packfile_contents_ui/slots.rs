@@ -42,10 +42,9 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tre};
-use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::packfile::PackFileExtraView;
-use crate::packedfile_views::{DataSource, PackedFileView};
+use crate::packedfile_views::DataSource;
 use crate::QString;
 use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
@@ -627,7 +626,9 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Add From PackFile" action in the Contextual Menu.
         let contextual_menu_add_from_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
-            pack_file_contents_ui => move |_| {
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -654,46 +655,8 @@ impl PackFileContentsSlots {
                     }
 
                     app_ui.main_window.set_enabled(false);
-
                     let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str.to_owned()];
-
-                    // Close all preview views except the file we're opening.
-                    for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
-                        let open_path = packed_file_view.get_ref_path();
-                        let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                        if *open_path != fake_path && packed_file_view.get_is_preview() && index != -1 {
-                            app_ui.tab_bar_packed_file.remove_tab(index);
-                        }
-                    }
-
-                    // If the PackFile is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                    if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == fake_path) {
-                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                        if index == -1 {
-                            let icon_type = IconType::PackFile(true);
-                            let icon = icon_type.get_icon_from_path();
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(&path_str));
-                        }
-
-                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                        return;
-                    }
-
-                    let mut tab = PackedFileView::default();
-                    let icon_type = IconType::PackFile(false);
-                    let icon = icon_type.get_icon_from_path();
-                    tab.set_is_preview(false);
-                    tab.set_path(&fake_path);
-
-                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, path) {
-                        Ok(_) => {
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                            UI_STATE.set_open_packedfiles().push(tab);
-                        }
-                        Err(error) => show_dialog(&app_ui.main_window, error, false),
-                    }
+                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(fake_path), false, false, DataSource::ExternalFile);
                     app_ui.main_window.set_enabled(true);
                 }
             }
