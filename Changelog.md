@@ -30,6 +30,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Added a dialog before generating the dependencies cache.
 - Added a dialog before optimizing a PackFile, explaining what the optimizer does, and asking the user to make a backup before using it.
 - Added clear filter buttons to `Add From PackFile` and `AnimPack` filters.
+- Added option to send a table for decoding.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
@@ -57,6 +58,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a hang on opening/creating PackFiles if the user had a game installed with missing Packs.
 - Fixed a few issues related to the dependencies cache.
 - Fixed CTD on certain table view reloads.
+- Fixed performance issues when toggling all diagnostics filters at once.
+- Fixed certain diagnostics being duplicated on checking open PackedFiles.
+- Fixed certain diagnostics not painting all the cells they should.
+- Fixed CTD on trying to reopen an already open PackFile with `Add from PackedFile`.
+- Fixed some issues whith the CTD reporting logic not always actually reporting.
 
 ## [2.4.3]
 ### Added
