@@ -64,8 +64,11 @@ impl CrashReport {
                 None => return Err(ErrorKind::IOFolderCannotBeOpened.into())
             };
 
+            let orig_hook = panic::take_hook();
             panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
                 Self::new(info, VERSION).save(&config_path).unwrap();
+                orig_hook(info);
+                std::process::exit(1);
             }));
 
             // Sentry guard, for testing sentry reports.
