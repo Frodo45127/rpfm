@@ -26,6 +26,7 @@ use rpfm_error::{Error, ErrorKind, Result};
 use crate::{dependencies::Dependencies, packfile::{RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}};
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
+use crate::packedfile::ceo::CEO;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use crate::packedfile::text::{Text, TextType};
@@ -38,6 +39,7 @@ use crate::SCHEMA;
 
 pub mod animpack;
 pub mod ca_vp8;
+pub mod ceo;
 pub mod image;
 pub mod rigidmodel;
 pub mod table;
@@ -59,7 +61,7 @@ pub enum DecodedPackedFile {
     AnimPack(AnimPack),
     AnimTable(AnimTable),
     CaVp8(CaVp8),
-    CEO,
+    CEO(CEO),
     DB(DB),
     Image(Image),
     GroupFormations,
@@ -151,6 +153,12 @@ impl DecodedPackedFile {
                 let data = raw_packed_file.get_data()?;
                 let packed_file = CaVp8::read(data)?;
                 Ok(DecodedPackedFile::CaVp8(packed_file))
+            }
+
+            PackedFileType::CEO => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = CEO::read(data)?;
+                Ok(DecodedPackedFile::CEO(packed_file))
             }
 
             PackedFileType::DB => {
@@ -252,6 +260,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::CaVp8 => Self::decode(raw_packed_file),
+            PackedFileType::CEO => Self::decode(raw_packed_file),
 
             PackedFileType::DB => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
@@ -304,6 +313,7 @@ impl DecodedPackedFile {
             DecodedPackedFile::AnimPack(data) => Some(Ok(data.save())),
             DecodedPackedFile::AnimTable(data) => Some(data.save()),
             DecodedPackedFile::CaVp8(data) => Some(Ok(data.save())),
+            DecodedPackedFile::CEO(data) => Some(Ok(data.save())),
             DecodedPackedFile::DB(data) => Some(data.save()),
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
@@ -435,6 +445,14 @@ impl PackedFileType {
                 return Self::UnitVariant
             }
 
+            if packedfile_name.ends_with(".esf") {
+                return Self::CEO;
+            }
+
+            if packedfile_name.ends_with(ceo::EXTENSION) {
+                return Self::CEO;
+            }
+
             // If that failed, try types that need to be in a specific path.
             let path_str = path.iter().map(String::as_str).collect::<Vec<&str>>();
             if packedfile_name.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
@@ -525,6 +543,10 @@ impl PackedFileType {
 
         if path.ends_with(unit_variant::EXTENSION) {
             return Self::UnitVariant
+        }
+
+        if path.ends_with(ceo::EXTENSION) {
+            return Self::CEO;
         }
 
         // If that failed, try types that need to be in a specific path.
@@ -627,7 +649,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::AnimPack(_) => PackedFileType::AnimPack,
             DecodedPackedFile::AnimTable(_) => PackedFileType::AnimTable,
             DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
-            DecodedPackedFile::CEO => PackedFileType::CEO,
+            DecodedPackedFile::CEO(_) => PackedFileType::CEO,
             DecodedPackedFile::DB(_) => PackedFileType::DB,
             DecodedPackedFile::Image(_) => PackedFileType::Image,
             DecodedPackedFile::GroupFormations => PackedFileType::GroupFormations,

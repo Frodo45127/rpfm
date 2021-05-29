@@ -454,6 +454,16 @@ pub enum ErrorKind {
     PackedFileIsNotUnitVariant,
 
     //--------------------------------//
+    // CEO Errors
+    //--------------------------------//
+
+    /// Error for when a CEO PackedFile fails to decode. Contains the error message.
+    CEODecode(String),
+
+    /// Error for when we detect an unsupported data type on the CEO/Starpos files.
+    CEOUnsupportedDataType(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -891,7 +901,13 @@ impl Display for ErrorKind {
             ErrorKind::UICDecode(cause) => write!(f, "<p>Error while trying to decode the UIC PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
-            // UIC Errors
+            // CEO Errors
+            //--------------------------------//
+            ErrorKind::CEODecode(cause) => write!(f, "<p>Error while trying to decode the CEO PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::CEOUnsupportedDataType(data_type) => write!(f, "<p>Unsupported data type: {}</p>", data_type),
+
+            //--------------------------------//
+            // UnitVariant Errors
             //--------------------------------//
             ErrorKind::UnitVariantDecode(cause) => write!(f, "<p>Error while trying to decode the Unit Variant PackedFile:</p><p>{}</p>", cause),
             ErrorKind::PackedFileIsNotUnitVariant => write!(f, "<p>This PackedFile is not an Unit Variant</p>"),

@@ -664,7 +664,7 @@ impl CentralCommand {
     /// This function does only try once, and it locks the thread. Use it only in small stuff.
     #[allow(dead_code)]
     pub fn recv_message_qt(&self) -> Response {
-        let response = self.receiver_qt.recv() ;
+        let response = self.receiver_qt.recv();
         match response {
             Ok(data) => data,
             Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)

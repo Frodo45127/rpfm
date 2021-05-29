@@ -44,6 +44,7 @@ use crate::views::table::TableType;
 use self::anim_fragment::PackedFileAnimFragmentView;
 use self::animpack::PackedFileAnimPackView;
 use self::ca_vp8::PackedFileCaVp8View;
+use self::ceo::PackedFileCEOView;
 use self::decoder::PackedFileDecoderView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
@@ -62,6 +63,7 @@ use self::unit_variant::PackedFileUnitVariantView;
 pub mod anim_fragment;
 pub mod animpack;
 pub mod ca_vp8;
+pub mod ceo;
 pub mod decoder;
 pub mod external;
 pub mod image;
@@ -129,6 +131,7 @@ pub enum View {
     AnimFragment(Arc<PackedFileAnimFragmentView>),
     AnimPack(Arc<PackedFileAnimPackView>),
     CaVp8(Arc<PackedFileCaVp8View>),
+    CEO(Arc<PackedFileCEOView>),
     Decoder(Arc<PackedFileDecoderView>),
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
@@ -372,6 +375,7 @@ impl PackedFileView {
 
                             // UnitVariant use custom saving.
                             PackedFileType::UnitVariant => return Ok(()),
+                            PackedFileType::CEO => return Ok(()),
 
                             // Ignore these ones.
                             PackedFileType::Unknown | PackedFileType::PackFile => return Ok(()),
@@ -547,6 +551,16 @@ impl PackedFileView {
                                 DecodedPackedFile::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                                    }
+                                    else {
+                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                    }
+                                }
+                                DecodedPackedFile::CEO(ceo) => {
+                                    if let View::CEO(old_ceo) = view {
+                                        old_ceo.reload_view(&ceo);
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                                     }
