@@ -22,6 +22,7 @@ use chrono::{Utc, DateTime};
 
 use rpfm_error::{Error, ErrorKind, Result};
 
+use std::cmp::Ordering;
 use std::fs::{DirBuilder, File, read_dir};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -90,16 +91,16 @@ pub fn get_current_time() -> i64 {
 
 /// This function gets the last modified date from a file and return it, as an i64.
 #[allow(dead_code)]
-pub fn get_last_modified_time_from_file(file: &File) -> i64 {
-    let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata().unwrap().modified().unwrap());
-    last_modified_time.naive_utc().timestamp()
+pub fn get_last_modified_time_from_file(file: &File) -> Result<i64> {
+    let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata()?.modified()?);
+    Ok(last_modified_time.naive_utc().timestamp())
 }
 
 /// This function gets the last modified date from a file and return it, as an i64.
 #[allow(dead_code)]
-pub fn get_last_modified_time_from_buffered_file(file: &BufReader<File>) -> i64 {
-    let last_modified_time: DateTime<Utc> = DateTime::from(file.get_ref().metadata().unwrap().modified().unwrap());
-    last_modified_time.naive_utc().timestamp()
+pub fn get_last_modified_time_from_buffered_file(file: &BufReader<File>) -> Result<i64> {
+    let last_modified_time: DateTime<Utc> = DateTime::from(file.get_ref().metadata()?.modified()?);
+    Ok(last_modified_time.naive_utc().timestamp())
 }
 
 /// This function gets the newer last modified time from the provided list.
@@ -108,8 +109,8 @@ pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
     let mut last_time = 0;
     for path in paths {
         if path.is_file() {
-            let file = File::open(path).unwrap();
-            let time = get_last_modified_time_from_file(&file);
+            let file = File::open(path)?;
+            let time = get_last_modified_time_from_file(&file)?;
             if time > last_time {
                 last_time = time
             }
@@ -122,15 +123,8 @@ pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
 /// This function gets the oldest modified file in a folder and return it.
 #[allow(dead_code)]
 pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
-    let mut files = get_files_from_subdir(current_path, false)?;
-    files.sort();
-    files.sort_by(|a, b| {
-        let a = File::open(a).unwrap();
-        let b = File::open(b).unwrap();
-        get_last_modified_time_from_file(&a).cmp(&get_last_modified_time_from_file(&b))
-    });
-
-    Ok(files.get(0).cloned())
+    let files = get_files_in_folder_from_newest_to_oldest(current_path)?;
+    Ok(files.last().cloned())
 }
 
 /// This function gets the files in a folder sorted from newest to oldest.
@@ -139,9 +133,15 @@ pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<
     let mut files = get_files_from_subdir(current_path, false)?;
     files.sort();
     files.sort_by(|a, b| {
-        let a = File::open(a).unwrap();
-        let b = File::open(b).unwrap();
-        get_last_modified_time_from_file(&b).cmp(&get_last_modified_time_from_file(&a))
+        if let Ok(a) = File::open(a) {
+            if let Ok(b) = File::open(b) {
+                if let Ok(a) = get_last_modified_time_from_file(&a) {
+                    if let Ok(b) = get_last_modified_time_from_file(&b) {
+                        a.cmp(&b)
+                    } else { Ordering::Equal}
+                } else { Ordering::Equal}
+            } else { Ordering::Equal}
+        } else { Ordering::Equal}
     });
 
     Ok(files)

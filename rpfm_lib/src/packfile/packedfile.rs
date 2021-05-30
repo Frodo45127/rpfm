@@ -528,7 +528,7 @@ impl RawPackedFile {
         let mut file = BufReader::new(File::open(&path_as_file)?);
         let mut data = vec![];
         file.read_to_end(&mut data)?;
-        Ok(RawPackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref()), false, data))
+        Ok(RawPackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref())?, false, data))
     }
 
     /// This function loads the data of a `RawPackedFile` to memory, if it isn't loaded already.
@@ -737,7 +737,7 @@ impl RawOnDisk {
         is_compressed: bool,
         is_encrypted: Option<PFHVersion>,
     ) -> Self {
-        let last_modified_date_pack = get_last_modified_time_from_buffered_file(&*reader.lock().unwrap());
+        let last_modified_date_pack = if let Ok(date) = get_last_modified_time_from_buffered_file(&*reader.lock().unwrap()) { date } else { 0};
         Self {
             reader,
             start,
@@ -754,7 +754,7 @@ impl RawOnDisk {
 
         // Date check, to ensure the PackFile hasn't been modified since we got the indexes to read it.
         let mut file = self.reader.lock().unwrap();
-        let current_date = get_last_modified_time_from_buffered_file(&*file);
+        let current_date = get_last_modified_time_from_buffered_file(&*file)?;
         if current_date != self.last_modified_date_pack {
             return Err(ErrorKind::PackedFileSourceChanged.into());
         }
