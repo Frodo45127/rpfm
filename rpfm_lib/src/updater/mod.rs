@@ -96,7 +96,7 @@ pub fn update_main_program() -> Result<()> {
 
         Download::from_url(&asset.download_url)
             .set_header(reqwest::header::ACCEPT, "application/octet-stream".parse().unwrap())
-            .download_to(&tmp_zip).unwrap();
+            .download_to(&tmp_zip)?;
 
         // self_update extractor doesn't work. It fails on every-single-test I did. So we use another one.
         let tmp_zip = File::open(&tmp_zip_path)?;
