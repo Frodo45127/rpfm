@@ -40,10 +40,15 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::views::table::{TableView, TableType};
 use crate::views::table::utils::get_table_from_view;
+
+use self::slots::PackedFileAnimFragmentViewSlots;
+
+mod connections;
+mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -59,7 +64,8 @@ pub struct PackedFileAnimFragmentView {
     integer_2: QBox<QLineEdit>,
 
     definition: Arc<RwLock<Definition>>,
-    //packed_file_path: Arc<RwLock<Vec<String>>>,
+    packed_file_path: Arc<RwLock<Vec<String>>>,
+    data_source: Arc<RwLock<DataSource>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -145,7 +151,7 @@ impl PackedFileAnimFragmentView {
             packed_file_view.data_source.clone()
         )?;
 
-        let packed_file_table_view = Self {
+        let packed_file_table_view = Arc::new(Self {
             table_view_1,
             table_view_2,
             integer_label_1: i1_label,
@@ -154,9 +160,19 @@ impl PackedFileAnimFragmentView {
             integer_2: i2_line_edit,
 
             definition: Arc::new(RwLock::new(data.get_definition())),
-        };
+            packed_file_path: packed_file_view.get_path_raw(),
+            data_source: packed_file_view.data_source.clone(),
+        });
 
-        packed_file_view.view = ViewType::Internal(View::AnimFragment(Arc::new(packed_file_table_view)));
+        let packed_file_anim_fragment_view_slots = PackedFileAnimFragmentViewSlots::new(
+            &packed_file_table_view,
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui
+        );
+
+        connections::set_connections(&packed_file_table_view, &packed_file_anim_fragment_view_slots);
+        packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_table_view));
         packed_file_view.packed_file_type = PackedFileType::AnimFragment;
 
         // Return success.
@@ -227,5 +243,14 @@ impl PackedFileAnimFragmentView {
     /// This function returns a copy of the definition of this AnimFragment.
     pub fn get_definition(&self) -> Definition {
         self.definition.read().unwrap().clone()
+    }
+
+    pub fn get_ref_table_view_2(&self) -> &TableView {
+        &self.table_view_2
+    }
+
+    /// This function returns a copy of the datasource of this table.
+    pub fn get_data_source(&self) -> DataSource {
+        self.data_source.read().unwrap().clone()
     }
 }

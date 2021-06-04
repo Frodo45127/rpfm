@@ -231,8 +231,8 @@ pub struct TableView {
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
 
-    save_lock: Arc<AtomicBool>,
-    undo_lock: Arc<AtomicBool>,
+    pub save_lock: Arc<AtomicBool>,
+    pub undo_lock: Arc<AtomicBool>,
 
     undo_model: QBox<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,

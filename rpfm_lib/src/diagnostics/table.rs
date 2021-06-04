@@ -57,6 +57,7 @@ pub enum TableDiagnosticReportType {
     TableNameEndsInNumber,
     TableNameHasSpace,
     TableIsDataCoring,
+    FieldWithPathNotFound,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -103,6 +104,7 @@ impl Display for TableDiagnosticReportType {
             Self::TableNameEndsInNumber => "TableNameEndsInNumber",
             Self::TableNameHasSpace => "TableNameHasSpace",
             Self::TableIsDataCoring => "TableIsDataCoring",
+            Self::FieldWithPathNotFound => "FieldWithPathNotFound",
         }, f)
     }
 }

@@ -127,6 +127,7 @@ impl DiagnosticsUISlots {
                 let _blocker_17 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_table_is_datacoring.static_upcast::<QObject>());
                 let _blocker_18 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_dependencies_cache_outdated.static_upcast::<QObject>());
                 let _blocker_19 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.static_upcast::<QObject>());
+                let _blocker_20 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_field_with_path_not_found.static_upcast::<QObject>());
 
                 diagnostics_ui.checkbox_outdated_table.toggle();
                 diagnostics_ui.checkbox_invalid_reference.toggle();
@@ -148,6 +149,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_table_is_datacoring.toggle();
                 diagnostics_ui.checkbox_dependencies_cache_outdated.toggle();
                 diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.toggle();
+                diagnostics_ui.checkbox_field_with_path_not_found.toggle();
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
             }

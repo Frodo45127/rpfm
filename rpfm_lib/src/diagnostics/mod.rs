@@ -36,12 +36,15 @@ use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 use crate::schema::FieldType;
 use crate::SUPPORTED_GAMES;
+use crate::SCHEMA;
 
+use self::anim_fragment::{AnimFragmentDiagnostic, AnimFragmentDiagnosticReport, AnimFragmentDiagnosticReportType};
 use self::config::{ConfigDiagnostic, ConfigDiagnosticReport, ConfigDiagnosticReportType};
 use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
 use self::packfile::{PackFileDiagnostic, PackFileDiagnosticReport, PackFileDiagnosticReportType};
 use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
 
+pub mod anim_fragment;
 pub mod config;
 pub mod dependency_manager;
 pub mod packfile;
@@ -57,6 +60,7 @@ pub struct Diagnostics(Vec<DiagnosticType>);
 
 #[derive(Debug, Clone)]
 pub enum DiagnosticType {
+    AnimFragment(AnimFragmentDiagnostic),
     DB(TableDiagnostic),
     Loc(TableDiagnostic),
     PackFile(PackFileDiagnostic),
@@ -72,7 +76,7 @@ pub enum DiagnosticLevel {
     Error,
 }
 
-//---------------------------------------------------------------p----------------//
+//-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
@@ -86,6 +90,7 @@ impl Default for Diagnostics {
 impl DiagnosticType {
     pub fn get_path(&self) -> &[String] {
         match self {
+            Self::AnimFragment(ref diag) => diag.get_path(),
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.get_path(),
             Self::PackFile(_) => &[],
@@ -165,11 +170,18 @@ impl Diagnostics {
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
-        let packed_files = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
+        let packed_files = pack_file.get_ref_packed_files_by_types(&[PackedFileType::AnimFragment, PackedFileType::DB, PackedFileType::Loc], false);
         let mut packed_files_split: BTreeMap<&str, Vec<&PackedFile>> = BTreeMap::new();
 
         for packed_file in &packed_files {
             match packed_file.get_packed_file_type(false) {
+                PackedFileType::AnimFragment => {
+                    if let Some(table_set) = packed_files_split.get_mut("anim_fragments") {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert("anim_fragments", vec![packed_file]);
+                    }
+                },
                 PackedFileType::DB => {
                     if let Some(table_set) = packed_files_split.get_mut(&*packed_file.get_path()[1]) {
                         table_set.push(packed_file);
@@ -187,48 +199,53 @@ impl Diagnostics {
                 _ => {},
             }
         }
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
 
-        // Process the files in batches.
-        self.0 = packed_files_split.into_par_iter().filter_map(|(_, packed_files)| {
+            // Process the files in batches.
+            self.0 = packed_files_split.into_par_iter().filter_map(|(_, packed_files)| {
 
-            let mut diagnostics = Vec::with_capacity(packed_files.len());
-            let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
-            for packed_file in packed_files {
+                let mut diagnostics = Vec::with_capacity(packed_files.len());
+                let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
+                for packed_file in packed_files {
 
-                // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
-                let mut ignored_fields = vec![];
-                let mut ignored_diagnostics = vec![];
-                if let Some(ref files_to_ignore) = files_to_ignore {
-                    for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
-                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
-                            return None;
-                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
-                            if !fields.is_empty() {
-                                ignored_fields = fields.to_vec();
+                    // Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
+                    let mut ignored_fields = vec![];
+                    let mut ignored_diagnostics = vec![];
+                    if let Some(ref files_to_ignore) = files_to_ignore {
+                        for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
+                            if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
+                                return None;
+                            } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
+                                if !fields.is_empty() {
+                                    ignored_fields = fields.to_vec();
+                                }
+
+                                if !diags_to_ignore.is_empty() {
+                                    ignored_diagnostics = diags_to_ignore.to_vec();
+                                }
+
+                                break;
                             }
-
-                            if !diags_to_ignore.is_empty() {
-                                ignored_diagnostics = diags_to_ignore.to_vec();
-                            }
-
-                            break;
                         }
+                    }
+
+                    let diagnostic = match packed_file.get_packed_file_type(false) {
+                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(&schema) {
+                            Self::check_anim_fragment(pack_file, &decoded, packed_file.get_path(), &dependencies, &ignored_diagnostics)
+                        } else { None }
+                        PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                        PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                        _ => None,
+                    };
+
+                    if let Some(diagnostic) = diagnostic {
+                        diagnostics.push(diagnostic);
                     }
                 }
 
-                let diagnostic = match packed_file.get_packed_file_type(false) {
-                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
-                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
-                    _ => None,
-                };
-
-                if let Some(diagnostic) = diagnostic {
-                    diagnostics.push(diagnostic);
-                }
-            }
-
-            Some(diagnostics)
-        }).flatten().collect();
+                Some(diagnostics)
+            }).flatten().collect();
+        }
 
         if let Some(diagnostics) = Self::check_dependency_manager(pack_file) {
             self.0.push(diagnostics);
@@ -360,13 +377,69 @@ impl Diagnostics {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
                 let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
-                for (column, field) in table.get_ref_definition().get_fields_processed().iter().enumerate() {
+                let fields_processed = table.get_ref_definition().get_fields_processed();
+                for (column, field) in fields_processed.iter().enumerate() {
                     if ignored_fields.contains(&field.get_name().to_owned()) {
                         continue;
                     }
 
                     let cell_data = cells[column].data_to_string();
 
+                    // Path checks.
+                    if ignored_diagnostics.iter().all(|x| x != "FieldWithPathNotFound") {
+                        if !cell_data.is_empty() {
+                            if fields_processed[column].get_is_filename() {
+                                let mut path_found = false;
+                                let paths = {
+                                    let path = if let Some(relative_path) = fields_processed[column].get_filename_relative_path() {
+                                        relative_path.replace("%", &cell_data)
+                                    } else {
+                                        cell_data.to_owned()
+                                    };
+
+                                    // Skip paths with wildcards, as we do not support them.
+                                    if path.contains("*") {
+                                        path_found = true;
+                                        vec![]
+                                    } else {
+                                        path.replace('\\', "/").replace(';', ",").split(',')
+                                            .map(|x| x.split('/')
+                                                .map(|x| x.to_owned())
+                                                .collect::<Vec<String>>()
+                                            )
+                                            .collect::<Vec<Vec<String>>>()
+                                    }
+                                };
+
+                                for path in &paths {
+                                    if pack_file.get_ref_packed_file_by_path(&path).is_some() {
+                                        path_found = true;
+                                    }
+
+                                    if !path_found && dependencies.get_packedfile_from_parent_files(&path).is_ok() {
+                                        path_found = true;
+                                    }
+
+                                    if !path_found && dependencies.get_packedfile_from_game_files(&path).is_ok() {
+                                        path_found = true;
+                                    }
+
+                                    if path_found {
+                                        break;
+                                    }
+                                }
+
+                                if !path_found {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: vec![(row as i32, column as i32)],
+                                        message: format!("Path not found: {}.", paths.iter().map(|x| x.join("/")).join(" || ")),
+                                        report_type: TableDiagnosticReportType::FieldWithPathNotFound,
+                                        level: DiagnosticLevel::Error,
+                                    });
+                                }
+                            }
+                        }
+                    }
                     // Dependency checks.
                     if let Some((_ref_table_name, _ref_column_name)) = field.get_is_reference() {
                         match dependency_data.get(&(column as i32)) {
@@ -546,6 +619,72 @@ impl Diagnostics {
 
             if !diagnostic.get_ref_result().is_empty() {
                 Some(DiagnosticType::DB(diagnostic))
+            } else { None }
+        } else { None }
+    }
+
+    /// This function takes care of checking the loc tables of your mod for errors.
+    fn check_anim_fragment(
+        pack_file: &PackFile,
+        packed_file: &DecodedPackedFile,
+        path: &[String],
+        dependencies: &Dependencies,
+        ignored_diagnostics: &[String],
+    ) ->Option<DiagnosticType> {
+        if let DecodedPackedFile::AnimFragment(table) = packed_file {
+            let mut diagnostic = AnimFragmentDiagnostic::new(path);
+
+            // Check inside the of the table in the column [3].
+            for (row, _) in table.get_ref_table_data().iter().enumerate() {
+                if let DecodedData::SequenceU32(ref data) = table.get_ref_table_data()[row][3] {
+                    let fields_processed = data.get_ref_definition().get_fields_processed();
+                    for (row, cells) in data.get_ref_table_data().iter().enumerate() {
+                        for (column, _) in fields_processed.iter().enumerate() {
+
+                            if ignored_diagnostics.iter().all(|x| x != "FieldWithPathNotFound") {
+                                if let DecodedData::StringU8(cell_data) = &cells[column] {
+                                    if !cell_data.is_empty() {
+                                        if fields_processed[column].get_is_filename() {
+                                            let mut path_found = false;
+                                            let path = cell_data.replace('\\', "/").split('/')
+                                                .map(|x| x.to_owned())
+                                                .collect::<Vec<String>>();
+
+                                            if pack_file.get_ref_packed_file_by_path(&path).is_some() {
+                                                path_found = true;
+                                            }
+
+                                            if !path_found && dependencies.get_packedfile_from_parent_files(&path).is_ok() {
+                                                path_found = true;
+                                            }
+
+                                            if !path_found && dependencies.get_packedfile_from_game_files(&path).is_ok() {
+                                                path_found = true;
+                                            }
+
+                                            if path_found {
+                                                break;
+                                            }
+
+                                            if !path_found {
+                                                diagnostic.get_ref_mut_result().push(AnimFragmentDiagnosticReport {
+                                                    cells_affected: vec![(row as i32, column as i32)],
+                                                    message: format!("Path not found: {}.", path.join("/")),
+                                                    report_type: AnimFragmentDiagnosticReportType::FieldWithPathNotFound,
+                                                    level: DiagnosticLevel::Error,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !diagnostic.get_ref_result().is_empty() {
+                Some(DiagnosticType::AnimFragment(diagnostic))
             } else { None }
         } else { None }
     }
@@ -807,6 +946,9 @@ impl Diagnostics {
         let mut locs_added = false;
         for packed_file in &packed_files {
             match packed_file.get_packed_file_type(false) {
+                PackedFileType::AnimFragment => {
+                    packed_files_complete.push(packed_file);
+                }
                 PackedFileType::DB => {
                     let tables = pack_file.get_ref_packed_files_by_path_start(&packed_file.get_path()[..=1]);
                     for table in tables {
@@ -833,6 +975,7 @@ impl Diagnostics {
 
         // Also remove Dependency/PackFile diagnostics, as they're going to be regenerated.
         self.get_ref_mut_diagnostics().retain(|x| match x {
+            DiagnosticType::AnimFragment(_) => true,
             DiagnosticType::Config(_) => true,
             DiagnosticType::DB(_) => true,
             DiagnosticType::DependencyManager(_) => false,
@@ -851,6 +994,13 @@ impl Diagnostics {
         let mut packed_files_split: BTreeMap<&str, Vec<&PackedFile>> = BTreeMap::new();
         for packed_file in &packed_files_complete {
             match packed_file.get_packed_file_type(false) {
+                PackedFileType::AnimFragment => {
+                    if let Some(table_set) = packed_files_split.get_mut("anim_fragments") {
+                        table_set.push(packed_file);
+                    } else {
+                        packed_files_split.insert("anim_fragments", vec![packed_file]);
+                    }
+                },
                 PackedFileType::DB => {
                     if let Some(table_set) = packed_files_split.get_mut(&*packed_file.get_path()[1]) {
                         table_set.push(packed_file);
@@ -868,39 +1018,43 @@ impl Diagnostics {
                 _ => {},
             }
         }
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            for (_, packed_files) in &packed_files_split {
+                let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
 
-        for (_, packed_files) in &packed_files_split {
-            let mut data_prev: BTreeMap<Vec<String>, BTreeMap<i32, BTreeMap<i32, String>>> = BTreeMap::new();
+                for packed_file in packed_files {
+                    let mut ignored_fields = vec![];
+                    let mut ignored_diagnostics = vec![];
+                    if let Some(ref files_to_ignore) = files_to_ignore {
+                        for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
+                            if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
+                                continue;
+                            } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
+                                if !fields.is_empty() {
+                                    ignored_fields = fields.to_vec();
+                                }
 
-            for packed_file in packed_files {
-                let mut ignored_fields = vec![];
-                let mut ignored_diagnostics = vec![];
-                if let Some(ref files_to_ignore) = files_to_ignore {
-                    for (file_to_ignore, fields, diags_to_ignore) in files_to_ignore {
-                        if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) && fields.is_empty() && diags_to_ignore.is_empty() {
-                            continue;
-                        } else if !file_to_ignore.is_empty() && packed_file.get_path().starts_with(&file_to_ignore) {
-                            if !fields.is_empty() {
-                                ignored_fields = fields.to_vec();
+                                if !diags_to_ignore.is_empty() {
+                                    ignored_diagnostics = diags_to_ignore.to_vec();
+                                }
+
+                                break;
                             }
-
-                            if !diags_to_ignore.is_empty() {
-                                ignored_diagnostics = diags_to_ignore.to_vec();
-                            }
-
-                            break;
                         }
                     }
-                }
 
-                let diagnostic = match packed_file.get_packed_file_type(false) {
-                    PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
-                    PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
-                    _ => None,
-                };
+                    let diagnostic = match packed_file.get_packed_file_type(false) {
+                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(&schema) {
+                                Self::check_anim_fragment(pack_file, &decoded, packed_file.get_path(), &dependencies, &ignored_diagnostics)
+                            } else { None }
+                        PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &vanilla_dependencies, &asskit_dependencies, &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                        PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &mut data_prev),
+                        _ => None,
+                    };
 
-                if let Some(diagnostic) = diagnostic {
-                    self.get_ref_mut_diagnostics().push(diagnostic);
+                    if let Some(diagnostic) = diagnostic {
+                        self.get_ref_mut_diagnostics().push(diagnostic);
+                    }
                 }
             }
         }
@@ -939,6 +1093,7 @@ impl Diagnostics {
 impl Display for DiagnosticType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
+            Self::AnimFragment(_) => "AnimFragment",
             Self::Config(_) => "Config",
             Self::DB(_) => "DB",
             Self::Loc(_) => "Loc",
