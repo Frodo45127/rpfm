@@ -9,14 +9,14 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with all the code for managing the CEO Views.
+Module with all the code for managing the ESF Views.
 !*/
 
 use std::sync::Arc;
 
 use rpfm_error::{ErrorKind, Result};
 
-use rpfm_lib::packedfile::ceo::CEO;
+use rpfm_lib::packedfile::esf::ESF;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -32,8 +32,8 @@ use super::{ViewType, View};
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the view of the CEO PackedFile.
-pub struct PackedFileCEOView {
+/// This struct contains the view of the ESF PackedFile.
+pub struct PackedFileESFView {
     debug_view: Arc<DebugView>,
 }
 
@@ -41,10 +41,10 @@ pub struct PackedFileCEOView {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileCEOView`.
-impl PackedFileCEOView {
+/// Implementation for `PackedFileESFView`.
+impl PackedFileESFView {
 
-    /// This function creates a new PackedFileCEOView, and sets up his slots and connections.
+    /// This function creates a new PackedFileESFView, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
     ) -> Result<Option<PackedFileInfo>> {
@@ -69,14 +69,14 @@ impl PackedFileCEOView {
             debug_view,
         };
 
-        packed_file_view.view = ViewType::Internal(View::CEO(Arc::new(packed_file_debug_view)));
-        packed_file_view.packed_file_type = PackedFileType::CEO;
+        packed_file_view.view = ViewType::Internal(View::ESF(Arc::new(packed_file_debug_view)));
+        packed_file_view.packed_file_type = PackedFileType::ESF;
 
         Ok(Some(packed_file_info))
     }
 
     /// This function tries to reload the current view with the provided data.
-    pub unsafe fn reload_view(&self, data: &CEO) {
+    pub unsafe fn reload_view(&self, data: &ESF) {
         let text = serde_json::to_string_pretty(&data).unwrap();
         self.debug_view.reload_view(&text);
     }

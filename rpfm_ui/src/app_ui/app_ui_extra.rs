@@ -66,7 +66,7 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, ceo::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, esf::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
@@ -1604,8 +1604,8 @@ impl AppUI {
                             }
                         }
 
-                        PackedFileType::CEO => {
-                            match PackedFileCEOView::new_view(&mut tab) {
+                        PackedFileType::ESF => {
+                            match PackedFileESFView::new_view(&mut tab) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1617,7 +1617,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::CEODecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::ESFDecode(format!("{}", error)), false),
                             }
                         }
 

@@ -26,7 +26,7 @@ use rpfm_error::{Error, ErrorKind, Result};
 use crate::{dependencies::Dependencies, packfile::{RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}};
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
-use crate::packedfile::ceo::CEO;
+use crate::packedfile::esf::ESF;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use crate::packedfile::text::{Text, TextType};
@@ -39,7 +39,7 @@ use crate::SCHEMA;
 
 pub mod animpack;
 pub mod ca_vp8;
-pub mod ceo;
+pub mod esf;
 pub mod image;
 pub mod rigidmodel;
 pub mod table;
@@ -61,14 +61,14 @@ pub enum DecodedPackedFile {
     AnimPack(AnimPack),
     AnimTable(AnimTable),
     CaVp8(CaVp8),
-    CEO(CEO),
+    CEO(ESF),
     DB(DB),
+    ESF(ESF),
     Image(Image),
     GroupFormations,
     Loc(Loc),
     MatchedCombat(MatchedCombat),
     RigidModel(RigidModel),
-    StarPos,
     Text(Text),
     UIC(UIC),
     UnitVariant(UnitVariant),
@@ -87,12 +87,12 @@ pub enum PackedFileType {
     CaVp8,
     CEO,
     DB,
+    ESF,
     Image,
     GroupFormations,
     Loc,
     MatchedCombat,
     RigidModel,
-    StarPos,
     UIC,
     UnitVariant,
 
@@ -155,10 +155,10 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::CaVp8(packed_file))
             }
 
-            PackedFileType::CEO => {
+            PackedFileType::ESF => {
                 let data = raw_packed_file.get_data()?;
-                let packed_file = CEO::read(data)?;
-                Ok(DecodedPackedFile::CEO(packed_file))
+                let packed_file = ESF::read(&data)?;
+                Ok(DecodedPackedFile::ESF(packed_file))
             }
 
             PackedFileType::DB => {
@@ -260,7 +260,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::CaVp8 => Self::decode(raw_packed_file),
-            PackedFileType::CEO => Self::decode(raw_packed_file),
+            PackedFileType::ESF => Self::decode(raw_packed_file),
 
             PackedFileType::DB => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
@@ -313,8 +313,8 @@ impl DecodedPackedFile {
             DecodedPackedFile::AnimPack(data) => Some(Ok(data.save())),
             DecodedPackedFile::AnimTable(data) => Some(data.save()),
             DecodedPackedFile::CaVp8(data) => Some(Ok(data.save())),
-            DecodedPackedFile::CEO(data) => Some(Ok(data.save())),
             DecodedPackedFile::DB(data) => Some(data.save()),
+            //DecodedPackedFile::ESF(data) => Some(Ok(data.save())),
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
 
@@ -374,13 +374,13 @@ impl Display for PackedFileType {
             PackedFileType::CEO => write!(f, "CEO"),
             PackedFileType::DB => write!(f, "DB Table"),
             PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
+            PackedFileType::ESF => write!(f, "ESF"),
             PackedFileType::Image => write!(f, "Image"),
             PackedFileType::GroupFormations => write!(f, "Group Formations"),
             PackedFileType::Loc => write!(f, "Loc Table"),
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
             PackedFileType::PackFile => write!(f, "PackFile"),
             PackedFileType::RigidModel => write!(f, "RigidModel"),
-            PackedFileType::StarPos => write!(f, "StartPos"),
             PackedFileType::UIC => write!(f, "UI Component"),
             PackedFileType::UnitVariant => write!(f, "Unit Variant"),
             PackedFileType::Text(text_type) => write!(f, "Text, type: {:?}", text_type),
@@ -445,12 +445,9 @@ impl PackedFileType {
                 return Self::UnitVariant
             }
 
-            if packedfile_name.ends_with(".esf") {
-                return Self::CEO;
-            }
-
-            if packedfile_name.ends_with(ceo::EXTENSION) {
-                return Self::CEO;
+            // TODO: Fix these two.
+            if packedfile_name.ends_with(esf::EXTENSION) {
+                return Self::ESF;
             }
 
             // If that failed, try types that need to be in a specific path.
@@ -545,8 +542,8 @@ impl PackedFileType {
             return Self::UnitVariant
         }
 
-        if path.ends_with(ceo::EXTENSION) {
-            return Self::CEO;
+        if path.ends_with(esf::EXTENSION) {
+            return Self::ESF;
         }
 
         // If that failed, try types that need to be in a specific path.
@@ -595,13 +592,13 @@ impl PackedFileType {
             Self::CEO |
             Self::DB |
             Self::DependencyPackFilesList |
+            Self::ESF |
             Self::Image |
             Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::PackFile |
             Self::RigidModel |
-            Self::StarPos |
             Self::PackFileSettings |
             Self::UIC |
             Self::UnitVariant |
@@ -624,13 +621,13 @@ impl PackedFileType {
             Self::CEO |
             Self::DB |
             Self::DependencyPackFilesList |
+            Self::ESF |
             Self::Image |
             Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::PackFile |
             Self::RigidModel |
-            Self::StarPos |
             Self::PackFileSettings |
             Self::UIC |
             Self::UnitVariant |
@@ -656,7 +653,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::Loc(_) => PackedFileType::Loc,
             DecodedPackedFile::MatchedCombat(_) => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
-            DecodedPackedFile::StarPos => PackedFileType::StarPos,
+            DecodedPackedFile::ESF(_) => PackedFileType::ESF,
             DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
             DecodedPackedFile::UIC(_) => PackedFileType::UIC,
             DecodedPackedFile::UnitVariant(_) => PackedFileType::UnitVariant,
