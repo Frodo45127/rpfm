@@ -48,7 +48,7 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::diagnostics::{*, config::*, table::*, dependency_manager::*, packfile::*};
+use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packfile::PathType;
@@ -121,6 +121,7 @@ pub struct DiagnosticsUI {
     checkbox_table_is_datacoring: QBox<QCheckBox>,
     checkbox_dependencies_cache_outdated: QBox<QCheckBox>,
     checkbox_dependencies_cache_could_not_be_loaded: QBox<QCheckBox>,
+    checkbox_field_with_path_not_found: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -265,6 +266,7 @@ impl DiagnosticsUI {
         let label_table_is_datacoring = QLabel::from_q_string_q_widget(&qtr("label_table_is_datacoring"), &sidebar_scroll_area);
         let label_dependencies_cache_outdated = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_outdated"), &sidebar_scroll_area);
         let label_dependencies_cache_could_not_be_loaded = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_could_not_be_loaded"), &sidebar_scroll_area);
+        let label_field_with_path_not_found = QLabel::from_q_string_q_widget(&qtr("label_field_with_path_not_found"), &sidebar_scroll_area);
 
         let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
@@ -287,6 +289,7 @@ impl DiagnosticsUI {
         let checkbox_table_is_datacoring = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_dependencies_cache_outdated = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_dependencies_cache_could_not_be_loaded = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_field_with_path_not_found = QCheckBox::from_q_widget(&sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -309,6 +312,7 @@ impl DiagnosticsUI {
         checkbox_table_is_datacoring.set_checked(true);
         checkbox_dependencies_cache_outdated.set_checked(true);
         checkbox_dependencies_cache_could_not_be_loaded.set_checked(true);
+        checkbox_field_with_path_not_found.set_checked(true);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_outdated_table, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -331,6 +335,7 @@ impl DiagnosticsUI {
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_table_is_datacoring, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_outdated, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_could_not_be_loaded, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_field_with_path_not_found, QFlags::from(AlignmentFlag::AlignHCenter));
 
         sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_outdated_table, 2, 0, 1, 1);
@@ -353,6 +358,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&label_table_is_datacoring, 19, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_dependencies_cache_outdated, 20, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_dependencies_cache_could_not_be_loaded, 21, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&label_field_with_path_not_found, 22, 0, 1, 1);
 
         sidebar_grid.add_widget_5a(&checkbox_all, 1, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_outdated_table, 2, 1, 1, 1);
@@ -375,6 +381,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&checkbox_table_is_datacoring, 19, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_outdated, 20, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_could_not_be_loaded, 21, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&checkbox_field_with_path_not_found, 22, 1, 1, 1);
 
         // Add all the stuff to the main grid and hide the search widget.
         diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
@@ -423,7 +430,8 @@ impl DiagnosticsUI {
             checkbox_table_name_has_space,
             checkbox_table_is_datacoring,
             checkbox_dependencies_cache_outdated,
-            checkbox_dependencies_cache_could_not_be_loaded
+            checkbox_dependencies_cache_could_not_be_loaded,
+            checkbox_field_with_path_not_found
         }
     }
 
@@ -475,6 +483,53 @@ impl DiagnosticsUI {
                 }
 
                 match diagnostic_type {
+                    DiagnosticType::AnimFragment(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            let qlist_boi = QListOfQStandardItem::new();
+
+                            // Create an empty row.
+                            let level = QStandardItem::new();
+                            let diag_type = QStandardItem::new();
+                            let cells_affected = QStandardItem::new();
+                            let path = QStandardItem::new();
+                            let message = QStandardItem::new();
+                            let report_type = QStandardItem::new();
+                            let (result_type, color) = match result.level {
+                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
+                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
+                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
+                            };
+
+                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
+                            level.set_text(&QString::from_std_str(result_type));
+                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
+                            message.set_text(&QString::from_std_str(&result.message));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+
+                            level.set_editable(false);
+                            diag_type.set_editable(false);
+                            cells_affected.set_editable(false);
+                            path.set_editable(false);
+                            message.set_editable(false);
+                            report_type.set_editable(false);
+
+                            // Set the tooltips to the diag type and description columns.
+                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], &result.report_type);
+
+                            // Add an empty row to the list.
+                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+
+                            // Append the new row.
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
+                        }
+                    }
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
                         for result in diagnostic.get_ref_result() {
@@ -726,6 +781,32 @@ impl DiagnosticsUI {
 
         // If it's a table, focus on the matched cell.
         match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
+            "AnimFragment" => {
+
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    if let ViewType::Internal(View::AnimFragment(view)) = packed_file_view.get_view() {
+                        let table_view = view.get_ref_table_view_2();
+                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let table_selection_model = table_view.selection_model();
+
+                        table_selection_model.clear_selection();
+                        let cells_affected: Vec<(i32, i32)> = serde_json::from_str(&model.item_2a(model_index.row(), 2).text().to_std_string()).unwrap();
+                        for (row, column) in cells_affected {
+                            let table_model_index = table_model.index_2a(row, column);
+                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                            if table_model_index_filtered.is_valid() {
+                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                            }
+                        }
+                    }
+                }
+            }
+
             "DB" | "Loc" | "DependencyManager" => {
 
                 if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
@@ -788,6 +869,7 @@ impl DiagnosticsUI {
     ) {
 
         let path = match diagnostic {
+            DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.get_path(),
             DiagnosticType::DB(ref diagnostic) |
             DiagnosticType::Loc(ref diagnostic) => diagnostic.get_path(),
             DiagnosticType::DependencyManager(_) => &[],
@@ -912,6 +994,71 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 }
+
+                // AnimFragments have some special logic.
+                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
+                    let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+
+                    match diagnostic {
+                        DiagnosticType::AnimFragment(ref diagnostic) => {
+                            for result in diagnostic.get_ref_result() {
+                                for (row, column) in &result.cells_affected {
+                                    if *row != -1 || *column != -1 {
+                                        if *column == -1 {
+                                            for column in 0..table_model.column_count_0a() {
+                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else if *row == -1 {
+                                            for row in 0..table_model.row_count_0a() {
+                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                                let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                                if table_model_index.is_valid() {
+                                                    match result.level {
+                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        _ => return,
+                    }
+
+                    // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
+                    blocker.unblock();
+                    table_view.viewport().repaint();
+                }
             }
         }
     }
@@ -925,6 +1072,37 @@ impl DiagnosticsUI {
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.get_view() {
                     let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+
+                    // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
+                    let base_qbrush = QBrush::new();
+                    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+                        base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
+                    } else {
+                        base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
+                    }
+
+                    for row in 0..table_model.row_count_0a() {
+                        for column in 0..table_model.column_count_0a() {
+                            let item = table_model.item_2a(row, column);
+
+                            if item.data_1a(ITEM_HAS_ERROR).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
+                            }
+                            if item.data_1a(ITEM_HAS_WARNING).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
+                            }
+                            if item.data_1a(ITEM_HAS_INFO).to_bool() == true {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
+                            }
+                        }
+                    }
+                    blocker.unblock();
+                    table_view.viewport().repaint();
+                } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
+                    let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1054,6 +1232,9 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_table_is_datacoring.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::TableIsDataCoring));
         }
+        if diagnostics_ui.checkbox_field_with_path_not_found.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::FieldWithPathNotFound));
+        }
 
         if diagnostics_ui.checkbox_invalid_dependency_packfile.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName));
@@ -1092,6 +1273,10 @@ impl DiagnosticsUI {
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
         let info = diagnostics.iter().map(|x|
             match x {
+                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
@@ -1113,6 +1298,10 @@ impl DiagnosticsUI {
 
         let warning = diagnostics.iter().map(|x|
             match x {
+                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
@@ -1135,6 +1324,10 @@ impl DiagnosticsUI {
 
         let error = diagnostics.iter().map(|x|
             match x {
+                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.get_ref_result()
                     .iter()
@@ -1159,6 +1352,16 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_error"), error)));
     }
 
+    pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {
+        let tool_tip = match report_type {
+            AnimFragmentDiagnosticReportType::FieldWithPathNotFound => qtr("field_with_path_not_found_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
     pub unsafe fn set_tooltips_table(items: &[&CppBox<QStandardItem>], report_type: &TableDiagnosticReportType) {
         let tool_tip = match report_type {
             TableDiagnosticReportType::OutdatedTable => qtr("outdated_table_explanation"),
@@ -1176,6 +1379,7 @@ impl DiagnosticsUI {
             TableDiagnosticReportType::TableNameEndsInNumber => qtr("table_name_ends_in_number_explanation"),
             TableDiagnosticReportType::TableNameHasSpace => qtr("table_name_has_space_explanation"),
             TableDiagnosticReportType::TableIsDataCoring => qtr("table_is_datacoring_explanation"),
+            TableDiagnosticReportType::FieldWithPathNotFound => qtr("field_with_path_not_found_explanation"),
         };
 
         for item in items {

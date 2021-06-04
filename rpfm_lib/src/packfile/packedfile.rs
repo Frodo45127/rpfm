@@ -367,6 +367,30 @@ impl PackedFile {
         DecodedPackedFile::decode(&mut self.raw)
     }
 
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, without storing the results in the cache,
+    /// and returning a reference to it.
+    ///
+    /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
+    pub fn decode_return_ref_no_cache(&self) -> Result<DecodedPackedFile> {
+        if self.decoded == DecodedPackedFile::Unknown {
+            Ok(DecodedPackedFile::decode(&mut self.raw.clone())?)
+        } else {
+            Ok(self.decoded.clone())
+        }
+    }
+
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, without storing the results in the cache,
+    /// and returning a reference to it. This one doesn't lock the schema for the decoding.
+    ///
+    /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
+    pub fn decode_return_ref_no_cache_no_locks(&self, schema: &Schema) -> Result<DecodedPackedFile> {
+        if self.decoded == DecodedPackedFile::Unknown {
+            Ok(DecodedPackedFile::decode_no_locks(&mut self.raw.clone(), schema)?)
+        } else {
+            Ok(self.decoded.clone())
+        }
+    }
+
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
     ///
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it loads its data to memory.

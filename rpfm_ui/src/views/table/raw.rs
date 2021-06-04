@@ -559,7 +559,7 @@ impl TableView {
         let (base_index_visual, mut visual_row) = if !indexes.is_empty() {
             (Some(&indexes[0]), vertical_header.visual_index(indexes[0].row()))
         } else {
-            (None, -1)
+            (None, self.table_model.row_count_0a())
         };
 
         let definition = self.get_ref_table_definition();

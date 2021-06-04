@@ -622,6 +622,14 @@ pub unsafe fn get_column_tooltips(
                     tooltip_text.push_str(&format!("<p>{}</p>", field.get_description()));
                 }
 
+                if field.get_is_filename() {
+                    if let Some(path) = field.get_filename_relative_path() {
+                        tooltip_text.push_str(&format!("<p>{} <ul><li>{}</li></ul></p>", tr("column_tooltip_5"), path));
+                    } else {
+                        tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_4")));
+                    }
+                }
+
                 if let Some(ref reference) = field.get_is_reference() {
                     tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
                 }

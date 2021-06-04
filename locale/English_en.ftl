@@ -549,6 +549,8 @@ original_data = Original Data: '{"{"}{"}"}'
 column_tooltip_1 = This column is a reference to:
 column_tooltip_2 = And many more. Exactly, {"{"}{"}"} more. Too many to show them here.
 column_tooltip_3 = Fields that reference this column:
+column_tooltip_4 = This field expects the path of a file.
+column_tooltip_5 = This field expect the name of a file under the following path:
 
 tsv_select_title = Select TSV File to Import...
 tsv_export_title = Export TSV File...
@@ -965,3 +967,10 @@ send_table_for_decoding_explanation = <p>You are about to send a table for being
         Is that correct? If so, hit send, and if nothing broke, the table should be sent in the background.
     </p>
 
+field_with_path_not_found_explanation = The data in the reported cell is supposed to contain a path/filename, but said path/filename has not been found in either this mod,
+    any mods this mod depends on, or the vanilla files.
+
+    Please make sure the value in the cell is an existing path. For cells that expect only a filename and not a full path, hover over their column header to know
+    in what path the file is expected to be.
+
+label_field_with_path_not_found = Path/File in field not found:
