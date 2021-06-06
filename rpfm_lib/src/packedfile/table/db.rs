@@ -189,12 +189,36 @@ impl DB {
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_ref_versioned_file_db(&name);
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
-        let definition = versioned_file?.get_version(version);
-        if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
 
-        // Then try to decode all the entries.
-        let mut table = Table::new(definition?);
-        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+        // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
+        let table = if version == 0 {
+            let definitions = versioned_file?.get_version_alternatives();
+            if entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
+            let table = definitions.iter().find_map(|definition| {
+                let mut table = Table::new(definition);
+                if table.decode(&packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
+                    Some(table)
+                } else {
+                    None
+                }
+            });
+
+            match table {
+                Some(table) => table,
+                None => return Err(ErrorKind::SchemaDefinitionNotFound.into()),
+            }
+        }
+
+        // For +0 versions, we expect unique definitions.
+        else {
+            let definition = versioned_file?.get_version(version);
+            if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
+
+            // Then try to decode all the entries.
+            let mut table = Table::new(definition?);
+            table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+            table
+        };
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
