@@ -193,7 +193,6 @@ impl DB {
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
         let table = if version == 0 {
             let definitions = versioned_file?.get_version_alternatives();
-            if entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
             let table = definitions.iter().find_map(|definition| {
                 let mut table = Table::new(definition);
                 if table.decode(&packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
