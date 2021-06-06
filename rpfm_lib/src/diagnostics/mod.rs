@@ -402,12 +402,16 @@ impl Diagnostics {
                                         path_found = true;
                                         vec![]
                                     } else {
-                                        path.replace('\\', "/").replace(';', ",").split(',')
+                                        let mut normal_paths = path.replace('\\', "/").replace(';', ",").split(',')
                                             .map(|x| x.split('/')
                                                 .map(|x| x.to_owned())
                                                 .collect::<Vec<String>>()
                                             )
-                                            .collect::<Vec<Vec<String>>>()
+                                            .collect::<Vec<Vec<String>>>();
+
+                                        let mut lowercase_paths = normal_paths.iter().map(|x| x.iter().map(|y| y.to_lowercase()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>();
+                                        normal_paths.append(&mut lowercase_paths);
+                                        normal_paths
                                     }
                                 };
 
