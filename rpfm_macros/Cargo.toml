@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_macros"
-version = "2.4.109"
+version = "2.4.110"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Library with some custom macros used in RPFM."
 edition = "2018"
