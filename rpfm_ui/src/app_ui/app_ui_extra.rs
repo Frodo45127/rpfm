@@ -2304,17 +2304,19 @@ impl AppUI {
             if let Some(count) = names.get(&widget_name) {
                 let mut name = String::new();
                 match packed_file_view.get_data_source() {
-                    DataSource::PackFile => name.push_str("Local"),
+                    DataSource::PackFile => {},
                     DataSource::ParentFiles => name.push_str("Parent"),
                     DataSource::GameFiles => name.push_str("Game"),
                     DataSource::AssKitFiles => name.push_str("AssKit"),
                     DataSource::ExternalFile => name.push_str("External"),
                 }
 
-                if packed_file_view.get_is_read_only() {
-                    name.push_str("-RO:");
-                } else {
-                    name.push(':');
+                if !name.is_empty() {
+                    if packed_file_view.get_is_read_only() {
+                        name.push_str("-RO:");
+                    } else  {
+                        name.push(':');
+                    }
                 }
 
                 if count > &1 {
