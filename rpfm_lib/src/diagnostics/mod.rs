@@ -434,7 +434,7 @@ impl Diagnostics {
                                         cells_affected: vec![(row as i32, column as i32)],
                                         message: format!("Path not found: {}.", paths.iter().map(|x| x.join("/")).join(" || ")),
                                         report_type: TableDiagnosticReportType::FieldWithPathNotFound,
-                                        level: DiagnosticLevel::Error,
+                                        level: DiagnosticLevel::Warning,
                                     });
                                 }
                             }
@@ -671,7 +671,7 @@ impl Diagnostics {
                                                     cells_affected: vec![(row as i32, column as i32)],
                                                     message: format!("Path not found: {}.", path.join("/")),
                                                     report_type: AnimFragmentDiagnosticReportType::FieldWithPathNotFound,
-                                                    level: DiagnosticLevel::Error,
+                                                    level: DiagnosticLevel::Warning,
                                                 });
                                             }
                                         }
