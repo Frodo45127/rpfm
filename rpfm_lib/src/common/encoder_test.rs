@@ -42,6 +42,16 @@ fn test_encode_integer_u16() {
     assert_eq!(data, vec![2, 1]);
 }
 
+/// Test to make sure the u24 integer encoder (`encode_integer_u24()`) works properly.
+#[test]
+fn test_encode_integer_u24() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_u24(8492696);
+    assert_eq!(data, vec![152, 150, 129]);
+}
+
 /// Test to make sure the u32 integer encoder (`encode_integer_u32()`) works properly.
 #[test]
 fn test_encode_integer_u32() {
@@ -80,6 +90,16 @@ fn test_encode_integer_i16() {
     let mut data = vec![];
     data.encode_integer_i16(-258);
     assert_eq!(data, vec![254, 254]);
+}
+
+/// Test to make sure the i24 integer encoder (`encode_integer_i24()`) works properly.
+#[test]
+fn test_encode_integer_i24() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_i24(8492696);
+    assert_eq!(data, vec![152, 150, 129]);
 }
 
 /// Test to make sure the i32 integer encoder (`encode_integer_i32()`) works properly.

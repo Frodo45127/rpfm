@@ -52,6 +52,18 @@ fn test_decode_integer_u16() {
     assert_eq!(Decoder::decode_integer_u16([10].as_ref(), 0).is_err(), true);
 }
 
+/// Test to make sure the u24 integer decoder (`decode_integer_u24()`) works and fails properly.
+#[test]
+fn test_decode_integer_u24() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(Decoder::decode_integer_u24([152, 150, 129].as_ref(), 0).unwrap(), 8492696);
+
+    // Check the decoder returns an error for a slice who's length is smaller than 3.
+    assert_eq!(Decoder::decode_integer_u24([152, 150].as_ref(), 0).is_err(), true);
+}
+
+
 /// Test to make sure the u32 integer decoder (`decode_integer_u32()`) works and fails properly.
 #[test]
 fn test_decode_integer_u32() {
@@ -94,6 +106,17 @@ fn test_decode_integer_i16() {
 
     // Check the decoder returns an error for a slice who's length is smaller than 2.
     assert_eq!(Decoder::decode_integer_i16([10].as_ref(), 0).is_err(), true);
+}
+
+/// Test to make sure the i24 integer decoder (`decode_integer_i24()`) works and fails properly.
+#[test]
+fn test_decode_integer_i24() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(Decoder::decode_integer_i24([152, 150, 129].as_ref(), 0).unwrap(), 8492696);
+
+    // Check the decoder returns an error for a slice who's length is smaller than 3.
+    assert_eq!(Decoder::decode_integer_i24([152, 150].as_ref(), 0).is_err(), true);
 }
 
 /// Test to make sure the i32 integer decoder (`decode_integer_i32()`) works and fails properly.

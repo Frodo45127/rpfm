@@ -45,6 +45,9 @@ pub trait Decoder {
     /// This function allows us to decode an u16 integer from raw data.
     fn decode_integer_u16(&self, offset: usize) -> Result<u16>;
 
+    /// This function allows us to decode an u24 integer from raw data.
+    fn decode_integer_u24(&self, offset: usize) -> Result<u32>;
+
     /// This function allows us to decode an u32 integer from raw data.
     fn decode_integer_u32(&self, offset: usize) -> Result<u32>;
 
@@ -56,6 +59,9 @@ pub trait Decoder {
 
     /// This function allows us to decode an i16 integer from raw data.
     fn decode_integer_i16(&self, offset: usize) -> Result<i16>;
+
+    /// This function allows us to decode an i24 integer from raw data.
+    fn decode_integer_i24(&self, offset: usize) -> Result<i32>;
 
     /// This function allows us to decode an i32 integer from raw data.
     fn decode_integer_i32(&self, offset: usize) -> Result<i32>;
@@ -102,6 +108,9 @@ pub trait Decoder {
     /// This function allows us to decode an u16 integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u16(&self, offset: usize, index: &mut usize) -> Result<u16>;
 
+    /// This function allows us to decode an u24 integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_u24(&self, offset: usize, index: &mut usize) -> Result<u32>;
+
     /// This function allows us to decode an u32 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u32(&self, offset: usize, index: &mut usize) -> Result<u32> ;
 
@@ -113,6 +122,9 @@ pub trait Decoder {
 
     /// This function allows us to decode an i16 integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16>;
+
+    /// This function allows us to decode an i24 encoded integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_i24(&self, offset: usize, index: &mut usize) -> Result<i32>;
 
     /// This function allows us to decode an i32 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_i32(&self, offset: usize, index: &mut usize) -> Result<i32>;
@@ -179,6 +191,15 @@ impl Decoder for [u8] {
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u16 number:</p><ul><li>Required bytes: 2.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }
 
+    fn decode_integer_u24(&self, offset: usize) -> Result<u32> {
+        if self.len() >= offset + 3 {
+            let mut data = Vec::with_capacity(4);
+            data.extend_from_slice(&self[offset..]);
+            data.push(0);
+            Ok(LittleEndian::read_u32(&data)) }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u24 number:</p><ul><li>Required bytes: 3.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
+    }
+
     fn decode_integer_u32(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
@@ -196,6 +217,15 @@ impl Decoder for [u8] {
     fn decode_integer_i16(&self, offset: usize) -> Result<i16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_i16(&self[offset..])) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i16 number:</p><ul><li>Required bytes: 2.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
+    }
+
+    fn decode_integer_i24(&self, offset: usize) -> Result<i32> {
+        if self.len() >= offset + 3 {
+            let mut data = Vec::with_capacity(4);
+            data.extend_from_slice(&self[offset..]);
+            data.push(0);
+            Ok(LittleEndian::read_i32(&data)) }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i24 number:</p><ul><li>Required bytes: 3.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }
 
     fn decode_integer_i32(&self, offset: usize) -> Result<i32> {
@@ -284,6 +314,12 @@ impl Decoder for [u8] {
         result
     }
 
+    fn decode_packedfile_integer_u24(&self, offset: usize, index: &mut usize) -> Result<u32> {
+        let result = self.decode_integer_u24(offset);
+        if result.is_ok() { *index += 3; }
+        result
+    }
+
     fn decode_packedfile_integer_u32(&self, offset: usize, index: &mut usize) -> Result<u32> {
         let result = self.decode_integer_u32(offset);
         if result.is_ok() { *index += 4; }
@@ -305,6 +341,12 @@ impl Decoder for [u8] {
     fn decode_packedfile_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16> {
         let result = self.decode_integer_i16(offset);
         if result.is_ok() { *index += 2; }
+        result
+    }
+
+    fn decode_packedfile_integer_i24(&self, offset: usize, index: &mut usize) -> Result<i32> {
+        let result = self.decode_integer_i24(offset);
+        if result.is_ok() { *index += 3; }
         result
     }
 
