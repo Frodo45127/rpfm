@@ -303,6 +303,27 @@ fn test_decode_packedfile_integer_u16() {
     }
 }
 
+/// Test to make sure the u24 integer specific decoder (`decode_packedfile_integer_u24()`) works
+/// and fails properly.
+#[test]
+fn test_decode_packedfile_integer_u24() {
+
+    // Check the decoding works for a proper value.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_integer_u24([152, 150, 129].as_ref(), 0, &mut index).unwrap(), 8492696);
+        assert_eq!(index, 3);
+    }
+
+
+    // Check the decoder returns an error for a slice whose lenght is smaller than 3.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_integer_u24([152, 150].as_ref(), 0, &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
+}
+
 /// Test to make sure the u32 integer specific decoder (`decode_packedfile_integer_u32()`) works
 /// and fails properly.
 #[test]
@@ -344,6 +365,18 @@ fn test_decode_packedfile_integer_u64() {
     }
 }
 
+/// Test to make sure the uleb_128 encoded integer decoder (`decode_integer_uleb128()`) works and fails properly.
+#[test]
+fn test_decode_packedfile_integer_uleb128() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(Decoder::decode_packedfile_integer_uleb128([0x80, 10].as_ref(), &mut 0).unwrap(), 10);
+
+    // Check the decoder returns an error for a slice that's not big enough.
+    assert_eq!(Decoder::decode_packedfile_integer_uleb128([].as_ref(), &mut 0).is_err(), true);
+}
+
+
 /// Test to make sure the i8 integer specific decoder (`decode_packedfile_integer_i8()`) works
 /// and fails properly.
 #[test]
@@ -380,6 +413,27 @@ fn test_decode_packedfile_integer_i16() {
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i16([10].as_ref(), 0, &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
+}
+
+/// Test to make sure the i24 integer specific decoder (`decode_packedfile_integer_i24()`) works
+/// and fails properly.
+#[test]
+fn test_decode_packedfile_integer_i24() {
+
+    // Check the decoding works for a proper value.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_integer_i24([152, 150, 129].as_ref(), 0, &mut index).unwrap(), 8492696);
+        assert_eq!(index, 3);
+    }
+
+
+    // Check the decoder returns an error for a slice whose lenght is smaller than 3.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_integer_i24([152, 150].as_ref(), 0, &mut index).is_err(), true);
         assert_eq!(index, 0);
     }
 }

@@ -445,8 +445,7 @@ impl PackedFileType {
                 return Self::UnitVariant
             }
 
-            // TODO: Fix these two.
-            if packedfile_name.ends_with(esf::EXTENSION) {
+            if esf::EXTENSIONS.iter().find(|x| packedfile_name.ends_with(**x)).is_some() {
                 return Self::ESF;
             }
 
@@ -542,7 +541,7 @@ impl PackedFileType {
             return Self::UnitVariant
         }
 
-        if path.ends_with(esf::EXTENSION) {
+        if esf::EXTENSIONS.iter().find(|x| path.ends_with(**x)).is_some() {
             return Self::ESF;
         }
 

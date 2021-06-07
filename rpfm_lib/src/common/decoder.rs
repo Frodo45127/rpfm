@@ -24,6 +24,12 @@ use encoding::all::ISO_8859_1;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
+/// These constants are needed to work with LEB_128 encoded numbers.
+pub const LEB128_CONTROL_BIT: u8 = 0b10000000;
+pub const LEB128_SIGNED_MAX: u8 = 0b00111111;
+pub const LEB128_UNSIGNED_MAX: u8 = 0b01111111;
+pub const U32_BITS: u32 = 32;
+
 //---------------------------------------------------------------------------//
 //                      `Decoder` Trait Definition
 //---------------------------------------------------------------------------//
@@ -116,6 +122,9 @@ pub trait Decoder {
 
     /// This function allows us to decode an u64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u64(&self, offset: usize, index: &mut usize) -> Result<u64>;
+
+    /// This function allows us to decode an unsigned leb128 variant-lenght integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_uleb128(&self, index: &mut usize) -> Result<u32>;
 
     /// This function allows us to decode an i8 integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_i8(&self, offset: usize, index: &mut usize) -> Result<i8>;
@@ -330,6 +339,31 @@ impl Decoder for [u8] {
         let result = self.decode_integer_u64(offset);
         if result.is_ok() { *index += 8; }
         result
+    }
+
+    // At least I think it's uleb_128.
+    fn decode_packedfile_integer_uleb128(&self, index: &mut usize) -> Result<u32> {
+        let mut size: u32 = 0;
+
+        let mut byte = if let Some(byte) = self.get(*index) { byte }
+        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an uleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>")).into()) };
+
+        while(byte & 0x80) != 0 {
+            size = (size << 7) + (self[*index as usize] & 0x7f) as u32;
+            *index += 1;
+
+            // Check the new byte is even valid before continuing.
+            if let Some(new_byte) = self.get(*index) {
+                byte = new_byte;
+            }
+            else {
+                return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an uleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>")).into())
+            }
+        }
+
+        size = (size << 7) + (self[*index as usize] & 0x7f) as u32;
+        *index += 1;
+        Ok(size)
     }
 
     fn decode_packedfile_integer_i8(&self, offset: usize, index: &mut usize) -> Result<i8> {

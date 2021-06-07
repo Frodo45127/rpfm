@@ -72,6 +72,16 @@ fn test_encode_integer_u64() {
     assert_eq!(data, vec![2, 1, 0, 0, 0, 0, 0, 0]);
 }
 
+/// Test to make sure the uleb128 encoded integer encoder (`encode_integer_uleb128()`) works properly.
+#[test]
+fn test_encode_integer_uleb128() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_uleb128(10);
+    assert_eq!(data, vec![10]);
+}
+
 /// Test to make sure the i8 integer encoder (`encode_integer_i8()`) works properly.
 #[test]
 fn test_encode_integer_i8() {

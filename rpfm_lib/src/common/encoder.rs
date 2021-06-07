@@ -46,6 +46,9 @@ pub trait Encoder {
     /// This function allows us to encode an u64 integer into the provided `Vec<u8>`.
     fn encode_integer_u64(&mut self, integer: u64);
 
+    /// This function allows us to encode an u32 integer with ULEB_128 encoding into the provided `Vec<u8>`.
+    fn encode_integer_uleb128(&mut self, integer: u32);
+
     /// This function allows us to encode an i8 integer into the provided `Vec<u8>`.
     fn encode_integer_i8(&mut self, integer: i8);
 
@@ -126,6 +129,39 @@ impl Encoder for Vec<u8> {
 
     fn encode_integer_u64(&mut self, integer: u64) {
         self.write_u64::<LittleEndian>(integer).unwrap();
+    }
+
+    // At least I think it's uleb128.
+    fn encode_integer_uleb128(&mut self, integer: u32) {
+        let mut data = vec![];
+        let mut temp_data = vec![];
+
+        // If it's 0, just push a 0 and forget.
+        if integer == 0 {
+            data.push(0);
+        }
+
+        // Otherwise, time for fun encoding.
+        let mut integer = integer;
+
+        while integer != 0 {
+            temp_data.push((integer & 0x7f) as u8);
+            integer = integer >> 7;
+        }
+
+        while !temp_data.is_empty() {
+            match temp_data.pop() {
+                Some(mut byte) => {
+                    if !temp_data.is_empty() {
+                        byte |= 0x80;
+                    }
+                    data.push(byte);
+                }
+                None => data.push(0),
+            }
+        }
+
+        self.extend_from_slice(&data);
     }
 
     fn encode_integer_i8(&mut self, integer: i8) {
