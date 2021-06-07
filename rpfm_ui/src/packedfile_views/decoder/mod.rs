@@ -25,6 +25,7 @@ use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
+use qt_widgets::QSpinBox;
 
 use qt_gui::QBrush;
 use qt_gui::QFontMetrics;
@@ -142,7 +143,7 @@ pub struct PackedFileDecoderView {
     optional_string_u16_button: QBox<QPushButton>,
     sequence_u32_button: QBox<QPushButton>,
 
-    packed_file_info_version_decoded_label: QBox<QLabel>,
+    packed_file_info_version_decoded_spinbox: QBox<QSpinBox>,
     packed_file_info_entry_count_decoded_label: QBox<QLabel>,
 
     table_view_old_versions: QBox<QTableView>,
@@ -347,14 +348,14 @@ impl PackedFileDecoderView {
             PackedFileType::DB => format!("DB/{}", packed_file_view.get_path()[1]),
             _ => format!("{}", packed_file_type),
         }), &info_frame);
-        let packed_file_info_version_decoded_label = QLabel::new();
-        let packed_file_info_entry_count_decoded_label = QLabel::new();
+        let packed_file_info_version_decoded_spinbox = QSpinBox::new_1a(&info_frame);
+        let packed_file_info_entry_count_decoded_label = QLabel::from_q_widget(&info_frame);
 
         info_layout.add_widget_5a(&packed_file_info_type_label, 0, 0, 1, 1);
         info_layout.add_widget_5a(&packed_file_info_version_label, 1, 0, 1, 1);
 
         info_layout.add_widget_5a(&packed_file_info_type_decoded_label, 0, 1, 1, 1);
-        info_layout.add_widget_5a(&packed_file_info_version_decoded_label, 1, 1, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_version_decoded_spinbox, 1, 1, 1, 1);
 
         info_layout.add_widget_5a(&packed_file_info_entry_count_label, 2, 0, 1, 1);
         info_layout.add_widget_5a(&packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
@@ -451,7 +452,7 @@ impl PackedFileDecoderView {
             optional_string_u16_button,
             sequence_u32_button,
 
-            packed_file_info_version_decoded_label,
+            packed_file_info_version_decoded_spinbox,
             packed_file_info_entry_count_decoded_label,
 
             table_view_old_versions,
@@ -634,7 +635,14 @@ impl PackedFileDecoderView {
             _ => unimplemented!()
         };
 
-        self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+        if version > 0 {
+            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_enabled(false);
+        } else {
+            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_maximum(0);
+            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_minimum(-99);
+        }
+
+        self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_value(version);
         self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
 
         Ok(())
@@ -692,8 +700,8 @@ impl PackedFileDecoderView {
         &self.sequence_u32_button
     }
 
-    fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> &QBox<QLabel> {
-        &self.packed_file_info_version_decoded_label
+    fn get_mut_ptr_packed_file_info_version_decoded_spinbox(&self) -> &QBox<QSpinBox> {
+        &self.packed_file_info_version_decoded_spinbox
     }
 
     fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> &QBox<QLabel> {
@@ -837,7 +845,7 @@ impl PackedFileDecoderView {
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
         let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
-        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Definition::new(-1)), &mut index.clone());
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Definition::new(-100)), &mut index.clone());
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -1237,8 +1245,8 @@ impl PackedFileDecoderView {
                         "StringU16" => FieldType::StringU16,
                         "OptionalStringU8" => FieldType::OptionalStringU8,
                         "OptionalStringU16" => FieldType::OptionalStringU16,
-                        "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
-                        "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
+                        "SequenceU16" => FieldType::SequenceU16(Definition::new(-100)),
+                        "SequenceU32" => FieldType::SequenceU32(Definition::new(-100)),
                         _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
                     };
 
@@ -1378,9 +1386,9 @@ impl PackedFileDecoderView {
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-100)),
                     "SequenceU32" => FieldType::SequenceU32({
-                        let mut definition = Definition::new(-1);
+                        let mut definition = Definition::new(-100);
                         *definition.get_ref_mut_fields() = self.get_fields_from_view(Some(model_index));
                         definition
                     }),
@@ -1423,14 +1431,7 @@ impl PackedFileDecoderView {
         let mut schema = SCHEMA.read().unwrap().clone().unwrap();
         let fields = self.get_fields_from_view(None);
 
-        let version = match self.packed_file_type {
-            PackedFileType::AnimTable => AnimTable::read_header(&self.packed_file_data).unwrap().0,
-            PackedFileType::AnimFragment => AnimFragment::read_header(&self.packed_file_data).unwrap().0,
-            PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
-            PackedFileType::Loc => Loc::read_header(&self.packed_file_data).unwrap().0,
-            PackedFileType::MatchedCombat => MatchedCombat::read_header(&self.packed_file_data).unwrap().0,
-            _ => unimplemented!(),
-        };
+        let version = self.packed_file_info_version_decoded_spinbox.value();
 
         let versioned_file = match self.packed_file_type {
             PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),

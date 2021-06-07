@@ -16,6 +16,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Dependencies Cache not yet generated` diagnostic.
 - Implemented `Dependencies Cache outdated` diagnostic.
 - Implemented `Dependencies Cache could not be loaded` diagnostic.
+- Implemented `Path/File in field not found` diagnostic.
 - Implemented `Debug` PackedFile View.
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
 - Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
@@ -23,6 +24,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for steam's `MFH` packs.
 - Implemented read support for modern DDS files (by [@phazer](https://github.com/mr-phazer)).
 - Implemented support to open references from out of the Packfile when using `Go To Definition` or `Go To Loc`.
+- Implemented support for alternative version 0 definitions.
 - Reworked cell painting on tables, so it should no longer left unreadable cells on painting.
 - Implemented support for ignoring specific diagnostics per PackFile.
 - Key columns now have a distinct background.
@@ -62,7 +64,10 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed certain diagnostics being duplicated on checking open PackedFiles.
 - Fixed certain diagnostics not painting all the cells they should.
 - Fixed CTD on trying to reopen an already open PackFile with `Add from PackedFile`.
-- Fixed some issues whith the CTD reporting logic not always actually reporting.
+- Fixed some issues with the CTD reporting logic not always actually reporting.
+- Fixed some issues with the CTD reporting logic with caused backend crashes to cause the "Grey Screen of Death".
+- Fixed a semi-random CTD that happened when RPFM could not access for a moment to a file on disk.
+- Fixed a CTD that happened when a update download ended up with an incomplete file.
 
 ## [2.4.3]
 ### Added

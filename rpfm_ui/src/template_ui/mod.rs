@@ -294,7 +294,7 @@ impl TemplateUI {
             }
 
             ParamType::TableField((table_name, field)) => {
-                let mut definition = Definition::new(-1);
+                let mut definition = Definition::new(-100);
                 *definition.get_ref_mut_fields() = vec![field.clone()];
 
                 match field.get_field_type() {

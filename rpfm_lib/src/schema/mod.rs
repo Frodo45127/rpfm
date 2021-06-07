@@ -793,6 +793,18 @@ impl VersionedFile {
         }
     }
 
+    /// This function returns a reference to all the alternative definitions of a VersionedFile.
+    pub fn get_version_alternatives(&self) -> Vec<&Definition> {
+        match &self {
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions.iter().filter(|x| x.version <= 0).collect::<Vec<&Definition>>(),
+        }
+    }
+
     /// This function returns a mutable reference to a specific version of a definition, if it finds it.
     pub fn get_ref_mut_version(&mut self, version: i32) -> Result<&mut Definition> {
         match self {
@@ -1288,7 +1300,7 @@ impl Display for FieldType {
 /// Implementation of `From<&RawDefinition>` for `Definition.
 impl From<&RawDefinition> for Definition {
     fn from(raw_definition: &RawDefinition) -> Self {
-        let mut definition = Self::new(-1);
+        let mut definition = Self::new(-100);
         definition.fields = raw_definition.fields.iter().map(From::from).collect();
         definition
     }

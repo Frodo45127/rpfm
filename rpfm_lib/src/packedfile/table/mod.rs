@@ -1144,7 +1144,7 @@ impl From<&RawTable> for Table {
             table
         }
         else {
-            Self::new(&Definition::new(-1))
+            Self::new(&Definition::new(-100))
         }
     }
 }
