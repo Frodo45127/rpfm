@@ -966,6 +966,11 @@ send_table_for_decoding_explanation = <p>You are about to send a table for being
         </ul>
         Is that correct? If so, hit send, and if nothing broke, the table should be sent in the background.
     </p>
+    <p>PD: Please check for schema updates before sending a table. Most of the tables I've received since I enabled this
+    were already decoded, meaning you guys had an outdated schema. I don't want to have to remove this due to being
+    spammed with tables that don't need decoding, so please, only send a table if it's really not decoded in the latest schema.
+    </p>
+
 
 field_with_path_not_found_explanation = The data in the reported cell is supposed to contain a path/filename, but said path/filename has not been found in either this mod,
     any mods this mod depends on, or the vanilla files.
