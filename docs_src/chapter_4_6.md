@@ -1,6 +1,6 @@
 # AnimPacks
 
-![Repacked for you....](./images/image21.png)
+![Repacked for you....](./images/animpacks.png)
 
 RPFM can open AnimPacks, and allows to add/remove files at will to/from them. The lef view represents the currently open PackFile. The right view, your AnimPack.
 - To add files to your AnimPack, just double-click what you want to add on the left view, and it'll be added to the AnimPack on the right.

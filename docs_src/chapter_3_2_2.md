@@ -1,6 +1,6 @@
 # PackFile Settings
 
-![Pack me up and Set me free!!!!](./images/notes.png)
+![Pack me up and Set me free!!!!](./images/packfile_settings.png)
 
 `PackFile Settings` are a list of PackFile-specific settings, that can change some of RPFM behaviors only for the currently open PackFile. They're kept inside the PackFile, so every time you open that PackFile again, they will be re-applied. The list of settings goes as follows:
 

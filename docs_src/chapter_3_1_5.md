@@ -9,3 +9,5 @@ This menu contains... special features implemented for specific games. Basically
     - **Loc**: Removes unchanged rows from vanilla.
     - **Xml**: Removes xml files under the `terrain/tiles` folder, as those are leftovers of Terry's exports..
 - `Generate Dependencies Cache`: generates a cache used for things like dependency checking, diagnostics, .... Doesn't work for Empire and Napoleon, yet.
+
+There's also a `Rescue PackFile` feature that you SHOULD NOT USE UNLESS INSTRUCTED.
