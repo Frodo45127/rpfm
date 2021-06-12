@@ -14,8 +14,6 @@ This is the `PackedFile's Data` view. It's similar to a hexadecimal editor, but 
 - **Yellow** : the part of the table already decoded following the structure from the fields table.
 - **Magenta** : the byte where the next field after all the fields from the fields table starts.
 
-For performance reasons, this view is **limited to 60 lines**, which should be more than enough the decode the first row of almost every table. This limit may be removed in the future if I manage to fix the performance slowdown....
-
 Next, to the right, we have this:
 
 ![Fields.... like normal ones, but with less cows.](./images/image25.png)
@@ -36,9 +34,14 @@ Under `Current Field Decoded` we have `Selected Field Decoded`. It does the same
 
 To the right, we have some information about the table, and the `Versions List` (a list of versions of that table we have a definition for). If we right-click in one of them, we can load that version (useful to have something to start when a table gets *updated* in a patch) or delete it (in case we make a totally disaster and don't want it to be in the schema).
 
+In the information of the table, the version number is only editable for version 0 tables. Usually, RPFM treats all versions as unique per-game, but version 0 really means ***no version***, so in older games, like empire, there can be multiple "version 0" tables with different definitions. For that, when a version 0 table is decoded, you can set its version to be negative, which will act as an alternative definition for that version 0 table.
+
+It's only for Empire/Napoleon. Don't use it in recent games.
+
 ![Because no more is needed.](./images/image28.png)
 
 And at the bottom, we have:
-- `Generate Diff`: generates a diff between your schema and the current schema (from Github) and saves it to RPFM's folder.
+- `Import from Assembly Kit`: it tries to import the definition for this table from the assembly kit files. It tries.
+- `Test Definition`: test the definition to see if it can decode the table correctly. If it fails, it'll show a json version of the rows of the table that it could decode.
 - `Remove all fields`: removes all decoded fields, returning the table to a clean state.
 - `Finish It!`: Save the `Fields List` as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.

@@ -12,6 +12,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Add…/Add Folder`: Allows you to add a folder and all his files to the PackFile.
 - `Add…/Add from PackFile`: Allows you to add files or folders from another PackFile to your PackFile. Just, select whatever you want to add, double click it and it'll be added to your PackFile, keeping his path.
 - `Create…/Create Folder`: Allows you to create an empty folder. Due to how PackFiles work empty folders are not saved so, if you want to keep the folder, add a file to it. Supports relative paths.
+- `Create…/Create AnimPack`: Allows you to create an empty AnimPack.
 - `Create…/Create DB`: Allows you to create an empty DB Table.
 - `Create…/Create Loc`: Allows you to create an empty Loc PackedFile. You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
 - `Create…/Create Text`: Allows you to create an empty text file. ANY TEXT FILE (including lua, xml,...). You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
@@ -25,6 +26,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Open…/Open with Decoder`: Allows you to open a table in the `PackedFile Decoder`. Only used to decode new tables, so…. You shouldn't touch this.
 - `Open…/Open Dependency Manager`: Allows you to open the list of dependencies included in the PackFile. Check the next chapter to learn what this `Dependency Manager` thing is about.
 - `Open…/Open Containing Folder`: Allows you to open the folder where your open PackFile is (if it's on disk) with the default file manager of your system.
+- `Open…/Open PackFile Settings`: Allows you to open the PackFile-specific settings of the currently open PackFile.
 - `Open…/Open with External Program`: Allows you to open a PackedFile with an external program. For tables and locs, some internal magic is done so they're openable in excel/calc/the program your tsv files open with.
 - `Open…/Open Notes`: Allows you to open a Notes panel, to random stuff related to the PackFile.
 - `Rename`: Allows you to rename whatever is selected, except the PackFile.
@@ -32,7 +34,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Extract`: Allows you to extract whatever is selected out of the PackFile. If whatever you selected is compressed/encrypted, RPFM will decompress/decrypt it before extracting, so the resulting file is usable.
 - `Copy Path`: Allows you to copy the selected item's path to the clipboard.
 - `Merge Tables`: Allows you to merge multiple DB/LOC Tables into one.
-- `Update Tables`: Allows you to update the structure of a table to the latest one one used by the game selected.
+- `Update Table`: Allows you to update the structure of a table to the latest one one used by the game selected.
 
 Additionally, with the shortcuts `Ctrl++` and `Ctrl+-` you can expand/collapse the entire TreeView. This action is shortcut only, it's not in the Contextual Menu.
 
