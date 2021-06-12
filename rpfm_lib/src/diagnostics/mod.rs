@@ -402,21 +402,21 @@ impl Diagnostics {
                                         path_found = true;
                                         vec![]
                                     } else {
-                                        let mut normal_paths = path.replace('\\', "/").replace(';', ",").split(',')
+                                        path.replace('\\', "/").replace(';', ",").split(',')
                                             .map(|x| x.split('/')
                                                 .map(|x| x.to_owned())
                                                 .collect::<Vec<String>>()
                                             )
-                                            .collect::<Vec<Vec<String>>>();
-
-                                        let mut lowercase_paths = normal_paths.iter().map(|x| x.iter().map(|y| y.to_lowercase()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>();
-                                        normal_paths.append(&mut lowercase_paths);
-                                        normal_paths
+                                            .collect::<Vec<Vec<String>>>()
                                     }
                                 };
 
                                 for path in &paths {
-                                    if pack_file.get_ref_packed_file_by_path(&path).is_some() {
+                                    if pack_file.packedfile_exists(&path, true) {
+                                        path_found = true;
+                                    }
+
+                                    if !path_found && pack_file.folder_exists(&path, true) {
                                         path_found = true;
                                     }
 
@@ -654,7 +654,11 @@ impl Diagnostics {
                                                 .map(|x| x.to_owned())
                                                 .collect::<Vec<String>>();
 
-                                            if pack_file.get_ref_packed_file_by_path(&path).is_some() {
+                                            if pack_file.packedfile_exists(&path, true) {
+                                                path_found = true;
+                                            }
+
+                                            if !path_found && pack_file.folder_exists(&path, true) {
                                                 path_found = true;
                                             }
 
@@ -667,7 +671,7 @@ impl Diagnostics {
                                             }
 
                                             if path_found {
-                                                break;
+                                                continue;
                                             }
 
                                             if !path_found {
