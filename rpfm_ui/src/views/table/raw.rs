@@ -607,6 +607,9 @@ impl TableView {
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
                             let row = get_new_row(&self.get_ref_table_definition());
+                            for index in 0..row.count_0a() {
+                                row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
+                            }
                             self.table_model.append_row_q_list_of_q_standard_item(&row);
                             real_row = self.table_model.row_count_0a() - 1;
                             added_rows += 1;
