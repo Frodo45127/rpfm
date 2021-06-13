@@ -121,15 +121,16 @@ impl RawDefinition {
                     .filter(|x| if skip_ingame_tables {
                             let base_name = x.file_stem().unwrap().to_str().unwrap().split_at(5).1;
                             let name_table = format!("{}_tables", base_name);
-                            dependency_db.iter().map(|x| x.get_ref_decoded()).all(|x| if let DecodedPackedFile::DB(db) = x {
-                                db.get_ref_table_name() != &name_table
-                            } else { false })
+                            !dependency_db.iter().map(|x| x.get_ref_decoded())
+                                .filter_map(|x| if let DecodedPackedFile::DB(db) = x { Some(db) } else { None })
+                                .any(|x| x.get_ref_table_name() == &name_table)
                         } else { true }
                     )
-                    .partition_map(|x|
-                    match Self::read(x, version) {
-                        Ok(y) => Either::Left(y),
-                        Err(y) => Either::Right(y)
+                    .partition_map(|x|{
+                        match Self::read(x, version) {
+                            Ok(y) => Either::Left(y),
+                            Err(y) => Either::Right(y)
+                        }
                     }
                 ))
             }
