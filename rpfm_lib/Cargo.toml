@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "2.4.110"
+version = "2.4.111"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
