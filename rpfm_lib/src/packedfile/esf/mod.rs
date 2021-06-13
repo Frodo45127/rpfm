@@ -17,6 +17,7 @@ ESF are like savestates of the game.
 use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{ErrorKind, Result};
+use rpfm_macros::*;
 
 use crate::common::decoder::Decoder;
 
@@ -131,7 +132,7 @@ pub const LONG_RECORD_BLOCK: u8 = 0xe0;
 //---------------------------------------------------------------------------//
 
 /// This holds an entire ESF PackedFile decoded in memory.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ESF {
     signature: ESFSignature,
     unknown_1: u32,
@@ -224,14 +225,14 @@ pub enum NodeType {
 }
 
 /// TODO: confirm what each number is.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Coordinates2DNode {
     x: f32,
     y: f32,
 }
 
 /// TODO: confirm what each number is.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Coordinates3DNode {
     x: f32,
     y: f32,
@@ -239,22 +240,22 @@ pub struct Coordinates3DNode {
 }
 
 /// TODO: confirm what each number is.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct RecordNode {
     version: u8,
     name: String,
     offset_len: u32,
-    childs: Vec<NodeType>
+    children: Vec<NodeType>
 }
 
 /// TODO: confirm what each number is.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct RecordBlockNode {
     version: u8,
     name: String,
     offset_len: u32,
     offset_len_2: u32,
-    childs: Vec<(u32, Vec<NodeType>)>
+    children: Vec<(u32, Vec<NodeType>)>
 }
 
 //---------------------------------------------------------------------------//
@@ -287,9 +288,9 @@ impl ESF {
             _ => return  Err(ErrorKind::ESFUnsupportedSignature(format!("{:#X}{:#X}", signature_bytes[0], signature_bytes[1])).into())
         };
 
-        use std::io::Write;
-        let mut x = std::fs::File::create("encoded_ccd.ccd")?;
-        x.write_all(&esf.save())?;
+        //use std::io::Write;
+        //let mut x = std::fs::File::create("encoded_ccd.ccd")?;
+        //x.write_all(&esf.save())?;
 
         Ok(esf)
     }

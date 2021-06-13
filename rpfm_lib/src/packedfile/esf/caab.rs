@@ -81,9 +81,9 @@ impl ESF {
             unknown_2,
         };
 
-        use std::io::Write;
-        let mut x = std::fs::File::create("encoded_ccd.ccd")?;
-        x.write_all(&esf.save())?;
+        //use std::io::Write;
+        //let mut x = std::fs::File::create("encoded_ccd.ccd")?;
+        //x.write_all(&esf.save())?;
 
         Ok(esf)
     }
@@ -421,15 +421,15 @@ impl ESF {
                 offset_len = *offset - offset_len;
                 //let data = packed_file_data[*offset..end_offset as usize].to_vec();
 
-                let mut childs: Vec<NodeType> = vec![];
+                let mut children: Vec<NodeType> = vec![];
                 while *offset < end_offset as usize {
-                    childs.push(Self::read_node(&packed_file_data[..end_offset as usize], &mut offset, false, record_names, strings)?);
+                    children.push(Self::read_node(&packed_file_data[..end_offset as usize], &mut offset, false, record_names, strings)?);
                 }
 
                 let node_data = RecordNode {
                     version,
                     name,
-                    childs,
+                    children,
                     offset_len: offset_len as u32,
                 };
 
@@ -460,7 +460,7 @@ impl ESF {
                 let count = packed_file_data.decode_packedfile_integer_uleb128(&mut offset)?;
                 offset_len_2 = *offset - offset_len_2;
 
-                let mut childs = vec![];
+                let mut children = vec![];
                 for x in 0..count {
                     let mut offset_len_3 = *offset;
                     let size = packed_file_data.decode_packedfile_integer_uleb128(&mut offset)?;
@@ -473,13 +473,13 @@ impl ESF {
                         node_list.push(Self::read_node(&packed_file_data, &mut offset, false, record_names, strings)?);
                     }
 
-                    childs.push((offset_len_3 as u32, node_list));
+                    children.push((offset_len_3 as u32, node_list));
                 }
 
                 let node_data = RecordBlockNode {
                     version,
                     name,
-                    childs,
+                    children,
                     offset_len: offset_len as u32,
                     offset_len_2: offset_len_2 as u32,
                 };
@@ -801,7 +801,7 @@ impl ESF {
                 }
 
                 let mut childs_data = vec![];
-                for node in &value.childs {
+                for node in &value.children {
                     childs_data.extend_from_slice(&Self::save_node(&node, false, &strings, &record_names));
                 }
 
@@ -827,7 +827,7 @@ impl ESF {
                 data.push(info as u8);
 
                 let mut childs_data = vec![];
-                for (bytes, group_node) in &value.childs {
+                for (bytes, group_node) in &value.children {
                     let mut group_node_data = vec![];
                     for node in group_node {
                         let child_node = Self::save_node(&node, false, strings, record_names);
@@ -851,12 +851,12 @@ impl ESF {
                 data.encode_integer_uleb128(childs_data.len() as u32);
 
                 let mut a = vec![];
-                a.encode_integer_uleb128(value.childs.len() as u32);
+                a.encode_integer_uleb128(value.children.len() as u32);
                 for x in 0..value.offset_len_2 - a.len() as u32 {
                     data.push(0x80);
                 }
 
-                data.encode_integer_uleb128(value.childs.len() as u32);
+                data.encode_integer_uleb128(value.children.len() as u32);
                 data.extend_from_slice(&childs_data);
             },
             NodeType::BoolTrue(_value) => {
@@ -939,7 +939,7 @@ impl ESF {
                 if !record_names.contains(&value.name) {
                     record_names.push(value.name.to_owned());
                 }
-                for node in &value.childs {
+                for node in &value.children {
                     Self::read_string_from_node(&node, record_names, strings);
                 }
             },
@@ -947,7 +947,7 @@ impl ESF {
                 if !record_names.contains(&value.name) {
                     record_names.push(value.name.to_owned());
                 }
-                for (_, node_group) in &value.childs {
+                for (_, node_group) in &value.children {
                     for node in node_group {
                         Self::read_string_from_node(&node, record_names, strings);
                     }
