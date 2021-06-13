@@ -16,7 +16,7 @@ settings are saved in the config folder, in a file called `settings.ron`, in cas
 to change them manually.
 !*/
 
-use ron::de::{from_reader, from_str};
+use ron::de::from_reader;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
@@ -73,7 +73,6 @@ impl Settings {
         settings_string.insert("autosave_interval".to_owned(), "5".to_owned());
         settings_string.insert("font_name".to_owned(), "".to_owned());
         settings_string.insert("font_size".to_owned(), "".to_owned());
-        settings_string.insert("recent_files".to_owned(), "[]".to_owned());
 
         // UI Settings.
         settings_bool.insert("start_maximized".to_owned(), false);
@@ -151,38 +150,6 @@ impl Settings {
         let config = PrettyConfig::default();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
-    }
-
-    pub fn get_recent_files(&self) -> Vec<String> {
-        from_str(self.settings_string.get("recent_files").unwrap()).unwrap()
-    }
-
-    pub fn set_recent_files(&mut self, recent_files: &[String]) {
-        let config = PrettyConfig::default();
-        *self.settings_string.get_mut("recent_files").unwrap() = to_string_pretty(&recent_files, config).unwrap();
-        let _ = self.save();
-    }
-
-    pub fn update_recent_files(&mut self, new_path: &str) {
-        *self = Self::load(None).unwrap_or_else(|_|Settings::new());
-        if let Some(recent_files) = self.settings_string.get("recent_files") {
-            let mut recent_files: Vec<String> = from_str(recent_files).unwrap();
-
-            if let Some(index) = recent_files.iter().position(|x| x == new_path) {
-                recent_files.remove(index);
-            }
-
-            recent_files.reverse();
-            recent_files.push(new_path.to_owned());
-            recent_files.reverse();
-
-            // Limit it to 10 Packfiles.
-            recent_files.truncate(10);
-
-            let config = PrettyConfig::default();
-            *self.settings_string.get_mut("recent_files").unwrap() = to_string_pretty(&recent_files, config).unwrap();
-            let _ = self.save();
-        }
     }
 }
 

@@ -669,7 +669,7 @@ impl PackFile {
                     for number in 0.. {
                         let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                         *path.last_mut().unwrap() = name;
-                        if !self.packedfile_exists(&path) && !reserved_names.contains(&path) {
+                        if !self.packedfile_exists(&path, false) && !reserved_names.contains(&path) {
 
                             // Ignorable result. This will never fail due to the replacing code before this.
                             let _ = packed_file.get_ref_mut_raw().set_path(&path);
@@ -1425,13 +1425,58 @@ impl PackFile {
     }
 
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
-    pub fn packedfile_exists(&self, path: &[String]) -> bool {
-        self.packed_files.par_iter().any(|x| x.get_path() == path)
+    pub fn packedfile_exists(&self, path: &[String], case_insensitive: bool) -> bool {
+        if case_insensitive {
+            self.packed_files.par_iter().any(|x| {
+                if x.get_path().len() == path.len() {
+                    let mut found = true;
+                    for index in 0..x.get_path().len() {
+                        found &= caseless::canonical_caseless_match_str(&x.get_path()[index], &path[index]);
+
+                        if !found {
+                            break;
+                        }
+                    }
+                    found
+                } else {
+                    false
+                }
+            })
+        } else {
+            self.packed_files.par_iter().any(|x| x.get_path() == path)
+        }
     }
 
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
-    pub fn folder_exists(&self, path: &[String]) -> bool {
-        self.packed_files.par_iter().any(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len())
+    pub fn folder_exists(&self, path: &[String], case_insensitive: bool) -> bool {
+        if path.is_empty() {
+           false
+        } else {
+            if case_insensitive {
+                self.packed_files.par_iter().any(|x| {
+
+                    // The last one in paths ending in / is empty.
+                    if x.get_path().len() > path.len() || (x.get_path().len() == path.len() && path.last().unwrap().is_empty()) {
+                        let mut found = true;
+                        for index in 0..path.len() {
+
+                            if !path[index].is_empty() {
+                                found &= caseless::canonical_caseless_match_str(&x.get_path()[index], &path[index]);
+
+                                if !found {
+                                    break;
+                                }
+                            }
+                        }
+                        found
+                    } else {
+                        false
+                    }
+                })
+            } else {
+                self.packed_files.par_iter().any(|x| x.get_path().starts_with(path) && x.get_path().len() > path.len())
+            }
+        }
     }
 
     /// This function takes an slice of PathTypes and turns it into a vector of individual PackedFile's paths.
@@ -1500,8 +1545,8 @@ impl PackFile {
         let mut destination_path = destination_path.to_vec();
 
         // First, we check if BOTH, the source and destination, exist.
-        let source_exists = self.packedfile_exists(source_path);
-        let destination_exists = self.packedfile_exists(&destination_path);
+        let source_exists = self.packedfile_exists(source_path, false);
+        let destination_exists = self.packedfile_exists(&destination_path, false);
 
         // If both exists, we do some name resolving:
         // - If we want to overwrite the destination file, we simply remove it.
@@ -1516,7 +1561,7 @@ impl PackFile {
                 for number in 0.. {
                     let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                     *destination_path.last_mut().unwrap() = name;
-                    if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
+                    if !self.packedfile_exists(&destination_path, false) && !reserved_names.contains(&destination_path) {
                         break;
                     }
                 }
@@ -1926,7 +1971,7 @@ impl PackFile {
                                     }
 
                                     // If that path already exist in the PackFile, add it to the "remove" list.
-                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path, false) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
                                     let mut packed_file = PackedFile::new(path, self.get_file_name());
@@ -1957,7 +2002,7 @@ impl PackFile {
                                     }
 
                                     // If that path already exists in the PackFile, add it to the "remove" list.
-                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path, false) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
                                     let mut packed_file = PackedFile::new(path, self.get_file_name());

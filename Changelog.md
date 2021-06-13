@@ -41,6 +41,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Re-enable automatic crash report with Sentry.
 - Now double-clicking diagnostics related to RPFM configuration opens the relevant configuration.
 - Open From Data should no longer check subdirs for Packs.
+- `Recent Files` list now should work across instances.
+- Updated manual.
 
 ### Fixed
 - Fixed false positives on the diagnostics tool after adding new tables to a PackFile.
@@ -68,6 +70,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed some issues with the CTD reporting logic with caused backend crashes to cause the "Grey Screen of Death".
 - Fixed a semi-random CTD that happened when RPFM could not access for a moment to a file on disk.
 - Fixed a CTD that happened when a update download ended up with an incomplete file.
+- Fixed `Paste as New Row` not properly marking cells as added.
 
 ## [2.4.3]
 ### Added

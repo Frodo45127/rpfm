@@ -214,6 +214,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "caseless"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "808dab3318747be122cb31d36de18d4d1c81277a76f8332a02b81a3d73463d7f"
+dependencies = [
+ "regex",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2142,14 +2152,14 @@ dependencies = [
 
 [[package]]
 name = "rpfm"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "winres",
 ]
 
 [[package]]
 name = "rpfm_cli"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "bytesize",
  "clap",
@@ -2165,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_error"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "backtrace",
  "bincode",
@@ -2191,11 +2201,12 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "bincode",
  "bitflags",
  "byteorder",
+ "caseless",
  "chrono",
  "csv",
  "directories",
@@ -2228,7 +2239,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_macros"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2237,7 +2248,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "open",
  "rpfm_error",
@@ -2247,7 +2258,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "2.4.110"
+version = "2.4.111"
 dependencies = [
  "bincode",
  "chrono",

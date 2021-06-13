@@ -6,6 +6,7 @@ First, the top Menu bar. It has five menus in it, that'll be explained in the fo
 - `View`: It's where you can hide/show certain panels of the UI.
 - `Game Selected`: It's where you select the game you are modding the current PackFile for if RPFM failed to select it for you.
 - `Special Stuff`: It's where weird stuff goes.
+- `Templates`: It's for templatizing mods. Incomplete, do not use it.
 - `About`: It's where you go when you want to read this documentation, check the Patreon, or check what version of RPFM you have.
 - `Debug`: Stay away from this.
 And now, let's begin!

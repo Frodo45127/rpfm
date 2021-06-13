@@ -51,7 +51,7 @@ cargo build --release
 
 ## MacOS
 
-Don't know. Don't have a Mac to compile to it and test.
+Don't know. Don't have a Mac to compile to it and test. I tried, it compiles, but its fully untested.
 
 --------------------------------------
 

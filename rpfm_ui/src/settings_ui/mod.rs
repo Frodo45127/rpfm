@@ -39,7 +39,6 @@ use cpp_core::Ptr;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
@@ -173,11 +172,6 @@ pub struct SettingsUI {
     pub button_box_font_settings_button: QBox<QPushButton>,
     pub button_box_cancel_button: QPtr<QPushButton>,
     pub button_box_accept_button: QPtr<QPushButton>,
-
-    //-------------------------------------------------------------------------------//
-    // Hidden section of the `Settings` dialog.
-    //-------------------------------------------------------------------------------//
-    pub recent_files: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -656,11 +650,6 @@ impl SettingsUI {
             button_box_font_settings_button,
             button_box_cancel_button,
             button_box_accept_button,
-
-            //-------------------------------------------------------------------------------//
-            // Hidden section of the `Settings` dialog.
-            //-------------------------------------------------------------------------------//
-            recent_files: Arc::new(RwLock::new(vec![])),
         }
     }
 
@@ -731,9 +720,6 @@ impl SettingsUI {
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
-
-        // Hidden stuff.
-        *self.recent_files.write().unwrap() = settings.get_recent_files();
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
@@ -808,9 +794,6 @@ impl SettingsUI {
         // Get the Diagnostics Settings.
         settings.settings_bool.insert("diagnostics_trigger_on_open".to_owned(), self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
         settings.settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
-
-        // Return the new Settings.
-        settings.set_recent_files(&self.recent_files.read().unwrap());
 
         settings
     }

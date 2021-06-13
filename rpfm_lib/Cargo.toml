@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "2.4.110"
+version = "2.4.111"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
@@ -78,3 +78,5 @@ filepath = "^0.1"
 # Pelite, because we need it to get the current version of a game's exe, and I have not a fucking clue how to pass a path to WinApi.
 pelite = "^0.9"
 
+# Caseless matching.
+caseless = "0.2.1"

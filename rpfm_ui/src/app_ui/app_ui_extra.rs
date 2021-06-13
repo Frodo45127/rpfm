@@ -31,9 +31,12 @@ use qt_gui::QStandardItemModel;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QFlags;
+use qt_core::QStringList;
 use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
+use qt_core::QSettings;
 use qt_core::QSortFilterProxyModel;
+use qt_core::QVariant;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -70,6 +73,8 @@ use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, esf::*, 
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
+use crate::QT_PROGRAM;
+use crate::QT_ORG;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
@@ -266,8 +271,27 @@ impl AppUI {
         app_ui.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
+        // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
-            SETTINGS.write().unwrap().update_recent_files(&pack_file_paths[0].to_str().unwrap().to_owned());
+            let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+
+            let paths = if q_settings.contains(&QString::from_std_str("recentFileList")) {
+                q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list()
+            } else {
+                QStringList::new()
+            };
+
+            let pos = paths.index_of_1a(&QString::from_std_str(&pack_file_paths[0].to_str().unwrap()));
+            if pos != -1 {
+                paths.remove_at(pos);
+            }
+
+            paths.prepend(&QString::from_std_str(&pack_file_paths[0].to_str().unwrap()));
+
+            while paths.count_0a() > 10 {
+                paths.remove_last();
+            }
+            q_settings.set_value(&QString::from_std_str("recentFileList"), &QVariant::from_q_string_list(&paths));
         }
 
         let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
@@ -735,34 +759,40 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Recent PackFiles.
-        for path in SETTINGS.read().unwrap().get_recent_files() {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        if q_settings.contains(&QString::from_std_str("recentFileList")) {
+            let paths = q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list();
 
-            // That means our file is a valid PackFile and it needs to be added to the menu.
-            let path = PathBuf::from(&path);
-            if path.is_file() {
-                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let open_mod_action = app_ui.packfile_open_recent.add_action_q_string(&QString::from_std_str(mod_name));
+            for index in 0..paths.count_0a() {
+                let path_str = paths.at(index).to_std_string();
 
-                // Create the slot for that action.
-                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                    app_ui,
-                    pack_file_contents_ui,
-                    global_search_ui,
-                    diagnostics_ui,
-                    path => move |_| {
-                    if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
-                            return show_dialog(&app_ui.main_window, error, false);
+                // That means our file is a valid PackFile and it needs to be added to the menu.
+                let path = PathBuf::from(&path_str);
+                if path.is_file() {
+                    let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                    let open_mod_action = app_ui.packfile_open_recent.add_action_q_string(&QString::from_std_str(mod_name));
+
+                    // Create the slot for that action.
+                    let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                        app_ui,
+                        pack_file_contents_ui,
+                        global_search_ui,
+                        diagnostics_ui,
+                        path => move |_| {
+                        if Self::are_you_sure(&app_ui, false) {
+                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                                return show_dialog(&app_ui.main_window, error, false);
+                            }
+
+                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            }
                         }
+                    }));
 
-                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        }
-                    }
-                }));
-
-                // Connect the slot and store it.
-                open_mod_action.triggered().connect(&slot_open_mod);
+                    // Connect the slot and store it.
+                    open_mod_action.triggered().connect(&slot_open_mod);
+                }
             }
         }
 
@@ -938,7 +968,6 @@ impl AppUI {
         app_ui.templates_load_custom_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_custom_template_to_packfile.actions().is_empty());
         app_ui.templates_load_official_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_official_template_to_packfile.actions().is_empty());
     }
-
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
     pub unsafe fn build_open_mymod_submenus(
