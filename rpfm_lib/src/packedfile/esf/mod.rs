@@ -16,8 +16,11 @@ ESF are like savestates of the game.
 
 use serde_derive::{Serialize, Deserialize};
 
+use std::{fmt, fmt::Display};
+
 use rpfm_error::{ErrorKind, Result};
 use rpfm_macros::*;
+use serde_json::to_string_pretty;
 
 use crate::common::decoder::Decoder;
 
@@ -289,8 +292,8 @@ impl ESF {
         };
 
         //use std::io::Write;
-        //let mut x = std::fs::File::create("encoded_ccd.ccd")?;
-        //x.write_all(&esf.save())?;
+        //let mut x = std::fs::File::create("ceo.json")?;
+        //x.write_all(&serde_json::to_string_pretty(&esf).unwrap().as_bytes())?;
 
         Ok(esf)
     }
@@ -300,6 +303,29 @@ impl ESF {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(),
             _ => return vec![],
+        }
+    }
+}
+
+/// Display implementation for `ESFSignature`.
+impl Display for ESFSignature {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::CAAB => "CAAB",
+            Self::CEAB => "CEAB",
+            Self::CFAB => "CFAB",
+        }, f)
+    }
+}
+
+/// Implementation to create an `ESFSignature` from a `&str`.
+impl From<&str> for ESFSignature {
+    fn from(data: &str) -> Self {
+        match data {
+            "CAAB" => Self::CAAB,
+            "CEAB" => Self::CEAB,
+            "CFAB" => Self::CFAB,
+            _ => unimplemented!()
         }
     }
 }
