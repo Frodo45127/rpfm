@@ -466,7 +466,12 @@ impl Diagnostics {
 
                                 // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
                                 else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
-                                    if ignored_diagnostics.iter().all(|x| x != "InvalidReference") {
+
+                                    // Numeric cells with 0 are "empty" references and should not be checked.
+                                    let is_number = field.get_field_type() == FieldType::I32 || field.get_field_type() == FieldType::I64;
+                                    let is_valid_reference = if is_number { cell_data != "0" } else { true };
+
+                                    if ignored_diagnostics.iter().all(|x| x != "InvalidReference") && is_valid_reference {
                                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                             cells_affected: vec![(row as i32, column as i32)],
                                             message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
