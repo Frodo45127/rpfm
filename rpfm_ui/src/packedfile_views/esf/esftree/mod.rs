@@ -33,8 +33,11 @@ use qt_core::QPtr;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
-use rpfm_lib::packedfile::{self, esf::{ESF, NodeType}};
+use rpfm_lib::packedfile::esf::{ESF, NodeType};
 
+const ESF_DATA: i32 = 40;
+const CHILDLESS_NODE: i32 = 41;
+const CHILD_NODES: i32 = 42;
 
 //-------------------------------------------------------------------------------//
 //                          Enums & Structs (and trait)
@@ -48,6 +51,9 @@ pub(crate) trait ESFTree {
 
     /// This function gives you the items selected in the provided `TreeView`.
     unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>>;
+
+    /// This function generates an ESF file from the contents of the `TreeView`.
+    unsafe fn get_esf_from_view(&self, has_filter: bool) -> ESF;
 
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
@@ -93,14 +99,14 @@ impl ESFTree for QBox<QTreeView> {
         match operation {
 
             // If we want to build a new TreeView...
-            ESFTreeViewOperation::Build(packed_file_data) => {
+            ESFTreeViewOperation::Build(esf_data) => {
 
                 // First, we clean the TreeStore and whatever was created in the TreeView.
                 model.clear();
 
                 // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
                 // with the name of the PackFile. All big things start with a lie.
-                let root_node = packed_file_data.get_ref_root_node();
+                let root_node = esf_data.get_ref_root_node();
                 match root_node {
                     NodeType::Record(node) => {
 
@@ -110,9 +116,9 @@ impl ESFTree for QBox<QTreeView> {
                         state_item.set_editable(false);
                         state_item.set_selectable(false);
 
-                        // This is ESF Type + Creation Date.
-                        let base_data: (String, u32) = (format!("{}", packed_file_data.get_ref_signature()), *packed_file_data.get_ref_creation_date());
-                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&base_data).unwrap())), 40);
+                        let esf_data_no_node: ESF = esf_data.clone_without_root_node();
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&esf_data_no_node).unwrap())), ESF_DATA);
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
 
                         let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                         state_item.set_flags(QFlags::from(flags));
@@ -137,36 +143,48 @@ impl ESFTree for QBox<QTreeView> {
             },
         }
     }
+
+    unsafe fn get_esf_from_view(&self, has_filter: bool) -> ESF {
+        let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
+        let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
+
+        let mut new_esf: ESF = serde_json::from_str(&model.item_1a(0).data_1a(ESF_DATA).to_string().to_std_string()).unwrap();
+        new_esf.set_root_node(get_node_type_from_tree_node(None, &model));
+
+        // Return the created ESF.
+        // TODO: check this returns the exact same ESF if there are no changes.
+        new_esf
+    }
 }
 
-/// This function takes care of recursively loading
+/// This function takes care of recursively loading all the nodes into the `TreeView`.
 unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, block_key: Option<&str>) {
     match child {
-
-        //
         NodeType::Record(node) => {
-            let child_node = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
+            let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
             let state_item = QStandardItem::new();
             state_item.set_selectable(false);
 
             if let Some(block_key) = block_key {
-                child_node.set_text(&QString::from_std_str(block_key));
+                child_item.set_text(&QString::from_std_str(block_key));
             }
 
             let mut childs_data = vec![];
-            for child in node.get_ref_children() {
-                match child {
-                    NodeType::RecordBlock(_) => load_node_to_view(&child_node, &child, None),
-                    NodeType::Record(_) => load_node_to_view(&child_node, &child, None),
-                    _ => childs_data.push(child),
+            for grandchild in node.get_ref_children() {
+                match grandchild {
+                    NodeType::RecordBlock(_) => load_node_to_view(&child_item, &grandchild, None),
+                    NodeType::Record(_) => load_node_to_view(&child_item, &grandchild, None),
+                    _ => {}
                 }
+
+                childs_data.push(grandchild.clone_without_children());
             }
 
-            let data = serde_json::to_string_pretty(&childs_data).unwrap();
-            child_node.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), 40);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&childs_data).unwrap())), CHILD_NODES);
 
             let qlist = QListOfQStandardItem::new();
-            qlist.append_q_standard_item(&child_node.into_ptr().as_mut_raw_ptr());
+            qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
             qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 
 
@@ -174,55 +192,131 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
         }
 
         NodeType::RecordBlock(node) => {
-            let child_node = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
+            let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
             let state_item = QStandardItem::new();
             state_item.set_selectable(false);
 
             if let Some(block_key) = block_key {
-                child_node.set_text(&QString::from_std_str(block_key));
+                child_item.set_text(&QString::from_std_str(block_key));
             }
 
-            let mut childs_data_2 = vec![];
-            for child in node.get_ref_children() {
-                let mut childs_data = vec![];
+            let mut childs_data_2: Vec<(u32, Vec<NodeType>)> = vec![];
 
-                // Check if its a key/record pair.
-                let is_record_pait = if child.1.len() == 2 {
-                    if let NodeType::Ascii(_) = child.1[0] {
-                        if let NodeType::RecordBlock(_) = child.1[1] {
-                            true
-                        } else if let NodeType::Record(_) = child.1[1] {
-                            true
-                        } else { false }
-                    } else { false }
-                } else { false };
-
-                if is_record_pait {
-                    if let NodeType::Ascii(name) = &child.1[0] {
-                        load_node_to_view(&child_node, &child.1[1], Some(&name));
+            for (unknown, grandchildren) in node.get_ref_children() {
+                for grandchild in grandchildren {
+                    match grandchild {
+                        NodeType::RecordBlock(_) => load_node_to_view(&child_item, &grandchild, None),
+                        NodeType::Record(_) => load_node_to_view(&child_item, &grandchild, None),
+                        _ => {}
                     }
-                } else {
-                    for child in &child.1 {
-                        match child {
-                            NodeType::RecordBlock(_) => load_node_to_view(&child_node, &child, None),
-                            NodeType::Record(_) => load_node_to_view(&child_node, &child, None),
-                            _ => childs_data.push(child),
-                        }
-                    }
-
-                    childs_data_2.push(childs_data);
                 }
 
+                childs_data_2.push((*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect()));
             }
-            let data = serde_json::to_string_pretty(&childs_data_2).unwrap();
-            child_node.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), 40);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&childs_data_2).unwrap())), CHILD_NODES);
 
             let qlist = QListOfQStandardItem::new();
-            qlist.append_q_standard_item(&child_node.into_ptr().as_mut_raw_ptr());
+            qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
             qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 
             parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
         }
         _ => {}
     }
+}
+
+/// This function reads the entire `TreeView` recursively and returns a node list.
+unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model: &QStandardItemModel) -> NodeType {
+
+    let item = if let Some(item) = item_1 { item } else { model.item_1a(0) };
+    let mut node = serde_json::from_str(&item.data_1a(CHILDLESS_NODE).to_string().to_std_string()).unwrap();
+
+    // If it has no children, just its json.
+    match node {
+        NodeType::Record(ref mut node) => {
+
+            // Get the stashed children.
+            let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
+            let mut children_stash: Vec<NodeType> = if !child_nodes.is_empty() {
+                match serde_json::from_str(&child_nodes) {
+                    Ok(data) => data,
+                    Err(error) => { dbg!(error); vec![]},
+                }
+            } else {
+                vec![]
+            };
+
+            // Get the stacked children.
+            let children_count = item.row_count();
+            let mut children_stack = Vec::with_capacity(children_count as usize);
+            for row in 0..children_count {
+                let child = item.child_1a(row);
+                children_stack.push(get_node_type_from_tree_node(Some(child), model));
+            }
+
+            // If it's not the root node, and we have stacked children, move the stacked data into the stashed children.
+            if item_1.is_some() && !children_stack.is_empty() {
+                let mut row = 0;
+
+                for child_stashed in children_stash.iter_mut() {
+                    match child_stashed {
+                        NodeType::Record(_) |
+                        NodeType::RecordBlock(_) => {
+                            let child_item = item.child_1a(row);
+                            *child_stashed = get_node_type_from_tree_node(Some(child_item), model);
+                            row += 1;
+                        },
+                        _ => {},
+                    }
+                }
+            } else if item_1.is_none() {
+                children_stash = children_stack;
+            }
+
+            node.set_children(children_stash);
+        },
+        NodeType::RecordBlock(ref mut node) => {
+            let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
+            let mut children_stash: Vec<(u32, Vec<NodeType>)> = if !child_nodes.is_empty() {
+                match serde_json::from_str(&child_nodes) {
+                    Ok(data) => data,
+                    Err(error) => { dbg!(error); vec![]},
+                }
+            } else {
+                vec![]
+            };
+
+            // Get the stacked children.
+            let children_count = item.row_count();
+            let mut children_stack = Vec::with_capacity(children_count as usize);
+            for row in 0..children_count {
+                let child = item.child_1a(row);
+                children_stack.push(get_node_type_from_tree_node(Some(child), model));
+            }
+
+
+            // If it has children of its own, it's a Record/RecordBlock.
+            if !children_stack.is_empty() {
+                let mut row = 0;
+
+                for (_, children_stash_pack) in children_stash.iter_mut() {
+                    for child_stashed in children_stash_pack.iter_mut() {
+                        match child_stashed {
+                            NodeType::Record(_) |
+                            NodeType::RecordBlock(_) => {
+                                let child_item = item.child_1a(row);
+                                *child_stashed = get_node_type_from_tree_node(Some(child_item), model);
+                                row += 1;
+                            },
+                            _ => {},
+                        }
+                    }
+                }
+            }
+            node.set_children(children_stash)
+        },
+        _ => unimplemented!()
+    }
+    node
 }

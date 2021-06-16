@@ -135,7 +135,7 @@ pub const LONG_RECORD_BLOCK: u8 = 0xe0;
 //---------------------------------------------------------------------------//
 
 /// This holds an entire ESF PackedFile decoded in memory.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, Set, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ESF {
     signature: ESFSignature,
     unknown_1: u32,
@@ -243,7 +243,7 @@ pub struct Coordinates3DNode {
 }
 
 /// TODO: confirm what each number is.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, Set, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct RecordNode {
     version: u8,
     name: String,
@@ -252,7 +252,7 @@ pub struct RecordNode {
 }
 
 /// TODO: confirm what each number is.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, Set, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct RecordBlockNode {
     version: u8,
     name: String,
@@ -303,6 +303,58 @@ impl ESF {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(),
             _ => return vec![],
+        }
+    }
+
+    /// This function creates a copy of an ESF without the root node..
+    pub fn clone_without_root_node(&self) -> Self {
+        Self {
+            signature: self.signature,
+            unknown_1: self.unknown_1,
+            creation_date: self.creation_date,
+            root_node: NodeType::Invalid,
+            unknown_2: self.unknown_2,
+        }
+    }
+}
+
+impl NodeType {
+
+    /// This function creates a copy of a node without its children.
+    pub fn clone_without_children(&self) -> Self {
+        match self {
+            Self::Record(node) => {
+                let mut new_node = RecordNode::default();
+                new_node.set_name(node.get_ref_name().to_owned());
+                new_node.set_version(*node.get_ref_version());
+                new_node.set_offset_len(*node.get_ref_offset_len());
+
+                Self::Record(new_node)
+            }
+
+            Self::RecordBlock(node) => {
+                let mut new_node = RecordBlockNode::default();
+                new_node.set_name(node.get_ref_name().to_owned());
+                new_node.set_version(*node.get_ref_version());
+                new_node.set_offset_len(*node.get_ref_offset_len());
+                new_node.set_offset_len_2(*node.get_ref_offset_len_2());
+
+                Self::RecordBlock(new_node)
+            }
+            _ => self.clone()
+        }
+    }
+}
+
+/// Default implementation for `ESF`.
+impl Default for ESF {
+    fn default() -> Self {
+        Self {
+            signature: ESFSignature::CAAB,
+            unknown_1: 0,
+            creation_date: 0,
+            root_node: NodeType::Invalid,
+            unknown_2: 0
         }
     }
 }

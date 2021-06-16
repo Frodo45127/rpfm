@@ -91,7 +91,7 @@ impl PackedFileESFViewSlots {
             view => move || {
                 let items = view.tree_view.get_items_from_selection(true);
                 if items.len() == 1 {
-                    let data = items[0].data_1a(40).to_string();
+                    let data = items[0].data_1a(42).to_string();
                     crate::ffi::set_text_safe(&view.editor, &data.as_ptr(), &QString::from_std_str("json").as_ptr());
                     //dbg!(data);
                 }
