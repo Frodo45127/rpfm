@@ -605,7 +605,7 @@ impl Diagnostics {
                     if ignored_diagnostics.iter().all(|x| x != "NoReferenceTableNorColumnFoundNoPak") {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                             cells_affected: vec![(-1, *column as i32)],
-                            message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                            message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the Dependencies Cache, or did you generated it before installing the Assembly kit?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
                             report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak,
                             level: DiagnosticLevel::Warning,
                         });
