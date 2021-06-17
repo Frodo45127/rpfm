@@ -6,7 +6,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [2.5.0]
 ### Added
 - Implemented `Invalid Loc Key` diagnostic.
 - Implemented `Invalid PackFile Name` diagnostic.
@@ -32,7 +32,6 @@ If you're looking for the changes included in the latest beta (against the lates
 - Added a dialog before generating the dependencies cache.
 - Added a dialog before optimizing a PackFile, explaining what the optimizer does, and asking the user to make a backup before using it.
 - Added clear filter buttons to `Add From PackFile` and `AnimPack` filters.
-- Added option to send a table for decoding.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
@@ -71,6 +70,12 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a semi-random CTD that happened when RPFM could not access for a moment to a file on disk.
 - Fixed a CTD that happened when a update download ended up with an incomplete file.
 - Fixed `Paste as New Row` not properly marking cells as added.
+- Fixed CTD that happenend sometimes when trying to use the table decoder.
+- Fixed false positive on diagnostics when a cell was of a numeric type, it referenced another cell, and had 0 as value.
+
+### Known Issues
+- The `Duplicated Combined Key` is not very efficient on mods with tables with large amounts of entries (+5k rows). If checking your PackFile takes too long, you can disable that diagnostic for that PackFile in its PackFile Settings.
+- The new RigidModel editor is still in beta, and there are some RigidModels it cannot read properly/cause crashes at reading them. If you experience instabilities while using it, you can disable it in the Settings.
 
 ## [2.4.3]
 ### Added
@@ -347,7 +352,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/Frodo45127/rpfm/compare/v2.4.2...v2.4.3
 [2.4.2]: https://github.com/Frodo45127/rpfm/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...v2.4.1
