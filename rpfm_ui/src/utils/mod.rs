@@ -175,6 +175,9 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
     });
     send_table_button.released().connect(&send_table_slot);
 
+    // Disable sending tables until I implement a more robust way to stop the spam.
+    send_table_button.set_enabled(false);
+
     dialog.exec();
 }
 
