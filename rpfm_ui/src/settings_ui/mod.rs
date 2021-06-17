@@ -144,6 +144,8 @@ pub struct SettingsUI {
     pub debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
     pub debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
     pub debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
+    pub debug_enable_rigidmodel_editor_label: QBox<QLabel>,
+    pub debug_enable_rigidmodel_editor_checkbox: QBox<QCheckBox>,
 
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
@@ -455,10 +457,12 @@ impl SettingsUI {
         let debug_check_for_missing_table_definitions_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_missing_table"), &debug_frame);
         let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
         let debug_spoof_ca_authoring_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_spoof_ca_authoring_tool"), &debug_frame);
+        let debug_enable_rigidmodel_editor_label = QLabel::from_q_string_q_widget(&qtr("settings_enable_rigidmodel_editor"), &debug_frame);
 
         let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_spoof_ca_authoring_tool_checkbox = QCheckBox::from_q_widget(&debug_frame);
+        let debug_enable_rigidmodel_editor_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
         let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
         let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&debug_frame);
@@ -475,6 +479,9 @@ impl SettingsUI {
 
         debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 1, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_label, 3, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_checkbox, 3, 1, 1, 1);
 
         debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 11, 0, 1, 1);
         debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 11, 1, 1, 1);
@@ -622,6 +629,8 @@ impl SettingsUI {
             debug_enable_debug_menu_checkbox,
             debug_spoof_ca_authoring_tool_label,
             debug_spoof_ca_authoring_tool_checkbox,
+            debug_enable_rigidmodel_editor_label,
+            debug_enable_rigidmodel_editor_checkbox,
 
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
@@ -716,6 +725,7 @@ impl SettingsUI {
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
         self.debug_enable_debug_menu_checkbox.set_checked(settings.settings_bool["enable_debug_menu"]);
         self.debug_spoof_ca_authoring_tool_checkbox.set_checked(settings.settings_bool["spoof_ca_authoring_tool"]);
+        self.debug_enable_rigidmodel_editor_checkbox.set_checked(settings.settings_bool["enable_rigidmodel_editor"]);
 
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
@@ -790,6 +800,7 @@ impl SettingsUI {
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());
         settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.is_checked());
         settings.settings_bool.insert("spoof_ca_authoring_tool".to_owned(), self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
+        settings.settings_bool.insert("enable_rigidmodel_editor".to_owned(), self.debug_enable_rigidmodel_editor_checkbox.is_checked());
 
         // Get the Diagnostics Settings.
         settings.settings_bool.insert("diagnostics_trigger_on_open".to_owned(), self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());

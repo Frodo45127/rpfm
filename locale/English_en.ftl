@@ -979,3 +979,6 @@ field_with_path_not_found_explanation = The data in the reported cell is suppose
     in what path the file is expected to be.
 
 label_field_with_path_not_found = Path/File in field not found:
+settings_enable_rigidmodel_editor = Enable RigidModel Editor:
+tt_settings_debug_enable_rigidmodel_editor = This setting allows you to disable the new RigidModel editor (still in beta) should you face any issues with it,
+    so you can still use RPFM without it.

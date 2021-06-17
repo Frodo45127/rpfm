@@ -1568,19 +1568,21 @@ impl AppUI {
                         // If the file is a RigidModel PackedFile...
                         #[cfg(feature = "support_rigidmodel")]
                         PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&mut tab) {
-                                Ok(packed_file_info) => {
+                            if SETTINGS.read().unwrap().settings_bool["enable_rigidmodel_editor"] {
+                                match PackedFileRigidModelView::new_view(&mut tab) {
+                                    Ok(packed_file_info) => {
 
-                                   // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                       // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+                                        if let Some(packed_file_info) = packed_file_info {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        }
+                                    },
+                                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                }
                             }
                         }
 
