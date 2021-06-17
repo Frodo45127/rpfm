@@ -56,7 +56,7 @@ use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
-use crate::utils::{log_to_status_bar, show_dialog};
+use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
 use crate::views::table::utils::{get_reference_data, setup_item_delegates};
@@ -1224,23 +1224,6 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-                let mut feature_flags = String::new();
-
-                #[cfg(feature = "support_modern_dds")] {
-                    feature_flags.push_str("support_modern_dds");
-                }
-
-                #[cfg(feature = "support_rigidmodel")] {
-                    if !feature_flags.is_empty() {
-                        feature_flags.push_str(", ");
-                    }
-                    feature_flags.push_str("support_rigidmodel");
-                }
-
-                if feature_flags.is_empty() {
-                    feature_flags.push_str("None");
-                }
-
                 QMessageBox::about(
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
@@ -1295,7 +1278,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, feature_flags))
+                        ", &VERSION, &VERSION_SUBTITLE, get_feature_flags()))
                     );
             }
         ));

@@ -273,6 +273,28 @@ pub fn get_packed_file_type(path: &[String]) -> PackedFileType {
     }
 }
 
+/// This functin returns the feature flags enabled for RPFM.
+pub fn get_feature_flags() -> String {
+    let mut feature_flags = String::new();
+
+    #[cfg(feature = "support_modern_dds")] {
+        feature_flags.push_str("support_modern_dds");
+    }
+
+    #[cfg(feature = "support_rigidmodel")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("support_rigidmodel");
+    }
+
+    if feature_flags.is_empty() {
+        feature_flags.push_str("None");
+    }
+
+    feature_flags
+}
+
 /// This function creates the stylesheet used for the dark theme in windows.
 pub fn create_dark_theme_stylesheet() -> String {
     format!("
