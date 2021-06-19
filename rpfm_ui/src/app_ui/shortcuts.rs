@@ -79,7 +79,10 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.special_stuff_sho2_generate_dependencies_cache.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_dependencies_cache"])));
     app_ui.special_stuff_sho2_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
 
+    app_ui.special_stuff_nap_generate_dependencies_cache.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_dependencies_cache"])));
     app_ui.special_stuff_nap_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_emp_generate_dependencies_cache.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_dependencies_cache"])));
     app_ui.special_stuff_emp_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
 
     app_ui.about_about_qt.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_qt"])));

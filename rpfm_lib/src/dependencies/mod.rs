@@ -166,7 +166,9 @@ impl Dependencies {
             }
         }
 
-        self.generate_asskit_only_db_tables(&path, version)?;
+        // This one can fail, leaving the dependencies with only game data.
+        // This is needed to support table creation on Empire and Napoleon.
+        let _ = self.generate_asskit_only_db_tables(&path, version);
 
         Ok(())
     }

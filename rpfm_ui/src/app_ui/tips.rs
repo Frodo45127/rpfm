@@ -98,7 +98,10 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.special_stuff_rom2_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_sho2_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_sho2_optimize_packfile.set_status_tip(&optimize_packfile);
+
+    app_ui.special_stuff_nap_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_nap_optimize_packfile.set_status_tip(&optimize_packfile);
+    app_ui.special_stuff_emp_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_emp_optimize_packfile.set_status_tip(&optimize_packfile);
 
     //-----------------------------------------------//

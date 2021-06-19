@@ -669,10 +669,12 @@ impl AppUI {
                 KEY_NAPOLEON => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_EMPIRE => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(true);
                 },
                 _ => {},
             }
@@ -720,9 +722,11 @@ impl AppUI {
 
             // Disable Napoleon actions...
             app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(false);
 
             // Disable Empire actions...
             app_ui.special_stuff_emp_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(false);
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.
