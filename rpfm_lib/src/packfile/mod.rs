@@ -2902,11 +2902,11 @@ impl PackFileSettings {
                 if !x.starts_with('#') {
                     let path = x.splitn(3, ';').collect::<Vec<&str>>();
                     if path.len() == 3 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), path[2].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[2].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>()))
                     } else if path.len() == 2 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![]))
                     } else if path.len() == 1 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![], vec![]))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![], vec![]))
                     } else {
                         None
                     }
