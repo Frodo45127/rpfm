@@ -154,7 +154,7 @@ impl Dependencies {
             // Preload all tables/locs to cache.
             if let Some(ref schema) = *SCHEMA.read().unwrap() {
                 self.vanilla_packed_files_cache.write().unwrap().extend(self.vanilla_cached_packed_files.par_iter()
-                    .filter_map(|(path, cached_packed_file)| {
+                    .filter_map(|(_, cached_packed_file)| {
                         let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
                         if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
                             if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
@@ -393,14 +393,12 @@ impl Dependencies {
     }
 
     /// This function returns the provided file exists on the game files.
-    pub fn file_exists_on_game_files(&self, path: &[String]) -> bool {
-        let path = path.join("/");
-        self.vanilla_cached_packed_files.contains_key(&path)
+    pub fn file_exists_on_game_files(&self, path: &str) -> bool {
+        self.vanilla_cached_packed_files.contains_key(path)
     }
 
     /// This function returns the provided file exists on the parent mod files.
-    pub fn file_exists_on_parent_files(&self, path: &[String]) -> bool {
-        let path = path.join("/");
-        self.parent_cached_packed_files.contains_key(&path)
+    pub fn file_exists_on_parent_files(&self, path: &str) -> bool {
+        self.parent_cached_packed_files.contains_key(path)
     }
 }

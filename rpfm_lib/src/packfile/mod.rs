@@ -26,11 +26,12 @@ use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -1096,6 +1097,19 @@ impl PackFile {
     /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
     pub fn get_ref_packed_files_all_paths(&self) -> Vec<&[String]> {
         self.packed_files.par_iter().map(|x| x.get_path()).collect()
+    }
+
+    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` as Strings.
+    pub fn get_packed_files_all_paths_as_string(&self) -> HashSet<String> {
+        self.packed_files.par_iter().map(|x| x.get_path().join("/")).collect()
+    }
+
+    /// This function returns a copy of the paths of all the folders in the provided `PackFile` as Strings.
+    pub fn get_folder_all_paths_as_string(&self) -> HashSet<String> {
+        let mut folder_paths = self.packed_files.par_iter().map(|x| x.get_path()[..x.get_path().len() - 1].join("/")).collect::<Vec<String>>();
+        folder_paths.sort();
+        folder_paths.dedup();
+        HashSet::from_iter(folder_paths.into_iter())
     }
 
     /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
