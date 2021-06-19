@@ -19,6 +19,7 @@ use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -83,7 +84,7 @@ pub struct DependencyData {
     pub referenced_column_is_localised: bool,
 
     /// The data itself, as in "key, lookup" format.
-    pub data: BTreeMap<String, String>,
+    pub data: HashMap<String, String>,
 }
 
 //----------------------------------------------------------------//

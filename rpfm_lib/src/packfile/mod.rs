@@ -26,7 +26,7 @@ use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
@@ -2135,8 +2135,8 @@ impl PackFile {
 
     /// This function loads a `PackFile` as dependency, loading all his dependencies in the process.
     fn load_single_dependency_packfile(
-        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
-        cached_packed_files: &mut Vec<CachedPackedFile>,
+        packed_files: &mut HashMap<String, PackedFile>,
+        cached_packed_files: &mut HashMap<String, CachedPackedFile>,
         packfile_name: &str,
         already_loaded_dependencies: &mut Vec<String>,
         data_paths: &Option<Vec<PathBuf>>,
@@ -2154,12 +2154,12 @@ impl PackFile {
                         already_loaded_dependencies.push(packfile_name.to_owned());
                         pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
-                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                            packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
                             if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
-                                cached_packed_files.push(cached_packed_file);
+                                cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
                     }
@@ -2175,12 +2175,12 @@ impl PackFile {
                         already_loaded_dependencies.push(packfile_name.to_owned());
                         pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
-                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                            packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
                             if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
-                                cached_packed_files.push(cached_packed_file);
+                                cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
                     }
@@ -2196,8 +2196,8 @@ impl PackFile {
     /// To avoid entering into an infinite loop while calling this recursively, we have to pass the
     /// list of loaded `PackFiles` each time we execute this.
     pub fn load_custom_dependency_packfiles(
-        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
-        cached_packed_files: &mut Vec<CachedPackedFile>,
+        packed_files: &mut HashMap<String, PackedFile>,
+        cached_packed_files: &mut HashMap<String, CachedPackedFile>,
         pack_file_names: &[String],
     ) {
 

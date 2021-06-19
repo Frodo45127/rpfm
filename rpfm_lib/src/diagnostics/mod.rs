@@ -420,11 +420,11 @@ impl Diagnostics {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.get_packedfile_from_parent_files(&path).is_ok() {
+                                    if !path_found && dependencies.file_exists_on_parent_files(&path) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.get_packedfile_from_game_files(&path).is_ok() {
+                                    if !path_found && dependencies.file_exists_on_game_files(&path) {
                                         path_found = true;
                                     }
 
@@ -667,11 +667,11 @@ impl Diagnostics {
                                                 path_found = true;
                                             }
 
-                                            if !path_found && dependencies.get_packedfile_from_parent_files(&path).is_ok() {
+                                            if !path_found && dependencies.file_exists_on_parent_files(&path) {
                                                 path_found = true;
                                             }
 
-                                            if !path_found && dependencies.get_packedfile_from_game_files(&path).is_ok() {
+                                            if !path_found && dependencies.file_exists_on_game_files(&path) {
                                                 path_found = true;
                                             }
 

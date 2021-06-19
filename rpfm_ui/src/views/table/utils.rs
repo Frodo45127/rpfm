@@ -738,9 +738,9 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
     match response {
         Response::BTreeMapI32DependencyData(ref mut dependency_data) => {
             for index in reference_data.keys() {
-                if let Some(mut column_data_visual) = dependency_data_visual.get_mut(index) {
+                if let Some(column_data_visual) = dependency_data_visual.get(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
-                        column_data.data.append(&mut column_data_visual);
+                        column_data.data.extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
                     }
                 }
             }
