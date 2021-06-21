@@ -675,12 +675,12 @@ pub fn background_loop() {
 
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path, false)));
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path)));
             }
 
             // In case we want to know if PackedFile exists, knowing his path...
             Command::PackedFileExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path, false)));
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path)));
             }
 
             // In case we want to get the list of tables in the dependency database...

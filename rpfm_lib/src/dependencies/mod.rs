@@ -16,8 +16,9 @@ This module contains the code needed to manage the dependencies of the currently
 
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
+use unicase::UniCase;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
@@ -73,6 +74,30 @@ pub struct Dependencies {
     #[serde(skip_serializing, skip_deserializing)]
     parent_cached_packed_files: HashMap<String, CachedPackedFile>,
 
+    /// Data to quickly check if a path exists in the vanilla files as a case insensitive file.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_cached_packed_files_paths: HashSet<UniCase<String>>,
+
+    /// Data to quickly check if a path exists in the parent mod files as a case insensitive file.
+    #[serde(skip_serializing, skip_deserializing)]
+    parent_cached_packed_files_paths: HashSet<UniCase<String>>,
+
+    /// Data to quickly check if a path exists in the vanilla files as a case insensitive folder.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_cached_folders_caseless: HashSet<UniCase<String>>,
+
+    /// Data to quickly check if a path exists in the parent mod files as a case insensitive folder.
+    #[serde(skip_serializing, skip_deserializing)]
+    parent_cached_folders_caseless: HashSet<UniCase<String>>,
+
+    /// Data to quickly check if a path exists in the vanilla files as a case sensitive folder.
+    #[serde(skip_serializing, skip_deserializing)]
+    vanilla_cached_folders_cased: HashSet<String>,
+
+    /// Data to quickly check if a path exists in the parent mod files as a case sensitive folder.
+    #[serde(skip_serializing, skip_deserializing)]
+    parent_cached_folders_cased: HashSet<String>,
+
     /// DB Files only available on the assembly kit. Usable only for references. Do not use them as the base for new tables.
     asskit_only_db_tables: Vec<DB>,
 }
@@ -112,6 +137,22 @@ impl Dependencies {
                     self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
                     self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
 
+                    // Build the casing-related HashSets.
+                    self.vanilla_cached_packed_files_paths = self.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+                    self.vanilla_cached_folders_cased = self.vanilla_cached_packed_files_paths.par_iter().map(|x| {
+                        let path = x.split("/").collect::<Vec<&str>>();
+                        let mut paths = Vec::with_capacity(path.len() - 1);
+
+                        for (index, folder) in path.iter().enumerate() {
+                            if index < path.len() - 1 && !folder.is_empty() {
+                                paths.push(path[0..=index].join("/"))
+                            }
+                        }
+
+                        paths
+                    }).flatten().collect::<HashSet<String>>();
+                    self.vanilla_cached_folders_caseless = self.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+
                     // Pre-decode all tables/locs to memory.
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {
                         self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
@@ -128,6 +169,22 @@ impl Dependencies {
                 *self.parent_packed_files_cache.write().unwrap() = HashMap::new();
 
                 PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
+
+                // Build the casing-related HashSets.
+                self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+                self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
+                    let path = x.split("/").collect::<Vec<&str>>();
+                    let mut paths = Vec::with_capacity(path.len() - 1);
+
+                    for (index, folder) in path.iter().enumerate() {
+                        if index < path.len() - 1 && !folder.is_empty() {
+                            paths.push(path[0..=index].join("/"))
+                        }
+                    }
+
+                    paths
+                }).flatten().collect::<HashSet<String>>();
+                self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
 
                 // Pre-decode all tables/locs to memory.
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -395,12 +452,38 @@ impl Dependencies {
     }
 
     /// This function returns the provided file exists on the game files.
-    pub fn file_exists_on_game_files(&self, path: &str) -> bool {
-        self.vanilla_cached_packed_files.contains_key(path)
+    pub fn file_exists_on_game_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
+        if case_insensitive {
+            self.vanilla_cached_packed_files_paths.contains(path)
+        } else {
+            self.vanilla_cached_packed_files.contains_key(&**path)
+        }
     }
 
     /// This function returns the provided file exists on the parent mod files.
-    pub fn file_exists_on_parent_files(&self, path: &str) -> bool {
-        self.parent_cached_packed_files.contains_key(path)
+    pub fn file_exists_on_parent_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
+        if case_insensitive {
+            self.parent_cached_packed_files_paths.contains(path)
+        } else {
+            self.parent_cached_packed_files.contains_key(&**path)
+        }
+    }
+
+    /// This function returns the provided folder exists on the game files.
+    pub fn folder_exists_on_game_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
+        if case_insensitive {
+            self.vanilla_cached_folders_caseless.contains(path)
+        } else {
+            self.vanilla_cached_folders_cased.contains(&**path)
+        }
+    }
+
+    /// This function returns the provided folder exists on the parent mod files.
+    pub fn folder_exists_on_parent_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
+        if case_insensitive {
+            self.parent_cached_folders_caseless.contains(path)
+        } else {
+            self.parent_cached_folders_cased.contains(&**path)
+        }
     }
 }

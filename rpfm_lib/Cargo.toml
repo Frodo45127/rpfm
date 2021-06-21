@@ -79,4 +79,4 @@ filepath = "^0.1"
 pelite = "^0.9"
 
 # Caseless matching.
-caseless = "0.2.1"
+unicase = "2.6.0"

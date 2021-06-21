@@ -22,6 +22,7 @@ Notes on cells_affected:
 use itertools::Itertools;
 use fancy_regex::Regex;
 use rayon::prelude::*;
+use unicase::UniCase;
 
 use std::{fmt, fmt::Display};
 use std::cmp::Ordering;
@@ -376,8 +377,8 @@ impl Diagnostics {
         ignored_fields: &[String],
         ignored_diagnostics: &[String],
         previous_data: &mut BTreeMap<String, HashMap<String, Vec<(i32, i32)>>>,
-        local_path_list: &HashSet<String>,
-        local_folder_list: &HashSet<String>,
+        local_path_list: &HashSet<UniCase<String>>,
+        local_folder_list: &HashSet<UniCase<String>>,
         dependency_data: &BTreeMap<i32, DependencyData>
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
@@ -493,24 +494,39 @@ impl Diagnostics {
                                         path_found = true;
                                         vec![]
                                     } else {
-                                        path.replace('\\', "/").replace(';', ",").split(',').map(|x| x.to_owned()).collect::<Vec<String>>()
+                                        path.replace('\\', "/").replace(';', ",").split(',').map(|x| {
+                                            let mut x = x.to_owned();
+                                            if x.ends_with("/") {
+                                                x.pop();
+                                            }
+                                            x
+                                        }).collect::<Vec<String>>()
                                     }
                                 };
 
                                 for path in &paths {
-                                    if local_path_list.contains(path) {
+                                    let unicased = UniCase::new(path.to_owned());
+                                    if local_path_list.contains(&unicased) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && local_folder_list.contains(path) {
+                                    if !path_found && local_folder_list.contains(&unicased) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.file_exists_on_parent_files(&path) {
+                                    if !path_found && dependencies.file_exists_on_parent_files(&unicased, true) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.file_exists_on_game_files(&path) {
+                                    if !path_found && dependencies.folder_exists_on_parent_files(&unicased, true) {
+                                        path_found = true;
+                                    }
+
+                                    if !path_found && dependencies.file_exists_on_game_files(&unicased, true) {
+                                        path_found = true;
+                                    }
+
+                                    if !path_found && dependencies.folder_exists_on_game_files(&unicased, true) {
                                         path_found = true;
                                     }
 
@@ -705,8 +721,8 @@ impl Diagnostics {
         path: &[String],
         dependencies: &Dependencies,
         ignored_diagnostics: &[String],
-        local_path_list: &HashSet<String>,
-        local_folder_list: &HashSet<String>,
+        local_path_list: &HashSet<UniCase<String>>,
+        local_folder_list: &HashSet<UniCase<String>>,
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::AnimFragment(table) = packed_file {
             let mut diagnostic = AnimFragmentDiagnostic::new(path);
@@ -723,21 +739,35 @@ impl Diagnostics {
                                     if !cell_data.is_empty() {
                                         if fields_processed[column].get_is_filename() {
                                             let mut path_found = false;
-                                            let path = cell_data.replace('\\', "/");
+                                            let mut path = cell_data.replace('\\', "/");
 
-                                            if local_path_list.contains(&path) {
+                                            // If it's a folder, remove the trailing /.
+                                            if path.ends_with("/") {
+                                                path.pop();
+                                            }
+
+                                            let unicased = UniCase::new(path.to_owned());
+                                            if local_path_list.contains(&unicased) {
                                                 path_found = true;
                                             }
 
-                                            if !path_found && local_folder_list.contains(&path) {
+                                            if !path_found && local_folder_list.contains(&unicased) {
                                                 path_found = true;
                                             }
 
-                                            if !path_found && dependencies.file_exists_on_parent_files(&path) {
+                                            if !path_found && dependencies.file_exists_on_parent_files(&unicased, true) {
                                                 path_found = true;
                                             }
 
-                                            if !path_found && dependencies.file_exists_on_game_files(&path) {
+                                            if !path_found && dependencies.folder_exists_on_parent_files(&unicased, true) {
+                                                path_found = true;
+                                            }
+
+                                            if !path_found && dependencies.file_exists_on_game_files(&unicased, true) {
+                                                path_found = true;
+                                            }
+
+                                            if !path_found && dependencies.folder_exists_on_game_files(&unicased, true) {
                                                 path_found = true;
                                             }
 
