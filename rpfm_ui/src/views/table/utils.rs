@@ -767,7 +767,9 @@ pub unsafe fn setup_item_delegates(
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
             let list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
-                data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                let mut data = data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
+                data.sort();
+                data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
             if !field.get_enum_values().is_empty() {
