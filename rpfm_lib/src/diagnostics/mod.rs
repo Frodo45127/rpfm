@@ -643,29 +643,31 @@ impl Diagnostics {
                     // If this returns something, it means there is a duplicate.
                     let combined_keys = row_keys.values().join("| |");
                     if let Some(old_position) = keys.insert(combined_keys.to_owned(), row_keys.keys().map(|x| (row as i32, *x)).collect()) {
+                        if let Some(old_pos) = old_position.get(0) {
 
-                        // Mark previous row, if not yet marked.
-                        if !duplicated_combined_keys_already_marked.contains(&old_position[0].0) {
-                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                cells_affected: old_position.to_vec(),
-                                message: format!("Duplicated combined keys: {}.", &combined_keys),
-                                report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                                level: DiagnosticLevel::Error,
-                            });
+                            // Mark previous row, if not yet marked.
+                            if !duplicated_combined_keys_already_marked.contains(&old_pos.0) {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: old_position.to_vec(),
+                                    message: format!("Duplicated combined keys: {}.", &combined_keys),
+                                    report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                                    level: DiagnosticLevel::Error,
+                                });
 
-                            duplicated_combined_keys_already_marked.push(old_position[0].0);
-                        }
+                                duplicated_combined_keys_already_marked.push(old_pos.0);
+                            }
 
-                        // Mark current row, if not yet marked.
-                        if !duplicated_combined_keys_already_marked.contains(&(row as i32)) {
-                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
-                                message: format!("Duplicated combined keys: {}.", &combined_keys),
-                                report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                                level: DiagnosticLevel::Error,
-                            });
+                            // Mark current row, if not yet marked.
+                            if !duplicated_combined_keys_already_marked.contains(&(row as i32)) {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
+                                    message: format!("Duplicated combined keys: {}.", &combined_keys),
+                                    report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
+                                    level: DiagnosticLevel::Error,
+                                });
 
-                            duplicated_combined_keys_already_marked.push(row as i32);
+                                duplicated_combined_keys_already_marked.push(row as i32);
+                            }
                         }
                     }
                 }
@@ -877,29 +879,31 @@ impl Diagnostics {
                         // If this returns something, it means there is a duplicate.
                         let combined_keys = row_keys.values().join("| |");
                         if let Some(old_position) = keys.insert(combined_keys.to_owned(), row_keys.keys().map(|x| (row as i32, *x)).collect()) {
+                            if let Some(old_pos) = old_position.get(0) {
 
-                            // Mark previous row, if not yet marked.
-                            if !duplicated_rows_already_marked.contains(&old_position[0].0) {
-                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                    cells_affected: old_position.to_vec(),
-                                    message: format!("Duplicated row: {}.", &combined_keys),
-                                    report_type: TableDiagnosticReportType::DuplicatedRow,
-                                    level: DiagnosticLevel::Warning,
-                                });
+                                // Mark previous row, if not yet marked.
+                                if !duplicated_rows_already_marked.contains(&old_pos.0) {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: old_position.to_vec(),
+                                        message: format!("Duplicated row: {}.", &combined_keys),
+                                        report_type: TableDiagnosticReportType::DuplicatedRow,
+                                        level: DiagnosticLevel::Warning,
+                                    });
 
-                                duplicated_rows_already_marked.push(old_position[0].0);
-                            }
+                                    duplicated_rows_already_marked.push(old_pos.0);
+                                }
 
-                            // Mark current row, if not yet marked.
-                            if !duplicated_rows_already_marked.contains(&(row as i32)) {
-                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                    cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
-                                    message: format!("Duplicated row: {}.", &combined_keys),
-                                    report_type: TableDiagnosticReportType::DuplicatedRow,
-                                    level: DiagnosticLevel::Warning,
-                                });
+                                // Mark current row, if not yet marked.
+                                if !duplicated_rows_already_marked.contains(&(row as i32)) {
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                        cells_affected: row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>(),
+                                        message: format!("Duplicated row: {}.", &combined_keys),
+                                        report_type: TableDiagnosticReportType::DuplicatedRow,
+                                        level: DiagnosticLevel::Warning,
+                                    });
 
-                                duplicated_rows_already_marked.push(row as i32);
+                                    duplicated_rows_already_marked.push(row as i32);
+                                }
                             }
                         }
                     }
