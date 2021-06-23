@@ -982,3 +982,6 @@ label_field_with_path_not_found = Path/File in field not found:
 settings_enable_rigidmodel_editor = Enable RigidModel Editor:
 tt_settings_debug_enable_rigidmodel_editor = This setting allows you to disable the new RigidModel editor (still in beta) should you face any issues with it,
     so you can still use RPFM without it.
+
+settings_use_right_side_markers = Use Right-Side Markers:
+tt_ui_table_use_right_side_markers_tip = Choose a side in the marker war. Join the Rights now!

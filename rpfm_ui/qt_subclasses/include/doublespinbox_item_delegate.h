@@ -8,7 +8,7 @@
 #include <QDoubleSpinBox>
 #include <QTimer>
 
-extern "C" void new_double_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
+extern "C" void new_double_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
 
 class QDoubleSpinBoxItemDelegate : public QExtendedStyledItemDelegate
 {
@@ -16,7 +16,7 @@ class QDoubleSpinBoxItemDelegate : public QExtendedStyledItemDelegate
 
 public:
 
-    explicit QDoubleSpinBoxItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
+    explicit QDoubleSpinBoxItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;

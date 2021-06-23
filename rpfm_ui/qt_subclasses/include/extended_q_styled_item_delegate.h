@@ -6,14 +6,14 @@
 #include <QAbstractItemDelegate>
 #include <QTimer>
 
-extern "C" void new_generic_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
+extern "C" void new_generic_item_delegate(QObject *parent = nullptr, const int column = 0, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
 
 class QExtendedStyledItemDelegate : public QStyledItemDelegate {
 Q_OBJECT
 
 public:
 
-    explicit QExtendedStyledItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false);
+    explicit QExtendedStyledItemDelegate(QObject *parent = nullptr, QTimer* timer = nullptr, bool is_dark_theme_enabled = false, bool has_filter = false, bool right_side_mark = false);
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const;
 
@@ -22,6 +22,7 @@ signals:
 protected:
     bool dark_theme;
     bool use_filter;
+    bool use_right_side_mark;
 
 private:
     QTimer* diag_timer;

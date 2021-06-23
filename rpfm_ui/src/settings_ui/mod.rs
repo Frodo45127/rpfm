@@ -127,6 +127,7 @@ pub struct SettingsUI {
     pub ui_table_tight_table_mode_label: QBox<QLabel>,
     pub ui_table_resize_on_edit_label: QBox<QLabel>,
     pub ui_table_use_old_column_order_label: QBox<QLabel>,
+    pub ui_table_use_right_size_markers_label: QBox<QLabel>,
 
     pub ui_table_adjust_columns_to_content_checkbox: QBox<QCheckBox>,
     pub ui_table_disable_combos_checkbox: QBox<QCheckBox>,
@@ -134,6 +135,7 @@ pub struct SettingsUI {
     pub ui_table_tight_table_mode_checkbox: QBox<QCheckBox>,
     pub ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
     pub ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
+    pub ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Debug` section of the `Settings` dialog.
@@ -421,6 +423,9 @@ impl SettingsUI {
         let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_uuid_regeneration_tables"), &ui_table_view_frame);
         let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
+        let ui_table_use_right_size_markers_label = QLabel::from_q_string_q_widget(&qtr("settings_use_right_side_markers"), &ui_table_view_frame);
+        let ui_table_use_right_size_markers_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
+
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_label, 0, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_checkbox, 0, 1, 1, 1);
 
@@ -442,6 +447,8 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 6, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 6, 1, 1, 1);
 
+        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_label, 7, 0, 1, 1);
+        ui_table_view_grid.add_widget_5a(&ui_table_use_right_size_markers_checkbox, 7, 1, 1, 1);
 
         main_grid.add_widget_5a(&ui_table_view_frame, 2, 1, 1, 1);
 
@@ -612,6 +619,7 @@ impl SettingsUI {
             ui_table_tight_table_mode_label,
             ui_table_resize_on_edit_label,
             ui_table_use_old_column_order_label,
+            ui_table_use_right_size_markers_label,
 
             ui_table_adjust_columns_to_content_checkbox,
             ui_table_disable_combos_checkbox,
@@ -619,6 +627,7 @@ impl SettingsUI {
             ui_table_tight_table_mode_checkbox,
             ui_table_resize_on_edit_checkbox,
             ui_table_use_old_column_order_checkbox,
+            ui_table_use_right_size_markers_checkbox,
 
             //-------------------------------------------------------------------------------//
             // `Debug` section of the `Settings` dialog.
@@ -720,6 +729,7 @@ impl SettingsUI {
         self.ui_table_tight_table_mode_checkbox.set_checked(settings.settings_bool["tight_table_mode"]);
         self.ui_table_resize_on_edit_checkbox.set_checked(settings.settings_bool["table_resize_on_edit"]);
         self.ui_table_use_old_column_order_checkbox.set_checked(settings.settings_bool["tables_use_old_column_order"]);
+        self.ui_table_use_right_size_markers_checkbox.set_checked(settings.settings_bool["use_right_size_markers"]);
 
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
@@ -795,6 +805,7 @@ impl SettingsUI {
         settings.settings_bool.insert("tight_table_mode".to_owned(), self.ui_table_tight_table_mode_checkbox.is_checked());
         settings.settings_bool.insert("table_resize_on_edit".to_owned(), self.ui_table_resize_on_edit_checkbox.is_checked());
         settings.settings_bool.insert("tables_use_old_column_order".to_owned(), self.ui_table_use_old_column_order_checkbox.is_checked());
+        settings.settings_bool.insert("use_right_size_markers".to_owned(), self.ui_table_use_right_size_markers_checkbox.is_checked());
 
         // Get the Debug Settings.
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());

@@ -29,6 +29,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let ui_table_disable_combos_tip = qtr("tt_ui_table_disable_combos_tip");
     let ui_table_extend_last_column_tip = qtr("tt_ui_table_extend_last_column_tip");
     let ui_table_tight_table_mode_tip = qtr("tt_ui_table_tight_table_mode_tip");
+    let ui_table_use_right_size_markers_tip = qtr("tt_ui_table_use_right_side_markers_tip");
 
     let ui_window_start_maximized_tip = qtr("tt_ui_window_start_maximized_tip");
     let settings_expand_treeview_when_adding_items_tip = qtr("settings_expand_treeview_when_adding_items_tip");
@@ -43,6 +44,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.ui_table_extend_last_column_checkbox.set_tool_tip(&ui_table_extend_last_column_tip);
     settings_ui.ui_table_tight_table_mode_label.set_tool_tip(&ui_table_tight_table_mode_tip);
     settings_ui.ui_table_tight_table_mode_checkbox.set_tool_tip(&ui_table_tight_table_mode_tip);
+    settings_ui.ui_table_use_right_size_markers_label.set_tool_tip(&ui_table_use_right_size_markers_tip);
+    settings_ui.ui_table_use_right_size_markers_checkbox.set_tool_tip(&ui_table_use_right_size_markers_tip);
     settings_ui.ui_window_start_maximized_label.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.ui_window_start_maximized_checkbox.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.general_packfile_treeview_expand_treeview_when_adding_items_label.set_tool_tip(&settings_expand_treeview_when_adding_items_tip);

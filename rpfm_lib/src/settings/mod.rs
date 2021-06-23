@@ -87,6 +87,7 @@ impl Settings {
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
         settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), false);
         settings_bool.insert("expand_treeview_when_adding_items".to_owned(), true);
+        settings_bool.insert("use_right_size_markers".to_owned(), false);
 
         // Table Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);

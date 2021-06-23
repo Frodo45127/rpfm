@@ -4,13 +4,13 @@
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QComboBoxItemDelegate,
 // with the specified values. We have to tell it too if the combo will be editable or not.
-extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter) {
-    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght, timer, is_dark_theme_enabled, has_filter);
+extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
+    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght, timer, is_dark_theme_enabled, has_filter, right_side_mark);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
-QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent)
+QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent)
 {
     editable = is_editable;
     values = provided_values;
@@ -18,6 +18,7 @@ QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList 
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
+    use_right_side_mark = right_side_mark;
 }
 
 // Function called when the combo it's created. It just put the values into the combo and returns it.
