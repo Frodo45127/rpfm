@@ -552,6 +552,13 @@ impl AppUI {
             }
         }
 
+        // Clean the treeview and the views from markers.
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+            packed_file_view.clean();
+        }
+
         // Then we re-enable the main Window and return whatever we've received.
         app_ui.main_window.set_enabled(true);
         result

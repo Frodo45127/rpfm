@@ -1076,14 +1076,6 @@ impl DiagnosticsUI {
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
-                    // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
-                    let base_qbrush = QBrush::new();
-                    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-                        base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
-                    } else {
-                        base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
-                    }
-
                     for row in 0..table_model.row_count_0a() {
                         for column in 0..table_model.column_count_0a() {
                             let item = table_model.item_2a(row, column);
@@ -1106,14 +1098,6 @@ impl DiagnosticsUI {
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
-
-                    // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
-                    let base_qbrush = QBrush::new();
-                    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-                        base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
-                    } else {
-                        base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
-                    }
 
                     for row in 0..table_model.row_count_0a() {
                         for column in 0..table_model.column_count_0a() {

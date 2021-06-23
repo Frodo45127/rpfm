@@ -1575,16 +1575,20 @@ fn new_packed_file_tooltip(info: &PackedFileInfo) -> String {
 /// This function cleans the entire TreeView from colors. To be used when saving.
 unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItemModel) {
 
-    // If we receive None, use the PackFile.
+    // Only do it if the model actually have something.
     if model.row_count_0a() > 0 {
-        let item = if let Some(item) = item { item } else { model.item_2a(0, 1) };
+
+        // If we receive None, use the PackFile.
+        let status_item = if let Some(item) = item { item } else { model.item_2a(0, 1) };
 
         // Clean the current item, and repeat for each children.
-        item.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
-        item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_FOREVER_MODIFIED);
-        let children_count = item.row_count();
+        status_item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_FOREVER_MODIFIED);
+        status_item.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+
+        let main_item = if item.is_some() { status_item.parent().child_2a(0, 0) } else { model.item_2a(0, 0) };
+        let children_count = main_item.row_count();
         for row in 0..children_count {
-            let child = item.child_2a(row, 1);
+            let child = main_item.child_2a(row, 1);
             clean_treeview(Some(child), model);
         }
     }

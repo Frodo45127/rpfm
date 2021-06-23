@@ -573,6 +573,30 @@ impl PackedFileView {
             Ok(())
         }
     }
+
+    /// This function cleans the packedfile view from modified markers.
+    pub unsafe fn clean(&self) {
+        if let DataSource::PackFile = self.get_data_source() {
+            if !self.get_is_read_only() {
+                match self.get_view() {
+                    ViewType::Internal(view) => {
+                        match self.packed_file_type {
+                            PackedFileType::AnimTable |
+                            PackedFileType::DB |
+                            PackedFileType::Loc |
+                            PackedFileType::MatchedCombat => if let View::Table(view) = view {
+                                view.get_ref_table().clear_markings();
+                            } else if let View::AnimFragment(view) = view {
+                                view.get_ref_table_view_2().clear_markings();
+                            }
+                            _ => {},
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
 }
 
 impl Display for DataSource {
