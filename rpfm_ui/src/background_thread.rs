@@ -261,7 +261,10 @@ pub fn background_loop() {
             Command::GenerateDependenciesCache(path, version) => {
                 match dependencies.generate_dependencies_cache(&path, version) {
                     Ok(_) => match dependencies.save_to_binary() {
-                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                        Ok(_) => {
+                            CENTRAL_COMMAND.send_message_rust(Response::Success);
+                            let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
+                        },
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),

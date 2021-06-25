@@ -986,7 +986,7 @@ impl AppUISlots {
 
                     // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                     let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-                    let path = match version {
+                    let asskit_path = match version {
 
                         // Post-Shogun 2 games.
                         2 => {
@@ -995,7 +995,7 @@ impl AppUISlots {
                                 path.push("assembly_kit");
                                 path.push("raw_data");
                                 path.push("db");
-                                path
+                                Some(path)
                             }
                             else {
                                 return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
@@ -1024,31 +1024,25 @@ impl AppUISlots {
 
                             path.push("raw_data");
                             path.push("db");
-                            path
+                            Some(path)
                         }
 
                         // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                        _ => return show_dialog(&app_ui.main_window, tr("game_selected_unsupported_operation"), false),
+                        _ => None,
                     };
 
-                    if path.is_dir() {
+                    // If there is no problem, ere we go.
+                    app_ui.main_window.set_enabled(false);
 
-                        // If there is no problem, ere we go.
-                        app_ui.main_window.set_enabled(false);
-
-                        CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(path, version));
-                        let response = CENTRAL_COMMAND.recv_message_qt_try();
-                        match response {
-                            Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
-                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }
-
-                        app_ui.main_window.set_enabled(true);
+                    CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(asskit_path, version));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
-                    else {
-                        show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
-                    }
+
+                    app_ui.main_window.set_enabled(true);
                 }
             }
         ));

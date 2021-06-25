@@ -199,9 +199,21 @@ impl Dependencies {
     }
 
     /// This function generates the entire dependency cache for the currently selected game.
-    pub fn generate_dependencies_cache(&mut self, path: &PathBuf, version: i16) -> Result<()> {
+    pub fn generate_dependencies_cache(&mut self, asskit_path: &Option<PathBuf>, version: i16) -> Result<()> {
 
         self.build_date = get_current_time();
+
+        // Clear all items to ensure we don't keep data from another game.
+        self.cached_data.write().unwrap().clear();
+        self.parent_packed_files_cache.write().unwrap().clear();
+        self.parent_cached_packed_files.clear();
+        self.vanilla_cached_packed_files_paths.clear();
+        self.parent_cached_packed_files_paths.clear();
+        self.vanilla_cached_folders_caseless.clear();
+        self.parent_cached_folders_caseless.clear();
+        self.vanilla_cached_folders_cased.clear();
+        self.parent_cached_folders_cased.clear();
+        self.asskit_only_db_tables.clear();
 
         if let Ok(pack_file) = PackFile::open_all_ca_packfiles() {
             self.vanilla_cached_packed_files = pack_file.get_ref_packed_files_all().par_iter()
@@ -225,7 +237,9 @@ impl Dependencies {
 
         // This one can fail, leaving the dependencies with only game data.
         // This is needed to support table creation on Empire and Napoleon.
-        let _ = self.generate_asskit_only_db_tables(&path, version);
+        if let Some(path) = asskit_path {
+            let _ = self.generate_asskit_only_db_tables(&path, version);
+        }
 
         Ok(())
     }
