@@ -835,7 +835,7 @@ impl DiagnosticsUI {
 
             // Config matches have to open their relevant config issue.
             "Config" => {
-                match &*model.item_2a(model_index.row(), 6).text().to_std_string() {
+                match &*model.item_2a(model_index.row(), 5).text().to_std_string() {
 
                     // For these, we will trigger the action to generate the dependencies cache.
                     "DependenciesCacheNotGenerated" |
