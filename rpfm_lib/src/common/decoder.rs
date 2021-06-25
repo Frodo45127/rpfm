@@ -239,7 +239,7 @@ impl Decoder for [u8] {
     fn decode_string_u8_0terminated(&self, offset: usize) -> Result<(String, usize)> {
         if self.len() >= offset {
             let (ends_in_zero, size) = self[offset..].iter().position(|x| *x == 0).map_or((false, self.len()), |x| (true, x));
-            let string_decoded = String::from_utf8(self[offset..offset + size].to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String.</p>".to_owned())))?;
+            let string_decoded = String::from_utf8_lossy(&self[offset..offset + size]).to_string();
             Ok((string_decoded, if ends_in_zero { size + 1 } else { size }))
         } else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String:</p><p>Not enough bytes to decode.</p>".to_owned()).into()) }
     }
