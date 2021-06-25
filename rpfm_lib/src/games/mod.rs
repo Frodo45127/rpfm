@@ -16,6 +16,7 @@ You should have no business here, except for supporting a new game.
 !*/
 
 use indexmap::IndexMap;
+
 use crate::packfile::PFHVersion;
 
 // Display Name for all the Supported Games.
@@ -89,6 +90,9 @@ pub struct GameInfo {
 
     /// Logic used to name vanilla tables.
     pub vanilla_db_table_name_logic: VanillaDBTableNameLogic,
+
+    /// List of vanilla packs. Currently only used for Empire and Napoleon.
+    pub vanilla_packs: Vec<String>
 }
 
 /// This enum holds the info needed to deal with particularities of the games if they're installed from X or Y store.
@@ -149,6 +153,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_troy.png".to_owned(),
         game_selected_big_icon: "gs_big_troy.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+        vanilla_packs: vec![],
     });
 
     // Three Kingdoms
@@ -180,6 +185,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_3k.png".to_owned(),
         game_selected_big_icon: "gs_big_3k.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+        vanilla_packs: vec![],
     });
 
     // Warhammer 2
@@ -211,6 +217,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_wh2.png".to_owned(),
         game_selected_big_icon: "gs_big_wh2.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+        vanilla_packs: vec![],
     });
 
     // Warhammer
@@ -246,6 +253,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_wh.png".to_owned(),
         game_selected_big_icon: "gs_big_wh.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     // Thrones of Britannia
@@ -277,6 +285,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_tob.png".to_owned(),
         game_selected_big_icon: "gs_big_tob.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     // Attila
@@ -308,6 +317,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_att.png".to_owned(),
         game_selected_big_icon: "gs_big_att.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     // Rome 2
@@ -339,6 +349,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_rom2.png".to_owned(),
         game_selected_big_icon: "gs_big_rom2.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     // Shogun 2
@@ -370,6 +381,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_sho2.png".to_owned(),
         game_selected_big_icon: "gs_big_sho2.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     // Napoleon
@@ -421,6 +433,53 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_nap.png".to_owned(),
         game_selected_big_icon: "gs_big_nap.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![
+            "battleterrain.pack".to_owned(),
+            "boot.pack".to_owned(),
+            "buildings.pack".to_owned(),
+            "data.pack".to_owned(),
+            "local_en.pack".to_owned(),         // English
+            "local_en_patch.pack".to_owned(),   // English Patch
+            "local_br.pack".to_owned(),         // Brazilian
+            "local_br_patch.pack".to_owned(),   // Brazilian Patch
+            "local_cz.pack".to_owned(),         // Czech
+            "local_cz_patch.pack".to_owned(),   // Czech Patch
+            "local_ge.pack".to_owned(),         // German
+            "local_ge_patch.pack".to_owned(),   // German Patch
+            "local_sp.pack".to_owned(),         // Spanish
+            "local_sp_patch.pack".to_owned(),   // Spanish Patch
+            "local_fr.pack".to_owned(),         // French
+            "local_fr_patch.pack".to_owned(),   // French Patch
+            "local_it.pack".to_owned(),         // Italian
+            "local_it_patch.pack".to_owned(),   // Italian Patch
+            "local_kr.pack".to_owned(),         // Korean
+            "local_kr_patch.pack".to_owned(),   // Korean Patch
+            "local_pl.pack".to_owned(),         // Polish
+            "local_pl_patch.pack".to_owned(),   // Polish Patch
+            "local_ru.pack".to_owned(),         // Russian
+            "local_ru_patch.pack".to_owned(),   // Russian Patch
+            "local_tr.pack".to_owned(),         // Turkish
+            "local_tr_patch.pack".to_owned(),   // Turkish Patch
+            "local_cn.pack".to_owned(),         // Simplified Chinese
+            "local_cn_patch.pack".to_owned(),   // Simplified Chinese Patch
+            "local_zh.pack".to_owned(),         // Traditional Chinese
+            "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
+            "media.pack".to_owned(),
+            "patch.pack".to_owned(),
+            "patch_media.pack".to_owned(),
+            "patch_media2.pack".to_owned(),
+            "patch_media2.pack".to_owned(),
+            "patch2.pack".to_owned(),
+            "patch3.pack".to_owned(),
+            "patch4.pack".to_owned(),
+            "patch5.pack".to_owned(),
+            "patch6.pack".to_owned(),
+            "patch7.pack".to_owned(),
+            "rigidmodels.pack".to_owned(),
+            "sound.pack".to_owned(),
+            "variantmodels.pack".to_owned(),
+            "variantmodels2.pack".to_owned(),
+        ],
     });
 
     // Empire
@@ -473,6 +532,63 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_emp.png".to_owned(),
         game_selected_big_icon: "gs_big_emp.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![
+            "anim.pack".to_owned(),
+            "battlepresets.pack".to_owned(),
+            "battleterrain.pack".to_owned(),
+            "boot.pack".to_owned(),
+            "groupformations.pack".to_owned(),
+            "local_en.pack".to_owned(),     // English
+            "local_br.pack".to_owned(),     // Brazilian
+            "local_cz.pack".to_owned(),     // Czech
+            "local_ge.pack".to_owned(),     // German
+            "local_sp.pack".to_owned(),     // Spanish
+            "local_fr.pack".to_owned(),     // French
+            "local_it.pack".to_owned(),     // Italian
+            "local_kr.pack".to_owned(),     // Korean
+            "local_pl.pack".to_owned(),     // Polish
+            "local_ru.pack".to_owned(),     // Russian
+            "local_tr.pack".to_owned(),     // Turkish
+            "local_cn.pack".to_owned(),     // Simplified Chinese
+            "local_zh.pack".to_owned(),     // Traditional Chinese
+            "main.pack".to_owned(),
+            "models.pack".to_owned(),
+            "patch.pack".to_owned(),
+            "patch_media.pack".to_owned(),
+            "patch_en.pack".to_owned(),     // English Patch
+            "patch_br.pack".to_owned(),     // Brazilian Patch
+            "patch_cz.pack".to_owned(),     // Czech Patch
+            "patch_ge.pack".to_owned(),     // German Patch
+            "patch_sp.pack".to_owned(),     // Spanish Patch
+            "patch_fr.pack".to_owned(),     // French Patch
+            "patch_it.pack".to_owned(),     // Italian Patch
+            "patch_kr.pack".to_owned(),     // Korean Patch
+            "patch_pl.pack".to_owned(),     // Polish Patch
+            "patch_ru.pack".to_owned(),     // Russian Patch
+            "patch_tr.pack".to_owned(),     // Turkish Patch
+            "patch_cn.pack".to_owned(),     // Simplified Chinese Patch
+            "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
+            "patch2.pack".to_owned(),
+            "patch3.pack".to_owned(),
+            "patch4.pack".to_owned(),
+            "patch5.pack".to_owned(),
+            "seasurfaces.pack".to_owned(),
+            "sound_non_wavefile_data.pack".to_owned(),
+            "sounds.pack".to_owned(),
+            "sounds_animation_triggers.pack".to_owned(),
+            "sounds_campaign.pack".to_owned(),
+            "sounds_music.pack".to_owned(),
+            "sounds_other.pack".to_owned(),
+            "sounds_placeholder.pack".to_owned(),
+            "sounds_sfx.pack".to_owned(),
+            "subtitles.pack".to_owned(),
+            "supertexture.pack".to_owned(),
+            "terrain_templates.pack".to_owned(),
+            "testdata.pack".to_owned(),
+            "ui.pack".to_owned(),
+            "ui_movies.pack".to_owned(),
+            "voices.pack".to_owned(),
+        ],
     });
 
     // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -492,6 +608,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         game_selected_icon: "gs_are.png".to_owned(),
         game_selected_big_icon: "gs_big_are.png".to_owned(),
         vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+        vanilla_packs: vec![],
     });
 
     list
