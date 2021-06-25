@@ -2407,7 +2407,7 @@ impl AppUI {
         indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::PackFile, false); });
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::ExternalFile, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);
