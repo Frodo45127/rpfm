@@ -180,10 +180,11 @@ fn test_decode_string_u8_0terminated() {
         assert_eq!(result.1, 10);
     }
 
-    // Check the decoder returns an error for a slice with non-UTF8 characters (255).
+    // Check the decoder works for a slice with non-UTF8 characters (255).
     {
-        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 0);
-        assert_eq!(result.is_err(), true);
+        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 0).unwrap();
+        assert_eq!(result.0, "Waha�hahaha".to_owned());
+        assert_eq!(result.1, 11);
     }
 }
 
@@ -475,11 +476,11 @@ fn test_decode_packedfile_string_u8_0terminated() {
         assert_eq!(index, 10);
     }
 
-    // Check the decoder returns an error for a slice with non-UTF8 characters (255).
+    // Check the decoder works for a slice with non-UTF8 characters (255).
     {
         let mut index = 0;
-        assert_eq!(Decoder::decode_packedfile_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 0, &mut index).is_err(), true);
-        assert_eq!(index, 0);
+        assert_eq!(Decoder::decode_packedfile_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 0, &mut index).unwrap(), "Waha�hahaha".to_owned());
+        assert_eq!(index, 11);
     }
 }
 
