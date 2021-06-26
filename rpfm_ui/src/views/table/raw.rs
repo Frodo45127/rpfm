@@ -1021,6 +1021,9 @@ impl TableView {
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
             let row = get_new_row(&self.get_ref_table_definition());
+            for index in 0..row.count_0a() {
+                row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
+            }
             self.table_model.append_row_q_list_of_q_standard_item(&row);
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
