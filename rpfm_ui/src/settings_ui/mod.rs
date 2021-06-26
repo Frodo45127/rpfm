@@ -517,6 +517,17 @@ impl SettingsUI {
         let ui_table_colour_dark_diagnostic_warning_button = QPushButton::from_q_widget(&ui_table_view_frame);
         let ui_table_colour_dark_diagnostic_info_button = QPushButton::from_q_widget(&ui_table_view_frame);
 
+        ui_table_colour_light_table_added_button.set_auto_fill_background(true);
+        ui_table_colour_light_table_modified_button.set_auto_fill_background(true);
+        ui_table_colour_light_diagnostic_error_button.set_auto_fill_background(true);
+        ui_table_colour_light_diagnostic_warning_button.set_auto_fill_background(true);
+        ui_table_colour_light_diagnostic_info_button.set_auto_fill_background(true);
+        ui_table_colour_dark_table_added_button.set_auto_fill_background(true);
+        ui_table_colour_dark_table_modified_button.set_auto_fill_background(true);
+        ui_table_colour_dark_diagnostic_error_button.set_auto_fill_background(true);
+        ui_table_colour_dark_diagnostic_warning_button.set_auto_fill_background(true);
+        ui_table_colour_dark_diagnostic_info_button.set_auto_fill_background(true);
+
         ui_table_view_grid.add_widget_5a(&settings_ui_table_colour_light_label, 90, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&settings_ui_table_colour_dark_label, 90, 2, 1, 1);
 
@@ -864,6 +875,21 @@ impl SettingsUI {
         self.ui_table_colour_dark_diagnostic_error_button.set_palette(&QPalette::from_q_color(&colour_dark_diagnostic_error));
         self.ui_table_colour_dark_diagnostic_warning_button.set_palette(&QPalette::from_q_color(&colour_dark_diagnostic_warning));
         self.ui_table_colour_dark_diagnostic_info_button.set_palette(&QPalette::from_q_color(&colour_dark_diagnostic_info));
+
+        // So, windows is fucking annoying when it wants, and here's an example. QPalette doesn't change the visual colour of buttons, only on windows.
+        // The colour is there, but the button color will not change. So we have to set it, AGAIN, with stylesheets, only in fucking windows.
+        if cfg!(target_os = "windows") {
+            self.ui_table_colour_light_table_added_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_light_table_modified_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_light_diagnostic_error_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_light_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_light_diagnostic_info_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_dark_table_added_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_table_added.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_dark_table_modified_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_table_modified.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_dark_diagnostic_error_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_dark_diagnostic_warning_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.ui_table_colour_dark_diagnostic_info_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb).to_std_string())));
+        }
 
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);

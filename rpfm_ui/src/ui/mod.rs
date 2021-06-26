@@ -156,61 +156,61 @@ impl UI {
         let mut colour_dark_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_info")).to_string());
 
         if !colour_light_table_added.is_valid() {
-            colour_light_table_added = QColor::from_global_color(GlobalColor::Green);
+            colour_light_table_added = QColor::from_q_string(&QString::from_std_str("#87ca00"));
             q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&colour_light_table_added.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_light_table_modified.is_valid() {
-            colour_light_table_modified = QColor::from_3_int(230, 126, 34);
+            colour_light_table_modified = QColor::from_q_string(&QString::from_std_str("#e67e22"));
             q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&colour_light_table_modified.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_light_diagnostic_error.is_valid() {
-            colour_light_diagnostic_error = QColor::from_global_color(GlobalColor::Red);
+            colour_light_diagnostic_error = QColor::from_q_string(&QString::from_std_str("#ff0000"));
             q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&colour_light_diagnostic_error.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_light_diagnostic_warning.is_valid() {
-            colour_light_diagnostic_warning = QColor::from_3_int(190, 190, 0);
+            colour_light_diagnostic_warning = QColor::from_q_string(&QString::from_std_str("#bebe00"));
             q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_warning"), &QVariant::from_q_string(&colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_light_diagnostic_info.is_valid() {
-            colour_light_diagnostic_info = QColor::from_global_color(GlobalColor::Blue);
+            colour_light_diagnostic_info = QColor::from_q_string(&QString::from_std_str("#55aaff"));
             q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_info"), &QVariant::from_q_string(&colour_light_diagnostic_info.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_dark_table_added.is_valid() {
-            colour_dark_table_added = QColor::from_global_color(GlobalColor::Green);
+            colour_dark_table_added = QColor::from_q_string(&QString::from_std_str("#00ff00"));
             q_settings.set_value(&QString::from_std_str("colour_dark_table_added"), &QVariant::from_q_string(&colour_dark_table_added.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_dark_table_modified.is_valid() {
-            colour_dark_table_modified = QColor::from_global_color(GlobalColor::Green);
+            colour_dark_table_modified = QColor::from_q_string(&QString::from_std_str("#e67e22"));
             q_settings.set_value(&QString::from_std_str("colour_dark_table_modified"), &QVariant::from_q_string(&colour_dark_table_modified.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_dark_diagnostic_error.is_valid() {
-            colour_dark_diagnostic_error = QColor::from_global_color(GlobalColor::Red);
+            colour_dark_diagnostic_error =  QColor::from_q_string(&QString::from_std_str("#ff0000"));
             q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_dark_diagnostic_warning.is_valid() {
-            colour_dark_diagnostic_warning = QColor::from_global_color(GlobalColor::Yellow);
+            colour_dark_diagnostic_warning = QColor::from_q_string(&QString::from_std_str("#cece67"));
             q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
         if !colour_dark_diagnostic_info.is_valid() {
-            colour_dark_diagnostic_info = QColor::from_global_color(GlobalColor::Blue);
+            colour_dark_diagnostic_info = QColor::from_q_string(&QString::from_std_str("#55aaff"));
             q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }

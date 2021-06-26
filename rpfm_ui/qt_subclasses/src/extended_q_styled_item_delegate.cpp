@@ -26,19 +26,18 @@ QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer
     QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
 
     if (dark_theme) {
-        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
-        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
-        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
-        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
-        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
-    } else {
         colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
         colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
         colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
         colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
         colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
+    } else {
+        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
     }
-
 }
 
 // Function called when the editor for the cell it's created.
@@ -109,7 +108,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // Modified takes priority over added.
             if (isModified) {
                 auto pen = QPen();
-                pen.setColor(colour_table_added);
+                pen.setColor(colour_table_modified);
 
                 int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
@@ -125,7 +124,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
 
             else if (!isModified && isAdded) {
                 auto pen = QPen();
-                pen.setColor(colour_table_modified);
+                pen.setColor(colour_table_added);
 
                 int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
