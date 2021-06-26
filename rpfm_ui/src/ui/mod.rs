@@ -20,7 +20,6 @@ use qt_gui::QFont;
 use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::QIcon;
 
-use qt_core::GlobalColor;
 use qt_core::QFlags;
 use qt_core::QSettings;
 use qt_core::QString;

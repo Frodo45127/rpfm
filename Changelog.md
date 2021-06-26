@@ -6,6 +6,33 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.5.2]
+### Added
+- Table colours can now be changed on the settings.
+
+### Changed
+- Table/File status markers are now cleared on save.
+- Tweaked table status markers and colours.
+- Restructured settings window.
+
+### Fixed
+- Fixed paths diagnostic giving a lot of false positives.
+- Fixed paths diagnostic not checking paths correctly if they end with "/".
+- Fixed paths diagnostic not checking folder paths correctly if the folder exists but has no files.
+- Fixed paths diagnostic not checking paths correctly if casing doesn't match.
+- Fixed paths diagnostic failing to find folders on parent mods.
+- Fixed paths diagnostic failing to find folders on game packfiles.
+- Fixed data not being sorted correctly when loading it to a combo of a table.
+- Fixed CTD on diagnostic check.
+- Fixed empire's `Voices.pack` failing to open.
+- Fixed `Load all CA PackFiles` not working on Empire.
+- Fixed `Generate Dependencies Cache` asking for regeneration on start on Empire/Napoleon.
+- Fixed `Load all CA PackFiles` not only loading CA PackFiles, but also every single pack on Empire/Napoleon.
+- Fixed `Generate Dependencies Cache` using data from the previous game selected.
+- Fixed CTD when double-clicking certain diagnostics.
+- Fixed `Insert Rows` not marking new rows as added if there was not a cell selected before the insertion.
+- Fixed tables not using the correct marker colours for their theme.
+
 ## [2.5.1]
 ### Changed
 - Removed requeriment of Assembly Kit for Generation of Dependencies Cache.
@@ -361,7 +388,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/Frodo45127/rpfm/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/Frodo45127/rpfm/compare/v2.4.2...v2.4.3
