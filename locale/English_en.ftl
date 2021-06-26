@@ -985,3 +985,15 @@ tt_settings_debug_enable_rigidmodel_editor = This setting allows you to disable 
 
 settings_use_right_side_markers = Use Right-Side Markers:
 tt_ui_table_use_right_side_markers_tip = Choose a side in the marker war. Join the Rights now!
+
+settings_tab_paths = Paths
+settings_tab_settings = Settings
+
+settings_ui_table_colour_table_added_label = Added
+settings_ui_table_colour_table_modified_label = Modified
+settings_ui_table_colour_diagnostic_error_label = Error
+settings_ui_table_colour_diagnostic_warning_label = Warning
+settings_ui_table_colour_diagnostic_info_label = Info
+
+settings_ui_table_colour_light_label = Light theme
+settings_ui_table_colour_dark_label = Dark theme

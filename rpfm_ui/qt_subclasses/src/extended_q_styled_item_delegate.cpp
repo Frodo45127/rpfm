@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QStandardItem>
 #include <QStyle>
+#include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QExtendedStyledItemDelegate.
 extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
@@ -21,6 +22,23 @@ QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
     use_right_side_mark = right_side_mark;
+
+    QSettings q_settings = QSettings("FrodoWazEre", "rpfm");
+
+    if (dark_theme) {
+        colour_table_added = QColor(q_settings.value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings.value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings.value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings.value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings.value("colour_light_diagnostic_info").toString());
+    } else {
+        colour_table_added = QColor(q_settings.value("colour_dark_table_added").toString());
+        colour_table_modified = QColor(q_settings.value("colour_dark_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings.value("colour_dark_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings.value("colour_dark_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings.value("colour_dark_diagnostic_info").toString());
+    }
+
 }
 
 // Function called when the editor for the cell it's created.
@@ -91,15 +109,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // Modified takes priority over added.
             if (isModified) {
                 auto pen = QPen();
-
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::yellow;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen;
-                    colorPen.setRgb(230, 126, 34);
-                    pen.setColor(colorPen);
-                }
+                pen.setColor(colour_table_added);
 
                 int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
@@ -115,14 +125,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
 
             else if (!isModified && isAdded) {
                 auto pen = QPen();
-
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::green;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::green;
-                    pen.setColor(colorPen);
-                }
+                pen.setColor(colour_table_modified);
 
                 int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
@@ -139,14 +142,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // By priority, info goes first.
             if (isInfo) {
                 auto pen = QPen();
-
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::blue;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::blue;
-                    pen.setColor(colorPen);
-                }
+                pen.setColor(colour_diagnostic_info);
 
                 int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);
@@ -163,15 +159,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // Warning goes second, overwriting info.
             if (isWarning) {
                 auto pen = QPen();
-
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::yellow;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen;
-                    colorPen.setRgb(190, 190, 0);
-                    pen.setColor(colorPen);
-                }
+                pen.setColor(colour_diagnostic_warning);
 
                 int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);
@@ -188,14 +176,7 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // Error goes last, overwriting everything.
             if (isError) {
                 auto pen = QPen();
-
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::red;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::red;
-                    pen.setColor(colorPen);
-                }
+                pen.setColor(colour_diagnostic_error);
 
                 int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);

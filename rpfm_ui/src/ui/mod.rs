@@ -17,8 +17,10 @@ This module contains the code to manage the main UI and store all his slots.
 use qt_widgets::QApplication;
 
 use qt_gui::QFont;
+use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::QIcon;
 
+use qt_core::GlobalColor;
 use qt_core::QFlags;
 use qt_core::QSettings;
 use qt_core::QString;
@@ -138,6 +140,84 @@ impl UI {
 
         app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
         app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
+
+        // Initialize colours.
+        let mut sync_needed = false;
+
+        let mut colour_light_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_added")).to_string());
+        let mut colour_light_table_modified = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_modified")).to_string());
+        let mut colour_light_diagnostic_error = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_error")).to_string());
+        let mut colour_light_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_warning")).to_string());
+        let mut colour_light_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_info")).to_string());
+        let mut colour_dark_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_table_added")).to_string());
+        let mut colour_dark_table_modified = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_table_modified")).to_string());
+        let mut colour_dark_diagnostic_error = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_error")).to_string());
+        let mut colour_dark_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_warning")).to_string());
+        let mut colour_dark_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_info")).to_string());
+
+        if !colour_light_table_added.is_valid() {
+            colour_light_table_added = QColor::from_global_color(GlobalColor::Green);
+            q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&colour_light_table_added.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_table_modified.is_valid() {
+            colour_light_table_modified = QColor::from_3_int(230, 126, 34);
+            q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&colour_light_table_modified.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_diagnostic_error.is_valid() {
+            colour_light_diagnostic_error = QColor::from_global_color(GlobalColor::Red);
+            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&colour_light_diagnostic_error.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_diagnostic_warning.is_valid() {
+            colour_light_diagnostic_warning = QColor::from_3_int(190, 190, 0);
+            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_warning"), &QVariant::from_q_string(&colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_diagnostic_info.is_valid() {
+            colour_light_diagnostic_info = QColor::from_global_color(GlobalColor::Blue);
+            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_info"), &QVariant::from_q_string(&colour_light_diagnostic_info.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_table_added.is_valid() {
+            colour_dark_table_added = QColor::from_global_color(GlobalColor::Green);
+            q_settings.set_value(&QString::from_std_str("colour_dark_table_added"), &QVariant::from_q_string(&colour_dark_table_added.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_table_modified.is_valid() {
+            colour_dark_table_modified = QColor::from_global_color(GlobalColor::Green);
+            q_settings.set_value(&QString::from_std_str("colour_dark_table_modified"), &QVariant::from_q_string(&colour_dark_table_modified.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_diagnostic_error.is_valid() {
+            colour_dark_diagnostic_error = QColor::from_global_color(GlobalColor::Red);
+            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_diagnostic_warning.is_valid() {
+            colour_dark_diagnostic_warning = QColor::from_global_color(GlobalColor::Yellow);
+            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_diagnostic_info.is_valid() {
+            colour_dark_diagnostic_info = QColor::from_global_color(GlobalColor::Blue);
+            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if sync_needed {
+            q_settings.sync();
+        }
 
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&app_ui, None);
