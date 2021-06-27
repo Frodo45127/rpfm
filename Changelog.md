@@ -32,6 +32,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed CTD when double-clicking certain diagnostics.
 - Fixed `Insert Rows` not marking new rows as added if there was not a cell selected before the insertion.
 - Fixed tables not using the correct marker colours for their theme.
+- Fixed previously opened Packs not opening again with `Add from PackFile`.
 
 ## [2.5.1]
 ### Changed
