@@ -493,7 +493,7 @@ fn get_pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Erro
 pub fn get_all_ca_packfiles_paths() -> Result<Vec<PathBuf>> {
     let data_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
 
-    // Try to get the manifest, if exists. If not, default to the old "Load everything except mods".
+    // Try to get the manifest, if exists.
     match Manifest::read_from_game_selected() {
         Ok(manifest) => {
             let pack_file_names = manifest.0.iter().filter_map(|x|
@@ -508,11 +508,29 @@ pub fn get_all_ca_packfiles_paths() -> Result<Vec<PathBuf>> {
                 pack_file_path
             }).collect::<Vec<PathBuf>>())
         }
-        Err(_) => Ok(get_files_from_subdir(&data_path, false)?.iter()
-            .filter_map(|x| if let Some(extension) = x.extension() {
-                if extension.to_string_lossy().to_lowercase() == "pack" {
-                    Some(x.to_owned())
-                } else { None }
-            } else { None }).collect::<Vec<PathBuf>>())
+
+        // If there is no manifest, use the hardcoded file list for the game, if it has one.
+        Err(_) => {
+
+            let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+            let vanilla_packs = &SUPPORTED_GAMES.get(game_selected).unwrap().vanilla_packs;
+            if !vanilla_packs.is_empty() {
+                Ok(vanilla_packs.iter().map(|x| {
+                    let mut pack_file_path = data_path.to_path_buf();
+                    pack_file_path.push(x);
+                    pack_file_path
+                }).collect::<Vec<PathBuf>>())
+            }
+
+            // If there is no hardcoded list, get every path.
+            else {
+                Ok(get_files_from_subdir(&data_path, false)?.iter()
+                    .filter_map(|x| if let Some(extension) = x.extension() {
+                        if extension.to_string_lossy().to_lowercase() == "pack" {
+                            Some(x.to_owned())
+                        } else { None }
+                    } else { None }).collect::<Vec<PathBuf>>())
+            }
+        }
     }
 }

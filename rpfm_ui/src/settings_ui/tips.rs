@@ -29,6 +29,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let ui_table_disable_combos_tip = qtr("tt_ui_table_disable_combos_tip");
     let ui_table_extend_last_column_tip = qtr("tt_ui_table_extend_last_column_tip");
     let ui_table_tight_table_mode_tip = qtr("tt_ui_table_tight_table_mode_tip");
+    let ui_table_use_right_size_markers_tip = qtr("tt_ui_table_use_right_side_markers_tip");
 
     let ui_window_start_maximized_tip = qtr("tt_ui_window_start_maximized_tip");
     let settings_expand_treeview_when_adding_items_tip = qtr("settings_expand_treeview_when_adding_items_tip");
@@ -43,6 +44,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.ui_table_extend_last_column_checkbox.set_tool_tip(&ui_table_extend_last_column_tip);
     settings_ui.ui_table_tight_table_mode_label.set_tool_tip(&ui_table_tight_table_mode_tip);
     settings_ui.ui_table_tight_table_mode_checkbox.set_tool_tip(&ui_table_tight_table_mode_tip);
+    settings_ui.ui_table_use_right_size_markers_label.set_tool_tip(&ui_table_use_right_size_markers_tip);
+    settings_ui.ui_table_use_right_size_markers_checkbox.set_tool_tip(&ui_table_use_right_size_markers_tip);
     settings_ui.ui_window_start_maximized_label.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.ui_window_start_maximized_checkbox.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.general_packfile_treeview_expand_treeview_when_adding_items_label.set_tool_tip(&settings_expand_treeview_when_adding_items_tip);
@@ -81,6 +84,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     //-----------------------------------------------//
     let debug_check_for_missing_table_definitions_tip = qtr("tt_debug_check_for_missing_table_definitions_tip");
     let debug_spoof_ca_authoring_tool_tip = qtr("tt_settings_debug_spoof_ca_authoring_tool");
+    let debug_enable_rigidmodel_editor = qtr("tt_settings_debug_enable_rigidmodel_editor");
 
     let debug_clear_autosaves = qtr("tt_settings_debug_clear_autosave_folder");
     let debug_clear_schemas = qtr("tt_settings_debug_clear_schema_folder");
@@ -90,6 +94,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.debug_check_for_missing_table_definitions_checkbox.set_tool_tip(&debug_check_for_missing_table_definitions_tip);
     settings_ui.debug_spoof_ca_authoring_tool_label.set_tool_tip(&debug_spoof_ca_authoring_tool_tip);
     settings_ui.debug_spoof_ca_authoring_tool_checkbox.set_tool_tip(&debug_spoof_ca_authoring_tool_tip);
+    settings_ui.debug_enable_rigidmodel_editor_label.set_tool_tip(&debug_enable_rigidmodel_editor);
+    settings_ui.debug_enable_rigidmodel_editor_checkbox.set_tool_tip(&debug_enable_rigidmodel_editor);
 
     settings_ui.debug_clear_autosave_folder_button.set_tool_tip(&debug_clear_autosaves);
     settings_ui.debug_clear_schema_folder_button.set_tool_tip(&debug_clear_schemas);

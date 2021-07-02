@@ -738,9 +738,9 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
     match response {
         Response::BTreeMapI32DependencyData(ref mut dependency_data) => {
             for index in reference_data.keys() {
-                if let Some(mut column_data_visual) = dependency_data_visual.get_mut(index) {
+                if let Some(column_data_visual) = dependency_data_visual.get(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
-                        column_data.data.append(&mut column_data_visual);
+                        column_data.data.extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
                     }
                 }
             }
@@ -767,7 +767,9 @@ pub unsafe fn setup_item_delegates(
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
             let list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
-                data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                let mut data = data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
+                data.sort();
+                data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
             if !field.get_enum_values().is_empty() {

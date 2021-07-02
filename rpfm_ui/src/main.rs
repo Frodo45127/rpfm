@@ -39,7 +39,7 @@ use qt_core::QString;
 
 use lazy_static::lazy_static;
 use log::info;
-use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 
 use std::fs::File;
 use std::path::PathBuf;
@@ -273,7 +273,7 @@ lazy_static! {
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const VERSION_SUBTITLE: &str = "Ghz";
+const VERSION_SUBTITLE: &str = "Midway";
 const QT_ORG: &str = "FrodoWazEre";
 const QT_PROGRAM: &str = "rpfm";
 
@@ -284,7 +284,7 @@ fn main() {
     if CrashReport::init().is_err() {
         let _ = CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed),
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
             ]
         );

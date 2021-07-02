@@ -221,9 +221,11 @@ pub struct AppUI {
     pub special_stuff_sho2_optimize_packfile: QPtr<QAction>,
 
     // Napoleon's actions.
+    pub special_stuff_nap_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_nap_optimize_packfile: QPtr<QAction>,
 
     // Empire's actions.
+    pub special_stuff_emp_generate_dependencies_cache: QPtr<QAction>,
     pub special_stuff_emp_optimize_packfile: QPtr<QAction>,
 
     // Common operations.
@@ -582,7 +584,9 @@ impl AppUI {
         let special_stuff_rom2_optimize_packfile = menu_rome_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_sho2_generate_dependencies_cache = menu_shogun_2.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_sho2_optimize_packfile = menu_shogun_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_nap_generate_dependencies_cache = menu_napoleon.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_nap_optimize_packfile = menu_napoleon.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_emp_generate_dependencies_cache = menu_empire.add_action_q_string(&qtr("special_stuff_generate_dependencies_cache"));
         let special_stuff_emp_optimize_packfile = menu_empire.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
 
         menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
@@ -780,9 +784,11 @@ impl AppUI {
             special_stuff_sho2_optimize_packfile,
 
             // Napoleon's actions.
+            special_stuff_nap_generate_dependencies_cache,
             special_stuff_nap_optimize_packfile,
 
             // Empire's actions.
+            special_stuff_emp_generate_dependencies_cache,
             special_stuff_emp_optimize_packfile,
 
             // Common operations.

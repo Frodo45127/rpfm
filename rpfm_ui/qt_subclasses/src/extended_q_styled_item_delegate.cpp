@@ -7,19 +7,37 @@
 #include <QPainter>
 #include <QStandardItem>
 #include <QStyle>
+#include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QExtendedStyledItemDelegate.
-extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter) {
-    QExtendedStyledItemDelegate* delegate = new QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter);
+extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
+    QExtendedStyledItemDelegate* delegate = new QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QExtendedStyledItemDelegate. We use it to store the integer type of the value in the delegate.
-QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter): QStyledItemDelegate(parent)
+QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QStyledItemDelegate(parent)
 {
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
+    use_right_side_mark = right_side_mark;
+
+    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+
+    if (dark_theme) {
+        colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
+    } else {
+        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
+    }
 }
 
 // Function called when the editor for the cell it's created.
@@ -90,97 +108,85 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
             // Modified takes priority over added.
             if (isModified) {
                 auto pen = QPen();
+                pen.setColor(colour_table_modified);
 
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::yellow;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen;
-                    colorPen.setRgb(230, 126, 34);
-                    pen.setColor(colorPen);
-                }
-
+                int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
-                pen.setWidth(2);
+                pen.setWidth(lineWidth);
 
                 painter->setPen(pen);
-                painter->drawRect(option.rect.x() + 1, option.rect.y() + 1, option.rect.width() - 2, option.rect.height() - 2);
+                if (use_right_side_mark) {
+                    painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                } else {
+                    painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                }
             }
 
             else if (!isModified && isAdded) {
                 auto pen = QPen();
+                pen.setColor(colour_table_added);
 
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::green;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::green;
-                    pen.setColor(colorPen);
-                }
-
+                int lineWidth = 2;
                 pen.setStyle(Qt::PenStyle::SolidLine);
-                pen.setWidth(2);
+                pen.setWidth(lineWidth);
 
                 painter->setPen(pen);
-                painter->drawRect(option.rect.x() + 1, option.rect.y() + 1, option.rect.width() - 2, option.rect.height() - 2);
+                if (use_right_side_mark) {
+                    painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                } else {
+                    painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                }
             }
 
             // By priority, info goes first.
             if (isInfo) {
                 auto pen = QPen();
+                pen.setColor(colour_diagnostic_info);
 
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::blue;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::blue;
-                    pen.setColor(colorPen);
-                }
-
+                int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);
-                pen.setWidth(4);
+                pen.setWidth(lineWidth);
 
                 painter->setPen(pen);
-                painter->drawRect(option.rect.x() + 1, option.rect.y() + 1, option.rect.width() - 2, option.rect.height() - 2);
+                if (use_right_side_mark) {
+                    painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                } else {
+                    painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                }
             }
 
             // Warning goes second, overwriting info.
             if (isWarning) {
                 auto pen = QPen();
+                pen.setColor(colour_diagnostic_warning);
 
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::yellow;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen;
-                    colorPen.setRgb(190, 190, 0);
-                    pen.setColor(colorPen);
-                }
-
+                int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);
-                pen.setWidth(4);
+                pen.setWidth(lineWidth);
 
                 painter->setPen(pen);
-                painter->drawRect(option.rect.x() + 1, option.rect.y() + 1, option.rect.width() - 2, option.rect.height() - 2);
+                if (use_right_side_mark) {
+                    painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                } else {
+                    painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                }
             }
 
             // Error goes last, overwriting everything.
             if (isError) {
                 auto pen = QPen();
+                pen.setColor(colour_diagnostic_error);
 
-                if (dark_theme) {
-                    QColor colorPen = Qt::GlobalColor::red;
-                    pen.setColor(colorPen);
-                } else {
-                    QColor colorPen = Qt::GlobalColor::red;
-                    pen.setColor(colorPen);
-                }
-
+                int lineWidth = 4;
                 pen.setStyle(Qt::PenStyle::SolidLine);
-                pen.setWidth(4);
+                pen.setWidth(lineWidth);
 
                 painter->setPen(pen);
-                painter->drawRect(option.rect.x() + 1, option.rect.y() + 1, option.rect.width() - 2, option.rect.height() - 2);
+                if (use_right_side_mark) {
+                    painter->drawLine(QLineF(option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + (lineWidth / 2), option.rect.x() + option.rect.width() - (lineWidth / 2), option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                } else {
+                    painter->drawLine(QLineF(option.rect.x() + 1, option.rect.y() + (lineWidth / 2), option.rect.x() + 1, option.rect.y() + option.rect.height() - (lineWidth / 4)));
+                }
             }
 
             // Remember to restore the painter so we can reuse it for other cells.

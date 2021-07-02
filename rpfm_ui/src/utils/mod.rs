@@ -175,6 +175,9 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
     });
     send_table_button.released().connect(&send_table_slot);
 
+    // Disable sending tables until I implement a more robust way to stop the spam.
+    send_table_button.set_enabled(false);
+
     dialog.exec();
 }
 
@@ -268,6 +271,28 @@ pub fn get_packed_file_type(path: &[String]) -> PackedFileType {
         Response::PackedFileType(packed_file_type) => packed_file_type,
         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
     }
+}
+
+/// This functin returns the feature flags enabled for RPFM.
+pub fn get_feature_flags() -> String {
+    let mut feature_flags = String::new();
+
+    #[cfg(feature = "support_modern_dds")] {
+        feature_flags.push_str("support_modern_dds");
+    }
+
+    #[cfg(feature = "support_rigidmodel")] {
+        if !feature_flags.is_empty() {
+            feature_flags.push_str(", ");
+        }
+        feature_flags.push_str("support_rigidmodel");
+    }
+
+    if feature_flags.is_empty() {
+        feature_flags.push_str("None");
+    }
+
+    feature_flags
 }
 
 /// This function creates the stylesheet used for the dark theme in windows.

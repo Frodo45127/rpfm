@@ -56,7 +56,7 @@ use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
-use crate::utils::{log_to_status_bar, show_dialog};
+use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
 use crate::views::table::utils::{get_reference_data, setup_item_delegates};
@@ -986,7 +986,7 @@ impl AppUISlots {
 
                     // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                     let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-                    let path = match version {
+                    let asskit_path = match version {
 
                         // Post-Shogun 2 games.
                         2 => {
@@ -995,7 +995,7 @@ impl AppUISlots {
                                 path.push("assembly_kit");
                                 path.push("raw_data");
                                 path.push("db");
-                                path
+                                Some(path)
                             }
                             else {
                                 return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
@@ -1024,31 +1024,25 @@ impl AppUISlots {
 
                             path.push("raw_data");
                             path.push("db");
-                            path
+                            Some(path)
                         }
 
                         // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                        _ => return show_dialog(&app_ui.main_window, tr("game_selected_unsupported_operation"), false),
+                        _ => None,
                     };
 
-                    if path.is_dir() {
+                    // If there is no problem, ere we go.
+                    app_ui.main_window.set_enabled(false);
 
-                        // If there is no problem, ere we go.
-                        app_ui.main_window.set_enabled(false);
-
-                        CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(path, version));
-                        let response = CENTRAL_COMMAND.recv_message_qt_try();
-                        match response {
-                            Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
-                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }
-
-                        app_ui.main_window.set_enabled(true);
+                    CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(asskit_path, version));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
-                    else {
-                        show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
-                    }
+
+                    app_ui.main_window.set_enabled(true);
                 }
             }
         ));
@@ -1224,23 +1218,6 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-                let mut feature_flags = String::new();
-
-                #[cfg(feature = "support_modern_dds")] {
-                    feature_flags.push_str("support_modern_dds");
-                }
-
-                #[cfg(feature = "support_rigidmodel")] {
-                    if !feature_flags.is_empty() {
-                        feature_flags.push_str(", ");
-                    }
-                    feature_flags.push_str("support_rigidmodel");
-                }
-
-                if feature_flags.is_empty() {
-                    feature_flags.push_str("None");
-                }
-
                 QMessageBox::about(
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
@@ -1295,7 +1272,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, feature_flags))
+                        ", &VERSION, &VERSION_SUBTITLE, get_feature_flags()))
                     );
             }
         ));

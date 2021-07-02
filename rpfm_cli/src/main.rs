@@ -46,6 +46,7 @@ fn main() {
     // Set the verbosity level and game selected, based on the arguments provided.
     let verbosity_level = if matches.occurrences_of("v") > 3 { 3 } else { matches.occurrences_of("v") as u8 };
     let packfile = matches.value_of("packfile");
+    let asskit_db_path = matches.value_of("assdb");
     let game_selected = match matches.value_of("game") {
         Some(game) => game.to_owned(),
         None => "three_kingdoms".to_owned(),
@@ -65,6 +66,7 @@ fn main() {
 
     // If we reached here, execute the commands.
     let result = match matches.subcommand() {
+        ("diagnostic", Some(matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
         ("packfile", Some(matches)) => commands::command_packfile(&config, matches, packfile),
         ("table", Some(matches)) => commands::command_table(&config, matches, packfile),
         ("schema", Some(matches)) => commands::command_schema(&config, matches),

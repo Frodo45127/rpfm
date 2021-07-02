@@ -25,12 +25,14 @@ use itertools::{Itertools, Either};
 use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
+use unicase::UniCase;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -669,7 +671,7 @@ impl PackFile {
                     for number in 0.. {
                         let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                         *path.last_mut().unwrap() = name;
-                        if !self.packedfile_exists(&path, false) && !reserved_names.contains(&path) {
+                        if !self.packedfile_exists(&path) && !reserved_names.contains(&path) {
 
                             // Ignorable result. This will never fail due to the replacing code before this.
                             let _ = packed_file.get_ref_mut_raw().set_path(&path);
@@ -1094,6 +1096,31 @@ impl PackFile {
         self.packed_files.par_iter().map(|x| x.get_path()).collect()
     }
 
+    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` as Strings.
+    pub fn get_packed_files_all_paths_as_string(&self) -> HashSet<UniCase<String>> {
+        self.packed_files.par_iter().map(|x| UniCase::new(x.get_path().join("/"))).collect()
+    }
+
+    /// This function returns a copy of the paths of all the folders in the provided `PackFile` as Strings.
+    pub fn get_folder_all_paths_as_string(&self) -> HashSet<UniCase<String>> {
+        let mut folder_paths = self.packed_files.par_iter().map(|x| {
+            let path = x.get_path();
+            let mut paths = Vec::with_capacity(path.len() - 1);
+
+            for (index, folder) in path.iter().enumerate() {
+                if index < path.len() - 1 && !folder.is_empty() {
+                    paths.push(UniCase::new(path[0..=index].join("/")))
+                }
+            }
+
+            paths
+        }).flatten().collect::<Vec<UniCase<String>>>();
+
+        folder_paths.sort();
+        folder_paths.dedup();
+        HashSet::from_iter(folder_paths.into_iter())
+    }
+
     /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
     pub fn get_packed_files_all_info(&self) -> Vec<PackedFileInfo> {
         self.packed_files.par_iter().map(From::from).collect()
@@ -1425,57 +1452,16 @@ impl PackFile {
     }
 
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
-    pub fn packedfile_exists(&self, path: &[String], case_insensitive: bool) -> bool {
-        if case_insensitive {
-            self.packed_files.par_iter().any(|x| {
-                if x.get_path().len() == path.len() {
-                    let mut found = true;
-                    for index in 0..x.get_path().len() {
-                        found &= caseless::canonical_caseless_match_str(&x.get_path()[index], &path[index]);
-
-                        if !found {
-                            break;
-                        }
-                    }
-                    found
-                } else {
-                    false
-                }
-            })
-        } else {
-            self.packed_files.par_iter().any(|x| x.get_path() == path)
-        }
+    pub fn packedfile_exists(&self, path: &[String]) -> bool {
+        self.packed_files.par_iter().any(|x| x.get_path() == path)
     }
 
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
-    pub fn folder_exists(&self, path: &[String], case_insensitive: bool) -> bool {
+    pub fn folder_exists(&self, path: &[String]) -> bool {
         if path.is_empty() {
            false
         } else {
-            if case_insensitive {
-                self.packed_files.par_iter().any(|x| {
-
-                    // The last one in paths ending in / is empty.
-                    if x.get_path().len() > path.len() || (x.get_path().len() == path.len() && path.last().unwrap().is_empty()) {
-                        let mut found = true;
-                        for index in 0..path.len() {
-
-                            if !path[index].is_empty() {
-                                found &= caseless::canonical_caseless_match_str(&x.get_path()[index], &path[index]);
-
-                                if !found {
-                                    break;
-                                }
-                            }
-                        }
-                        found
-                    } else {
-                        false
-                    }
-                })
-            } else {
-                self.packed_files.par_iter().any(|x| x.get_path().starts_with(path) && x.get_path().len() > path.len())
-            }
+            self.packed_files.par_iter().any(|x| x.get_path().starts_with(path) && x.get_path().len() > path.len())
         }
     }
 
@@ -1545,8 +1531,8 @@ impl PackFile {
         let mut destination_path = destination_path.to_vec();
 
         // First, we check if BOTH, the source and destination, exist.
-        let source_exists = self.packedfile_exists(source_path, false);
-        let destination_exists = self.packedfile_exists(&destination_path, false);
+        let source_exists = self.packedfile_exists(source_path);
+        let destination_exists = self.packedfile_exists(&destination_path);
 
         // If both exists, we do some name resolving:
         // - If we want to overwrite the destination file, we simply remove it.
@@ -1561,7 +1547,7 @@ impl PackFile {
                 for number in 0.. {
                     let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                     *destination_path.last_mut().unwrap() = name;
-                    if !self.packedfile_exists(&destination_path, false) && !reserved_names.contains(&destination_path) {
+                    if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
                         break;
                     }
                 }
@@ -1971,7 +1957,7 @@ impl PackFile {
                                     }
 
                                     // If that path already exist in the PackFile, add it to the "remove" list.
-                                    if self.packedfile_exists(&path, false) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
                                     let mut packed_file = PackedFile::new(path, self.get_file_name());
@@ -2002,7 +1988,7 @@ impl PackFile {
                                     }
 
                                     // If that path already exists in the PackFile, add it to the "remove" list.
-                                    if self.packedfile_exists(&path, false) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
                                     let mut packed_file = PackedFile::new(path, self.get_file_name());
@@ -2131,8 +2117,8 @@ impl PackFile {
 
     /// This function loads a `PackFile` as dependency, loading all his dependencies in the process.
     fn load_single_dependency_packfile(
-        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
-        cached_packed_files: &mut Vec<CachedPackedFile>,
+        packed_files: &mut HashMap<String, PackedFile>,
+        cached_packed_files: &mut HashMap<String, CachedPackedFile>,
         packfile_name: &str,
         already_loaded_dependencies: &mut Vec<String>,
         data_paths: &Option<Vec<PathBuf>>,
@@ -2150,12 +2136,12 @@ impl PackFile {
                         already_loaded_dependencies.push(packfile_name.to_owned());
                         pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
-                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                            packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
                             if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
-                                cached_packed_files.push(cached_packed_file);
+                                cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
                     }
@@ -2171,12 +2157,12 @@ impl PackFile {
                         already_loaded_dependencies.push(packfile_name.to_owned());
                         pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
-                            packed_files.insert(packed_file.get_path().to_vec(), packed_file.clone());
+                            packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
                             if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
-                                cached_packed_files.push(cached_packed_file);
+                                cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
                     }
@@ -2192,8 +2178,8 @@ impl PackFile {
     /// To avoid entering into an infinite loop while calling this recursively, we have to pass the
     /// list of loaded `PackFiles` each time we execute this.
     pub fn load_custom_dependency_packfiles(
-        packed_files: &mut BTreeMap<Vec<String>, PackedFile>,
-        cached_packed_files: &mut Vec<CachedPackedFile>,
+        packed_files: &mut HashMap<String, PackedFile>,
+        cached_packed_files: &mut HashMap<String, CachedPackedFile>,
         pack_file_names: &[String],
     ) {
 
@@ -2898,11 +2884,11 @@ impl PackFileSettings {
                 if !x.starts_with('#') {
                     let path = x.splitn(3, ';').collect::<Vec<&str>>();
                     if path.len() == 3 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), path[2].split(',').map(|y| y.to_owned()).collect::<Vec<String>>()))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[2].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>()))
                     } else if path.len() == 2 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), path[1].split(',').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![]))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![]))
                     } else if path.len() == 1 {
-                        Some((path[0].split('/').map(|y| y.to_owned()).collect::<Vec<String>>(), vec![], vec![]))
+                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![], vec![]))
                     } else {
                         None
                     }

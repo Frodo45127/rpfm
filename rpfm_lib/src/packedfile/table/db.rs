@@ -661,7 +661,7 @@ impl DB {
 
         vanilla_references.par_iter_mut().for_each(|(key, value)|
             if let Some(local_value) = local_references.get(key) {
-                value.data.append(&mut local_value.data.clone());
+                value.data.extend(local_value.data.iter().map(|(k, v)| (k.clone(), v.clone())));
             }
         );
 

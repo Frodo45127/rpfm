@@ -38,4 +38,15 @@ pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots)
     settings_ui.button_box_font_settings_button.released().connect(&slots.font_settings);
     settings_ui.button_box_accept_button.released().connect(settings_ui.dialog.slot_accept());
     settings_ui.button_box_cancel_button.released().connect(settings_ui.dialog.slot_close());
+
+    settings_ui.ui_table_colour_light_table_added_button.released().connect(&slots.select_colour_light_table_added);
+    settings_ui.ui_table_colour_light_table_modified_button.released().connect(&slots.select_colour_light_table_modified);
+    settings_ui.ui_table_colour_light_diagnostic_error_button.released().connect(&slots.select_colour_light_diagnostic_error);
+    settings_ui.ui_table_colour_light_diagnostic_warning_button.released().connect(&slots.select_colour_light_diagnostic_warning);
+    settings_ui.ui_table_colour_light_diagnostic_info_button.released().connect(&slots.select_colour_light_diagnostic_info);
+    settings_ui.ui_table_colour_dark_table_added_button.released().connect(&slots.select_colour_dark_table_added);
+    settings_ui.ui_table_colour_dark_table_modified_button.released().connect(&slots.select_colour_dark_table_modified);
+    settings_ui.ui_table_colour_dark_diagnostic_error_button.released().connect(&slots.select_colour_dark_diagnostic_error);
+    settings_ui.ui_table_colour_dark_diagnostic_warning_button.released().connect(&slots.select_colour_dark_diagnostic_warning);
+    settings_ui.ui_table_colour_dark_diagnostic_info_button.released().connect(&slots.select_colour_dark_diagnostic_info);
 }

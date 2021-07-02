@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_error"
-version = "2.4.111"
+version = "2.5.2"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Shared error module for RPFM."
 edition = "2018"
@@ -21,12 +21,12 @@ csv = "^1.1"
 serde-xml-rs = "^0.4"
 serde_json = "^1.0"
 ron = "^0.6"
-fluent = "^0.13"
-fluent-bundle = "^0.13"
-fluent-syntax = "^0.10"
+fluent = "^0.15"
+fluent-bundle = "^0.15"
+fluent-syntax = "^0.11"
 log = "^0.4"
 git2 = "^0.13"
-self_update = "^0.22"
+self_update = "^0.27"
 sentry = "^0.22"
 
 # Config dependencies.

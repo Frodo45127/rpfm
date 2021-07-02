@@ -27,20 +27,20 @@ Check the building instructions [here][CompInst]
 - **Why there is no .exe in the download?**: because you downloaded the source code, not the program. Check at the begining of this description, where is says ***Downloads here***.
 
 # Credits
-- ***Frodo45127***: I'm the guy who made the program.
-- ***Maruka*** (From Steam): He made the wazard hat's icon. Also, he helped with the research to decode RigidModel files.
-- ***Mr. Jox*** (From Steam): He helped with A LOT of information about decoding RigidModels.
-- ***Aexrael Dex*** (From Discord): He is who got all those suggested functions you see when editing a Lua Script.
-- ***DrunkFlamingo*** (From Discord): He is who got all the Lua Types for Warhammer 2 so Kailua can work with WH2 scripts.
-- ***Der Spaten*** (From Discord): He helped with the research to decode RigidModels, specially with the "Replace texture" functionality.
-- ***Trolldemorted*** (From Github): He is who made all the research and code to get Arena PackFiles (and music PackedFiles in Rome 2 and Attila) decrypted and readable.
-- ***Jake Armitage*** (From Discord): He made the icons used by RPFM since version 2.0.0.
-- ***John Sirett*** (From Gitlab): He made the original version of the CA_VP8 converter in python, which I used as a base for the converter in RPFM.
-- ***Marthenil*** (From Discord): He managed to get most of the AnimXXX files decoded, and give some sense to what I saw when doing the same.
-
-#### Special Thanks to:
-- ***The guys that made PFM***: Most of the decoding stuff would have been very hard to work out without the PFM source code. So many thanks for make the PFM open source!
-- ***The guys at CA***: They make good, easily-modable games, and are very friendly with the community. Weird company in these times.
+* Created and Programmed by: **Frodo45127**.
+* Extra programming work by: **Vandy**.
+* Modern DDS Read support by: **Phazer**.
+* App Icons until v1.6.2 by: **Maruka**.
+* App Icons since v2.0.0 by: **Jake Armitage**.
+* AnimPack research: **Marthenil** and **Frodo45127**.
+* Ca\_vp8 research: **John Sirett**.
+* LUA functions by: **Aexrael Dex**.
+* LUA Types for Kailua: **DrunkFlamingo**.
+* RigidModel research by: **Mr.Jox**, **Der Spaten**, **Maruka**, **phazer** and **Frodo45127**.
+* RigidModel module until v1.6.2 by: **Frodo45127**.
+* RigidModel module since v2.4.99 by: **Phazer**.
+* TW: Arena research and coding: **Trolldemorted**.
+* TreeView Icons made by [Smashicons](\"https://www.flaticon.com/authors/smashicons\" "\"Smashicons\"") from [www.flaticon.com](\"https://www.flaticon.com/\" "\"Flaticon\""). Licensed under [CC 3.0 BY](\"http://creativecommons.org/licenses/by/3.0/\" "\"Creative")
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Patreon]: https://www.patreon.com/RPFM

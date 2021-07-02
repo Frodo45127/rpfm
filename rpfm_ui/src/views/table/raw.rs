@@ -1021,6 +1021,9 @@ impl TableView {
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
             let row = get_new_row(&self.get_ref_table_definition());
+            for index in 0..row.count_0a() {
+                row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
+            }
             self.table_model.append_row_q_list_of_q_standard_item(&row);
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
@@ -1780,5 +1783,29 @@ impl TableView {
 
         if error_message.is_empty() { None }
         else { Some(error_message) }
+    }
+
+    /// This function clears the markings for added/modified cells.
+    pub unsafe fn clear_markings(&self) {
+        let table_view = self.get_mut_ptr_table_view_primary();
+        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+        let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+
+        for row in 0..table_model.row_count_0a() {
+            for column in 0..table_model.column_count_0a() {
+                let item = table_model.item_2a(row, column);
+
+                if item.data_1a(ITEM_IS_ADDED).to_bool() == true {
+                    item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_ADDED);
+                }
+
+                if item.data_1a(ITEM_IS_MODIFIED).to_bool() == true {
+                    item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_MODIFIED);
+                }
+            }
+        }
+        blocker.unblock();
+        table_view.viewport().repaint();
     }
 }

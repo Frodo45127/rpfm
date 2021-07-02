@@ -6,7 +6,44 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [2.5.2]
+### Added
+- Table colours can now be changed on the settings.
+
+### Changed
+- Table/File status markers are now cleared on save.
+- Tweaked table status markers and colours.
+- Restructured settings window.
+
+### Fixed
+- Fixed paths diagnostic giving a lot of false positives.
+- Fixed paths diagnostic not checking paths correctly if they end with "/".
+- Fixed paths diagnostic not checking folder paths correctly if the folder exists but has no files.
+- Fixed paths diagnostic not checking paths correctly if casing doesn't match.
+- Fixed paths diagnostic failing to find folders on parent mods.
+- Fixed paths diagnostic failing to find folders on game packfiles.
+- Fixed data not being sorted correctly when loading it to a combo of a table.
+- Fixed CTD on diagnostic check.
+- Fixed empire's `Voices.pack` failing to open.
+- Fixed `Load all CA PackFiles` not working on Empire.
+- Fixed `Generate Dependencies Cache` asking for regeneration on start on Empire/Napoleon.
+- Fixed `Load all CA PackFiles` not only loading CA PackFiles, but also every single pack on Empire/Napoleon.
+- Fixed `Generate Dependencies Cache` using data from the previous game selected.
+- Fixed CTD when double-clicking certain diagnostics.
+- Fixed `Insert Rows` not marking new rows as added if there was not a cell selected before the insertion.
+- Fixed tables not using the correct marker colours for their theme.
+- Fixed previously opened Packs not opening again with `Add from PackFile`.
+
+## [2.5.1]
+### Changed
+- Removed requeriment of Assembly Kit for Generation of Dependencies Cache.
+- Implemented Generation of Dependencies Cache for Empire and Napoleon.
+
+### Fixed
+- Fixed extremely poor performance of the diagnostics tool.
+- Fixed issue where paths starting with `/` were ignored in the ignored paths for Diagnostic checks.
+
+## [2.5.0]
 ### Added
 - Implemented `Invalid Loc Key` diagnostic.
 - Implemented `Invalid PackFile Name` diagnostic.
@@ -32,7 +69,6 @@ If you're looking for the changes included in the latest beta (against the lates
 - Added a dialog before generating the dependencies cache.
 - Added a dialog before optimizing a PackFile, explaining what the optimizer does, and asking the user to make a backup before using it.
 - Added clear filter buttons to `Add From PackFile` and `AnimPack` filters.
-- Added option to send a table for decoding.
 
 ### Changed
 - Improved memory usage when extracting large amounts of files in one go.
@@ -71,6 +107,12 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a semi-random CTD that happened when RPFM could not access for a moment to a file on disk.
 - Fixed a CTD that happened when a update download ended up with an incomplete file.
 - Fixed `Paste as New Row` not properly marking cells as added.
+- Fixed CTD that happenend sometimes when trying to use the table decoder.
+- Fixed false positive on diagnostics when a cell was of a numeric type, it referenced another cell, and had 0 as value.
+
+### Known Issues
+- The `Duplicated Combined Key` is not very efficient on mods with tables with large amounts of entries (+5k rows). If checking your PackFile takes too long, you can disable that diagnostic for that PackFile in its PackFile Settings.
+- The new RigidModel editor is still in beta, and there are some RigidModels it cannot read properly/cause crashes at reading them. If you experience instabilities while using it, you can disable it in the Settings.
 
 ## [2.4.3]
 ### Added
@@ -347,7 +389,10 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...HEAD
+[2.5.2]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...v2.5.2
+[2.5.1]: https://github.com/Frodo45127/rpfm/compare/v2.5.0...v2.5.1
+[2.5.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/Frodo45127/rpfm/compare/v2.4.2...v2.4.3
 [2.4.2]: https://github.com/Frodo45127/rpfm/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/Frodo45127/rpfm/compare/v2.4.0...v2.4.1

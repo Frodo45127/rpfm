@@ -552,6 +552,13 @@ impl AppUI {
             }
         }
 
+        // Clean the treeview and the views from markers.
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+            packed_file_view.clean();
+        }
+
         // Then we re-enable the main Window and return whatever we've received.
         app_ui.main_window.set_enabled(true);
         result
@@ -669,10 +676,12 @@ impl AppUI {
                 KEY_NAPOLEON => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_EMPIRE => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(true);
                 },
                 _ => {},
             }
@@ -720,9 +729,11 @@ impl AppUI {
 
             // Disable Napoleon actions...
             app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(false);
 
             // Disable Empire actions...
             app_ui.special_stuff_emp_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(false);
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.
@@ -1568,19 +1579,21 @@ impl AppUI {
                         // If the file is a RigidModel PackedFile...
                         #[cfg(feature = "support_rigidmodel")]
                         PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&mut tab) {
-                                Ok(packed_file_info) => {
+                            if SETTINGS.read().unwrap().settings_bool["enable_rigidmodel_editor"] {
+                                match PackedFileRigidModelView::new_view(&mut tab) {
+                                    Ok(packed_file_info) => {
 
-                                   // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                       // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+                                        if let Some(packed_file_info) = packed_file_info {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        }
+                                    },
+                                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                }
                             }
                         }
 
@@ -2411,7 +2424,7 @@ impl AppUI {
         indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::PackFile, false); });
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::ExternalFile, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);

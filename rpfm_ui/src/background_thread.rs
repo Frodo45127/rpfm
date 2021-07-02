@@ -261,7 +261,10 @@ pub fn background_loop() {
             Command::GenerateDependenciesCache(path, version) => {
                 match dependencies.generate_dependencies_cache(&path, version) {
                     Ok(_) => match dependencies.save_to_binary() {
-                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                        Ok(_) => {
+                            CENTRAL_COMMAND.send_message_rust(Response::Success);
+                            let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
+                        },
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
@@ -678,12 +681,12 @@ pub fn background_loop() {
 
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path, false)));
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path)));
             }
 
             // In case we want to know if PackedFile exists, knowing his path...
             Command::PackedFileExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path, false)));
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path)));
             }
 
             // In case we want to get the list of tables in the dependency database...

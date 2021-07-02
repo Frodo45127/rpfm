@@ -1,16 +1,17 @@
 #include "combobox_item_delegate.h"
 #include <QDebug>
 #include <QAbstractItemView>
+#include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QComboBoxItemDelegate,
 // with the specified values. We have to tell it too if the combo will be editable or not.
-extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter) {
-    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght, timer, is_dark_theme_enabled, has_filter);
+extern "C" void new_combobox_item_delegate(QObject *parent, const int column, const QStringList* values, const bool is_editable, const int max_lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
+    QComboBoxItemDelegate* delegate = new QComboBoxItemDelegate(parent, *values, is_editable, max_lenght, timer, is_dark_theme_enabled, has_filter, right_side_mark);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
-QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter): QExtendedStyledItemDelegate(parent)
+QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent)
 {
     editable = is_editable;
     values = provided_values;
@@ -18,6 +19,23 @@ QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList 
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
+    use_right_side_mark = right_side_mark;
+
+    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+
+    if (dark_theme) {
+        colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
+    } else {
+        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
+    }
 }
 
 // Function called when the combo it's created. It just put the values into the combo and returns it.

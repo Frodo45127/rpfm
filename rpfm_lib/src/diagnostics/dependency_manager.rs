@@ -14,6 +14,8 @@ Module with all the code related to the `Diagnostics`.
 This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
 !*/
 
+use serde_derive::{Serialize, Deserialize};
+
 use std::{fmt, fmt::Display};
 
 use super::DiagnosticLevel;
@@ -23,13 +25,13 @@ use super::DiagnosticLevel;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the results of a diagnostics check over a single PackedFile.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DependencyManagerDiagnostic {
     result: Vec<DependencyManagerDiagnosticReport>
 }
 
 /// This struct defines an individual diagnostic result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyManagerDiagnosticReport {
     pub cells_affected: Vec<(i32, i32)>,
     pub message: String,
@@ -37,7 +39,7 @@ pub struct DependencyManagerDiagnosticReport {
     pub level: DiagnosticLevel,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DependencyManagerDiagnosticReportType {
     InvalidDependencyPackFileName
 }

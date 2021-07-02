@@ -17,6 +17,7 @@ use rpfm_error::{ErrorKind, Result};
 
 use crate::config::Config;
 
+mod diagnostic;
 mod table;
 mod packfile;
 mod schema;
@@ -139,4 +140,19 @@ pub fn command_schema(config: &Config, matches: &ArgMatches) -> Result<()> {
     }
 
 	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
+}
+
+/// This function triggers functions that require the `Diagnostics` command.
+pub fn command_diagnostic(config: &Config, matches: &ArgMatches, asskit_db_path: Option<&str>) -> Result<()> {
+    if matches.is_present("check") {
+        match matches.values_of("check") {
+            Some(values) => {
+                let pack_file_paths = values.collect::<Vec<&str>>();
+                diagnostic::check(&config, &pack_file_paths, asskit_db_path)
+            },
+            None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
+        }
+    }
+
+    else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }

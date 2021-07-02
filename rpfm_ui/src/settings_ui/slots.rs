@@ -12,9 +12,13 @@
 Module with all the code related to `SettingsUISlots`.
 !*/
 
+use qt_widgets::QColorDialog;
 use qt_widgets::QFontDialog;
+use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 
+use qt_gui::{QPalette, q_palette::ColorRole};
+use qt_gui::q_color::NameFormat;
 use qt_gui::QGuiApplication;
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
@@ -63,6 +67,17 @@ pub struct SettingsUISlots {
     pub clear_autosaves: QBox<SlotNoArgs>,
     pub clear_schemas: QBox<SlotNoArgs>,
     pub clear_layout: QBox<SlotNoArgs>,
+
+    pub select_colour_light_table_added: QBox<SlotNoArgs>,
+    pub select_colour_light_table_modified: QBox<SlotNoArgs>,
+    pub select_colour_light_diagnostic_error: QBox<SlotNoArgs>,
+    pub select_colour_light_diagnostic_warning: QBox<SlotNoArgs>,
+    pub select_colour_light_diagnostic_info: QBox<SlotNoArgs>,
+    pub select_colour_dark_table_added: QBox<SlotNoArgs>,
+    pub select_colour_dark_table_modified: QBox<SlotNoArgs>,
+    pub select_colour_dark_diagnostic_error: QBox<SlotNoArgs>,
+    pub select_colour_dark_diagnostic_warning: QBox<SlotNoArgs>,
+    pub select_colour_dark_diagnostic_info: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -189,6 +204,56 @@ impl SettingsUISlots {
                 q_settings.sync();
         }));
 
+        let select_colour_light_table_added = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_light_table_added_button);
+        }));
+
+        let select_colour_light_table_modified = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_light_table_modified_button);
+        }));
+
+        let select_colour_light_diagnostic_error = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_light_diagnostic_error_button);
+        }));
+
+        let select_colour_light_diagnostic_warning = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_light_diagnostic_warning_button);
+        }));
+
+        let select_colour_light_diagnostic_info = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_light_diagnostic_info_button);
+        }));
+
+        let select_colour_dark_table_added = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_dark_table_added_button);
+        }));
+
+        let select_colour_dark_table_modified = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_dark_table_modified_button);
+        }));
+
+        let select_colour_dark_diagnostic_error = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_dark_diagnostic_error_button);
+        }));
+
+        let select_colour_dark_diagnostic_warning = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_dark_diagnostic_warning_button);
+        }));
+
+        let select_colour_dark_diagnostic_info = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.ui_table_colour_dark_diagnostic_info_button);
+        }));
+
         // And here... we return all the slots.
 		Self {
             restore_default,
@@ -200,7 +265,30 @@ impl SettingsUISlots {
             font_settings,
             clear_autosaves,
             clear_schemas,
-            clear_layout
+            clear_layout,
+            select_colour_light_table_added,
+            select_colour_light_table_modified,
+            select_colour_light_diagnostic_error,
+            select_colour_light_diagnostic_warning,
+            select_colour_light_diagnostic_info,
+            select_colour_dark_table_added,
+            select_colour_dark_table_modified,
+            select_colour_dark_diagnostic_error,
+            select_colour_dark_diagnostic_warning,
+            select_colour_dark_diagnostic_info,
 		}
 	}
+}
+
+/// This function updates the colour of a colour button if needed.
+unsafe fn change_colour(button: &QBox<QPushButton>) {
+    let color = QColorDialog::get_color_1a(button.palette().color_1a(ColorRole::Background));
+    if color.is_valid() {
+        let palette = QPalette::from_q_color(&color);
+        button.set_palette(&palette);
+
+        if cfg!(target_os = "windows") {
+            button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", color.name_1a(NameFormat::HexArgb).to_std_string())));
+        }
+    }
 }

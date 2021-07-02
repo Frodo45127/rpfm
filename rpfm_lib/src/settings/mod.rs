@@ -87,6 +87,7 @@ impl Settings {
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
         settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), false);
         settings_bool.insert("expand_treeview_when_adding_items".to_owned(), true);
+        settings_bool.insert("use_right_size_markers".to_owned(), false);
 
         // Table Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
@@ -100,6 +101,7 @@ impl Settings {
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
         settings_bool.insert("enable_debug_menu".to_owned(), false);
         settings_bool.insert("spoof_ca_authoring_tool".to_owned(), false);
+        settings_bool.insert("enable_rigidmodel_editor".to_owned(), true);
 
         // Diagnostics Settings
         settings_bool.insert("diagnostics_trigger_on_open".to_owned(), true);
