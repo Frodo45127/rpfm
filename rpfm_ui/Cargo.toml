@@ -51,8 +51,8 @@ meval = "^0.2"
 uuid = { version = "^0.8", features = ["v4"] }
 
 # Translation support.
-fluent = "^0.13"
-fluent-bundle = "^0.13"
+fluent = "^0.15"
+fluent-bundle = "^0.15"
 unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
@@ -61,7 +61,7 @@ rayon = "^1.3"
 
 # Logging support.
 log = "^0.4"
-simplelog = "^0.9"
+simplelog = "^0.10"
 sentry = "^0.22"
 
 # Better iterator support.

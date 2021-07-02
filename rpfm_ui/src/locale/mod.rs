@@ -19,7 +19,7 @@ use qt_core::QString;
 
 use cpp_core::CppBox;
 
-use fluent_bundle::{FluentResource, concurrent::FluentBundle};
+use fluent_bundle::{FluentResource, FluentBundle};
 use unic_langid::{langid, LanguageIdentifier, subtags::Language};
 
 use std::fs::File;
@@ -48,6 +48,9 @@ const FALLBACK_LOCALE: &str = include_str!("../../../locale/English_en.ftl");
 #[derive(Clone)]
 pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
 
+/// Wacky fix for the "You cannot put a pointer in a static" problem.
+unsafe impl Sync for Locale {}
+
 /// Implementation of `Locale`.
 impl Locale {
 
@@ -69,7 +72,7 @@ impl Locale {
 
             // Then to a resource and a bundle.
             let resource = FluentResource::try_new(ftl_string)?;
-            let mut bundle = FluentBundle::new(&[selected_locale]);
+            let mut bundle = FluentBundle::new([selected_locale].to_vec());
             bundle.add_resource(resource)?;
 
             // If nothing failed, return the new translation.
@@ -84,7 +87,7 @@ impl Locale {
    /// This function initializes the fallback localisation included in the binary.
     pub fn initialize_fallback() -> Result<Self> {
         let resource = FluentResource::try_new(FALLBACK_LOCALE.to_owned())?;
-        let mut bundle = FluentBundle::new(&[langid!["en"]]);
+        let mut bundle = FluentBundle::new(vec![langid!["en"]]);
         bundle.add_resource(resource)?;
         Ok(Self(Arc::new(RwLock::new(bundle))))
     }
@@ -92,7 +95,7 @@ impl Locale {
     /// This function initializes an empty localisation, just in case some idiot deletes the english translation and fails to load it.
     pub fn initialize_empty() -> Self {
         let resource = FluentResource::try_new(String::new()).unwrap();
-        let mut bundle = FluentBundle::new(&[langid!["en"]]);
+        let mut bundle = FluentBundle::new(vec![langid!["en"]]);
         bundle.add_resource(resource).unwrap();
         Self(Arc::new(RwLock::new(bundle)))
     }
@@ -118,7 +121,7 @@ impl Locale {
     fn tr(key: &str) -> String {
         let mut _errors = vec![];
         match LOCALE.get().get_message(key) {
-            Some(message) => match message.value {
+            Some(message) => match message.value() {
                 Some(pattern) => LOCALE.get().format_pattern(&pattern, None, &mut _errors).to_string(),
                 None => Self::tr_fallback(key),
             },
@@ -130,7 +133,7 @@ impl Locale {
     fn tr_fallback(key: &str) -> String {
         let mut _errors = vec![];
         match LOCALE_FALLBACK.get().get_message(key) {
-            Some(message) => match message.value {
+            Some(message) => match message.value() {
                 Some(pattern) => LOCALE_FALLBACK.get().format_pattern(&pattern, None, &mut _errors).to_string(),
                 None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
             },

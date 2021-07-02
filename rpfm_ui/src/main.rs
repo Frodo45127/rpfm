@@ -39,7 +39,7 @@ use qt_core::QString;
 
 use lazy_static::lazy_static;
 use log::info;
-use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 
 use std::fs::File;
 use std::path::PathBuf;
@@ -284,7 +284,7 @@ fn main() {
     if !cfg!(debug_assertions) && CrashReport::init().is_err() {
         let _ = CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed),
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
             ]
         );
