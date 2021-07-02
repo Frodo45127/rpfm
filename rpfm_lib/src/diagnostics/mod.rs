@@ -19,6 +19,7 @@ Notes on cells_affected:
 - Column -1: affects all columns in single row.
 !*/
 
+use serde_derive::{Serialize, Deserialize};
 use itertools::Itertools;
 use fancy_regex::Regex;
 use rayon::prelude::*;
@@ -56,10 +57,10 @@ pub mod table;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the results of a diagnostics check over multiple PackedFiles.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Diagnostics(Vec<DiagnosticType>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticType {
     AnimFragment(AnimFragmentDiagnostic),
     DB(TableDiagnostic),
@@ -70,7 +71,7 @@ pub enum DiagnosticType {
 }
 
 /// This enum defines the possible results for a result of a diagnostic check.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticLevel {
     Info,
     Warning,
@@ -200,6 +201,7 @@ impl Diagnostics {
                 _ => {},
             }
         }
+
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
 
             // Getting this here speeds up a lot path-checking later.

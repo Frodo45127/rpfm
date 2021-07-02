@@ -2160,6 +2160,7 @@ dependencies = [
  "prettytable-rs",
  "rpfm_error",
  "rpfm_lib",
+ "serde_json",
  "simple_logger",
  "simplelog",
  "winres",

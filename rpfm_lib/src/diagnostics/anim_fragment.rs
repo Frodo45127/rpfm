@@ -14,6 +14,8 @@ Module with all the code related to the `Diagnostics`.
 This module contains the code needed to get a `Diagnostics` over animfragments.
 !*/
 
+use serde_derive::{Serialize, Deserialize};
+
 use std::{fmt, fmt::Display};
 
 use super::DiagnosticLevel;
@@ -23,14 +25,14 @@ use super::DiagnosticLevel;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the results of a diagnostics check over an animfragment.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AnimFragmentDiagnostic {
     path: Vec<String>,
     result: Vec<AnimFragmentDiagnosticReport>
 }
 
 /// This struct defines an individual diagnostic result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimFragmentDiagnosticReport {
 
     /// List of cells, in "row, column" format. If the full row or full column are affected, use -1.
@@ -40,7 +42,7 @@ pub struct AnimFragmentDiagnosticReport {
     pub level: DiagnosticLevel,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnimFragmentDiagnosticReportType {
     FieldWithPathNotFound,
 }

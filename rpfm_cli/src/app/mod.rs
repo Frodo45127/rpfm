@@ -58,6 +58,15 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
             .possible_values(&["three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])
             .takes_value(true))
 
+        // `AssKit DB Path` flag. This is required for certain operations requiring the dependencies cache.
+        .arg(Arg::with_name("asskit_db_path")
+            .short("a")
+            .long("assdb")
+            .value_name("ASSKIT DB PATH")
+            .help("Sets the 'Asskit Raw DB Path'. Used on certain operations depending on the dependencies cache.")
+            .required(false)
+            .takes_value(true))
+
         // `PackFile` Path. This is required for some commands.
         .arg(Arg::with_name("packfile")
             .short("p")
@@ -70,6 +79,17 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
         //---------------------------//
         // Commands
         //---------------------------//
+
+        // `Diagnostic` Subcommand. To check for errors between PackFiles.
+        .subcommand(SubCommand::with_name("diagnostic")
+            .about("Allows you to perform diagnostic-related operation over specific sets of PackFiles.")
+            .arg(Arg::with_name("check")
+                .short("c")
+                .long("check")
+                .value_name("PACKFILES TO CHECK, IN LOAD ORDER")
+                .help("Performs a diagnostics check over the PackFiles provided.")
+                .takes_value(true)
+                .min_values(1)))
 
         // `PackFile` Subcommand. Every command that edits PackFiles in any way goes here.
         .subcommand(SubCommand::with_name("packfile")
