@@ -117,8 +117,8 @@ impl ESFTree for QBox<QTreeView> {
                         state_item.set_selectable(false);
 
                         let esf_data_no_node: ESF = esf_data.clone_without_root_node();
-                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&esf_data_no_node).unwrap())), ESF_DATA);
-                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
 
                         let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                         state_item.set_flags(QFlags::from(flags));
@@ -180,8 +180,8 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 childs_data.push(grandchild.clone_without_children());
             }
 
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&childs_data).unwrap())), CHILD_NODES);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&childs_data).unwrap())), CHILD_NODES);
 
             let qlist = QListOfQStandardItem::new();
             qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
@@ -213,8 +213,8 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
                 childs_data_2.push((*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect()));
             }
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&childs_data_2).unwrap())), CHILD_NODES);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&childs_data_2).unwrap())), CHILD_NODES);
 
             let qlist = QListOfQStandardItem::new();
             qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
