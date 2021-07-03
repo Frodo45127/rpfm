@@ -67,6 +67,9 @@ pub trait Encoder {
     /// This function allows us to encode a f32 float into the provided `Vec<u8>`.
     fn encode_float_f32(&mut self, float: f32);
 
+    /// This function allows us to encode a f64 float into the provided `Vec<u8>`.
+    fn encode_float_f64(&mut self, float: f64);
+
     /// This function allows us to encode an UTF-8 String into the provided `Vec<u8>`.
     fn encode_string_u8(&mut self, string: &str);
 
@@ -187,6 +190,10 @@ impl Encoder for Vec<u8> {
 
     fn encode_float_f32(&mut self, float: f32) {
         self.write_f32::<LittleEndian>(float).unwrap();
+    }
+
+    fn encode_float_f64(&mut self, float: f64) {
+        self.write_f64::<LittleEndian>(float).unwrap();
     }
 
     fn encode_string_u8(&mut self, string: &str) {

@@ -153,6 +153,17 @@ fn test_decode_float_f32() {
     assert_eq!(Decoder::decode_float_f32([0, 32, 65].as_ref(), 0).is_err(), true);
 }
 
+/// Test to make sure the f64 float decoder (`decode_float_f64()`) works and fails properly.
+#[test]
+fn test_decode_float_f64() {
+
+    // Check the decoding works for a proper value.
+    assert_eq!(Decoder::decode_float_f64([0, 0, 0, 0, 0, 0, 36, 64].as_ref(), 0).unwrap(), 10.0);
+
+    // Check the decoder returns an error for a slice who's length is smaller than 8.
+    assert_eq!(Decoder::decode_float_f64([0, 0, 0, 0, 36, 64].as_ref(), 0).is_err(), true);
+}
+
 /// Test to make sure the u8 string decoder (`decode_string_u8()`) works and fails properly.
 #[test]
 fn test_decode_string_u8() {

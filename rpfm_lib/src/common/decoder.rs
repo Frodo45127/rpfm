@@ -78,6 +78,9 @@ pub trait Decoder {
     /// This function allows us to decode a f32 float from raw data.
     fn decode_float_f32(&self, offset: usize) -> Result<f32>;
 
+    /// This function allows us to decode a f64 float from raw data.
+    fn decode_float_f64(&self, offset: usize) -> Result<f64>;
+
     /// This function allows us to decode an UTF-8 String  from raw data.
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String>;
 
@@ -143,6 +146,9 @@ pub trait Decoder {
 
     /// This function allows us to decode an f32 encoded float from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_float_f32(&self, offset: usize, index: &mut usize) -> Result<f32>;
+
+    /// This function allows us to decode an f64 encoded float from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_float_f64(&self, offset: usize, index: &mut usize) -> Result<f64>;
 
     /// This function allows us to decode an UTF-8 encoded String from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_string_u8(&self, offset: usize, index: &mut usize) -> Result<String>;
@@ -250,6 +256,11 @@ impl Decoder for [u8] {
     fn decode_float_f32(&self, offset: usize) -> Result<f32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_f32(&self[offset..])) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an f32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
+    }
+
+    fn decode_float_f64(&self, offset: usize) -> Result<f64> {
+        if self.len() >= offset + 8 { Ok(LittleEndian::read_f64(&self[offset..])) }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an f64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }
 
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String> {
@@ -399,6 +410,12 @@ impl Decoder for [u8] {
     fn decode_packedfile_float_f32(&self, offset: usize, index: &mut usize) -> Result<f32> {
         let result = self.decode_float_f32(offset);
         if result.is_ok() { *index += 4; }
+        result
+    }
+
+    fn decode_packedfile_float_f64(&self, offset: usize, index: &mut usize) -> Result<f64> {
+        let result = self.decode_float_f64(offset);
+        if result.is_ok() { *index += 8; }
         result
     }
 

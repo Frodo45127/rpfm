@@ -132,7 +132,7 @@ fn test_encode_integer_i64() {
     assert_eq!(data, vec![254, 254, 255, 255, 255, 255, 255, 255]);
 }
 
-/// Test to make sure the f64 float encoder (`encode_float_f32()`) works properly.
+/// Test to make sure the f32 float encoder (`encode_float_f32()`) works properly.
 #[test]
 fn test_encode_float_f32() {
 
@@ -140,6 +140,16 @@ fn test_encode_float_f32() {
     let mut data = vec![];
     data.encode_float_f32(-10.2);
     assert_eq!(data, vec![51, 51, 35, 193]);
+}
+
+/// Test to make sure the f64 float encoder (`encode_float_f64()`) works properly.
+#[test]
+fn test_encode_float_f64() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_float_f64(-10.2);
+    assert_eq!(data, vec![102, 102, 102, 102, 102, 102, 36, 192]);
 }
 
 /// Test to make sure the u8 string encoder (`encode_string_u8()`) works properly.
