@@ -255,7 +255,6 @@ pub struct Coordinates3DNode {
 pub struct RecordNode {
     version: u8,
     name: String,
-    offset_len: u32,
     long_record: bool,
     children: Vec<NodeType>
 }
@@ -265,9 +264,7 @@ pub struct RecordNode {
 pub struct RecordBlockNode {
     version: u8,
     name: String,
-    offset_len: u32,
-    offset_len_2: u32,
-    children: Vec<(u32, Vec<NodeType>)>
+    children: Vec<Vec<NodeType>>
 }
 
 //---------------------------------------------------------------------------//
@@ -335,7 +332,6 @@ impl NodeType {
                 let mut new_node = RecordNode::default();
                 new_node.set_name(node.get_ref_name().to_owned());
                 new_node.set_version(*node.get_ref_version());
-                new_node.set_offset_len(*node.get_ref_offset_len());
 
                 Self::Record(new_node)
             }
@@ -344,8 +340,6 @@ impl NodeType {
                 let mut new_node = RecordBlockNode::default();
                 new_node.set_name(node.get_ref_name().to_owned());
                 new_node.set_version(*node.get_ref_version());
-                new_node.set_offset_len(*node.get_ref_offset_len());
-                new_node.set_offset_len_2(*node.get_ref_offset_len_2());
 
                 Self::RecordBlock(new_node)
             }

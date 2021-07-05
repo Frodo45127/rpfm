@@ -12,7 +12,7 @@
 Module with all the code needed to support the CAAB format for ESF files.
 !*/
 
-use std::{collections::BTreeMap, ops::Sub};
+use std::collections::BTreeMap;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -154,7 +154,6 @@ impl ESF {
         strings_utf8: &BTreeMap<u32, String>,
         strings_utf16: &BTreeMap<u32, String>
     ) -> Result<NodeType> {
-        let initial_offset = *offset;
         let next_byte = packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)?;
         let has_long_info_bit = next_byte & LONG_INFO;
         let has_record_bit = next_byte & RECORD;
@@ -488,14 +487,9 @@ impl ESF {
                     None => return Err(ErrorKind::ESFRecordNameNotFound(name_index as u32).into())
                 };
 
-                // Explanation for this weird thing:
-                // - The end offset starts after the first 0x80 byte.
-                // - We have to "sum" all bytes from that until the next 0x80 byte.
-                let mut offset_len = *offset;
                 let mut end_offset = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
 
                 end_offset += *offset as u32;
-                offset_len = *offset - offset_len;
                 //let data = packed_file_data[*offset..end_offset as usize].to_vec();
 
 
@@ -536,13 +530,11 @@ impl ESF {
                     name,
                     children,
                     long_record: has_long_info_bit != 0,
-                    offset_len: offset_len as u32,
                 };
 
                 NodeType::Record(node_data)
             },
 
-            // Incomplete
             RECORD_BLOCK | _ if has_record_bit != 0 && has_block_bit != 0 => {
 
                 // If it's not the root node, the data is encoded in 2 bytes using bitwise.
@@ -554,40 +546,38 @@ impl ESF {
                     None => return Err(ErrorKind::ESFRecordNameNotFound(name_index as u32).into())
                 };
 
-                // Explanation for this weird thing:
-                // - The end offset starts after the first 0x80 byte.
-                // - We have to "sum" all bytes from that until the next 0x80 byte.
-                let mut offset_len = *offset;
-                let mut end_offset = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
-                end_offset += *offset as u32;
-                offset_len = *offset - offset_len;
+                // Get the block size, to know what data do we have to decode exactly.
+                let block_size = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
+                let group_count = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
+                let final_block_offset = *offset + block_size as usize;
 
-                let mut offset_len_2 = *offset;
-                let count = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
-                offset_len_2 = *offset - offset_len_2;
-
-                let mut children = vec![];
-                for x in 0..count {
-                    let mut offset_len_3 = *offset;
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
-                    offset_len_3 = *offset - offset_len_3;
-
-                    let end_offset_2 = *offset + size as usize;
+                let mut children = Vec::with_capacity(group_count as usize);
+                for _ in 0..group_count {
+                    let entry_size = packed_file_data.decode_packedfile_integer_cauleb128(&mut offset)?;
+                    let final_entry_offset = *offset + entry_size as usize;
                     let mut node_list = vec![];
 
-                    while *offset < end_offset_2 {
-                        node_list.push(Self::read_node(&packed_file_data, &mut offset, false, record_names, strings_utf8, strings_utf16)?);
+                    while *offset < final_entry_offset {
+                        node_list.push(Self::read_node(&packed_file_data[..final_entry_offset], &mut offset, false, record_names, strings_utf8, strings_utf16)?);
                     }
 
-                    children.push((offset_len_3 as u32, node_list));
+                    // Make sure we decoded exactly the data we wanted.
+                    if *offset != final_entry_offset {
+                        return Err(ErrorKind::ESFIncompleteDecoding.into())
+                    }
+
+                    children.push(node_list);
+                }
+
+                // Make sure we decoded exactly the data we wanted.
+                if *offset != final_block_offset {
+                    return Err(ErrorKind::ESFIncompleteDecoding.into())
                 }
 
                 let node_data = RecordBlockNode {
                     version,
                     name,
                     children,
-                    offset_len: offset_len as u32,
-                    offset_len_2: offset_len_2 as u32,
                 };
 
                 NodeType::RecordBlock(node_data)
@@ -1022,11 +1012,6 @@ impl ESF {
                     childs_data.extend_from_slice(&Self::save_node(&node, false, record_names, strings_utf8, strings_utf16));
                 }
 
-                let mut a = vec![];
-                a.encode_integer_cauleb128(childs_data.len() as u32);
-                for x in 0..value.offset_len - a.len() as u32 {
-                    data.push(0x80);
-                }
                 data.encode_integer_cauleb128(childs_data.len() as u32);
                 data.extend_from_slice(&childs_data);
             },
@@ -1044,36 +1029,18 @@ impl ESF {
                 data.push(info as u8);
 
                 let mut childs_data = vec![];
-                for (bytes, group_node) in &value.children {
+                for group_node in &value.children {
                     let mut group_node_data = vec![];
                     for node in group_node {
                         let child_node = Self::save_node(&node, false, record_names, strings_utf8, strings_utf16);
                         group_node_data.extend_from_slice(&child_node);
                     }
 
-                    let mut a = vec![];
-                    a.encode_integer_cauleb128(group_node_data.len() as u32);
-                    for x in 0..bytes - a.len() as u32 {
-                        childs_data.push(0x80);
-                    }
-
                     childs_data.encode_integer_cauleb128(group_node_data.len() as u32);
                     childs_data.extend_from_slice(&group_node_data);
                 }
 
-                let mut a = vec![];
-                a.encode_integer_cauleb128(childs_data.len() as u32);
-                for x in 0..value.offset_len - a.len() as u32 {
-                    data.push(0x80);
-                }
                 data.encode_integer_cauleb128(childs_data.len() as u32);
-
-                let mut a = vec![];
-                a.encode_integer_cauleb128(value.children.len() as u32);
-                for x in 0..value.offset_len_2 - a.len() as u32 {
-                    data.push(0x80);
-                }
-
                 data.encode_integer_cauleb128(value.children.len() as u32);
                 data.extend_from_slice(&childs_data);
             },
@@ -1211,7 +1178,7 @@ impl ESF {
                 if !record_names.contains(&value.name) {
                     record_names.push(value.name.to_owned());
                 }
-                for (_, node_group) in &value.children {
+                for node_group in &value.children {
                     for node in node_group {
                         Self::read_string_from_node(&node, record_names, strings_utf8, strings_utf16);
                     }

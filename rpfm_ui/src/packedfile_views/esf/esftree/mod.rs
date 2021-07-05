@@ -201,9 +201,9 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 child_item.set_text(&QString::from_std_str(block_key));
             }
 
-            let mut childs_data_2: Vec<(u32, Vec<NodeType>)> = vec![];
+            let mut childs_data_2: Vec<Vec<NodeType>> = vec![];
 
-            for (unknown, grandchildren) in node.get_ref_children() {
+            for grandchildren in node.get_ref_children() {
                 let grandchild_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
                 let grandstate_item = QStandardItem::new();
                 grandstate_item.set_selectable(false);
@@ -217,7 +217,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 }
 
                 grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&(*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>())).unwrap())), CHILD_NODES);
+                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&grandchildren.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
 
                 let qlist = QListOfQStandardItem::new();
                 qlist.append_q_standard_item(&grandchild_item.into_ptr().as_mut_raw_ptr());
@@ -225,7 +225,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
                 child_item.append_row_q_list_of_q_standard_item(qlist.as_ref());
 
-                childs_data_2.push((*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect()));
+                childs_data_2.push(grandchildren.iter().map(|x| x.clone_without_children()).collect());
             }
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&childs_data_2).unwrap())), CHILD_NODES);
@@ -292,7 +292,7 @@ unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model
         },
         NodeType::RecordBlock(ref mut node) => {
             let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
-            let mut children_stash: Vec<(u32, Vec<NodeType>)> = if !child_nodes.is_empty() {
+            let mut children_stash: Vec<Vec<NodeType>> = if !child_nodes.is_empty() {
                 match serde_json::from_str(&child_nodes) {
                     Ok(data) => data,
                     Err(error) => { dbg!(error); vec![]},
@@ -314,7 +314,7 @@ unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model
             if !children_stack.is_empty() {
                 let mut row = 0;
 
-                for (_, children_stash_pack) in children_stash.iter_mut() {
+                for children_stash_pack in children_stash.iter_mut() {
                     for child_stashed in children_stash_pack.iter_mut() {
                         match child_stashed {
                             NodeType::Record(_) |
