@@ -377,15 +377,15 @@ fn test_decode_packedfile_integer_u64() {
     }
 }
 
-/// Test to make sure the uleb_128 encoded integer decoder (`decode_integer_uleb128()`) works and fails properly.
+/// Test to make sure the uleb_128 encoded integer decoder (`decode_packedfile_integer_cauleb128()`) works and fails properly.
 #[test]
-fn test_decode_packedfile_integer_uleb128() {
+fn test_decode_packedfile_integer_cauleb128() {
 
     // Check the decoding works for a proper value.
-    assert_eq!(Decoder::decode_packedfile_integer_uleb128([0x80, 10].as_ref(), &mut 0).unwrap(), 10);
+    assert_eq!(Decoder::decode_packedfile_integer_cauleb128([0x80, 10].as_ref(), &mut 0).unwrap(), 10);
 
     // Check the decoder returns an error for a slice that's not big enough.
-    assert_eq!(Decoder::decode_packedfile_integer_uleb128([].as_ref(), &mut 0).is_err(), true);
+    assert_eq!(Decoder::decode_packedfile_integer_cauleb128([].as_ref(), &mut 0).is_err(), true);
 }
 
 

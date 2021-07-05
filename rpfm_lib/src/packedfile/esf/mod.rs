@@ -20,7 +20,6 @@ use std::{fmt, fmt::Display};
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_macros::*;
-use serde_json::to_string_pretty;
 
 use crate::common::decoder::Decoder;
 
@@ -43,16 +42,16 @@ pub const INVALID: u8 = 0x00;
 
 /// Primitives
 pub const BOOL: u8 = 0x01;
-pub const INT8: u8 = 0x02;
-pub const INT16: u8 = 0x03;
-pub const INT32: u8 = 0x04;
-pub const INT64: u8 = 0x05;
-pub const UINT8: u8 = 0x06;
-pub const UINT16: u8 = 0x07;
-pub const UINT32: u8 = 0x08;
-pub const UINT64: u8 = 0x09;
-pub const SINGLE: u8 = 0x0a;
-pub const DOUBLE: u8 = 0x0b;
+pub const I8: u8 = 0x02;
+pub const I16: u8 = 0x03;
+pub const I32: u8 = 0x04;
+pub const I64: u8 = 0x05;
+pub const U8: u8 = 0x06;
+pub const U16: u8 = 0x07;
+pub const U32: u8 = 0x08;
+pub const U64: u8 = 0x09;
+pub const F32: u8 = 0x0a;
+pub const F64: u8 = 0x0b;
 pub const COORD2D: u8 = 0x0c;
 pub const COORD3D: u8 = 0x0d;
 pub const UTF16: u8 = 0x0e;
@@ -130,6 +129,9 @@ pub const SINGLE_ZERO_ARRAY: u8 = 0x5d;  // makes no sense
 pub const LONG_RECORD: u8 = 0xa0;
 pub const LONG_RECORD_BLOCK: u8 = 0xe0;
 
+pub const COMPRESSED_DATA_TAG: &str = "COMPRESSED_DATA";
+pub const COMPRESSED_DATA_INFO_TAG: &str = "COMPRESSED_DATA_INFO";
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -141,7 +143,6 @@ pub struct ESF {
     unknown_1: u32,
     creation_date: u32,
     root_node: NodeType,
-    unknown_2: u32,
 }
 
 /// This enum contains the different signatures of ESF files.
@@ -160,27 +161,27 @@ pub enum ESFSignature {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum NodeType {
     Invalid,
-    Bool(bool),
-    Int8(i8),
-    Int16(i16),
-    Int32(i32),
-    Int64(i64),
-    Uint8(u8),
-    Uint16(u16),
-    Uint32(u32),
-    Uint64(u64),
-    Single(f32),
-    Double(f64),
+    Bool(BoolNode),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
+    F64(f64),
     Coord2d(Coordinates2DNode),
     Coord3d(Coordinates3DNode),
     Utf16(String),
     Ascii(String),
-    //Angle(bool),
-    AsciiW21(String),
-    AsciiW25(String),
+    Angle(i16),
+    AsciiW21(u32),
+    AsciiW25(u32),
     Unknown23(u8),
     //Unknown_24(bool),
-    //Unknown_26(bool),
+    Unknown26(Vec<u8>),
     BoolArray(Vec<bool>),
     Int8Array(Vec<i8>),
     Int16Array(Vec<i16>),
@@ -191,12 +192,12 @@ pub enum NodeType {
     Uint32Array(Vec<u32>),
     Uint64Array(Vec<u64>),
     SingleArray(Vec<f32>),
-    //DoubleArray(Vec<f64>),
+    DoubleArray(Vec<f64>),
     Coord2dArray(Vec<Coordinates2DNode>),
     Coord3dArray(Vec<Coordinates3DNode>),
     Utf16Array(Vec<String>),
     AsciiArray(Vec<String>),
-    //Angle_array(bool),
+    AngleArray(Vec<i16>),
     Record(RecordNode),
     RecordBlock(RecordBlockNode),
     BoolTrue(bool),
@@ -215,26 +216,33 @@ pub enum NodeType {
     //Bool_false_array(bool),
     //Uint_zero_array(bool),
     //Uint_one_array(bool),
-    //Uint32_byte_array(bool),
-    //Uint32_short_array(bool),
-    //Uint32_24bit_array(bool),
-    //Int32_zero_array(bool),
-    //Int32_byte_array(bool),
-    //Int32_short_array(bool),
-    //Int32_24bit_array(bool),
-    //Single_zero_array(bool),
+    Uint32ByteArray(Vec<u32>),
+    Uint32ShortArray(Vec<u32>),
+    Uint32_24bitArray(Vec<u32>),
+    //Int32ZeroArray(Vec<i32>),
+    Int32ByteArray(Vec<i32>),
+    Int32ShortArray(Vec<i32>),
+    Int32_24bitArray(Vec<i32>),
+    //SingleZeroArray(Vec<f32>),
     //Long_record(bool),
     //Long_record_block(bool),
 }
 
-/// TODO: confirm what each number is.
+/// Node containing a bool value, and if the node should be optimized or not.
+#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct BoolNode {
+    value: bool,
+    optimized: bool,
+}
+
+/// Node containing a pair of X/Y coordinates.
 #[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Coordinates2DNode {
     x: f32,
     y: f32,
 }
 
-/// TODO: confirm what each number is.
+/// Node containing a group of X/Y/Z coordinates.
 #[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Coordinates3DNode {
     x: f32,
@@ -248,6 +256,7 @@ pub struct RecordNode {
     version: u8,
     name: String,
     offset_len: u32,
+    long_record: bool,
     children: Vec<NodeType>
 }
 
@@ -313,7 +322,6 @@ impl ESF {
             unknown_1: self.unknown_1,
             creation_date: self.creation_date,
             root_node: NodeType::Invalid,
-            unknown_2: self.unknown_2,
         }
     }
 }
@@ -354,7 +362,6 @@ impl Default for ESF {
             unknown_1: 0,
             creation_date: 0,
             root_node: NodeType::Invalid,
-            unknown_2: 0
         }
     }
 }

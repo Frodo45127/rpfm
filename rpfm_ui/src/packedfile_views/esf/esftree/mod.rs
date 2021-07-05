@@ -203,13 +203,26 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             let mut childs_data_2: Vec<(u32, Vec<NodeType>)> = vec![];
 
             for (unknown, grandchildren) in node.get_ref_children() {
+                let grandchild_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
+                let grandstate_item = QStandardItem::new();
+                grandstate_item.set_selectable(false);
+
                 for grandchild in grandchildren {
                     match grandchild {
-                        NodeType::RecordBlock(_) => load_node_to_view(&child_item, &grandchild, None),
-                        NodeType::Record(_) => load_node_to_view(&child_item, &grandchild, None),
+                        NodeType::RecordBlock(_) => load_node_to_view(&grandchild_item, &grandchild, None),
+                        NodeType::Record(_) => load_node_to_view(&grandchild_item, &grandchild, None),
                         _ => {}
                     }
                 }
+
+                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&(*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>())).unwrap())), CHILD_NODES);
+
+                let qlist = QListOfQStandardItem::new();
+                qlist.append_q_standard_item(&grandchild_item.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&grandstate_item.into_ptr().as_mut_raw_ptr());
+
+                child_item.append_row_q_list_of_q_standard_item(qlist.as_ref());
 
                 childs_data_2.push((*unknown, grandchildren.iter().map(|x| x.clone_without_children()).collect()));
             }

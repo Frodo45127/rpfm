@@ -46,8 +46,8 @@ pub trait Encoder {
     /// This function allows us to encode an u64 integer into the provided `Vec<u8>`.
     fn encode_integer_u64(&mut self, integer: u64);
 
-    /// This function allows us to encode an u32 integer with ULEB_128 encoding into the provided `Vec<u8>`.
-    fn encode_integer_uleb128(&mut self, integer: u32);
+    /// This function allows us to encode an u32 integer with ULEB_128 (CA's flavour of it) encoding into the provided `Vec<u8>`.
+    fn encode_integer_cauleb128(&mut self, integer: u32);
 
     /// This function allows us to encode an i8 integer into the provided `Vec<u8>`.
     fn encode_integer_i8(&mut self, integer: i8);
@@ -134,35 +134,27 @@ impl Encoder for Vec<u8> {
         self.write_u64::<LittleEndian>(integer).unwrap();
     }
 
-    // At least I think it's uleb128.
-    fn encode_integer_uleb128(&mut self, integer: u32) {
+    fn encode_integer_cauleb128(&mut self, mut integer: u32) {
         let mut data = vec![];
-        let mut temp_data = vec![];
 
-        // If it's 0, just push a 0 and forget.
-        if integer == 0 {
-            data.push(0);
-        }
+        loop {
 
-        // Otherwise, time for fun encoding.
-        let mut integer = integer;
+            // Get the byte to encode.
+            let byte = integer & 0x7f;
 
-        while integer != 0 {
-            temp_data.push((integer & 0x7f) as u8);
-            integer = integer >> 7;
-        }
-
-        while !temp_data.is_empty() {
-            match temp_data.pop() {
-                Some(mut byte) => {
-                    if !temp_data.is_empty() {
-                        byte |= 0x80;
-                    }
-                    data.push(byte);
-                }
-                None => data.push(0),
+            // If it's not the last one, encode it with the 0x80 bit set,
+            // and move the rest of the number to be ready to check the next one.
+            if byte != integer {
+                data.push(byte as u8 | 0x80);
+                integer >>= 7;
+            } else {
+                data.push(byte as u8 | 0x80);
+                break;
             }
         }
+
+        data.reverse();
+        *data.last_mut().unwrap() &= 0x7f;
 
         self.extend_from_slice(&data);
     }
