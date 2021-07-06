@@ -119,13 +119,15 @@ impl ESFTree for QBox<QTreeView> {
                         let esf_data_no_node: ESF = esf_data.clone_without_root_node();
                         big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
                         big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.get_ref_children().iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
 
                         let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                         state_item.set_flags(QFlags::from(flags));
 
-                        for node in node.get_ref_children() {
-                            load_node_to_view(&big_parent, node, None);
+                        for node_group in node.get_ref_children() {
+                            for node in node_group {
+                                load_node_to_view(&big_parent, node, None);
+                            }
                         }
 
                         // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
@@ -170,37 +172,6 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 child_item.set_text(&QString::from_std_str(block_key));
             }
 
-            let mut childs_data = vec![];
-            for grandchild in node.get_ref_children() {
-                match grandchild {
-                    NodeType::RecordBlock(_) => load_node_to_view(&child_item, &grandchild, None),
-                    NodeType::Record(_) => load_node_to_view(&child_item, &grandchild, None),
-                    _ => {}
-                }
-
-                childs_data.push(grandchild.clone_without_children());
-            }
-
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&childs_data).unwrap())), CHILD_NODES);
-
-            let qlist = QListOfQStandardItem::new();
-            qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
-            qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
-
-
-            parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
-        }
-
-        NodeType::RecordBlock(node) => {
-            let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
-            let state_item = QStandardItem::new();
-            state_item.set_selectable(false);
-
-            if let Some(block_key) = block_key {
-                child_item.set_text(&QString::from_std_str(block_key));
-            }
-
             let mut childs_data_2: Vec<Vec<NodeType>> = vec![];
 
             for grandchildren in node.get_ref_children() {
@@ -210,7 +181,6 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
                 for grandchild in grandchildren {
                     match grandchild {
-                        NodeType::RecordBlock(_) => load_node_to_view(&grandchild_item, &grandchild, None),
                         NodeType::Record(_) => load_node_to_view(&grandchild_item, &grandchild, None),
                         _ => {}
                     }
@@ -241,9 +211,9 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 }
 
 /// This function reads the entire `TreeView` recursively and returns a node list.
-unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model: &QStandardItemModel) -> NodeType {
+unsafe fn get_node_type_from_tree_node(current_item: Option<Ptr<QStandardItem>>, model: &QStandardItemModel) -> NodeType {
 
-    let item = if let Some(item) = item_1 { item } else { model.item_1a(0) };
+    let item = if let Some(item) = current_item { item } else { model.item_1a(0) };
     let mut node = serde_json::from_str(&item.data_1a(CHILDLESS_NODE).to_string().to_std_string()).unwrap();
 
     // If it has no children, just its json.
@@ -251,46 +221,6 @@ unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model
         NodeType::Record(ref mut node) => {
 
             // Get the stashed children.
-            let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
-            let mut children_stash: Vec<NodeType> = if !child_nodes.is_empty() {
-                match serde_json::from_str(&child_nodes) {
-                    Ok(data) => data,
-                    Err(error) => { dbg!(error); vec![]},
-                }
-            } else {
-                vec![]
-            };
-
-            // Get the stacked children.
-            let children_count = item.row_count();
-            let mut children_stack = Vec::with_capacity(children_count as usize);
-            for row in 0..children_count {
-                let child = item.child_1a(row);
-                children_stack.push(get_node_type_from_tree_node(Some(child), model));
-            }
-
-            // If it's not the root node, and we have stacked children, move the stacked data into the stashed children.
-            if item_1.is_some() && !children_stack.is_empty() {
-                let mut row = 0;
-
-                for child_stashed in children_stash.iter_mut() {
-                    match child_stashed {
-                        NodeType::Record(_) |
-                        NodeType::RecordBlock(_) => {
-                            let child_item = item.child_1a(row);
-                            *child_stashed = get_node_type_from_tree_node(Some(child_item), model);
-                            row += 1;
-                        },
-                        _ => {},
-                    }
-                }
-            } else if item_1.is_none() {
-                children_stash = children_stack;
-            }
-
-            node.set_children(children_stash);
-        },
-        NodeType::RecordBlock(ref mut node) => {
             let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
             let mut children_stash: Vec<Vec<NodeType>> = if !child_nodes.is_empty() {
                 match serde_json::from_str(&child_nodes) {
@@ -309,16 +239,14 @@ unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model
                 children_stack.push(get_node_type_from_tree_node(Some(child), model));
             }
 
-
-            // If it has children of its own, it's a Record/RecordBlock.
-            if !children_stack.is_empty() {
+            // If it's not the root node, and we have stacked children, move the stacked data into the stashed children.
+            if current_item.is_some() && !children_stack.is_empty() {
                 let mut row = 0;
 
                 for children_stash_pack in children_stash.iter_mut() {
                     for child_stashed in children_stash_pack.iter_mut() {
                         match child_stashed {
-                            NodeType::Record(_) |
-                            NodeType::RecordBlock(_) => {
+                            NodeType::Record(_) => {
                                 let child_item = item.child_1a(row);
                                 *child_stashed = get_node_type_from_tree_node(Some(child_item), model);
                                 row += 1;
@@ -327,8 +255,11 @@ unsafe fn get_node_type_from_tree_node(item_1: Option<Ptr<QStandardItem>>, model
                         }
                     }
                 }
+            } else if current_item.is_none() {
+                children_stash = vec![children_stack];
             }
-            node.set_children(children_stash)
+
+            node.set_children(children_stash);
         },
         _ => unimplemented!()
     }
