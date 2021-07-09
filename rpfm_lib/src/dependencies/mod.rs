@@ -215,24 +215,23 @@ impl Dependencies {
         self.parent_cached_folders_cased.clear();
         self.asskit_only_db_tables.clear();
 
-        if let Ok(pack_file) = PackFile::open_all_ca_packfiles() {
-            self.vanilla_cached_packed_files = pack_file.get_ref_packed_files_all().par_iter()
-                .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some((data.get_ref_packed_file_path().to_owned(), data)) } else { None })
-                .collect::<HashMap<String, CachedPackedFile>>();
+        let pack_file = PackFile::open_all_ca_packfiles()?;
+        self.vanilla_cached_packed_files = pack_file.get_ref_packed_files_all().par_iter()
+            .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some((data.get_ref_packed_file_path().to_owned(), data)) } else { None })
+            .collect::<HashMap<String, CachedPackedFile>>();
 
-            // Preload all tables/locs to cache.
-            if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                self.vanilla_packed_files_cache.write().unwrap().extend(self.vanilla_cached_packed_files.par_iter()
-                    .filter_map(|(_, cached_packed_file)| {
-                        let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
-                        if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
-                            if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
-                                let _ = packed_file.decode_no_locks(schema);
-                                Some((cached_packed_file.get_ref_packed_file_path().to_owned(), packed_file))
-                            } else { None }
+        // Preload all tables/locs to cache.
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            self.vanilla_packed_files_cache.write().unwrap().extend(self.vanilla_cached_packed_files.par_iter()
+                .filter_map(|(_, cached_packed_file)| {
+                    let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
+                    if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
+                        if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
+                            let _ = packed_file.decode_no_locks(schema);
+                            Some((cached_packed_file.get_ref_packed_file_path().to_owned(), packed_file))
                         } else { None }
-                    }).collect::<HashMap<String, PackedFile>>());
-            }
+                    } else { None }
+                }).collect::<HashMap<String, PackedFile>>());
         }
 
         // This one can fail, leaving the dependencies with only game data.
