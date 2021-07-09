@@ -244,6 +244,9 @@ pub enum ErrorKind {
     /// Error for when there was an error while downloading the updated schemas.
     SchemaUpdateError,
 
+    /// Error for when the schema update works, but the dependencies rebuild doesn't.
+    SchemaUpdateRebuildError(String),
+
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
@@ -789,6 +792,7 @@ impl Display for ErrorKind {
             ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
             ErrorKind::NoSchemaUpdatesAvailable => write!(f, "<p>No schema updates available</p>"),
             ErrorKind::SchemaUpdateError => write!(f, "<p>There was an error while downloading the schemas. Please, try again later.</p><p>If the problem persists (like that time I force-pushed to the repo breaking the updater, good old times) go to <b><i>Preferences/Clear Schema folder</i></b>, and try again.</p>"),
+            ErrorKind::SchemaUpdateRebuildError(error) => write!(f, "<p>The schemas were updated successfully, but reloading the dependencies cache for the current Game Selected failed for the following reason:</p> {}", error),
 
             //-----------------------------------------------------//
             //                PackedFile Errors
