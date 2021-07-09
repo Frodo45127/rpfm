@@ -473,14 +473,12 @@ impl Diagnostics {
                 let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                 let fields_processed = table.get_ref_definition().get_fields_processed();
                 for (column, field) in fields_processed.iter().enumerate() {
-                    if ignored_fields.contains(&field.get_name().to_owned()) {
-                        continue;
-                    }
 
+                    let ignore_field = ignored_fields.iter().any(|x| x == field.get_name());
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    if ignored_diagnostics.iter().all(|x| x != "FieldWithPathNotFound") {
+                    if !ignore_field && ignored_diagnostics.iter().all(|x| x != "FieldWithPathNotFound") {
                         if !cell_data.is_empty() {
                             if fields_processed[column].get_is_filename() {
                                 let mut path_found = false;
@@ -548,46 +546,49 @@ impl Diagnostics {
                             }
                         }
                     }
+
                     // Dependency checks.
-                    if let Some((_ref_table_name, _ref_column_name)) = field.get_is_reference() {
-                        match dependency_data.get(&(column as i32)) {
-                            Some(ref_data) => {
+                    if !ignore_field {
+                        if let Some((_ref_table_name, _ref_column_name)) = field.get_is_reference() {
+                            match dependency_data.get(&(column as i32)) {
+                                Some(ref_data) => {
 
-                                if ref_data.referenced_column_is_localised || ref_data.referenced_table_is_ak_only {
-                                    // TODO: report missing loc data here.
-                                }
-                                /*
-                                else if ref_data.referenced_table_is_ak_only {
-                                    // If it's only in the AK, ignore it.
-                                }*/
+                                    if ref_data.referenced_column_is_localised || ref_data.referenced_table_is_ak_only {
+                                        // TODO: report missing loc data here.
+                                    }
+                                    /*
+                                    else if ref_data.referenced_table_is_ak_only {
+                                        // If it's only in the AK, ignore it.
+                                    }*/
 
-                                // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
-                                else if ref_data.data.is_empty() {
-                                    if !columns_with_reference_table_and_no_column.contains(&column) {
-                                        columns_with_reference_table_and_no_column.push(column);
+                                    // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
+                                    else if ref_data.data.is_empty() {
+                                        if !columns_with_reference_table_and_no_column.contains(&column) {
+                                            columns_with_reference_table_and_no_column.push(column);
+                                        }
+                                    }
+
+                                    // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
+                                    else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
+
+                                        // Numeric cells with 0 are "empty" references and should not be checked.
+                                        let is_number = field.get_field_type() == FieldType::I32 || field.get_field_type() == FieldType::I64;
+                                        let is_valid_reference = if is_number { cell_data != "0" } else { true };
+
+                                        if ignored_diagnostics.iter().all(|x| x != "InvalidReference") && is_valid_reference {
+                                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                                cells_affected: vec![(row as i32, column as i32)],
+                                                message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
+                                                report_type: TableDiagnosticReportType::InvalidReference,
+                                                level: DiagnosticLevel::Error,
+                                            });
+                                        }
                                     }
                                 }
-
-                                // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
-                                else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
-
-                                    // Numeric cells with 0 are "empty" references and should not be checked.
-                                    let is_number = field.get_field_type() == FieldType::I32 || field.get_field_type() == FieldType::I64;
-                                    let is_valid_reference = if is_number { cell_data != "0" } else { true };
-
-                                    if ignored_diagnostics.iter().all(|x| x != "InvalidReference") && is_valid_reference {
-                                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                            cells_affected: vec![(row as i32, column as i32)],
-                                            message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, field.get_name()),
-                                            report_type: TableDiagnosticReportType::InvalidReference,
-                                            level: DiagnosticLevel::Error,
-                                        });
+                                None => {
+                                    if !columns_without_reference_table.contains(&column) {
+                                        columns_without_reference_table.push(column);
                                     }
-                                }
-                            }
-                            None => {
-                                if !columns_without_reference_table.contains(&column) {
-                                    columns_without_reference_table.push(column);
                                 }
                             }
                         }
@@ -603,7 +604,7 @@ impl Diagnostics {
                     }
 
                     if field.get_is_key() && field.get_field_type() != FieldType::OptionalStringU8 && field.get_field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
-                        if ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
+                        if !ignore_field && ignored_diagnostics.iter().all(|x| x != "EmptyKeyField") {
                             diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                 cells_affected: vec![(row as i32, column as i32)],
                                 message: format!("Empty key for column \"{}\".", field.get_name()),
