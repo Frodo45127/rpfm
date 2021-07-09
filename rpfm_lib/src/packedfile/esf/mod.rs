@@ -332,6 +332,7 @@ impl NodeType {
             Self::Record(node) => {
                 let mut new_node = RecordNode::default();
                 new_node.set_name(node.get_ref_name().to_owned());
+                new_node.set_record_flags(*node.get_ref_record_flags());
                 new_node.set_version(*node.get_ref_version());
 
                 Self::Record(new_node)

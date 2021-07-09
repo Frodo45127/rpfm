@@ -33,6 +33,7 @@ use qt_core::QPtr;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+use rpfm_lib::packedfile::esf::RecordNodeFlags;
 use rpfm_lib::packedfile::esf::{ESF, NodeType};
 
 const ESF_DATA: i32 = 40;
@@ -164,41 +165,67 @@ impl ESFTree for QBox<QTreeView> {
 unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, block_key: Option<&str>) {
     match child {
         NodeType::Record(node) => {
+
+            // Create the node for the record.
             let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
             let state_item = QStandardItem::new();
+            child_item.set_editable(false);
+            state_item.set_editable(false);
             state_item.set_selectable(false);
 
+            // If it has a name (it should have it), name it.
             if let Some(block_key) = block_key {
                 child_item.set_text(&QString::from_std_str(block_key));
             }
 
-            let mut childs_data_2: Vec<Vec<NodeType>> = vec![];
+            // Prepare the data in a way or another, depending if we have nested blocks or not.
+            if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
+                for (index, node_group) in node.get_ref_children().iter().enumerate() {
 
-            for grandchildren in node.get_ref_children() {
-                let grandchild_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
-                let grandstate_item = QStandardItem::new();
-                grandstate_item.set_selectable(false);
+                    let node_group_name = format!("{}_{}", node.get_ref_name(), index);
+                    let node_group_item = QStandardItem::from_q_string(&QString::from_std_str(&node_group_name));
+                    let node_group_state_item = QStandardItem::new();
+                    node_group_item.set_editable(false);
+                    node_group_state_item.set_editable(false);
+                    node_group_state_item.set_selectable(false);
 
-                for grandchild in grandchildren {
-                    match grandchild {
-                        NodeType::Record(_) => load_node_to_view(&grandchild_item, &grandchild, None),
+                    // Put all record nodes under the "Group Node".
+                    for grandchild_node in node_group {
+                        match grandchild_node {
+                            NodeType::Record(_) => load_node_to_view(&node_group_item, &grandchild_node, None),
+                            _ => {}
+                        }
+                    }
+
+                    // Store the group's data.
+                    node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node_group.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+
+                    let qlist = QListOfQStandardItem::new();
+                    qlist.append_q_standard_item(&node_group_item.into_ptr().as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&node_group_state_item.into_ptr().as_mut_raw_ptr());
+
+                    child_item.append_row_q_list_of_q_standard_item(qlist.as_ref());
+                }
+
+                // Set the child's data, and add the child to the TreeView.
+                child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+            }
+
+            // If it doesn't have nested blocks, just grab the first block's pack.
+            else {
+
+                // First, load record nodes into the view.
+                for child_node in &node.get_ref_children()[0] {
+                    match child_node {
+                        NodeType::Record(_) => load_node_to_view(&child_item, &child_node, None),
                         _ => {}
                     }
                 }
 
-                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                grandchild_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&grandchildren.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
-
-                let qlist = QListOfQStandardItem::new();
-                qlist.append_q_standard_item(&grandchild_item.into_ptr().as_mut_raw_ptr());
-                qlist.append_q_standard_item(&grandstate_item.into_ptr().as_mut_raw_ptr());
-
-                child_item.append_row_q_list_of_q_standard_item(qlist.as_ref());
-
-                childs_data_2.push(grandchildren.iter().map(|x| x.clone_without_children()).collect());
+                // Once done, store its data and it's values.
+                child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
             }
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&childs_data_2).unwrap())), CHILD_NODES);
 
             let qlist = QListOfQStandardItem::new();
             qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
@@ -213,6 +240,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 /// This function reads the entire `TreeView` recursively and returns a node list.
 unsafe fn get_node_type_from_tree_node(current_item: Option<Ptr<QStandardItem>>, model: &QStandardItemModel) -> NodeType {
 
+    // Try to get the node info. If it fails, this node is not a proper node, but a child of a node.
     let item = if let Some(item) = current_item { item } else { model.item_1a(0) };
     let mut node = serde_json::from_str(&item.data_1a(CHILDLESS_NODE).to_string().to_std_string()).unwrap();
 
@@ -220,48 +248,95 @@ unsafe fn get_node_type_from_tree_node(current_item: Option<Ptr<QStandardItem>>,
     match node {
         NodeType::Record(ref mut node) => {
 
-            // Get the stashed children.
-            let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
-            let mut children_stash: Vec<Vec<NodeType>> = if !child_nodes.is_empty() {
-                match serde_json::from_str(&child_nodes) {
-                    Ok(data) => data,
-                    Err(error) => { dbg!(error); vec![]},
-                }
-            } else {
-                vec![]
-            };
+            // Depending if we should have nested blocks or not, get the childs in one way or another.
+            if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
 
-            // Get the stacked children.
-            let children_count = item.row_count();
-            let mut children_stack = Vec::with_capacity(children_count as usize);
-            for row in 0..children_count {
-                let child = item.child_1a(row);
-                children_stack.push(get_node_type_from_tree_node(Some(child), model));
+                // Get the record group nodes, and process the groups one by one.
+                let record_group_count = item.row_count();
+                let mut record_group_nodes = Vec::with_capacity(record_group_count as usize);
+                for row in 0..record_group_count {
+
+                    let child = item.child_1a(row);
+                    let child_nodes = child.data_1a(CHILD_NODES).to_string().to_std_string();
+                    let mut child_nodes: Vec<NodeType> = if !child_nodes.is_empty() {
+                        match serde_json::from_str(&child_nodes) {
+                            Ok(data) => data,
+                            Err(error) => { dbg!(error); vec![]},
+                        }
+                    } else {
+                        vec![]
+                    };
+
+
+                    let mut record_group = Vec::with_capacity(child.row_count() as usize);
+                    for row in 0..child.row_count() {
+                        let child = child.child_1a(row);
+                        record_group.push(get_node_type_from_tree_node(Some(child), model));
+                    }
+
+                    // If we have record nodes, move their data into the parent node data.
+                    if !record_group.is_empty() {
+                        record_group.reverse();
+
+                        for child_node in child_nodes.iter_mut() {
+                            if let NodeType::Record(_) = child_node {
+                                if let Some(record_node) = record_group.pop() {
+                                    *child_node = record_node;
+                                }
+                            }
+                        }
+                    }
+
+                    record_group_nodes.push(child_nodes);
+                }
+
+                // Save the children... of our node.
+                node.set_children(record_group_nodes);
             }
 
-            // If it's not the root node, and we have stacked children, move the stacked data into the stashed children.
-            if current_item.is_some() && !children_stack.is_empty() {
-                let mut row = 0;
+            // No nested blocks means we can directly get the children.
+            else {
 
-                for children_stash_pack in children_stash.iter_mut() {
-                    for child_stashed in children_stash_pack.iter_mut() {
-                        match child_stashed {
-                            NodeType::Record(_) => {
-                                let child_item = item.child_1a(row);
-                                *child_stashed = get_node_type_from_tree_node(Some(child_item), model);
-                                row += 1;
-                            },
-                            _ => {},
+                let child_nodes = item.data_1a(CHILD_NODES).to_string().to_std_string();
+                let mut child_nodes: Vec<NodeType> = if !child_nodes.is_empty() {
+                    match serde_json::from_str(&child_nodes) {
+                        Ok(data) => data,
+                        Err(error) => { dbg!(error); vec![]},
+                    }
+                } else {
+                    vec![]
+                };
+
+                // Get the record nodes and their data from the TreeView.
+                let record_count = item.row_count();
+                let mut record_nodes = Vec::with_capacity(record_count as usize);
+                for row in 0..record_count {
+                    let child = item.child_1a(row);
+                    record_nodes.push(get_node_type_from_tree_node(Some(child), model));
+                }
+
+                // If we have record nodes, move their data into the parent node data.
+                if !record_nodes.is_empty() {
+                    record_nodes.reverse();
+
+                    for child_node in child_nodes.iter_mut() {
+                        if let NodeType::Record(_) = child_node {
+                            if let Some(record_node) = record_nodes.pop() {
+                                *child_node = record_node;
+                            }
                         }
                     }
                 }
-            } else if current_item.is_none() {
-                children_stash = vec![children_stack];
-            }
 
-            node.set_children(children_stash);
+                // Save the children... of our node.
+                let mut children = Vec::with_capacity(1);
+                children.push(child_nodes);
+                node.set_children(children);
+            }
         },
-        _ => unimplemented!()
+
+        // Only record nodes are allowed to be nodes on the TreeView.
+        _ => panic!()
     }
     node
 }
