@@ -961,6 +961,7 @@ impl TableView {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
                     item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
+                    item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_MODIFIED);
                     qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
 
@@ -1042,6 +1043,7 @@ impl TableView {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
                     item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
+                    item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_MODIFIED);
                     qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
                 qlist
