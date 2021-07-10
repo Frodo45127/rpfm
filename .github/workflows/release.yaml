@@ -36,12 +36,6 @@ jobs:
       - uses: actions/checkout@v2
       - uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Properly setup rust stable.
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
       - name: Get Version
         id: get_version
         uses: battila7/get-version-action@v2.2.1
