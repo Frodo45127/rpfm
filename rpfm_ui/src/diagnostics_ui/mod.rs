@@ -122,6 +122,7 @@ pub struct DiagnosticsUI {
     checkbox_dependencies_cache_outdated: QBox<QCheckBox>,
     checkbox_dependencies_cache_could_not_be_loaded: QBox<QCheckBox>,
     checkbox_field_with_path_not_found: QBox<QCheckBox>,
+    checkbox_incorrect_game_path: QBox<QCheckBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -267,6 +268,7 @@ impl DiagnosticsUI {
         let label_dependencies_cache_outdated = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_outdated"), &sidebar_scroll_area);
         let label_dependencies_cache_could_not_be_loaded = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_could_not_be_loaded"), &sidebar_scroll_area);
         let label_field_with_path_not_found = QLabel::from_q_string_q_widget(&qtr("label_field_with_path_not_found"), &sidebar_scroll_area);
+        let label_incorrect_game_path = QLabel::from_q_string_q_widget(&qtr("label_incorrect_game_path"), &sidebar_scroll_area);
 
         let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
@@ -290,6 +292,7 @@ impl DiagnosticsUI {
         let checkbox_dependencies_cache_outdated = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_dependencies_cache_could_not_be_loaded = QCheckBox::from_q_widget(&sidebar_scroll_area);
         let checkbox_field_with_path_not_found = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_incorrect_game_path = QCheckBox::from_q_widget(&sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -313,6 +316,7 @@ impl DiagnosticsUI {
         checkbox_dependencies_cache_outdated.set_checked(true);
         checkbox_dependencies_cache_could_not_be_loaded.set_checked(true);
         checkbox_field_with_path_not_found.set_checked(true);
+        checkbox_incorrect_game_path.set_checked(true);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_outdated_table, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -336,6 +340,7 @@ impl DiagnosticsUI {
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_outdated, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_could_not_be_loaded, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_field_with_path_not_found, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_incorrect_game_path, QFlags::from(AlignmentFlag::AlignHCenter));
 
         sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_outdated_table, 2, 0, 1, 1);
@@ -359,6 +364,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&label_dependencies_cache_outdated, 20, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_dependencies_cache_could_not_be_loaded, 21, 0, 1, 1);
         sidebar_grid.add_widget_5a(&label_field_with_path_not_found, 22, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&label_incorrect_game_path, 23, 0, 1, 1);
 
         sidebar_grid.add_widget_5a(&checkbox_all, 1, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_outdated_table, 2, 1, 1, 1);
@@ -382,6 +388,7 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_outdated, 20, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_could_not_be_loaded, 21, 1, 1, 1);
         sidebar_grid.add_widget_5a(&checkbox_field_with_path_not_found, 22, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&checkbox_incorrect_game_path, 23, 1, 1, 1);
 
         // Add all the stuff to the main grid and hide the search widget.
         diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
@@ -431,7 +438,8 @@ impl DiagnosticsUI {
             checkbox_table_is_datacoring,
             checkbox_dependencies_cache_outdated,
             checkbox_dependencies_cache_could_not_be_loaded,
-            checkbox_field_with_path_not_found
+            checkbox_field_with_path_not_found,
+            checkbox_incorrect_game_path
         }
     }
 
@@ -855,6 +863,7 @@ impl DiagnosticsUI {
                             _ => {}
                         }
                     }
+                    "IncorrectGamePath" => app_ui.packfile_preferences.trigger(),
                     _ => {}
                 }
             }
@@ -1233,6 +1242,9 @@ impl DiagnosticsUI {
         if diagnostics_ui.checkbox_dependencies_cache_could_not_be_loaded.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded("".to_owned())));
         }
+        if diagnostics_ui.checkbox_incorrect_game_path.is_checked() {
+            diagnostic_type_pattern.push_str(&format!("{}|", ConfigDiagnosticReportType::IncorrectGamePath));
+        }
 
         if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", PackFileDiagnosticReportType::InvalidPackFileName));
@@ -1386,6 +1398,7 @@ impl DiagnosticsUI {
             ConfigDiagnosticReportType::DependenciesCacheNotGenerated => qtr("dependencies_cache_not_generated_explanation"),
             ConfigDiagnosticReportType::DependenciesCacheOutdated => qtr("dependencies_cache_outdated_explanation"),
             ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error) => qtre("dependencies_cache_could_not_be_loaded_explanation", &[&error]),
+            ConfigDiagnosticReportType::IncorrectGamePath => qtr("incorrect_game_path_explanation"),
         };
 
         for item in items {

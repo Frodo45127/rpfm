@@ -42,7 +42,8 @@ pub struct ConfigDiagnosticReport {
 pub enum ConfigDiagnosticReportType {
     DependenciesCacheNotGenerated,
     DependenciesCacheOutdated,
-    DependenciesCacheCouldNotBeLoaded(String)
+    DependenciesCacheCouldNotBeLoaded(String),
+    IncorrectGamePath,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -72,6 +73,7 @@ impl Display for ConfigDiagnosticReportType {
             Self::DependenciesCacheNotGenerated => "DependenciesCacheNotGenerated",
             Self::DependenciesCacheOutdated => "DependenciesCacheOutdated",
             Self::DependenciesCacheCouldNotBeLoaded(_) => "DependenciesCacheCouldNotBeLoaded",
+            Self::IncorrectGamePath => "IncorrectGamePath",
         }, f)
     }
 }

@@ -775,8 +775,8 @@ tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to us
 restart_button = Restart
 error_not_booted_from_launcher = This window of RPFM has not been launched from the "rpfm.exe" file, but directly from the "rpfm_ui.exe" file. Since version 2.3.102, you should launch it from "rpfm.exe" (or equivalent) to support certain features regarding the update system.
 
-install_sucess = PackFile successfully instaled.
-uninstall_sucess = PackFile successfully uninstaled.
+install_sucess = PackFile successfully installed.
+uninstall_sucess = PackFile successfully uninstalled.
 
 outdated_table_explanation = Tables have an internal version number that changes whenever CA does an update to said table that changes its structure.
     An outdated table means your table may have structural differences introduced in newer versions, like new/changed columns.
@@ -997,3 +997,7 @@ settings_ui_table_colour_diagnostic_info_label = Info
 
 settings_ui_table_colour_light_label = Light theme
 settings_ui_table_colour_dark_label = Dark theme
+
+label_incorrect_game_path = Incorrect Game Path:
+incorrect_game_path_explanation = RPFM detected that the Game Path you set in the settings is incorrect.
+    This path is needed for many, MANY features to work properly. So set it up properly.

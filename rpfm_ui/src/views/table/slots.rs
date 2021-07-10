@@ -137,17 +137,22 @@ impl TableViewSlots {
             // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
             if view.get_data_source() == DataSource::PackFile && !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
                 if let Some(ref packed_file_path) = view.packed_file_path {
+                    let mut paths_to_check = vec![];
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
                         } else {
-                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_table_edit"] {
-                                if let Some(path) = view.get_packed_file_path() {
-                                    if diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible() {
-                                        let path_types = vec![PathType::File(path)];
-                                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
-                                    }
-                                }
+                            if let Some(path) = view.get_packed_file_path() {
+                                paths_to_check.push(path.to_vec());
+                            }
+                        }
+                    }
+
+                    if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_table_edit"] {
+                        if diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible() {
+                            for path in &paths_to_check {
+                                let path_types = vec![PathType::File(path.to_vec())];
+                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
                             }
                         }
                     }

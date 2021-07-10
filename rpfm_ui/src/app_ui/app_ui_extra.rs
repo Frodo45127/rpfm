@@ -1904,6 +1904,32 @@ impl AppUI {
     /// This function is the one that takes care of the creation of different PackedFiles.
     pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_file_type: PackedFileType) {
 
+        // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
+        if packed_file_type == PackedFileType::DB {
+
+            CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
+            CENTRAL_COMMAND.send_message_qt(Command::IsThereASchema);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            let is_there_a_dependency_database = match response {
+                Response::Bool(it_is) => it_is,
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            };
+
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            let is_there_a_schema = match response {
+                Response::Bool(it_is) => it_is,
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            };
+
+            if !is_there_a_dependency_database {
+                return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false);
+            }
+
+            if !is_there_a_schema {
+                return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
+            }
+        }
+
         // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
         if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, packed_file_type) {

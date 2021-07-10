@@ -434,7 +434,6 @@ impl PackFileContentsSlots {
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
                     pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(false);
                     pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(false);
                 }

@@ -6,6 +6,24 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.5.3]
+### Added
+- Implemented `Diagnostic Check` command on the CLI.
+- Implemented `Incorrect Game Path` diagnostic.
+
+### Changed
+- Updated dependencies.
+- Revised diagnostic ignore code to allow ígnoring only specific diagnostics on specific cells.
+- `Create DB` button is now always enabled, but it'll fail with an error if you do not have the schemas downloaded or the dependencies cache generated.
+
+### Fixed
+- Fixed cells being marked as modified on cloning.
+- Fixed infinite schema download bug.
+- Fixed random lockups shortly after a table edition.
+- Fixed ignoring a diagnostic on a key column causing other diagnostics using that key column to generate false positives.
+- Fixed `Generate Dependencies Cache` incorrectly succeeding when the Game Path was incorrect.
+- Fixed typos on install/uninstall messages.
+
 ## [2.5.2]
 ### Added
 - Table colours can now be changed on the settings.
@@ -389,7 +407,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...HEAD
+[2.5.3]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/Frodo45127/rpfm/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/Frodo45127/rpfm/compare/v2.4.3...v2.5.0
