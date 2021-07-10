@@ -135,6 +135,9 @@ pub enum ErrorKind {
     /// Generic error for when trying to parse something as a bool.
     NotABooleanValue,
 
+    /// Generic error for when we don't find the dependencies cache or it's out of date.
+    DependenciesCacheNotGeneratedorOutOfDate,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -726,6 +729,7 @@ impl Display for ErrorKind {
             ErrorKind::InitializingLoggerError => write!(f, "<p>Error while trying to initialize the logger.</p>"),
             //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
             ErrorKind::NotABooleanValue => write!(f, "<p>Error while trying to parse something as a bool.</p>"),
+            ErrorKind::DependenciesCacheNotGeneratedorOutOfDate => write!(f, "<p>The dependencies cache for the Game Selected is either missing or outdated. Please, re-generate it and try again.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
