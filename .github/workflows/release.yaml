@@ -31,12 +31,16 @@ jobs:
         # Self-hosted linux requires:
         # - Ubuntu 20.04 (older versions may work, I use this one).
         #- {os: self-hosted-ubuntu, TARGET: x86_64-unknown-linux-gnu, EXTENSION: zip, MIME: application/x-zip-compressed}
-        rust:
-         - stable
 
     steps:
       - uses: actions/checkout@v2
       - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Properly setup rust stable.
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
 
       - name: Get Version
         id: get_version
