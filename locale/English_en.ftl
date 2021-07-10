@@ -997,3 +997,7 @@ settings_ui_table_colour_diagnostic_info_label = Info
 
 settings_ui_table_colour_light_label = Light theme
 settings_ui_table_colour_dark_label = Dark theme
+
+label_incorrect_game_path = Incorrect Game Path:
+incorrect_game_path_explanation = RPFM detected that the Game Path you set in the settings is incorrect.
+    This path is needed for many, MANY features to work properly. So set it up properly.

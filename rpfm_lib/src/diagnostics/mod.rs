@@ -30,6 +30,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::DB;
+use crate::common::get_game_selected_data_path;
 use crate::dependencies::Dependencies;
 use crate::games::VanillaDBTableNameLogic;
 use crate::GAME_SELECTED;
@@ -119,50 +120,23 @@ impl Diagnostics {
         // Clear the diagnostics first.
         self.0.clear();
 
-        // First, check if the dependencies are generated. We can't do shit without them.
-        let mut config_diagnostic = ConfigDiagnostic::new();
-        if !dependencies.game_has_dependencies_generated() {
-            config_diagnostic.get_ref_mut_result().push(
-                ConfigDiagnosticReport {
-                    message: "Dependency Cache not generated for the currently selected game.".to_owned(),
-                    report_type: ConfigDiagnosticReportType::DependenciesCacheNotGenerated,
-                    level: DiagnosticLevel::Error,
-                }
-            );
-        } else {
+        // First, check for config issues, as some of them may stop the checking prematurely.
+        if let Some(diagnostics) = Self::check_config(dependencies) {
+            let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
+                diagnostic.get_ref_result().iter().any(|diagnostic| match diagnostic.report_type {
+                    ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
+                    ConfigDiagnosticReportType::DependenciesCacheOutdated |
+                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => true,
+                    _ => false,
+                })
+            } else { false };
 
-            // Second, check if the dependencies are valid. we can't actually use them if not.
-            match dependencies.needs_updating() {
-                Ok(needs_updating) => {
-                    if needs_updating {
-                        config_diagnostic.get_ref_mut_result().push(
-                            ConfigDiagnosticReport {
-                                message: "Dependency Cache for the selected game is outdated and could not be loaded.".to_owned(),
-                                report_type: ConfigDiagnosticReportType::DependenciesCacheOutdated,
-                                level: DiagnosticLevel::Error,
-                            }
-                        );
-                    }
-                }
-
-                Err(error) => {
-                    config_diagnostic.get_ref_mut_result().push(
-                        ConfigDiagnosticReport {
-                            message: "Dependency Cache couldn't be loaded for the game selected, due to errors reading the game's folder.".to_owned(),
-                            report_type: ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string()),
-                            level: DiagnosticLevel::Error,
-                        }
-                    );
-
-                }
+            // If we have one of the blocking diagnostics, report it and return.
+            self.0.push(diagnostics);
+            if is_diagnostic_blocking {
+                return;
             }
         }
-
-        if !config_diagnostic.get_ref_result().is_empty() {
-            self.0.push(DiagnosticType::Config(config_diagnostic));
-            return;
-        }
-
 
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
@@ -961,32 +935,13 @@ impl Diagnostics {
         } else { None }
     }
 
-
-    /// This function performs a limited diagnostic check on the `PackedFiles` in the provided paths, and updates the `Diagnostic` with the results.
-    ///
-    /// This means that, as long as you change any `PackedFile` in the `PackFile`, you should trigger this. That way, the `Diagnostics`
-    /// will always be up-to-date in an efficient way.
-    ///
-    /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
-    /// use the normal check function, because it's a lot more efficient than this one.
-    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
-
-        self.0.iter_mut().for_each(|x| {
-            if let DiagnosticType::Config(config) = x {
-                config.get_ref_mut_result().retain(|x|
-                    match x.report_type {
-                        ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
-                        ConfigDiagnosticReportType::DependenciesCacheOutdated |
-                        ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => false
-                    }
-                );
-            }
-        });
+    /// This function takes care of checking RPFM's configuration for errors.
+    fn check_config(dependencies: &Dependencies) ->Option<DiagnosticType> {
+        let mut diagnostic = ConfigDiagnostic::new();
 
         // First, check if the dependencies are generated. We can't do shit without them.
-        let mut config_diagnostic = ConfigDiagnostic::new();
         if !dependencies.game_has_dependencies_generated() {
-            config_diagnostic.get_ref_mut_result().push(
+            diagnostic.get_ref_mut_result().push(
                 ConfigDiagnosticReport {
                     message: "Dependency Cache not generated for the currently selected game.".to_owned(),
                     report_type: ConfigDiagnosticReportType::DependenciesCacheNotGenerated,
@@ -999,7 +954,7 @@ impl Diagnostics {
             match dependencies.needs_updating() {
                 Ok(needs_updating) => {
                     if needs_updating {
-                        config_diagnostic.get_ref_mut_result().push(
+                        diagnostic.get_ref_mut_result().push(
                             ConfigDiagnosticReport {
                                 message: "Dependency Cache for the selected game is outdated and could not be loaded.".to_owned(),
                                 report_type: ConfigDiagnosticReportType::DependenciesCacheOutdated,
@@ -1010,7 +965,7 @@ impl Diagnostics {
                 }
 
                 Err(error) => {
-                    config_diagnostic.get_ref_mut_result().push(
+                    diagnostic.get_ref_mut_result().push(
                         ConfigDiagnosticReport {
                             message: "Dependency Cache couldn't be loaded for the game selected, due to errors reading the game's folder.".to_owned(),
                             report_type: ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error.to_string()),
@@ -1022,9 +977,62 @@ impl Diagnostics {
             }
         }
 
-        if !config_diagnostic.get_ref_result().is_empty() {
-            self.0.push(DiagnosticType::Config(config_diagnostic));
-            return;
+        if let Some(path) = get_game_selected_data_path() {
+            if !path.is_dir() {
+                diagnostic.get_ref_mut_result().push(
+                    ConfigDiagnosticReport {
+                        message: "Game Path for the current Game Selected is incorrect.".to_owned(),
+                        report_type: ConfigDiagnosticReportType::IncorrectGamePath,
+                        level: DiagnosticLevel::Error,
+                    }
+                );
+            }
+        }
+
+        if !diagnostic.get_ref_result().is_empty() {
+            Some(DiagnosticType::Config(diagnostic))
+        } else { None }
+    }
+
+    /// This function performs a limited diagnostic check on the `PackedFiles` in the provided paths, and updates the `Diagnostic` with the results.
+    ///
+    /// This means that, as long as you change any `PackedFile` in the `PackFile`, you should trigger this. That way, the `Diagnostics`
+    /// will always be up-to-date in an efficient way.
+    ///
+    /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
+    /// use the normal check function, because it's a lot more efficient than this one.
+    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
+
+        // First, remove all current config blocking diagnostics, so they get check properly again.
+        self.0.iter_mut().for_each(|x| {
+            if let DiagnosticType::Config(config) = x {
+                config.get_ref_mut_result().retain(|x|
+                    match x.report_type {
+                        ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
+                        ConfigDiagnosticReportType::DependenciesCacheOutdated |
+                        ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) |
+                        ConfigDiagnosticReportType::IncorrectGamePath => false,
+                    }
+                );
+            }
+        });
+
+        // Next, check for config issues, as some of them may stop the checking prematurely.
+        if let Some(diagnostics) = Self::check_config(dependencies) {
+            let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
+                diagnostic.get_ref_result().iter().any(|diagnostic| match diagnostic.report_type {
+                    ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
+                    ConfigDiagnosticReportType::DependenciesCacheOutdated |
+                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => true,
+                    _ => false,
+                })
+            } else { false };
+
+            // If we have one of the blocking diagnostics, report it and return.
+            self.0.push(diagnostics);
+            if is_diagnostic_blocking {
+                return;
+            }
         }
 
         // Turn all our updated packs into `PackedFile` paths, and get them. Keep in mind we need to also get:
