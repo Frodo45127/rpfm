@@ -11,7 +11,7 @@ extern "C" void new_combobox_item_delegate(QObject *parent, const int column, co
 }
 
 // Constructor of the QComboBoxItemDelegate. We use it to store the values and if the user should be able to write his own value.
-QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent)
+QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList provided_values, bool is_editable, int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark)
 {
     editable = is_editable;
     values = provided_values;
