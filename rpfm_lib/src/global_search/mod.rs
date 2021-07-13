@@ -128,7 +128,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(!self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -194,7 +194,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(!self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -274,7 +274,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(!self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -348,7 +348,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(!self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
