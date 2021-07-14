@@ -291,7 +291,7 @@ impl UI {
             }
         }
 
-        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions)  {
+        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
             show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
         }
 
