@@ -305,7 +305,7 @@ impl UI {
         if SETTINGS.read().unwrap().settings_bool["check_template_updates_on_start"] { AppUI::check_template_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
-        if !cfg!(debug_assertions) {
+        if cfg!(target_os = "windows") && !cfg!(debug_assertions) {
             if let Ok(folders) = read_dir(&*RPFM_PATH) {
                 for folder in folders {
                     if let Ok(folder) = folder {
