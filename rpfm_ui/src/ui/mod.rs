@@ -291,7 +291,7 @@ impl UI {
             }
         }
 
-        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions)  {
+        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
             show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
         }
 
@@ -305,7 +305,7 @@ impl UI {
         if SETTINGS.read().unwrap().settings_bool["check_template_updates_on_start"] { AppUI::check_template_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
-        if cfg!(target_os = "windows") && !cfg!(debug_assertions) {
+        if !cfg!(debug_assertions) {
             if let Ok(folders) = read_dir(&*RPFM_PATH) {
                 for folder in folders {
                     if let Ok(folder) = folder {
