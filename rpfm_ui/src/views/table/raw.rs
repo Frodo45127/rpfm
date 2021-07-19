@@ -1456,6 +1456,10 @@ impl TableView {
     /// This function triggers a cascade edition through the entire program of the selected cells.
     pub unsafe fn cascade_edition(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
+        // This feature has some... interesting lockups when running alonside a diagnostics check. So, while this runs,
+        // we have to avoid triggering the diagnostics check.
+        self.timer_delayed_updates.stop();
+
         // We only want to do this for tables we can identify.
         let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return };
 
@@ -1467,12 +1471,16 @@ impl TableView {
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
+            app_ui.main_window.set_enabled(false);
 
             // Trigger editions in our own table.
             let real_cells = editions.iter()
                 .map(|(_, new_value, row, column)| (self.table_model.index_2a(*row, *column), &**new_value))
                 .collect::<Vec<(CppBox<QModelIndex>, &str)>>();
             self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
+
+            // Stop the timer again.
+            self.timer_delayed_updates.stop();
 
             // Initialize our cascade editions.
             let mut cascade_editions = CascadeEdition::default();
@@ -1529,7 +1537,7 @@ impl TableView {
 
             // Then ask the backend to do the heavy work.
             CENTRAL_COMMAND.send_message_qt(Command::CascadeEdition(cascade_editions));
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info) => {
 
@@ -1548,9 +1556,19 @@ impl TableView {
                             }
                         }
                     });
+
+                    app_ui.main_window.set_enabled(true);
+
+                    // Now it's safe to trigger the timer.
+                    self.start_delayed_updates_timer();
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
+        }
+
+        // If we didn't do anything, but we cut a timer, continue it.
+        else if self.timer_delayed_updates.remaining_time() != -1 {
+            self.start_delayed_updates_timer();
         }
     }
 
