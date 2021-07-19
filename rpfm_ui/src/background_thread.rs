@@ -719,8 +719,13 @@ pub fn background_loop() {
                     if let PathType::File(path) = path_type {
                         if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                             match packed_file.decode_return_ref_mut_no_locks(&schema) {
-                                Ok(packed_file) => match packed_file.update_table(&dependencies) {
-                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
+                                Ok(packed_file_decoded) => match packed_file_decoded.update_table(&dependencies) {
+                                    Ok(data) => {
+
+                                        // Save it to binary, so the decoder will load the proper data if we open it with it.
+                                        let _ = packed_file.encode_no_load();
+                                        CENTRAL_COMMAND.send_message_rust(Response::I32I32(data))
+                                    },
                                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 }
                                 Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
