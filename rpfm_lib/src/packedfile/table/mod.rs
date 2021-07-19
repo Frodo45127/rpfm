@@ -355,7 +355,7 @@ impl Table {
     pub fn set_definition(&mut self, new_definition: &Definition) {
 
         // It's simple: we compare both schemas, and get the original and final positions of each column.
-        // If a row is new, his original position is -1. If has been removed, his final position is -1.
+        // If a column is new, his original position is -1. If has been removed, his final position is -1.
         let mut positions: Vec<(i32, i32)> = vec![];
         for (new_pos, new_field) in new_definition.get_fields_processed().iter().enumerate() {
             if let Some(old_pos) = self.definition.get_fields_processed().iter().position(|x| x.get_name() == new_field.get_name()) {
@@ -385,7 +385,12 @@ impl Table {
                     entry.push(DecodedData::default(&new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type(), &new_definition.get_fields_processed()[*new_pos as usize].get_default_value()));
                 }
 
-                // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
+                // Otherwise, we got a moved column. Check here if it needs type conversion.
+                else if new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type() != self.definition.get_fields_processed()[*old_pos as usize].get_ref_field_type() {
+                    entry.push(row[*old_pos as usize].convert_between_types(new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type()).unwrap());
+                }
+
+                // If we reach this, we just got a moved column without any extra change.
                 else {
                     entry.push(row[*old_pos as usize].clone());
                 }

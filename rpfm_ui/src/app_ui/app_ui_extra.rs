@@ -2415,7 +2415,7 @@ impl AppUI {
         indexes.dedup();
         indexes.reverse();
 
-        // PackFile Views must be deleted on close, so get them apart if we find one.
+        // PackFile and Decoder Views must be deleted on close, so get them apart if we find one.
         let mut purge_on_delete = vec![];
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
@@ -2423,9 +2423,14 @@ impl AppUI {
             let index_widget = app_ui.tab_bar_packed_file.index_of(widget);
             if indexes.contains(&index_widget) {
                 let path = packed_file_view.get_ref_path();
-                if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    purge_on_delete.push(path.to_vec());
-                    CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
+                if !path.is_empty() {
+                    if path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
+                        purge_on_delete.push(path.to_vec());
+                        CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
+                    }
+                    else if path.last().unwrap().ends_with(DECODER_EXTENSION) {
+                        purge_on_delete.push(path.to_vec());
+                    }
                 }
             }
         }
@@ -2434,6 +2439,9 @@ impl AppUI {
 
         // This is for cleaning up open PackFiles.
         purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::ExternalFile, false); });
+
+        // And this is for cleaning decoders.
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::PackFile, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);
