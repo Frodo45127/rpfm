@@ -25,7 +25,7 @@ use rpfm_macros::*;
 use crate::common::decoder::Decoder;
 
 /// Extensions used by CEO/ESF PackedFiles.
-pub const EXTENSIONS: [&str; 2] = [".ccd", ".esf"];
+pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];
 
 /// Signatured/Magic Numbers/Whatever of a ESF PackedFile.
 pub const SIGNATURE_CAAB: &[u8; 4] = &[0xCA, 0xAB, 0x00, 0x00];
