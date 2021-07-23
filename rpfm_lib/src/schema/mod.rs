@@ -1076,7 +1076,7 @@ impl Definition {
 
         // We have to check for removed fields too.
         for field_current in &version_current.fields {
-            if self.fields.iter().find(|x| x.name == field_current.name).is_none() {
+            if !self.fields.iter().any(|x| x.name == field_current.name) {
                 removed_fields.push(field_current.name.to_owned());
             }
         }

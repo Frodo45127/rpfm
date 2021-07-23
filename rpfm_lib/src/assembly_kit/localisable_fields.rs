@@ -19,7 +19,7 @@ use serde_xml_rs::from_reader;
 
 use std::fs::File;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::Path;
 
 use rpfm_error::{Result, ErrorKind};
 
@@ -56,7 +56,7 @@ pub struct RawLocalisableField {
 impl RawLocalisableFields {
 
     /// This function tries to parse a Raw Assembly Kit Localisable Fields Table to memory.
-    pub fn read(raw_data_path: &PathBuf, version: i16) -> Result<Self> {
+    pub fn read(raw_data_path: &Path, version: i16) -> Result<Self> {
         match version {
             2 | 1 => {
                 let localisable_fields_path = get_raw_localisable_fields_path(raw_data_path, version)?;

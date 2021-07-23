@@ -22,7 +22,7 @@ use serde_xml_rs::from_reader;
 
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use rpfm_error::{Result, Error, ErrorKind};
 
@@ -71,7 +71,7 @@ pub struct RawTableField {
 impl RawTable {
 
     /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Tables inside it.
-    pub fn read_all(raw_tables_folder: &PathBuf, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
+    pub fn read_all(raw_tables_folder: &Path, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
 
         // First, we try to read all `RawDefinitions` from the same folder.
         let (definitions, _) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables, dependencies)?;

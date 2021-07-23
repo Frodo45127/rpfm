@@ -113,7 +113,7 @@ pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
         }
     }
 
-    return Ok(last_time);
+    Ok(last_time)
 }
 
 /// This function gets the oldest modified file in a folder and return it.

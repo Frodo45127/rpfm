@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::PathBuf;
+use std::path::Path;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
@@ -817,9 +817,7 @@ impl Table {
 
             // Also, check if we have to be careful about localised fields.
             let has_loc_fields = if let Some(field) = definition.get_fields_processed().iter().find(|x| x.get_name() == column_name) {
-                if (field.get_is_key() || field.get_name() == "key") && !definition.get_localised_fields().is_empty() {
-                    true
-                } else { false }
+                (field.get_is_key() || field.get_name() == "key") && !definition.get_localised_fields().is_empty()
             } else { false };
 
             Some((tables, has_loc_fields))
@@ -837,7 +835,7 @@ impl Table {
         if let Some(column_index) = self.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == column_name) {
             for (row_index, row) in self.get_ref_table_data().iter().enumerate() {
                 if let Some(cell_data) = row.get(column_index) {
-                    if &cell_data.data_to_string() == row_data {
+                    if cell_data.data_to_string() == row_data {
                         return Some((column_index, row_index))
                     }
                 }
@@ -854,7 +852,7 @@ impl Table {
     /// This function imports a TSV file into a decoded table.
     fn import_tsv(
         definition: &Definition,
-        path: &PathBuf,
+        path: &Path,
         name: &str,
     ) -> Result<Self> {
 
@@ -928,8 +926,8 @@ impl Table {
     /// This function imports a TSV file into a new Table File.
     fn import_tsv_to_binary_file(
         schema: &Schema,
-        source_path: &PathBuf,
-        destination_path: &PathBuf,
+        source_path: &Path,
+        destination_path: &Path,
     ) -> Result<()> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
@@ -1018,7 +1016,7 @@ impl Table {
     /// This function exports the provided data to a TSV file.
     fn export_tsv(
         &self,
-        path: &PathBuf,
+        path: &Path,
         table_name: &str,
     ) -> Result<()> {
 
@@ -1048,8 +1046,8 @@ impl Table {
     /// This function exports the provided file to a TSV file..
     fn export_tsv_from_binary_file(
         schema: &Schema,
-        source_path: &PathBuf,
-        destination_path: &PathBuf
+        source_path: &Path,
+        destination_path: &Path
     ) -> Result<()> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise

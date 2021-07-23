@@ -22,7 +22,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use rpfm_macros::*;
@@ -140,7 +140,7 @@ impl Dependencies {
                     // Build the casing-related HashSets.
                     self.vanilla_cached_packed_files_paths = self.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
                     self.vanilla_cached_folders_cased = self.vanilla_cached_packed_files_paths.par_iter().map(|x| {
-                        let path = x.split("/").collect::<Vec<&str>>();
+                        let path = x.split('/').collect::<Vec<&str>>();
                         let mut paths = Vec::with_capacity(path.len() - 1);
 
                         for (index, folder) in path.iter().enumerate() {
@@ -173,7 +173,7 @@ impl Dependencies {
                 // Build the casing-related HashSets.
                 self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
                 self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
-                    let path = x.split("/").collect::<Vec<&str>>();
+                    let path = x.split('/').collect::<Vec<&str>>();
                     let mut paths = Vec::with_capacity(path.len() - 1);
 
                     for (index, folder) in path.iter().enumerate() {
@@ -251,10 +251,10 @@ impl Dependencies {
     /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK file.
     fn generate_asskit_only_db_tables(
         &mut self,
-        raw_db_path: &PathBuf,
+        raw_db_path: &Path,
         version: i16,
     ) -> Result<()> {
-        let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, self)?;
+        let (raw_tables, _) = RawTable::read_all(&raw_db_path, version, true, self)?;
         self.asskit_only_db_tables = raw_tables.par_iter().map(From::from).collect::<Vec<DB>>();
 
         Ok(())
@@ -267,9 +267,8 @@ impl Dependencies {
         if include_vanilla {
             cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
                 let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if include_db && packed_file_type == PackedFileType::DB {
-                    Some(packed_file.clone())
-                } else if include_loc && packed_file_type == PackedFileType::Loc {
+                if (include_db && packed_file_type == PackedFileType::DB) ||
+                    (include_loc && packed_file_type == PackedFileType::Loc) {
                     Some(packed_file.clone())
                 } else {
                     None
@@ -280,9 +279,8 @@ impl Dependencies {
         if include_modded {
             cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
                 let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if include_db && packed_file_type == PackedFileType::DB {
-                    Some(packed_file.clone())
-                } else if include_loc && packed_file_type == PackedFileType::Loc {
+                if (include_db && packed_file_type == PackedFileType::DB) ||
+                    (include_loc && packed_file_type == PackedFileType::Loc) {
                     Some(packed_file.clone())
                 } else {
                     None
@@ -362,7 +360,7 @@ impl Dependencies {
         file.read_to_end(&mut data)?;
 
         // Never deserialize directly from the file. It's bloody slow!!!
-        let dependencies: Self = bincode::deserialize(&data).map_err(|x| Error::from(x))?;
+        let dependencies: Self = bincode::deserialize(&data).map_err(Error::from)?;
 
         // Preload all tables/locs to cache.
         dependencies.vanilla_packed_files_cache.write().unwrap().extend(dependencies.vanilla_cached_packed_files.par_iter()
@@ -408,7 +406,7 @@ impl Dependencies {
 
         // If we found it in the cache, return it.
         if packed_file.is_ok() {
-            return packed_file;
+            packed_file
         }
 
         // If not, check on the big list.
@@ -420,9 +418,9 @@ impl Dependencies {
                 .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
 
             // If we found one, add it to the cache to reduce load times later on.
-            self.vanilla_packed_files_cache.write().unwrap().insert(path.to_owned(), packed_file.clone());
+            self.vanilla_packed_files_cache.write().unwrap().insert(path, packed_file.clone());
 
-            return Ok(packed_file);
+            Ok(packed_file)
         }
     }
 
@@ -435,7 +433,7 @@ impl Dependencies {
 
         // If we found it in the cache, return it.
         if packed_file.is_ok() {
-            return packed_file;
+            packed_file
         }
 
         // If not, check on the big list.
@@ -447,9 +445,9 @@ impl Dependencies {
                 .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
 
             // If we found one, add it to the cache to reduce load times later on.
-            self.parent_packed_files_cache.write().unwrap().insert(path.to_owned(), packed_file.clone());
+            self.parent_packed_files_cache.write().unwrap().insert(path, packed_file.clone());
 
-            return Ok(packed_file);
+            Ok(packed_file)
         }
     }
 

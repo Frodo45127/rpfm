@@ -15,7 +15,7 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -199,7 +199,7 @@ impl Loc {
             .flatten();
 
         for entry in entries {
-            if vanilla_table.clone().find(|x| x == &entry).is_none() {
+            if !vanilla_table.clone().any(|x| x == entry) {
                 new_entries.push(entry.to_vec());
             }
         }
@@ -251,7 +251,7 @@ impl Loc {
     /// This function imports a TSV file into a decoded table.
     pub fn import_tsv(
         definition: &Definition,
-        path: &PathBuf,
+        path: &Path,
         name: &str,
     ) -> Result<Self> {
         let table = Table::import_tsv(definition, path, name)?;
@@ -261,7 +261,7 @@ impl Loc {
     /// This function exports the provided data to a TSV file.
     pub fn export_tsv(
         &self,
-        path: &PathBuf,
+        path: &Path,
         table_name: &str,
     ) -> Result<()> {
         self.table.export_tsv(path, table_name)
