@@ -32,7 +32,6 @@ use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
-use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -697,7 +696,7 @@ impl PackFile {
     /// will be overwritten with the new one. If set to false, the new `PackFile` will be called `xxxx_1.extension`.
     pub fn add_from_file(
         &mut self,
-        path_as_file: &PathBuf,
+        path_as_file: &Path,
         path_as_packed_file: Vec<String>,
         overwrite: bool,
     ) -> Result<Vec<String>> {
@@ -1118,7 +1117,7 @@ impl PackFile {
 
         folder_paths.sort();
         folder_paths.dedup();
-        HashSet::from_iter(folder_paths.into_iter())
+        folder_paths.into_iter().collect::<HashSet<_>>()
     }
 
     /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
@@ -1288,7 +1287,7 @@ impl PackFile {
     pub fn extract_packed_files_by_type(
         &mut self,
         item_types: &[PathType],
-        extracted_path: &PathBuf,
+        extracted_path: &Path,
     ) -> Result<u32> {
 
         // These variables are here to keep track of what we have extracted and what files failed.
@@ -1750,7 +1749,7 @@ impl PackFile {
 
                 // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
                 // as those are probably intended to overwrite vanilla files, not to be optimized.
-                if dependencies.iter().map(|x| x.get_path()).any(|x| x == &path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+                if dependencies.iter().map(|x| x.get_path()).any(|x| x == path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
 
                 match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
 
@@ -2031,7 +2030,7 @@ impl PackFile {
     /// This function is used to Mass-Export TSV files from a PackFile.
     ///
     /// NOTE: this will OVERWRITE any existing file that has a name conflict with the TSV files provided.
-    pub fn mass_export_tsv(&mut self, path_types: &[PathType], export_path: &PathBuf) -> Result<String> {
+    pub fn mass_export_tsv(&mut self, path_types: &[PathType], export_path: &Path) -> Result<String> {
 
         // Lists of PackedFiles that couldn't be exported for one thing or another and exported PackedFile names,
         // so we make sure we don't overwrite those with the following ones.
@@ -2294,7 +2293,7 @@ impl PackFile {
 
     /// This function reads the content of a PackFile into a `PackFile` struct.
     pub fn read(
-        file_path: &PathBuf,
+        file_path: &Path,
         use_lazy_loading: bool
     ) -> Result<Self> {
 
@@ -2552,10 +2551,7 @@ impl PackFile {
             packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
-            let is_compressable = match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
-                PackedFileType::DB | PackedFileType::Loc => false,
-                _ => true
-            };
+            let is_compressable = !matches!(PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false), PackedFileType::DB | PackedFileType::Loc);
             let (_, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
 
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile. EXCEPT FOR TABLES. NEVER COMPRESS TABLES.

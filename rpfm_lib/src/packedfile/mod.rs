@@ -402,7 +402,7 @@ impl PackedFileType {
         let path = packed_file.get_path();
 
         // Reserved PackedFiles.
-        if &path == &[RESERVED_NAME_NOTES] {
+        if path == [RESERVED_NAME_NOTES] {
             return Self::Text(TextType::Markdown);
         }
 
@@ -466,7 +466,7 @@ impl PackedFileType {
                     return Self::DB;
                 }
 
-                if &base_folder == "ui" && (!packedfile_name.contains(".") || packedfile_name.ends_with(uic::EXTENSION)) {
+                if &base_folder == "ui" && (!packedfile_name.contains('.') || packedfile_name.ends_with(uic::EXTENSION)) {
                     return Self::UIC;
                 }
             }
@@ -546,7 +546,7 @@ impl PackedFileType {
         }
 
         // If that failed, try types that need to be in a specific path.
-        let path_str = path.split("/").collect::<Vec<&str>>();
+        let path_str = path.split('/').collect::<Vec<&str>>();
         if path.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
             return Self::MatchedCombat;
         }
@@ -562,7 +562,7 @@ impl PackedFileType {
                 return Self::DB;
             }
 
-            if &base_folder == "ui" && (!path.contains(".") || path.ends_with(uic::EXTENSION)) {
+            if &base_folder == "ui" && (!path.contains('.') || path.ends_with(uic::EXTENSION)) {
                 return Self::UIC;
             }
         }

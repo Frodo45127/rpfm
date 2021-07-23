@@ -123,12 +123,10 @@ impl Diagnostics {
         // First, check for config issues, as some of them may stop the checking prematurely.
         if let Some(diagnostics) = Self::check_config(dependencies) {
             let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
-                diagnostic.get_ref_result().iter().any(|diagnostic| match diagnostic.report_type {
+                diagnostic.get_ref_result().iter().any(|diagnostic| matches!(diagnostic.report_type,
                     ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
                     ConfigDiagnosticReportType::DependenciesCacheOutdated |
-                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => true,
-                    _ => false,
-                })
+                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_)))
             } else { false };
 
             // If we have one of the blocking diagnostics, report it and return.
@@ -398,16 +396,16 @@ impl Diagnostics {
             // Check if the table name has a number at the end, which causes very annoying bugs.
             if let Some(ref name) = path.last() {
                 if !Self::ignore_diagnostic(None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if name.ends_with("0") ||
-                        name.ends_with("1") ||
-                        name.ends_with("2") ||
-                        name.ends_with("3") ||
-                        name.ends_with("4") ||
-                        name.ends_with("5") ||
-                        name.ends_with("6") ||
-                        name.ends_with("7") ||
-                        name.ends_with("8") ||
-                        name.ends_with("9") {
+                    if name.ends_with('0') ||
+                        name.ends_with('1') ||
+                        name.ends_with('2') ||
+                        name.ends_with('3') ||
+                        name.ends_with('4') ||
+                        name.ends_with('5') ||
+                        name.ends_with('6') ||
+                        name.ends_with('7') ||
+                        name.ends_with('8') ||
+                        name.ends_with('9') {
 
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                             cells_affected: vec![],
@@ -480,13 +478,13 @@ impl Diagnostics {
                                     };
 
                                     // Skip paths with wildcards, as we do not support them.
-                                    if path.contains("*") {
+                                    if path.contains('*') {
                                         path_found = true;
                                         vec![]
                                     } else {
                                         path.replace('\\', "/").replace(';', ",").split(',').map(|x| {
                                             let mut x = x.to_owned();
-                                            if x.ends_with("/") {
+                                            if x.ends_with('/') {
                                                 x.pop();
                                             }
                                             x
@@ -611,7 +609,7 @@ impl Diagnostics {
                 if !Self::ignore_diagnostic(None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if row_is_empty {
                         diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            cells_affected: vec![(row as i32, -1 as i32)],
+                            cells_affected: vec![(row as i32, -1)],
                             message: "Empty row.".to_string(),
                             report_type: TableDiagnosticReportType::EmptyRow,
                             level: DiagnosticLevel::Error,
@@ -687,15 +685,13 @@ impl Diagnostics {
                         });
                     }
                 }
-                else {
-                    if !Self::ignore_diagnostic(None, Some("NoReferenceTableNorColumnFoundPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                            cells_affected: vec![(-1, *column as i32)],
-                            message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
-                            report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
-                            level: DiagnosticLevel::Info,
-                        });
-                    }
+                else if !Self::ignore_diagnostic(None, Some("NoReferenceTableNorColumnFoundPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        cells_affected: vec![(-1, *column as i32)],
+                        message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
+                        level: DiagnosticLevel::Info,
+                    });
                 }
             }
 
@@ -737,7 +733,7 @@ impl Diagnostics {
                                             let mut path = cell_data.replace('\\', "/");
 
                                             // If it's a folder, remove the trailing /.
-                                            if path.ends_with("/") {
+                                            if path.ends_with('/') {
                                                 path.pop();
                                             }
 
@@ -1035,12 +1031,10 @@ impl Diagnostics {
         // Next, check for config issues, as some of them may stop the checking prematurely.
         if let Some(diagnostics) = Self::check_config(dependencies) {
             let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
-                diagnostic.get_ref_result().iter().any(|diagnostic| match diagnostic.report_type {
+                diagnostic.get_ref_result().iter().any(|diagnostic| matches!(diagnostic.report_type,
                     ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
                     ConfigDiagnosticReportType::DependenciesCacheOutdated |
-                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) => true,
-                    _ => false,
-                })
+                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_)))
             } else { false };
 
             // If we have one of the blocking diagnostics, report it and return.
@@ -1145,7 +1139,7 @@ impl Diagnostics {
             let local_packed_file_path_list = pack_file.get_packed_files_all_paths_as_string();
             let local_folder_path_list = pack_file.get_folder_all_paths_as_string();
 
-            for (_, packed_files) in &packed_files_split {
+            for packed_files in packed_files_split.values() {
                 let mut data_prev: BTreeMap<String, HashMap<String, Vec<(i32, i32)>>> = BTreeMap::new();
                 let mut dependency_data_for_table = BTreeMap::new();
 

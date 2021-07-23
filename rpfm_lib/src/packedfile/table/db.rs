@@ -23,7 +23,7 @@ use uuid::Uuid;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_macros::*;
@@ -368,7 +368,7 @@ impl DB {
             .flatten();
 
         for entry in entries {
-            if vanilla_table.clone().find(|x| x == &entry).is_none() {
+            if !vanilla_table.clone().any(|x| x == entry) {
                 new_entries.push(entry.to_vec());
             }
         }
@@ -799,7 +799,7 @@ impl DB {
     /// This function imports a TSV file into a decoded table.
     pub fn import_tsv(
         definition: &Definition,
-        path: &PathBuf,
+        path: &Path,
         name: &str,
     ) -> Result<Self> {
         let table = Table::import_tsv(definition, path, name)?;
@@ -811,7 +811,7 @@ impl DB {
     /// This function exports the provided data to a TSV file.
     pub fn export_tsv(
         &self,
-        path: &PathBuf,
+        path: &Path,
         table_name: &str,
     ) -> Result<()> {
         self.table.export_tsv(path, table_name)

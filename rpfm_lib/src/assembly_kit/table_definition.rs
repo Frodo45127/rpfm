@@ -30,7 +30,7 @@ use serde_xml_rs::from_reader;
 
 use std::fs::File;
 use std::io::BufReader;
-use std::path::PathBuf;
+use std::path::Path;
 
 use rpfm_error::{Result, Error, ErrorKind};
 
@@ -111,7 +111,7 @@ impl RawDefinition {
     /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Definitions inside it.
     ///
     /// This function returns two vectors: one with the read files, and another with the errors during parsing.
-    pub fn read_all(raw_definitions_folder: &PathBuf, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
+    pub fn read_all(raw_definitions_folder: &Path, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
         let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
         match version {
             2 | 1 => {
@@ -123,7 +123,7 @@ impl RawDefinition {
                             let name_table = format!("{}_tables", base_name);
                             !dependency_db.iter().map(|x| x.get_ref_decoded())
                                 .filter_map(|x| if let DecodedPackedFile::DB(db) = x { Some(db) } else { None })
-                                .any(|x| x.get_ref_table_name() == &name_table)
+                                .any(|x| x.get_ref_table_name() == name_table)
                         } else { true }
                     )
                     .partition_map(|x|{
@@ -139,7 +139,7 @@ impl RawDefinition {
     }
 
     /// This function tries to parse a Raw Assembly Kit Definition to memory.
-    pub fn read(raw_definition_path: &PathBuf, version: i16) -> Result<Self> {
+    pub fn read(raw_definition_path: &Path, version: i16) -> Result<Self> {
         match version {
             2 | 1 => {
                 let definition_file = BufReader::new(File::open(&raw_definition_path).map_err(|_|Error::from(ErrorKind::AssemblyKitNotFound))?);
