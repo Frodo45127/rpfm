@@ -209,7 +209,7 @@ impl Decoder for [u8] {
     fn decode_integer_u24(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 3 {
             let mut data = Vec::with_capacity(4);
-            data.extend_from_slice(&self[offset..]);
+            data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_u32(&data)) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u24 number:</p><ul><li>Required bytes: 3.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
@@ -237,7 +237,7 @@ impl Decoder for [u8] {
     fn decode_integer_i24(&self, offset: usize) -> Result<i32> {
         if self.len() >= offset + 3 {
             let mut data = Vec::with_capacity(4);
-            data.extend_from_slice(&self[offset..]);
+            data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_i32(&data)) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i24 number:</p><ul><li>Required bytes: 3.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
