@@ -12,15 +12,23 @@
 Module with the slots for ESF Views.
 !*/
 
+use qt_widgets::QTreeView;
+
 use qt_core::QBox;
-use qt_core::QString;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQString;
 use qt_core::SlotOfBool;
 
+use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_lib::packedfile::esf::NodeType;
+
+use crate::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::esf::{esftree::ESFTree, PackedFileESFView};
+use crate::packedfile_views::PackFileContentsUI;
 use crate::utils::check_regex;
 
 //-------------------------------------------------------------------------------//
@@ -48,8 +56,10 @@ impl PackedFileESFViewSlots {
     /// This function creates the entire slot pack for CaVp8 PackedFile Views.
     pub unsafe fn new(
         view: &Arc<PackedFileESFView>,
-        //app_ui: &Rc<AppUI>,
-        //pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     )  -> Self {
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -86,14 +96,18 @@ impl PackedFileESFViewSlots {
 
         // Slot to change the format of the video to CAMV.
         let open_node = SlotNoArgs::new(&view.tree_view, clone!(
-            //app_ui,
-            //pack_file_contents_ui,
+            app_ui,
+            global_search_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
             view => move || {
                 let items = view.tree_view.get_items_from_selection(true);
                 if items.len() == 1 {
-                    let data = items[0].data_1a(42).to_string();
-                    crate::ffi::set_text_safe(&view.editor, &data.as_ptr(), &QString::from_std_str("json").as_ptr());
-                    //dbg!(data);
+                    let data = <QBox<QTreeView> as ESFTree>::get_child_nodes_from_item(&items[0]);
+                    if !data.is_empty() {
+                        let nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
+                        view.detailed_view.write().unwrap().load_subnodes_to_details_view(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &view.node_data_panel, &view.tree_view, &nodes, items[0]);
+                    }
                 }
             }
         ));

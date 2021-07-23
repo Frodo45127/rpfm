@@ -1647,7 +1647,7 @@ impl AppUI {
                         }
 
                         PackedFileType::ESF => {
-                            match PackedFileESFView::new_view(&mut tab) {
+                            match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

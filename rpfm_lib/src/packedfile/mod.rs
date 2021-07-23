@@ -314,7 +314,7 @@ impl DecodedPackedFile {
             DecodedPackedFile::AnimTable(data) => Some(data.save()),
             DecodedPackedFile::CaVp8(data) => Some(Ok(data.save())),
             DecodedPackedFile::DB(data) => Some(data.save()),
-            //DecodedPackedFile::ESF(data) => Some(Ok(data.save())),
+            DecodedPackedFile::ESF(data) => Some(Ok(data.save())),
             DecodedPackedFile::Loc(data) => Some(data.save()),
             DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
 

@@ -17,19 +17,20 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 use qt_widgets::QGridLayout;
 use qt_widgets::QSplitter;
+use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
+
+use qt_gui::QStandardItemModel;
 
 use qt_core::CaseSensitivity;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QRegExp;
+use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 
-use qt_core::QSortFilterProxyModel;
-use qt_gui::QStandardItemModel;
-use qt_widgets::QTreeView;
-
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use rpfm_error::{ErrorKind, Result};
@@ -38,19 +39,26 @@ use rpfm_lib::packedfile::esf::ESF;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
+use crate::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
-use crate::packedfile_views::PackedFileView;
 use crate::packedfile_views::esf::esftree::*;
 use crate::packedfile_views::esf::slots::PackedFileESFViewSlots;
+use crate::packedfile_views::PackedFileView;
+use crate::packedfile_views::PackFileContentsUI;
 use crate::utils::create_grid_layout;
+
+use self::esf_detailed_view::ESFDetailedView;
 
 use super::{ViewType, View};
 
 mod connections;
 mod esftree;
+mod esf_detailed_view;
 mod slots;
 
 //-------------------------------------------------------------------------------//
@@ -60,7 +68,7 @@ mod slots;
 /// This struct contains the view of the ESF PackedFile.
 pub struct PackedFileESFView {
     tree_view: QBox<QTreeView>,
-    tree_model: QBox<QStandardItemModel>,
+    _tree_model: QBox<QStandardItemModel>,
     tree_filter: QBox<QSortFilterProxyModel>,
 
     filter_line_edit: QBox<QLineEdit>,
@@ -68,9 +76,11 @@ pub struct PackedFileESFView {
     filter_case_sensitive_button: QBox<QPushButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
 
-    editor: QBox<QWidget>,
+    node_data_panel: QBox<QWidget>,
 
-    path: Arc<RwLock<Vec<String>>>,
+    detailed_view: Arc<RwLock<ESFDetailedView>>,
+
+    _path: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -83,6 +93,10 @@ impl PackedFileESFView {
     /// This function creates a new PackedFileESFView, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
@@ -124,6 +138,7 @@ impl PackedFileESFView {
 
         let tree_panel = QWidget::new_1a(&splitter);
         let tree_layout = create_grid_layout(tree_panel.static_upcast());
+        tree_panel.set_minimum_width(200);
 
         // Add everything to the `TreeView`s Layout.
         tree_layout.add_widget_5a(&tree_view, 0, 0, 1, 2);
@@ -133,16 +148,17 @@ impl PackedFileESFView {
 
         let node_data_panel = QWidget::new_1a(&splitter);
         let node_data_layout = create_grid_layout(node_data_panel.static_upcast());
-
-        let editor = new_text_editor_safe(&node_data_panel.static_upcast());
-        node_data_layout.add_widget_5a(&editor, 0, 0, 0, 1);
+        node_data_layout.set_row_stretch(1000, 100);
+        node_data_layout.set_column_stretch(1, 100);
+        node_data_panel.set_minimum_width(250);
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
 
+
         let view = Arc::new(Self {
             tree_view,
-            tree_model,
+            _tree_model: tree_model,
             tree_filter,
 
             filter_line_edit,
@@ -150,17 +166,21 @@ impl PackedFileESFView {
             filter_case_sensitive_button,
             filter_timer_delayed_updates,
 
-            editor,
+            node_data_panel,
 
-            path: packed_file_view.get_path_raw()
+            detailed_view: Arc::new(RwLock::new(ESFDetailedView::default())),
+
+            _path: packed_file_view.get_path_raw()
         });
 
-        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data));
+        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data.clone()));
 
         let slots = PackedFileESFViewSlots::new(
             &view,
-            //app_ui,
-            //pack_file_contents_ui
+            &app_ui,
+            &global_search_ui,
+            &pack_file_contents_ui,
+            &diagnostics_ui
         );
 
         connections::set_connections(&view, &slots);
@@ -173,6 +193,16 @@ impl PackedFileESFView {
     /// This function tries to reload the current view with the provided data.
     pub unsafe fn reload_view(&self, data: &ESF) {
         self.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data.clone()));
+    }
+
+    /// This function saves the current view to an ESF struct.
+    pub unsafe fn save_view(&self) -> ESF {
+
+        // First, save the currently open node.
+        self.detailed_view.read().unwrap().save_to_tree_node(&self.tree_view);
+
+        // Then, generate an ESF struct from the tree data.
+        self.tree_view.get_esf_from_view(true)
     }
 
     /// Function to filter the ESF TreeView.

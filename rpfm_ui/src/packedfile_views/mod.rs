@@ -304,6 +304,8 @@ impl PackedFileView {
 
                             // Images are read-only.
                             PackedFileType::Image => return Ok(()),
+
+                            // AnimPacks save on edit.
                             PackedFileType::AnimPack => return Ok(()),
 
                             PackedFileType::AnimFragment => {
@@ -375,7 +377,11 @@ impl PackedFileView {
 
                             // UnitVariant use custom saving.
                             PackedFileType::UnitVariant => return Ok(()),
-                            PackedFileType::ESF => return Ok(()),
+
+                            // ESF files are re-generated from the view.
+                            PackedFileType::ESF => if let View::ESF(view) = view {
+                                DecodedPackedFile::ESF(view.save_view())
+                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
 
                             // Ignore these ones.
                             PackedFileType::Unknown | PackedFileType::PackFile => return Ok(()),

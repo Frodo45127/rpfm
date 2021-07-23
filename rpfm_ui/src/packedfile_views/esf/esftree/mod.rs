@@ -32,6 +32,7 @@ use qt_core::QPtr;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
+use cpp_core::Ref;
 
 use rpfm_lib::packedfile::esf::RecordNodeFlags;
 use rpfm_lib::packedfile::esf::{ESF, NodeType};
@@ -39,6 +40,7 @@ use rpfm_lib::packedfile::esf::{ESF, NodeType};
 const ESF_DATA: i32 = 40;
 const CHILDLESS_NODE: i32 = 41;
 const CHILD_NODES: i32 = 42;
+const RECORD_NODE_NAME: i32 = 43;
 
 //-------------------------------------------------------------------------------//
 //                          Enums & Structs (and trait)
@@ -55,6 +57,18 @@ pub(crate) trait ESFTree {
 
     /// This function generates an ESF file from the contents of the `TreeView`.
     unsafe fn get_esf_from_view(&self, has_filter: bool) -> ESF;
+
+    /// This function gives you the data contained within a CHILD_NODES variant of the provided item.
+    unsafe fn get_child_nodes_from_item(item: &QStandardItem) -> String;
+
+    /// This function is used to get the path of a specific Item in a StandardItemModel.
+    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
+
+    /// This function is used to get the path of a specific ModelIndex in a StandardItemModel.
+    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
+
+    /// This function gives you the item corresponding to an specific path.
+    unsafe fn get_item_from_path(path: &[String], model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
 
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
@@ -92,6 +106,85 @@ impl ESFTree for QBox<QTreeView> {
         indexes_real.iter().map(|x| model.item_from_index(x.as_ref())).collect()
     }
 
+    unsafe fn get_child_nodes_from_item(item: &QStandardItem) -> String {
+        item.data_1a(CHILD_NODES).to_string().to_std_string()
+    }
+
+    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
+        let index = item.index();
+        Self::get_path_from_index(index.as_ref(), &model)
+    }
+
+    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
+
+        // The logic is simple: we loop from item to parent until we reach the top.
+        let mut path = vec![];
+        let mut index = index;
+        let mut parent;
+
+        // Loop until we reach the root index.
+        loop {
+            let text = model.data_2a(index, RECORD_NODE_NAME).to_string().to_std_string();
+            parent = index.parent();
+
+            // If the parent is valid, it's the new item. Otherwise, we stop without adding it (we don't want the PackFile's name in).
+            if parent.is_valid() {
+                path.push(text);
+                index = parent.as_ref();
+            } else { break; }
+        }
+
+        // Reverse it, as we want it from arent to children.
+        path.reverse();
+        path
+    }
+
+    unsafe fn get_item_from_path(path: &[String], model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem> {
+
+        // Get it another time, this time to use it to hold the current item.
+        let mut item = model.item_1a(0);
+        let mut index = 0;
+        let path_deep = path.len();
+        loop {
+
+            // If we reached the folder of the item...
+            if index == (path_deep - 1) {
+                let children_count = item.row_count();
+                for row in 0..children_count {
+                    let child = item.child_1a(row);
+                    let text = child.text().to_std_string();
+                    if text == path[index] {
+                        item = child;
+                        break;
+                    }
+                }
+                break;
+            }
+
+            // If we are not still in the folder of the file...
+            else {
+
+                // Get the amount of children of the current item and goe through them until we find our folder.
+                let children_count = item.row_count();
+                let mut not_found = true;
+                for row in 0..children_count {
+                    let child = item.child_1a(row);
+                    let text = child.text().to_std_string();
+                    if text == path[index] {
+                        item = child;
+                        index += 1;
+                        not_found = false;
+                        break;
+                    }
+                }
+
+                // If the child was not found, stop and return the parent.
+                if not_found { break; }
+            }
+        }
+        item
+    }
+
     unsafe fn update_treeview(&self, has_filter: bool, operation: ESFTreeViewOperation) {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
         let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
@@ -121,6 +214,7 @@ impl ESFTree for QBox<QTreeView> {
                         big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
                         big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
                         big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                        big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
 
                         let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                         state_item.set_flags(QFlags::from(flags));
@@ -181,8 +275,11 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             // Prepare the data in a way or another, depending if we have nested blocks or not.
             if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
                 for (index, node_group) in node.get_ref_children().iter().enumerate() {
-
-                    let node_group_name = format!("{}_{}", node.get_ref_name(), index);
+                    let node_group_name = if node_group.len() == 2 {
+                        if let NodeType::Ascii(ref key) = node_group[0] {
+                            key.to_owned()
+                        } else { format!("{}_{}", node.get_ref_name(), index) }
+                    } else { format!("{}_{}", node.get_ref_name(), index) };
                     let node_group_item = QStandardItem::from_q_string(&QString::from_std_str(&node_group_name));
                     let node_group_state_item = QStandardItem::new();
                     node_group_item.set_editable(false);
@@ -199,6 +296,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
                     // Store the group's data.
                     node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node_group.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                    node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node_group_name)), RECORD_NODE_NAME);
 
                     let qlist = QListOfQStandardItem::new();
                     qlist.append_q_standard_item(&node_group_item.into_ptr().as_mut_raw_ptr());
@@ -209,6 +307,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
                 // Set the child's data, and add the child to the TreeView.
                 child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
+                child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
             }
 
             // If it doesn't have nested blocks, just grab the first block's pack.
@@ -225,6 +324,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 // Once done, store its data and it's values.
                 child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
                 child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
             }
 
             let qlist = QListOfQStandardItem::new();

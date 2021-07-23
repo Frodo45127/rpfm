@@ -154,6 +154,7 @@ impl ESF {
         strings_utf8: &BTreeMap<u32, String>,
         strings_utf16: &BTreeMap<u32, String>
     ) -> Result<NodeType> {
+
         let next_byte = packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)?;
         let is_record = next_byte & RecordNodeFlags::IS_RECORD_NODE.bits == RecordNodeFlags::IS_RECORD_NODE.bits;
 
@@ -248,13 +249,22 @@ impl ESF {
                 }),
                 I8 => NodeType::I8(packed_file_data.decode_packedfile_integer_i8(*offset, &mut offset)?),
                 I16 => NodeType::I16(packed_file_data.decode_packedfile_integer_i16(*offset, &mut offset)?),
-                I32 => NodeType::I32(packed_file_data.decode_packedfile_integer_i32(*offset, &mut offset)?),
+                I32 => NodeType::I32(I32Node {
+                    value: packed_file_data.decode_packedfile_integer_i32(*offset, &mut offset)?,
+                    optimized: false,
+                }),
                 I64 => NodeType::I64(packed_file_data.decode_packedfile_integer_i64(*offset, &mut offset)?),
                 U8 => NodeType::U8(packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)?),
                 U16 => NodeType::U16(packed_file_data.decode_packedfile_integer_u16(*offset, &mut offset)?),
-                U32 => NodeType::U32(packed_file_data.decode_packedfile_integer_u32(*offset, &mut offset)?),
+                U32 => NodeType::U32(U32Node {
+                    value: packed_file_data.decode_packedfile_integer_u32(*offset, &mut offset)?,
+                    optimized: false,
+                }),
                 U64 => NodeType::U64(packed_file_data.decode_packedfile_integer_u64(*offset, &mut offset)?),
-                F32 => NodeType::F32(packed_file_data.decode_packedfile_float_f32(*offset, &mut offset)?),
+                F32 => NodeType::F32(F32Node {
+                    value: packed_file_data.decode_packedfile_float_f32(*offset, &mut offset)?,
+                    optimized: false,
+                }),
                 F64 => NodeType::F64(packed_file_data.decode_packedfile_float_f64(*offset, &mut offset)?),
 
                 //------------------------------------------------//
@@ -304,17 +314,46 @@ impl ESF {
                     value: false,
                     optimized: true,
                 }),
-                U32_ZERO => NodeType::U32Zero,
-                U32_ONE => NodeType::U32One,
-                U32_BYTE => NodeType::U32Byte(packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)? as u32),
-                U32_16BIT => NodeType::U32_16bit(packed_file_data.decode_packedfile_integer_u16(*offset, &mut offset)? as u32),
-                U32_24BIT => NodeType::U32_24bit(packed_file_data.decode_packedfile_integer_u24(*offset, &mut offset)? as u32),
-                I32_ZERO => NodeType::I32Zero,
-                I32_BYTE => NodeType::I32Byte(packed_file_data.decode_packedfile_integer_i8(*offset, &mut offset)? as i32),
-                I32_16BIT =>NodeType::I32_16bit(packed_file_data.decode_packedfile_integer_i16(*offset, &mut offset)? as i32),
-                I32_24BIT =>NodeType::I32_24bit(packed_file_data.decode_packedfile_integer_i24(*offset, &mut offset)? as i32),
-                F32_ZERO => NodeType::F32Zero,
-
+                U32_ZERO => NodeType::U32(U32Node {
+                    value: 0,
+                    optimized: true,
+                }),
+                U32_ONE => NodeType::U32(U32Node {
+                    value: 1,
+                    optimized: true,
+                }),
+                U32_BYTE => NodeType::U32(U32Node {
+                    value: packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)? as u32,
+                    optimized: true,
+                }),
+                U32_16BIT => NodeType::U32(U32Node {
+                    value: packed_file_data.decode_packedfile_integer_u16(*offset, &mut offset)? as u32,
+                    optimized: true,
+                }),
+                U32_24BIT => NodeType::U32(U32Node {
+                    value: packed_file_data.decode_packedfile_integer_u24(*offset, &mut offset)? as u32,
+                    optimized: true,
+                }),
+                I32_ZERO => NodeType::I32(I32Node {
+                    value: 0,
+                    optimized: true,
+                }),
+                I32_BYTE => NodeType::I32(I32Node {
+                    value: packed_file_data.decode_packedfile_integer_i8(*offset, &mut offset)? as i32,
+                    optimized: true,
+                }),
+                I32_16BIT => NodeType::I32(I32Node {
+                    value: packed_file_data.decode_packedfile_integer_i16(*offset, &mut offset)? as i32,
+                    optimized: true,
+                }),
+                I32_24BIT => NodeType::I32(I32Node {
+                    value: packed_file_data.decode_packedfile_integer_i24(*offset, &mut offset)? as i32,
+                    optimized: true,
+                }),
+                F32_ZERO => NodeType::F32(F32Node {
+                    value: 0.0,
+                    optimized: true,
+                }),
 
                 //------------------------------------------------//
                 // Unknown nodes.
@@ -391,7 +430,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_i32(*offset, &mut offset)?);
                     }
 
-                    NodeType::I32Array(node_data)
+                    NodeType::I32Array(VecI32Node {
+                        value: node_data,
+                        optimized: false,
+                    })
 
                 },
                 I64_ARRAY => {
@@ -439,7 +481,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_u32(*offset, &mut offset)?);
                     }
 
-                    NodeType::U32Array(node_data)
+                    NodeType::U32Array(VecU32Node {
+                        value: node_data,
+                        optimized: false,
+                    })
 
                 },
                 U64_ARRAY => {
@@ -572,7 +617,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_u8(*offset, &mut offset)? as u32);
                     }
 
-                    NodeType::U32ByteArray(node_data)
+                    NodeType::U32Array(VecU32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
                 U32_16BIT_ARRAY => {
                     let mut node_data = vec![];
@@ -583,7 +631,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_u16(*offset, &mut offset)? as u32);
                     }
 
-                    NodeType::U32_16bitArray(node_data)
+                    NodeType::U32Array(VecU32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
                 U32_24BIT_ARRAY => {
                     let mut node_data = vec![];
@@ -594,7 +645,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_u24(*offset, &mut offset)? as u32);
                     }
 
-                    NodeType::U32_24bitArray(node_data)
+                    NodeType::U32Array(VecU32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
                 I32_BYTE_ARRAY => {
                     let mut node_data = vec![];
@@ -605,7 +659,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_i8(*offset, &mut offset)? as i32);
                     }
 
-                    NodeType::I32ByteArray(node_data)
+                    NodeType::I32Array(VecI32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
                 I32_16BIT_ARRAY => {
                     let mut node_data = vec![];
@@ -616,7 +673,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_i16(*offset, &mut offset)? as i32);
                     }
 
-                    NodeType::I32_16bitArray(node_data)
+                    NodeType::I32Array(VecI32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
                 I32_24BIT_ARRAY => {
                     let mut node_data = vec![];
@@ -627,7 +687,10 @@ impl ESF {
                         node_data.push(packed_file_data.decode_packedfile_integer_i24(*offset, &mut offset)? as i32);
                     }
 
-                    NodeType::I32_24bitArray(node_data)
+                    NodeType::I32Array(VecI32Node {
+                        value: node_data,
+                        optimized: true,
+                    })
                 },
 
                 // Anything else is not yet supported.
@@ -635,17 +698,18 @@ impl ESF {
             }
         };
 
-
         // Debugging code: re-save every slot and compare it with it's source data.
         // To check for read/save integrity.
-        //let data = Self::save_node(&node_type, is_root_node, record_names, &strings_utf8.values().map(|x| x.to_owned()).collect::<Vec<String>>(), &strings_utf16.values().map(|x| x.to_owned()).collect::<Vec<String>>());
-        //if data != packed_file_data[initial_offset..*offset] {
-        //    dbg!(next_byte);
-        //    dbg!(*offset);
-        //    let max = data.len() / 10;
-        //    dbg!(&data[..10]);
-        //    dbg!(&packed_file_data[initial_offset..(initial_offset + 10)]);
-        //    return Err(ErrorKind::ESFUnsupportedDataType(format!("{}", next_byte)).into());
+        //if *offset > 1040000 {
+        //    let data = Self::save_node(&node_type, is_root_node, record_names, &strings_utf8.values().map(|x| x.to_owned()).collect::<Vec<String>>(), &strings_utf16.values().map(|x| x.to_owned()).collect::<Vec<String>>());
+        //    if data != packed_file_data[initial_offset..*offset] {
+        //        dbg!(next_byte);
+        //        dbg!(*offset);
+        //        let max = if data.len() > 20 { 20 } else { data.len() };
+        //        dbg!(&data[..max]);
+        //        dbg!(&packed_file_data[initial_offset..(initial_offset + max)]);
+        //        //return Err(ErrorKind::ESFUnsupportedDataType(format!("{}", next_byte)).into());
+        //    }
         //}
 
         Ok(node_type)
@@ -683,8 +747,47 @@ impl ESF {
                 data.encode_integer_i16(*value);
             },
             NodeType::I32(value) => {
-                data.push(I32);
-                data.encode_integer_i32(*value);
+                if *value.get_ref_optimized() {
+                    let value = *value.get_ref_value();
+                    if value == 0 {
+                        data.push(I32_ZERO);
+                    }
+
+                    // We can do simple logic for positive numbers, but negative numbers need special logic to get their size correctly.
+                    else if value.is_positive() {
+                        if value <= i8::MAX as i32 {
+                            data.push(I32_BYTE);
+                            data.encode_integer_i8(value as i8);
+                        } else if value <= i16::MAX as i32 {
+                            data.push(I32_16BIT);
+                            data.encode_integer_i16(value as i16);
+                        } else if value <= 8_388_607 {
+                            data.push(I32_24BIT);
+                            data.encode_integer_i24(value);
+                        } else {
+                            data.push(I32);
+                            data.encode_integer_i32(value);
+                        }
+                    } else {
+
+                        if value >= i8::MIN as i32 {
+                            data.push(I32_BYTE);
+                            data.encode_integer_i8(value as i8);
+                        } else if value >= i16::MIN as i32 {
+                            data.push(I32_16BIT);
+                            data.encode_integer_i16(value as i16);
+                        } else if value >= -8_388_608 {
+                            data.push(I32_24BIT);
+                            data.encode_integer_i24(value);
+                        } else {
+                            data.push(I32);
+                            data.encode_integer_i32(value);
+                        }
+                    }
+                } else {
+                    data.push(I32);
+                    data.encode_integer_i32(*value.get_ref_value());
+                }
             },
             NodeType::I64(value) => {
                 data.push(I64);
@@ -699,16 +802,47 @@ impl ESF {
                 data.encode_integer_u16(*value);
             },
             NodeType::U32(value) => {
-                data.push(U32);
-                data.encode_integer_u32(*value);
+                if *value.get_ref_optimized() {
+                    let value = *value.get_ref_value();
+                    if value == 0 {
+                        data.push(U32_ZERO);
+                    } else if value == 1 {
+                        data.push(U32_ONE);
+                    } else if value <= 0xFF {
+                        data.push(U32_BYTE);
+                        data.push(value as u8);
+                    } else if value <= 0xFFFF {
+                        data.push(U32_16BIT);
+                        data.encode_integer_u16(value as u16);
+                    } else if value <= 0xFFFFFF {
+                        data.push(U32_24BIT);
+                        data.encode_integer_u24(value);
+                    } else {
+                        data.push(U32);
+                        data.encode_integer_u32(value);
+                    }
+                } else {
+                    data.push(U32);
+                    data.encode_integer_u32(*value.get_ref_value());
+                }
             },
             NodeType::U64(value) => {
                 data.push(U64);
                 data.encode_integer_u64(*value);
             },
             NodeType::F32(value) => {
-                data.push(F32);
-                data.encode_float_f32(*value);
+                if *value.get_ref_optimized() {
+                    let value = *value.get_ref_value();
+                    if (value - 0.0).abs() < std::f32::EPSILON {
+                        data.push(F32_ZERO);
+                    } else {
+                        data.push(F32);
+                        data.encode_float_f32(value);
+                    }
+                } else {
+                    data.push(F32);
+                    data.encode_float_f32(*value.get_ref_value());
+                }
             },
             NodeType::F64(value) => {
                 data.push(F64);
@@ -745,40 +879,6 @@ impl ESF {
                 data.push(ANGLE);
                 data.encode_integer_i16(*value);
             },
-
-            //------------------------------------------------//
-            // Optimized primitive nodes.
-            //------------------------------------------------//
-            NodeType::BoolTrue => data.push(BOOL_TRUE),
-            NodeType::BoolFalse => data.push(BOOL_FALSE),
-            NodeType::U32Zero => data.push(U32_ZERO),
-            NodeType::U32One => data.push(U32_ONE),
-            NodeType::U32Byte(value) => {
-                data.push(U32_BYTE);
-                data.push(*value as u8);
-            },
-            NodeType::U32_16bit(value) => {
-                data.push(U32_16BIT);
-                data.encode_integer_u16(*value as u16);
-            },
-            NodeType::U32_24bit(value) => {
-                data.push(U32_24BIT);
-                data.encode_integer_u24(*value);
-            },
-            NodeType::I32Zero => data.push(I32_ZERO),
-            NodeType::I32Byte(value) => {
-                data.push(I32_BYTE);
-                data.encode_integer_i8(*value as i8);
-            },
-            NodeType::I32_16bit(value) => {
-                data.push(I32_16BIT);
-                data.encode_integer_i16(*value as i16);
-            },
-            NodeType::I32_24bit(value) => {
-                data.push(I32_24BIT);
-                data.encode_integer_i24(*value);
-            },
-            NodeType::F32Zero => data.push(F32_ZERO),
 
             //------------------------------------------------//
             // Unknown nodes.
@@ -829,13 +929,38 @@ impl ESF {
                 data.extend_from_slice(&list);
             },
             NodeType::I32Array(value) => {
-                data.push(I32_ARRAY);
-
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i32(*x));
+                if *value.get_ref_optimized() {
+                    if let Some(max_value) = value.get_ref_value().iter().max() {
+                        if let Some(min_value) = value.get_ref_value().iter().min() {
+                            let max_value = std::cmp::max(min_value.abs(), max_value.abs());
+
+                            if max_value == 0 {
+                                data.push(I32_ZERO_ARRAY);
+                            } else if max_value <= i8::MAX as i32 {
+                                data.push(I32_BYTE_ARRAY);
+                                value.get_ref_value().iter().for_each(|x| list.encode_integer_i8(*x as i8));
+                            } else if max_value <= i16::MAX as i32 {
+                                data.push(I32_16BIT_ARRAY);
+                                value.get_ref_value().iter().for_each(|x| list.encode_integer_i16(*x as i16));
+                            } else if max_value <= 8_388_607 {
+                                data.push(I32_24BIT_ARRAY);
+                                value.get_ref_value().iter().for_each(|x| list.encode_integer_i24(*x));
+                            } else {
+                                data.push(I32_ARRAY);
+                                value.get_ref_value().iter().for_each(|x| list.encode_integer_i32(*x));
+                            }
+                        }
+                    }
+                } else {
+                    data.push(I32_ARRAY);
+                    value.get_ref_value().iter().for_each(|x| list.encode_integer_i32(*x));
+                }
+
                 data.encode_integer_cauleb128(list.len() as u32);
                 data.extend_from_slice(&list);
             },
+
             NodeType::I64Array(value) => {
                 data.push(I64_ARRAY);
 
@@ -861,10 +986,30 @@ impl ESF {
                 data.extend_from_slice(&list);
             },
             NodeType::U32Array(value) => {
-                data.push(U32_ARRAY);
-
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_u32(*x));
+                if *value.get_ref_optimized() {
+                    if let Some(max_value) = value.get_ref_value().iter().max() {
+                        if *max_value == 0 {
+                            data.push(U32_ZERO_ARRAY);
+                        } else if max_value < &0xFF {
+                            data.push(U32_BYTE_ARRAY);
+                            value.get_ref_value().iter().for_each(|x| list.push(*x as u8));
+                        } else if max_value < &0xFFFF {
+                            data.push(U32_16BIT_ARRAY);
+                            value.get_ref_value().iter().for_each(|x| list.encode_integer_u16(*x as u16));
+                        } else if max_value < &0xFFFFFF {
+                            data.push(U32_24BIT_ARRAY);
+                            value.get_ref_value().iter().for_each(|x| list.encode_integer_u24(*x));
+                        } else {
+                            data.push(U32_ARRAY);
+                            value.get_ref_value().iter().for_each(|x| list.encode_integer_u32(*x));
+                        }
+                    }
+                } else {
+                    data.push(U32_ARRAY);
+                    value.get_ref_value().iter().for_each(|x| list.encode_integer_u32(*x));
+                }
+
                 data.encode_integer_cauleb128(list.len() as u32);
                 data.extend_from_slice(&list);
             },
@@ -961,63 +1106,6 @@ impl ESF {
             },
 
             //------------------------------------------------//
-            // Arrays of optimized primitive nodes.
-            //------------------------------------------------//
-            NodeType::U32ByteArray(value) => {
-                data.push(U32_BYTE_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.push(*x as u8));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            NodeType::U32_16bitArray(value) => {
-                data.push(U32_16BIT_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_u16(*x as u16));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            NodeType::U32_24bitArray(value) => {
-                data.push(U32_24BIT_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_u24(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            NodeType::I32ByteArray(value) => {
-                data.push(I32_BYTE_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i8(*x as i8));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            NodeType::I32_16bitArray(value) => {
-                data.push(I32_16BIT_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i16(*x as i16));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            NodeType::I32_24bitArray(value) => {
-                data.push(I32_24BIT_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i24(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
-            }
-
-            //------------------------------------------------//
             // Record nodes.
             //------------------------------------------------//
             NodeType::Record(value) => {
@@ -1034,7 +1122,7 @@ impl ESF {
                     info |= (value.version as u16) << 9;
                     info |= record_names.iter().position(|x| x == &value.name).unwrap() as u16;
 
-                    data.push(info as u8);
+                    data.encode_integer_u16(info.swap_bytes());
                 }
 
                 let mut childs_data = vec![];
@@ -1056,17 +1144,14 @@ impl ESF {
                 } else {
 
                     // For non-nested nodes, we just get the first and only children group.
-                    let children_len = if let Some(children) = value.children.get(0) {
+                    if let Some(children) = value.children.get(0) {
                         for node in children {
                             let child_node = Self::save_node(&node, false, record_names, strings_utf8, strings_utf16);
                             childs_data.extend_from_slice(&child_node);
                         }
-
-                        children.len()
-                    } else { 0 };
+                    }
 
                     data.encode_integer_cauleb128(childs_data.len() as u32);
-                    data.encode_integer_cauleb128(children_len as u32);
                 }
                 data.extend_from_slice(&childs_data);
             },

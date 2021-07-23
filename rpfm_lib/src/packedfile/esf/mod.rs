@@ -33,6 +33,7 @@ pub const SIGNATURE_CEAB: &[u8; 4] = &[0xCE, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CFAB: &[u8; 4] = &[0xCF, 0xAB, 0x00, 0x00];
 
 pub mod caab;
+//pub mod diff;
 
 //---------------------------------------------------------------------------//
 //                              Markers, from ESFEdit
@@ -171,33 +172,19 @@ pub enum NodeType {
     Bool(BoolNode),
     I8(i8),
     I16(i16),
-    I32(i32),
+    I32(I32Node),
     I64(i64),
     U8(u8),
     U16(u16),
-    U32(u32),
+    U32(U32Node),
     U64(u64),
-    F32(f32),
+    F32(F32Node),
     F64(f64),
     Coord2d(Coordinates2DNode),
     Coord3d(Coordinates3DNode),
     Utf16(String),
     Ascii(String),
     Angle(i16),
-
-    /// Optimized Primitives
-    BoolTrue,
-    BoolFalse,
-    U32Zero,
-    U32One,
-    U32Byte(u32),
-    U32_16bit(u32),
-    U32_24bit(u32),
-    I32Zero,
-    I32Byte(i32),
-    I32_16bit(i32),
-    I32_24bit(i32),
-    F32Zero,
 
     /// Unknown Types
     Unknown21(u32),
@@ -210,11 +197,11 @@ pub enum NodeType {
     BoolArray(Vec<bool>),
     I8Array(Vec<i8>),
     I16Array(Vec<i16>),
-    I32Array(Vec<i32>),
+    I32Array(VecI32Node),
     I64Array(Vec<i64>),
     U8Array(Vec<u8>),
     U16Array(Vec<u16>),
-    U32Array(Vec<u32>),
+    U32Array(VecU32Node),
     U64Array(Vec<u64>),
     F32Array(Vec<f32>),
     F64Array(Vec<f64>),
@@ -224,34 +211,61 @@ pub enum NodeType {
     AsciiArray(Vec<String>),
     AngleArray(Vec<i16>),
 
-    /// Optimized Arrays
-    U32ByteArray(Vec<u32>),
-    U32_16bitArray(Vec<u32>),
-    U32_24bitArray(Vec<u32>),
-    I32ByteArray(Vec<i32>),
-    I32_16bitArray(Vec<i32>),
-    I32_24bitArray(Vec<i32>),
-
     /// Record nodes
     Record(RecordNode),
 }
 
 /// Node containing a bool value, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BoolNode {
     value: bool,
     optimized: bool,
 }
 
+/// Node containing an i32 value, and if the node should be optimized or not.
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct I32Node {
+    value: i32,
+    optimized: bool,
+}
+
+/// Node containing an u32 value, and if the node should be optimized or not.
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct U32Node {
+    value: u32,
+    optimized: bool,
+}
+
+/// Node containing an f32 value, and if the node should be optimized or not.
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct F32Node {
+    value: f32,
+    optimized: bool,
+}
+
+/// Node containing a Vec<i32>, and if the node should be optimized or not.
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct VecI32Node {
+    value: Vec<i32>,
+    optimized: bool,
+}
+
+/// Node containing a Vec<u32>, and if the node should be optimized or not.
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct VecU32Node {
+    value: Vec<u32>,
+    optimized: bool,
+}
+
 /// Node containing a pair of X/Y coordinates.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Coordinates2DNode {
     x: f32,
     y: f32,
 }
 
 /// Node containing a group of X/Y/Z coordinates.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(GetRef, GetRefMut, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Coordinates3DNode {
     x: f32,
     y: f32,
@@ -341,6 +355,183 @@ impl NodeType {
             _ => self.clone()
         }
     }
+
+    /*pub fn get_removed_nodes(&self, vanilla_node: &NodeType) -> NodeType {
+        match vanilla_node {
+            Self::Record(vanilla_node) => {
+                match self {
+                    Self::Record(node) => {
+
+                        // If there's a difference in the nodes, it may be due to missing nodes.
+                        // We need to dig deeper.
+                        if vanilla_node.get_ref_children() != node.get_ref_children() {
+
+                        }
+                    }
+                }
+            }
+        }
+    }*/
+/*
+    /// This function checks if the provided NodeType values are "equal", even if the type is different.
+    pub fn eq_value(&self, other: &Self) -> bool {
+        match self {
+           // Invalid type.
+            Self::Invalid => other == &Self::Invalid,
+
+            // Primitive nodes.
+            Self::Bool(value) => match other {
+                Self::Bool(other_value) => value.optimized == other_value.optimized && value.value == other_value.value,
+                Self::BoolTrue => value.optimized && value.value,
+                Self::BoolFalse => value.optimized && !value.value,
+                _ => false
+            },
+            Self::I8(value) => match other {
+                Self::I8(other_value) => value == other_value,
+                _ => false
+            },
+            Self::I16(value) => match other {
+                Self::I16(other_value) => value == other_value,
+                _ => false
+            },
+            Self::I32(value) => match other {
+                Self::I32Zero => *value == 0,
+                Self::I32Byte(other_value) => value == other_value,
+                Self::I32_16bit(other_value) => value == other_value,
+                Self::I32_24bit(other_value) => value == other_value,
+                Self::I32(other_value) => value == other_value,
+                _ => false
+            },
+            Self::I64(value) => match other {
+                Self::I64(other_value) => value == other_value,
+                _ => false
+            },
+            Self::U8(value) => match other {
+                Self::U8(other_value) => value == other_value,
+                _ => false
+            },
+            Self::U16(value) => match other {
+                Self::U16(other_value) => value == other_value,
+                _ => false
+            },
+            Self::U32(value) => match other {
+                Self::U32Zero => *value == 0,
+                Self::U32One => *value == 1,
+                Self::U32Byte(other_value) => value == other_value,
+                Self::U32_16bit(other_value) => value == other_value,
+                Self::U32_24bit(other_value) => value == other_value,
+                Self::U32(other_value) => value == other_value,
+                _ => false
+            },
+            Self::U64(value) => match other {
+                Self::U64(other_value) => value == other_value,
+                _ => false
+            },
+            Self::F32(value) => match other {
+                Self::F32(other_value) =>  (value - other_value).abs() >= std::f32::EPSILON,
+                Self::F32Zero =>  (value - 0.0).abs() >= std::f32::EPSILON,
+                _ => false
+            },
+            Self::F64(value) => match other {
+                Self::F64(other_value) => value == other_value,
+                _ => false
+            },
+            Self::Coord2d(value) => match other {
+                Self::Coord2d(other_value) => value == other_value,
+                _ => false
+            },
+            Self::Coord3d(value) => match other {
+                Self::Coord3d(other_value) => value == other_value,
+                _ => false
+            },
+            Self::Utf16(value) => match other {
+                Self::Utf16(other_value) => value == other_value,
+                _ => false
+            },
+            Self::Ascii(value) => match other {
+                Self::Ascii(other_value) => value == other_value,
+                _ => false
+            },
+            Self::Angle(value) => match other {
+                Self::Angle(other_value) => value == other_value,
+                _ => false
+            },
+
+            // Optimized Primitives
+            Self::BoolTrue => match other {
+                Self::Bool(other_value) => other_value.optimized && other_value.value,
+                Self::BoolTrue => true,
+                _ => false
+            },
+            Self::BoolFalse => match other {
+                Self::Bool(other_value) => other_value.optimized && !other_value.value,
+                Self::BoolFalse => true,
+                _ => false
+            },
+            Self::U32Zero => match other {
+                Self::U32Zero => true,
+                Self::U32One => false,
+                Self::U32Byte(other_value) => *other_value == 0,
+                Self::U32_16bit(other_value) => *other_value == 0,
+                Self::U32_24bit(other_value) => *other_value == 0,
+                Self::U32(other_value) => *other_value == 0,
+                _ => false
+            },
+            Self::U32One => match other {
+                Self::U32Zero => false,
+                Self::U32One => true,
+                Self::U32Byte(other_value) => *other_value == 1,
+                Self::U32_16bit(other_value) => *other_value == 1,
+                Self::U32_24bit(other_value) => *other_value == 1,
+                Self::U32(other_value) => *other_value == 1,
+                _ => false
+            },
+            Self::U32Byte(value) => {false},
+            Self::U32_16bit(value) => {false},
+            Self::U32_24bit(value) => {false},
+            Self::I32Zero => {false},
+            Self::I32Byte(value) => {false},
+            Self::I32_16bit(value) => {false},
+            Self::I32_24bit(value) => {false},
+            Self::F32Zero => {false},
+
+            // Unknown Types
+            Self::Unknown21(value) => {false},
+            Self::Unknown23(value) => {false},
+            //Self::Unknown24(u32) => {false},
+            Self::Unknown25(value) => {false},
+            Self::Unknown26(value) => {false},
+
+            // Primitive Arrays
+            Self::BoolArray(value) => {false},
+            Self::I8Array(value) => {false},
+            Self::I16Array(value) => {false},
+            Self::I32Array(value) => {false},
+            Self::I64Array(value) => {false},
+            Self::U8Array(value) => {false},
+            Self::U16Array(value) => {false},
+            Self::U32Array(value) => {false},
+            Self::U64Array(value) => {false},
+            Self::F32Array(value) => {false},
+            Self::F64Array(value) => {false},
+            Self::Coord2dArray(value) => {false},
+            Self::Coord3dArray(value) => {false},
+            Self::Utf16Array(value) => {false},
+            Self::AsciiArray(value) => {false},
+            Self::AngleArray(value) => {false},
+
+            // Optimized Arrays
+            Self::U32ByteArray(value) => {false},
+            Self::U32_16bitArray(value) => {false},
+            Self::U32_24bitArray(value) => {false},
+            Self::I32ByteArray(value) => {false},
+            Self::I32_16bitArray(value) => {false},
+            Self::I32_24bitArray(value) => {false},
+
+            // Record nodes
+            Self::Record(value) => {false},
+        }
+    }*/
 }
 
 /// Default implementation for `ESF`.
