@@ -30,14 +30,30 @@ cargo build --release
 ## Linux
 
 You need to install the following packages on your distro:
+- ***CMake***.
 - ***Rust 1.32*** (or superior).
 - ***Qt 5.8*** (or superior).
 - ***KTextEditor***.
 - ***xz***.
 - ***p7zip***.
 
-Then just move to RPFM's source code and execute:
+If you use arch or derivates, you also need to edit these two files:
+```bash
+/usr/include/KF5/KTextEditor/ktexteditor/editor.h
+/usr/include/KF5/KTextEditor/ktexteditor/view.h
+```
 
+You have to open them, and change the following include:
+```
+#include <KSyntaxHighlighting/Theme>
+```
+to this:
+```
+#include <KF5/KSyntaxHighlighting/Theme>
+```
+
+
+Then just move to RPFM's source code and execute:
 ```bash
 # To build the executable without optimisations.
 cargo build
