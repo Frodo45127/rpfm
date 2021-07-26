@@ -570,7 +570,8 @@ impl AppUI {
     pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        if &**GAME_SELECTED.read().unwrap() == KEY_ARENA {
+        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
+        if &game_selected == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
             app_ui.packfile_new_packfile.set_enabled(false);
@@ -630,58 +631,48 @@ impl AppUI {
         if enable {
 
             // Check the Game Selected and enable the actions corresponding to out game.
-            match &**GAME_SELECTED.read().unwrap() {
+            match &*game_selected {
                 KEY_TROY => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_THREE_KINGDOMS => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_WARHAMMER_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
                     app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_THRONES_OF_BRITANNIA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_ATTILA => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_ROME_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_SHOGUN_2 => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_NAPOLEON => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(true);
                 },
                 KEY_EMPIRE => {
                     app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
                     app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
-                    app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(true);
                 },
                 _ => {},
             }
@@ -737,15 +728,51 @@ impl AppUI {
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.
-        match &**GAME_SELECTED.read().unwrap() {
-            KEY_TROY |
-            KEY_THREE_KINGDOMS |
-            KEY_WARHAMMER_2 |
-            KEY_WARHAMMER |
-            KEY_THRONES_OF_BRITANNIA |
-            KEY_ATTILA |
-            KEY_ROME_2 => app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true),
-            _ => app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false),
+        // And dependencies generation should be enabled for the current game.
+        match &*game_selected {
+            KEY_TROY => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_troy_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_THREE_KINGDOMS => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_three_k_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_WARHAMMER_2 => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_wh2_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_WARHAMMER => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_wh_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_THRONES_OF_BRITANNIA => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_tob_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_ATTILA => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_att_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_ROME_2 => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true);
+                app_ui.special_stuff_rom2_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_SHOGUN_2 => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
+                app_ui.special_stuff_sho2_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_NAPOLEON => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
+                app_ui.special_stuff_nap_generate_dependencies_cache.set_enabled(true);
+            },
+            KEY_EMPIRE => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
+                app_ui.special_stuff_emp_generate_dependencies_cache.set_enabled(true);
+            },
+            _ => {
+                app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false);
+            },
         }
     }
 
