@@ -857,9 +857,9 @@ impl DiagnosticsUI {
                             KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache.trigger(),
                             KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache.trigger(),
                             KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_SHOGUN_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_NAPOLEON => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_EMPIRE => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache.trigger(),
+                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache.trigger(),
+                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache.trigger(),
                             _ => {}
                         }
                     }
