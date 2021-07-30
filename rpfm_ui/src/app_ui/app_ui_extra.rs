@@ -49,7 +49,7 @@ use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::games::*;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
@@ -369,7 +369,7 @@ impl AppUI {
                     UI_STATE.set_operational_mode(&app_ui, None);
 
                     // Depending on the Id, choose one game or another.
-                    let game_selected = GAME_SELECTED.read().unwrap().to_owned();
+                    let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
                     match ui_data.pfh_version {
 
                         // PFH6 is for Troy.
@@ -507,7 +507,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Some(ref path) = get_game_selected_data_path() {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_data_path() {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -570,7 +570,7 @@ impl AppUI {
     pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
+        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
         if &game_selected == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
@@ -594,13 +594,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Some(game_data_path) = get_game_selected_data_path() {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Some(mut game_data_path) = get_game_selected_data_path() {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -835,7 +835,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = get_game_selected_content_packfiles_paths();
+        let mut content_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths();
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -868,7 +868,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = get_game_selected_data_packfiles_paths();
+        let mut data_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths();
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -1046,7 +1046,7 @@ impl AppUI {
 
                         // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        let is_supported = SUPPORTED_GAMES.iter().filter_map(|(folder_name, x)| if x.supports_editing { Some(folder_name) } else { None }).any(|x| *x == &*game_folder_name);
+                        let is_supported = SUPPORTED_GAMES.get_games().iter().filter_map(|x| if x.get_supports_editing() { Some(x.get_game_key_name()) } else { None }).any(|x| x == game_folder_name);
                         if game_folder.path().is_dir() && is_supported {
                             let game_submenu = match &*game_folder_name {
                                 KEY_TROY => &app_ui.mymod_open_troy,
@@ -2490,7 +2490,7 @@ impl AppUI {
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
         let mut game_changed = false;
-        if new_game_selected != *GAME_SELECTED.read().unwrap() || SCHEMA.read().unwrap().is_none() {
+        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || SCHEMA.read().unwrap().is_none() {
             game_changed = true;
 
             // Disable the Main Window (so we can't do other stuff).

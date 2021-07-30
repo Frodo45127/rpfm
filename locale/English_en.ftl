@@ -393,8 +393,10 @@ settings_paths_mymod_ph = This is the folder where you want to store all "MyMod"
 settings_paths_zip = 7Zip Exe's Path
 settings_paths_zip_ph = This is the full path to 7Zip's executable.
 
-settings_game_label = TW: {"{"}{"}"} Folder
+settings_game_label = Game Folder
+settings_asskit_label = Assembly Kit Folder
 settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed, where the .exe is.
+settings_asskit_line_ph = This is the folder where you have the Assembly kit for {"{"}{"}"} installed.
 
 settings_ui_title = UI Settings
 settings_table_title = Table Settings
@@ -1001,3 +1003,5 @@ settings_ui_table_colour_dark_label = Dark theme
 label_incorrect_game_path = Incorrect Game Path:
 incorrect_game_path_explanation = RPFM detected that the Game Path you set in the settings is incorrect.
     This path is needed for many, MANY features to work properly. So set it up properly.
+
+generate_dependencies_cache_warn = This means RPFM will still try to generate the Dependencies Cache, but the diagnostics tool may generate a bunch of false positives.

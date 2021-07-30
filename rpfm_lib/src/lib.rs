@@ -25,7 +25,7 @@ use lazy_static::lazy_static;
 
 use std::sync::{Arc, RwLock};
 
-use crate::games::{SupportedGames, get_supported_games_list};
+use crate::games::{GameInfo, supported_games::{SupportedGames, KEY_THREE_KINGDOMS}};
 use crate::packedfile::table::db::DB;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::Schema;
@@ -51,13 +51,18 @@ lazy_static! {
     /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and
     /// for "MyMod" folders.
     #[derive(Debug)]
-    pub static ref SUPPORTED_GAMES: SupportedGames = get_supported_games_list();
+    pub static ref SUPPORTED_GAMES: SupportedGames = SupportedGames::new();
 
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
     pub static ref SETTINGS: Arc<RwLock<Settings>> = Arc::new(RwLock::new(Settings::load(None).unwrap_or_else(|_|Settings::new())));
 
-    /// The current GameSelected. Same as the one above, only edited from the background thread.
-    pub static ref GAME_SELECTED: Arc<RwLock<String>> = Arc::new(RwLock::new(SETTINGS.read().unwrap().settings_string["default_game"].to_owned()));
+    /// The current GameSelected. If invalid, it uses 3K as default.
+    pub static ref GAME_SELECTED: Arc<RwLock<&'static GameInfo>> = Arc::new(RwLock::new(
+        match SUPPORTED_GAMES.get_supported_game_from_key(&SETTINGS.read().unwrap().settings_string["default_game"]) {
+            Ok(game) => game,
+            Err(_) => SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap(),
+        }
+    ));
 
     /// Currently loaded schema.
     pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));

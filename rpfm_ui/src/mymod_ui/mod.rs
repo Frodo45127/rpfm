@@ -98,11 +98,12 @@ impl MyModUI {
         // Add the games to the ComboBox.
         let mut selected_index = 0;
         let mut selected_index_counter = 0;
-        for (key_name, game) in SUPPORTED_GAMES.iter() {
-            if game.supports_editing {
-                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name));
+        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
+        for game in SUPPORTED_GAMES.get_games() {
+            if game.get_supports_editing() {
+                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
 
-                if key_name == &*GAME_SELECTED.read().unwrap() {
+                if game.get_game_key_name() == game_selected {
                     selected_index = selected_index_counter
                 }
                 selected_index_counter += 1;

@@ -62,7 +62,7 @@ use std::sync::{Arc, Mutex};
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
-use rpfm_lib::common::{get_assembly_kit_db_tables_path, decoder::*};
+use rpfm_lib::common::decoder::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
@@ -73,7 +73,6 @@ use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat}
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -1485,8 +1484,8 @@ impl PackedFileDecoderView {
     pub fn import_from_assembly_kit(&self) -> Result<Vec<Vec<Field>>> {
 
         // Get the raw data ready.
-        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].raw_db_version;
-        let raw_db_path = get_assembly_kit_db_tables_path().unwrap();
+        let raw_db_version = GAME_SELECTED.read().unwrap().get_raw_db_version();
+        let raw_db_path = GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path()?;
 
         let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;
         let raw_definition = RawDefinition::read(&raw_definition_paths.iter().find(|x| {

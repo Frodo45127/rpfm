@@ -50,7 +50,7 @@ use std::rc::Rc;
 
 use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::games::*;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -849,7 +849,7 @@ impl DiagnosticsUI {
                     "DependenciesCacheNotGenerated" |
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
-                        match &**GAME_SELECTED.read().unwrap() {
+                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
                             KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache.trigger(),
                             KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache.trigger(),

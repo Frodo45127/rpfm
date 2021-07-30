@@ -12,9 +12,9 @@ use log::info;
 use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
+
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::schema::Schema;
-use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::config::Config;
 
@@ -36,7 +36,7 @@ pub fn import_tsv(
 
     match &config.game_selected {
         Some(game_selected) => {
-            let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
+            let schema = Schema::load(game_selected.get_schema_name())?;
         	let source_paths = source_paths.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
         	let result = DB::import_tsv_to_binary_file(&schema, &source_paths);
             info!("All TSV files imported to binary.");
@@ -59,7 +59,7 @@ pub fn export_tsv(
 
     match &config.game_selected {
         Some(game_selected) => {
-            let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
+            let schema = Schema::load(game_selected.get_schema_name())?;
             let source_paths = source_paths.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
             let result = DB::export_tsv_from_binary_file(&schema, &source_paths);
             info!("All binary files exported to TSV.");

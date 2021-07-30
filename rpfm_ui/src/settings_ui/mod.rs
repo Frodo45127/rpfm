@@ -45,11 +45,13 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 use rpfm_lib::updater::{BETA, STABLE, get_update_channel, UpdateChannel};
 
 use crate::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
+use crate::ffi::*;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
 use crate::SETTINGS;
@@ -84,9 +86,14 @@ pub struct SettingsUI {
     pub paths_mymod_label: QBox<QLabel>,
     pub paths_mymod_line_edit: QBox<QLineEdit>,
     pub paths_mymod_button: QBox<QPushButton>,
-    pub paths_games_labels: BTreeMap<String, QBox<QLabel>>,
+
+    pub paths_spoilers: BTreeMap<String, QBox<QWidget>>,
+
     pub paths_games_line_edits: BTreeMap<String, QBox<QLineEdit>>,
     pub paths_games_buttons: BTreeMap<String, QBox<QPushButton>>,
+
+    pub paths_asskit_line_edits: BTreeMap<String, QBox<QLineEdit>>,
+    pub paths_asskit_buttons: BTreeMap<String, QBox<QPushButton>>,
 
     //-------------------------------------------------------------------------------//
     // `General` section of the `Settings` dialog.
@@ -261,23 +268,53 @@ impl SettingsUI {
         main_paths_grid.set_contents_margins_4a(4, 0, 4, 0);
 
         // We automatically add a Label/LineEdit/Button for each game we support.
-        let mut paths_games_labels = BTreeMap::new();
+        let mut paths_spoilers = BTreeMap::new();
+
         let mut paths_games_line_edits = BTreeMap::new();
         let mut paths_games_buttons = BTreeMap::new();
-        for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
-            let game_label = QLabel::from_q_string_q_widget(&qtre("settings_game_label", &[&game_supported.display_name]), &paths_frame);
-            let game_line_edit = QLineEdit::from_q_widget(&paths_frame);
-            let game_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &paths_frame);
-            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[&game_supported.display_name]));
 
-            main_paths_grid.add_widget_5a(&game_label, (index + 1) as i32, 0, 1, 1);
-            main_paths_grid.add_widget_5a(&game_line_edit, (index + 1) as i32, 1, 1, 1);
-            main_paths_grid.add_widget_5a(&game_button, (index + 1) as i32, 2, 1, 1);
+        let mut paths_asskit_line_edits = BTreeMap::new();
+        let mut paths_asskit_buttons = BTreeMap::new();
+
+        for (index, game_supported) in SUPPORTED_GAMES.get_games().iter().enumerate() {
+            let spoiler = new_spoiler_safe(&QString::from_std_str(game_supported.get_display_name()).as_ptr(), 200, &paths_frame.as_ptr().static_upcast());
+            let game_path_layout = create_grid_layout(spoiler.static_upcast());
+
+            let game_key = game_supported.get_game_key_name();
+            let game_label = QLabel::from_q_string_q_widget(&qtr("settings_game_label"), &spoiler);
+            let game_line_edit = QLineEdit::from_q_widget(&spoiler);
+            let game_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &spoiler);
+            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[game_supported.get_display_name()]));
+
+            game_path_layout.add_widget_5a(&game_label, 0, 0, 1, 1);
+            game_path_layout.add_widget_5a(&game_line_edit, 0, 1, 1, 1);
+            game_path_layout.add_widget_5a(&game_button, 0, 2, 1, 1);
 
             // Add the LineEdit and Button to the list.
-            paths_games_labels.insert((*folder_name).to_string(), game_label);
-            paths_games_line_edits.insert((*folder_name).to_string(), game_line_edit);
-            paths_games_buttons.insert((*folder_name).to_string(), game_button);
+            paths_games_line_edits.insert(game_key.to_owned(), game_line_edit);
+            paths_games_buttons.insert(game_key.to_owned(), game_button);
+
+            if game_key != KEY_EMPIRE &&
+                game_key != KEY_NAPOLEON &&
+                game_key != KEY_ARENA {
+
+                let asskit_label = QLabel::from_q_string_q_widget(&qtr("settings_asskit_label"), &spoiler);
+                let asskit_line_edit = QLineEdit::from_q_widget(&spoiler);
+                let asskit_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &spoiler);
+                asskit_line_edit.set_placeholder_text(&qtre("settings_asskit_line_ph", &[game_supported.get_display_name()]));
+
+                game_path_layout.add_widget_5a(&asskit_label, 1, 0, 1, 1);
+                game_path_layout.add_widget_5a(&asskit_line_edit, 1, 1, 1, 1);
+                game_path_layout.add_widget_5a(&asskit_button, 1, 2, 1, 1);
+
+                // Add the LineEdit and Button to the list.
+                paths_asskit_line_edits.insert(game_key.to_owned(), asskit_line_edit);
+                paths_asskit_buttons.insert(game_key.to_owned(), asskit_button);
+            }
+
+            set_spoiler_layout_safe(&spoiler.as_ptr(), &game_path_layout.as_ptr().static_upcast());
+            main_paths_grid.add_widget_5a(&spoiler, index as i32 + 1, 0, 1, 1);
+            paths_spoilers.insert(game_key.to_owned(), spoiler);
         }
 
         paths_grid.add_widget_5a(&paths_frame, 0, 0, 1, 3);
@@ -338,8 +375,8 @@ impl SettingsUI {
 
         let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
         extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
-        for (_, game) in SUPPORTED_GAMES.iter() {
-            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name));
+        for game in SUPPORTED_GAMES.get_games().iter() {
+            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
         }
 
         // Update channel combo.
@@ -670,9 +707,11 @@ impl SettingsUI {
             paths_mymod_label,
             paths_mymod_line_edit,
             paths_mymod_button,
-            paths_games_labels,
+            paths_spoilers,
             paths_games_line_edits,
             paths_games_buttons,
+            paths_asskit_line_edits,
+            paths_asskit_buttons,
 
             //-------------------------------------------------------------------------------//
             // `General` section of the `Settings` dialog.
@@ -800,12 +839,23 @@ impl SettingsUI {
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
-            path.set_text(&QString::from_std_str(&settings.paths[key].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
+            if let Some(ref path_data) = settings.paths[key] {
+                if let Some(ref spoiler) = self.paths_spoilers.get(key) {
+                    path.set_text(&QString::from_std_str(&path_data.to_string_lossy()));
+                    toggle_animated_safe(&spoiler.as_ptr());
+                }
+            }
+        }
+
+        for (key, path) in self.paths_asskit_line_edits.iter() {
+            if let Some(ref path_data) = settings.paths[&(key.to_owned() + "_assembly_kit")] {
+                path.set_text(&QString::from_std_str(&path_data.to_string_lossy()));
+            }
         }
 
         // Get the default game.
-        for (index, (folder_name,_)) in SUPPORTED_GAMES.iter().enumerate() {
-            if *folder_name == settings.settings_string["default_game"] {
+        for (index, game) in SUPPORTED_GAMES.get_games().iter().enumerate() {
+            if game.get_game_key_name() == settings.settings_string["default_game"] {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
             }
@@ -921,6 +971,11 @@ impl SettingsUI {
             settings.paths.insert(key.to_owned(), if new_path.is_dir() { Some(new_path) } else { None });
         }
 
+        for (key, line_edit) in self.paths_asskit_line_edits.iter() {
+            let new_path = PathBuf::from(line_edit.text().to_std_string());
+            settings.paths.insert(key.to_owned() + "_assembly_kit", if new_path.is_dir() { Some(new_path) } else { None });
+        }
+
         // We get his game's folder, depending on the selected game.
         let mut game = self.extra_global_default_game_combobox.current_text().to_std_string();
         if let Some(index) = game.find('&') { game.remove(index); }
@@ -998,16 +1053,27 @@ impl SettingsUI {
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)
     /// with the one you select in a `FileDialog`.
-    unsafe fn update_entry_path(&self, game: &str) {
+    unsafe fn update_entry_path(&self, game: &str, is_asskit_path: bool) {
 
         // We check if we have a game or not. If we have it, update the `LineEdit` for that game.
         // If we don't, update the `LineEdit` for `MyMod`s path.
-        let (line_edit, is_file) = match self.paths_games_line_edits.get(game) {
-            Some(line_edit) => (line_edit, false),
-            None => match game {
-                MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
-                ZIP_PATH => (&self.paths_zip_line_edit, true),
-                _ => return,
+        let (line_edit, is_file) = if is_asskit_path {
+            match self.paths_asskit_line_edits.get(game) {
+                Some(line_edit) => (line_edit, false),
+                None => match game {
+                    MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
+                    ZIP_PATH => (&self.paths_zip_line_edit, true),
+                    _ => return,
+                }
+            }
+        } else {
+            match self.paths_games_line_edits.get(game) {
+                Some(line_edit) => (line_edit, false),
+                None => match game {
+                    MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
+                    ZIP_PATH => (&self.paths_zip_line_edit, true),
+                    _ => return,
+                }
             }
         };
 
@@ -1029,6 +1095,16 @@ impl SettingsUI {
         // If said path is not empty, and is a dir, set it as the initial directory.
         if !old_path.is_empty() && Path::new(&old_path).is_dir() {
             file_dialog.set_directory_q_string(&line_edit.text());
+        }
+
+        // If the game path is set and the assembly kit path it isn't, use the game path to begin with.
+        else if is_asskit_path {
+            if let Some(line_edit) = self.paths_games_line_edits.get(game) {
+                let old_game_path = line_edit.text().to_std_string();
+                if !old_game_path.is_empty() && Path::new(&old_game_path).is_dir() {
+                    file_dialog.set_directory_q_string(&line_edit.text());
+                }
+            }
         }
 
         // Run it and expect a response (1 => Accept, 0 => Cancel).

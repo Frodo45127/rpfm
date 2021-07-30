@@ -30,8 +30,7 @@ use rpfm_error::{Result, ErrorKind};
 
 use crate::assembly_kit::table_definition::RawDefinition;
 use crate::assembly_kit::localisable_fields::RawLocalisableFields;
-use crate::{GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
-use crate::common::*;
+use crate::{GAME_SELECTED, SCHEMA};
 use crate::dependencies::Dependencies;
 use crate::packfile::PackFile;
 use crate::packedfile::table::db::DB;
@@ -76,10 +75,10 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
     if let Some(ref mut schema) = schema_referenced {
 
         // This has to do a different process depending on the `raw_db_version`.
-        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].raw_db_version;
+        let raw_db_version = GAME_SELECTED.read().unwrap().get_raw_db_version();
         match raw_db_version {
             2 | 1 => {
-                if let Some(packfile_db_path) = get_game_selected_db_pack_path() {
+                if let Some(packfile_db_path) = GAME_SELECTED.read().unwrap().get_db_packs_paths() {
                     let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
 
                     let mut ass_kit_schemas_path =
@@ -87,7 +86,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
                             if let Some(path) = ass_kit_path { path }
                             else { return Err(ErrorKind::SchemaNotFound.into()) }
                         }
-                        else if let Some(path) = get_game_selected_assembly_kit_path() { path }
+                        else if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() { path }
                         else { return Err(ErrorKind::SchemaNotFound.into()) };
 
                     ass_kit_schemas_path.push("raw_data");
@@ -122,7 +121,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
                             }
                         }
                     });
-                    schema.save(&SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].schema)?;
+                    schema.save(&GAME_SELECTED.read().unwrap().get_schema_name())?;
 
                     Ok(())
                 }

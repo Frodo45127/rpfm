@@ -39,7 +39,6 @@ use crate::packfile::packedfile::CachedPackedFile;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::DependencyData;
 use crate::SCHEMA;
-use crate::SUPPORTED_GAMES;
 
 const BINARY_EXTENSION: &str = "pak2";
 const DEPENDENCIES_FOLDER: &str = "dependencies";
@@ -333,7 +332,7 @@ impl Dependencies {
     /// This function checks if the current Game Selected has a dependencies file created.
     pub fn game_has_dependencies_generated(&self) -> bool {
         let mut file_path = get_config_path().unwrap().join(DEPENDENCIES_FOLDER);
-        file_path.push(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pak_file.clone().unwrap());
+        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
         file_path.set_extension(BINARY_EXTENSION);
 
         file_path.is_file()
@@ -352,7 +351,7 @@ impl Dependencies {
     /// This function loads a `Dependencies` to memory from a file in the `dependencies/` folder.
     pub fn load_from_binary() -> Result<Self> {
         let mut file_path = get_config_path()?.join(DEPENDENCIES_FOLDER);
-        file_path.push(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pak_file.clone().unwrap());
+        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
         file_path.set_extension(BINARY_EXTENSION);
 
         let mut file = BufReader::new(File::open(&file_path)?);
@@ -381,7 +380,7 @@ impl Dependencies {
         let mut file_path = get_config_path()?.join(DEPENDENCIES_FOLDER);
         DirBuilder::new().recursive(true).create(&file_path)?;
 
-        file_path.push(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pak_file.clone().unwrap());
+        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
         file_path.set_extension(BINARY_EXTENSION);
         let mut file = File::create(&file_path)?;
 
@@ -392,7 +391,7 @@ impl Dependencies {
 
     /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
     pub fn needs_updating(&self) -> Result<bool> {
-        let ca_paths = get_all_ca_packfiles_paths()?;
+        let ca_paths = GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths()?;
         let last_date = get_last_modified_time_from_files(&ca_paths)?;
         Ok(last_date > self.build_date)
     }

@@ -36,11 +36,10 @@ use rpfm_lib::common::*;
 use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::games::*;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::{Manifest, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -332,7 +331,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
                     if !game_data_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
@@ -389,7 +388,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
+                if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
                     if !game_data_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
@@ -476,8 +475,7 @@ impl AppUISlots {
                         // Update the TreeView.
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
 
-                        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-                        match &*game_selected {
+                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
@@ -580,9 +578,10 @@ impl AppUISlots {
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // re-select the current `GameSelected` to force it to reload the game's files.
+                            let game_selected_key = GAME_SELECTED.read().unwrap().get_game_key_name();
                             let has_game_selected_path_changed = settings.paths.iter()
                                 .filter(|x| x.0 != "mymods_base_path" && &old_settings.paths[x.0] != x.1)
-                                .any(|x| x.0 == &*GAME_SELECTED.read().unwrap());
+                                .any(|x| x.0 == &game_selected_key);
 
                             if has_game_selected_path_changed {
                                 QAction::trigger(&app_ui.game_selected_group.checked_action());
@@ -921,12 +920,10 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match get_game_selected_install_type().unwrap() {
-                InstallType::Steam(steam_id) => {
-                    if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    };
-                }
+            match GAME_SELECTED.read().unwrap().get_game_launch_command() {
+                Ok(command) => if open::that(&command).is_err() {
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                },
                 _ => show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false),
             }
         }));
@@ -934,7 +931,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(path) = get_game_selected_data_path() {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path() {
                 if open::that(&path).is_err() {
                     show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -945,7 +942,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(path) = get_game_selected_assembly_kit_path() {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() {
                 if open::that(&path).is_err() {
                     show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -983,52 +980,14 @@ impl AppUISlots {
             app_ui => move |_| {
 
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
-
-                    // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                    let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-                    let asskit_path = match version {
-
-                        // Post-Shogun 2 games.
-                        2 => {
-                            if let Some(ref path) = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()] {
-                                let mut path = path.to_path_buf();
-                                path.push("assembly_kit");
-                                path.push("raw_data");
-                                path.push("db");
-                                Some(path)
-                            }
-                            else {
-                                return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
-                            }
+                    let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
+                    let asskit_path = match GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path() {
+                        Ok(path) => Some(path),
+                        Err(error) => {
+                            let error_message = error.to_string() + "<p>" + &tr("generate_dependencies_cache_warn") + "</p>";
+                            show_dialog(&app_ui.main_window, error_message, true);
+                            None
                         }
-
-                        // Shogun 2.
-                        1 => {
-
-                            // Create the FileDialog to get the path of the Assembly Kit.
-                            let file_dialog = QFileDialog::from_q_widget_q_string(
-                                &app_ui.main_window,
-                                &qtr("special_stuff_select_ak_folder"),
-                            );
-
-                            // Set it to only search Folders.
-                            file_dialog.set_file_mode(FileMode::Directory);
-                            file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
-
-                            // Run it and expect a response (1 => Accept, 0 => Cancel).
-                            let mut path = if file_dialog.exec() == 1 {
-                                PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
-                            } else {
-                                return show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
-                            };
-
-                            path.push("raw_data");
-                            path.push("db");
-                            Some(path)
-                        }
-
-                        // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                        _ => None,
                     };
 
                     // If there is no problem, ere we go.
@@ -1309,7 +1268,7 @@ impl AppUISlots {
             app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
+                let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
                 let path = match version {
                     1| 0 => {
 

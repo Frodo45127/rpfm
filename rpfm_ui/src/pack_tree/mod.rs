@@ -1536,7 +1536,10 @@ pub fn new_pack_file_tooltip(info: &PackFileInfo) -> String {
         CompressionState::Partial => "partially",
     }.to_owned();
 
-    let compatible_games = SUPPORTED_GAMES.iter().filter(|x| x.1.pfh_version.contains(&info.pfh_version)).map(|x| format!("<li><i>{}</i></li>", x.1.display_name)).collect::<String>();
+    let compatible_games = SUPPORTED_GAMES.get_games().iter()
+        .filter(|x| x.get_pfh_versions().values().any(|x| x == &info.pfh_version))
+        .map(|x| format!("<li><i>{}</i></li>", x.get_display_name()))
+        .collect::<String>();
 
     format!("PackFile Info: \
         <ul> \
