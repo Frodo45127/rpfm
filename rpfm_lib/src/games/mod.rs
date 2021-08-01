@@ -114,6 +114,9 @@ struct InstallData {
     /// Currently only used for Empire and Napoleon. Relative to data_path.
     vanilla_packs: Vec<String>,
 
+    /// If the manifest of the game should be used to get the vanilla PackFile list, or should we use the hardcoded list.
+    use_manifest: bool,
+
     /// StoreID of the game.
     store_id: i64,
 
@@ -274,6 +277,14 @@ impl GameInfo {
         Ok(path.join(PathBuf::from(install_data.get_ref_data_path())))
     }
 
+    /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
+    pub fn get_local_mods_path(&self) -> Result<PathBuf> {
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or(Error::from(ErrorKind::GamePathNotConfigured))?;
+        let install_type = self.get_install_type()?;
+        let install_data = self.install_data.get(&install_type).ok_or(Error::from(ErrorKind::GameNotSupported))?;
+        Ok(path.join(PathBuf::from(install_data.get_ref_local_mods_path())))
+    }
+
     /// This function gets the `/assembly_kit` path or equivalent of the game selected, if said game it's configured in the settings.
     pub fn get_assembly_kit_path(&self) -> Result<PathBuf> {
         SETTINGS.read().unwrap().paths.get(&(self.get_game_key_name() + "_assembly_kit")).cloned().flatten().ok_or(Error::from(ErrorKind::GameAssemblyKitPathNotConfigured))
@@ -388,50 +399,70 @@ impl GameInfo {
         Some(full_paths)
     }
 
+    /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
+    pub fn use_manifest(&self) -> Result<bool> {
+        let install_type = self.get_install_type()?;
+        let install_data = self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?;
+
+        // If the install_type is linux, or we actually have a hardcoded list, ignore all Manifests.
+        Ok(*install_data.get_ref_use_manifest())
+    }
+
     /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
     ///
     /// If it fails to find a manifest, it falls back to all non-mod files!
     pub fn get_all_ca_packfiles_paths(&self) -> Result<Vec<PathBuf>> {
-        let data_path = self.get_data_path()?;
 
-        // Try to get the manifest, if exists.
-        match Manifest::read_from_game_selected() {
-            Ok(manifest) => {
-                let pack_file_names = manifest.0.iter().filter_map(|x|
-                    if x.get_ref_relative_path().ends_with(".pack") {
-                        Some(x.get_ref_relative_path().to_owned())
-                    } else { None }
-                    ).collect::<Vec<String>>();
+        // Check if we can use the manifest for this.
+        if !self.use_manifest()? {
+            self.get_all_ca_packfiles_paths_no_manifest()
+        } else {
 
-                Ok(pack_file_names.iter().map(|x| {
-                    let mut pack_file_path = data_path.to_path_buf();
-                    pack_file_path.push(x);
-                    pack_file_path
-                }).collect::<Vec<PathBuf>>())
-            }
+            // Try to get the manifest, if exists.
+            match Manifest::read_from_game_selected() {
+                Ok(manifest) => {
+                    let pack_file_names = manifest.0.iter().filter_map(|x|
+                        if x.get_ref_relative_path().ends_with(".pack") {
+                            Some(x.get_ref_relative_path().to_owned())
+                        } else { None }
+                        ).collect::<Vec<String>>();
 
-            // If there is no manifest, use the hardcoded file list for the game, if it has one.
-            Err(_) => {
-                let vanilla_packs = &self.install_data.get(&self.get_install_type()?).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.vanilla_packs;
-                if !vanilla_packs.is_empty() {
-                    Ok(vanilla_packs.iter().map(|x| {
+                    let data_path = self.get_data_path()?;
+                    Ok(pack_file_names.iter().map(|x| {
                         let mut pack_file_path = data_path.to_path_buf();
                         pack_file_path.push(x);
                         pack_file_path
                     }).collect::<Vec<PathBuf>>())
                 }
 
-                // If there is no hardcoded list, get every path.
-                else {
-                    Ok(get_files_from_subdir(&data_path, false)?.iter()
-                        .filter_map(|x| if let Some(extension) = x.extension() {
-                            if extension.to_string_lossy().to_lowercase() == "pack" {
-                                Some(x.to_owned())
-                            } else { None }
-                        } else { None }).collect::<Vec<PathBuf>>()
-                    )
-                }
+                // If there is no manifest, use the hardcoded file list for the game, if it has one.
+                Err(_) => self.get_all_ca_packfiles_paths_no_manifest()
             }
+        }
+    }
+
+    /// This function tries to get the ca PackFiles without depending on a Manifest. For internal use only.
+    fn get_all_ca_packfiles_paths_no_manifest(&self) -> Result<Vec<PathBuf>> {
+        let data_path = self.get_data_path()?;
+        let install_type = self.get_install_type()?;
+        let vanilla_packs = &self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?.vanilla_packs;
+        if !vanilla_packs.is_empty() {
+            Ok(vanilla_packs.iter().map(|x| {
+                let mut pack_file_path = data_path.to_path_buf();
+                pack_file_path.push(x);
+                pack_file_path
+            }).collect::<Vec<PathBuf>>())
+        }
+
+        // If there is no hardcoded list, get every path.
+        else {
+            Ok(get_files_from_subdir(&data_path, false)?.iter()
+                .filter_map(|x| if let Some(extension) = x.extension() {
+                    if extension.to_string_lossy().to_lowercase() == "pack" {
+                        Some(x.to_owned())
+                    } else { None }
+                } else { None }).collect::<Vec<PathBuf>>()
+            )
         }
     }
 

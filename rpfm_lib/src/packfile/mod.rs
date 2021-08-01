@@ -2733,7 +2733,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
     pub fn read_from_game_selected() -> Result<Self> {
-        let mut manifest_path = GAME_SELECTED.read().unwrap().get_data_path().map_err(|_| Error::from(ErrorKind::GameSelectedPathNotCorrectlyConfigured))?;
+        let mut manifest_path = GAME_SELECTED.read().unwrap().get_data_path().map_err(|_| Error::from(ErrorKind::GameManifestNotFound))?;
         manifest_path.push("manifest.txt");
 
         let mut reader = ReaderBuilder::new()

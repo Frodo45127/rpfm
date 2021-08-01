@@ -667,6 +667,9 @@ pub enum ErrorKind {
 
     /// Error for when the Assembly Kit path for this game is not yet configured.
     GameAssemblyKitPathNotConfigured,
+
+    /// Error for when we can't find the Manifest where we expect it to be.
+    GameManifestNotFound,
 }
 
 /// Implementation of `Error`.
@@ -999,6 +1002,7 @@ impl Display for ErrorKind {
             ErrorKind::NoInstallTypeForGame => write!(f, "<p>The currently selected game doesn't have an Install Type. If this pops up and the Game is not Arena, please report it.</p>"),
             ErrorKind::StringTooLong(size) => write!(f, "<p>The string is too long. The MAX limit is {}.</p>", size),
             ErrorKind::GameAssemblyKitPathNotConfigured => write!(f, "<p>The Assembly Kit path is not yet configured for the game selected.</p>"),
+            ErrorKind::GameManifestNotFound => write!(f, "<p>The manifest for the Game Selected hasn't been found.</p>"),
         }
     }
 }
