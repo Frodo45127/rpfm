@@ -117,6 +117,9 @@ struct InstallData {
     /// StoreID of the game.
     store_id: i64,
 
+    /// Name of the executable of the game, including extension if it has it.
+    executable: String,
+
     /// /data path of the game, or equivalent. Relative to the game's path.
     data_path: String,
 
@@ -213,39 +216,53 @@ impl GameInfo {
 
         // Checks to guess what kind of installation we have.
         let base_path_files = get_files_from_subdir(&base_path, false)?;
-        let has_exes_in_base_path = base_path_files.iter().filter_map(|path| path.extension()).any(|extension| extension == "exe");
-        let has_sh_in_base_path = base_path_files.iter().filter_map(|path| path.extension()).any(|extension| extension == "sh");
+        let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
+            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.get_ref_executable()) {
+                Some(install_type)
+            } else { None }
+        ).collect::<Vec<&InstallType>>();
 
-        // If we have exes, assume Windows and check from which store is.
-        // The currently known stores are Steam and Epic.
-        if has_exes_in_base_path {
-
-           // Steam versions of the game have an "steam_api.dll" file.
-            let has_steam_api_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "steam_api.dll" || filename == "steam_api64.dll");
-            let has_eos_sdk_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "EOSSDK-Win64-Shipping.dll");
-            if has_steam_api_dll {
-                Ok(InstallType::WinSteam)
-            }
-
-            // If not, check wether we have epic libs.
-            else if has_eos_sdk_dll {
-                Ok(InstallType::WinEpic)
-            }
-
-            // If neither of those are true, asume it's wargaming/netease (arena?).
-            else {
-                return Ok(InstallType::WinWargaming)
-            }
+        // If no compatible install data was found, use the first one we have.
+        if install_type_by_exe.is_empty() {
+            Ok(self.install_data.keys().next().unwrap().clone())
         }
 
-        // If not, check for shell scripts. If found, is a linux port.
-        else if has_sh_in_base_path {
-            Ok(InstallType::LnxSteam)
+        // If we only have one install type compatible with the executable we have, return it.
+        else if install_type_by_exe.len() == 1 {
+            Ok(install_type_by_exe[0].clone())
         }
 
-        // If the type cannot be found, use WinSteam by default.
+        // If we have multiple install data compatible, it gets more complex.
         else {
-            return Ok(InstallType::WinSteam)
+
+            // First, identify if we have a windows or linux build (mac only exists in your dreams.....).
+            // Can't be both because they have different exe names. Unless you're retarded and you merge both, in which case, fuck you.
+            let is_windows = install_type_by_exe.iter().any(|install_type| install_type == &&InstallType::WinSteam || install_type == &&InstallType::WinEpic || install_type == &&InstallType::WinWargaming);
+
+            if is_windows {
+
+                // Steam versions of the game have a "steam_api.dll" or "steam_api64.dll" file. Epic has "EOSSDK-Win64-Shipping.dll".
+                let has_steam_api_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "steam_api.dll" || filename == "steam_api64.dll");
+                let has_eos_sdk_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "EOSSDK-Win64-Shipping.dll");
+                if has_steam_api_dll && install_type_by_exe.contains(&&InstallType::WinSteam) {
+                    Ok(InstallType::WinSteam)
+                }
+
+                // If not, check wether we have epic libs.
+                else if has_eos_sdk_dll && install_type_by_exe.contains(&&InstallType::WinEpic) {
+                    Ok(InstallType::WinEpic)
+                }
+
+                // If neither of those are true, asume it's wargaming/netease (arena?).
+                else {
+                    Ok(InstallType::WinWargaming)
+                }
+            }
+
+            // Otherwise, assume it's linux
+            else {
+                Ok(InstallType::LnxSteam)
+            }
         }
     }
 
@@ -426,5 +443,15 @@ impl GameInfo {
             InstallType::WinSteam => Ok(format!("steam://rungameid/{}", self.install_data.get(&install_type).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.get_ref_store_id())),
             _ => todo!()
         }
+    }
+
+    /// This command returns the "Executable" path for the game's installation.
+    pub fn get_executable_path(&self) -> Option<PathBuf> {
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
+        let install_type = self.get_install_type().ok()?;
+        let install_data = self.install_data.get(&install_type)?;
+        let executable_path = path.join(PathBuf::from(install_data.get_ref_executable()));
+
+        Some(executable_path)
     }
 }

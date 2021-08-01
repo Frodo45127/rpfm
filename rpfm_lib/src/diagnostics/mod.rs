@@ -984,8 +984,8 @@ impl Diagnostics {
             }
         }
 
-        if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path() {
-            if !path.is_dir() {
+        if let Some(path) = GAME_SELECTED.read().unwrap().get_executable_path() {
+            if !path.is_file() {
                 diagnostic.get_ref_mut_result().push(
                     ConfigDiagnosticReport {
                         message: "Game Path for the current Game Selected is incorrect.".to_owned(),
