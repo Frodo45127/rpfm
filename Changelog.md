@@ -9,10 +9,12 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.5.4]
 ### Added
 - Reworked `Game Selected` logic.
+- Added `Assembly Kit` fields to settings.
 
 ### Changed
 - Updated compilation instructions.
 - Improved Game folders detection.
+- Improved paths tab on settings.
 
 ### Fixed
 - Fixed case sensitive checkbox on Global Search working on inverse.
