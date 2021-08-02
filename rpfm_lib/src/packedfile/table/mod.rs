@@ -1031,7 +1031,7 @@ impl Table {
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((table_name, self.definition.get_version()))?;
-        writer.serialize(self.definition.get_ref_fields().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize(self.definition.get_fields_processed().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
         for entry in &self.entries { writer.serialize(&entry)?; }
@@ -1079,7 +1079,7 @@ impl Table {
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((&table_type, version))?;
-        writer.serialize(definition.get_ref_fields().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize(definition.get_fields_processed().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
         for entry in entries { writer.serialize(&entry)?; }
