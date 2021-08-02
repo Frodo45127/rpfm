@@ -112,7 +112,9 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 0,
+                    executable: "Troy.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "mods/mymods".to_owned(),
                     downloaded_mods_path: "mods".to_owned(),
@@ -136,7 +138,9 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 1_099_410,
+                    executable: "Troy.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/1099410".to_owned(),
@@ -187,9 +191,89 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 779_340,
+                    executable: "Three_Kingdoms.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec!["database.pack".to_owned()],
+                    loc_packs: vec![
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![
+                        "audio.pack".to_owned(),
+                        "audio_bl.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_bl.pack".to_owned(),
+                        "data_dlc06.pack".to_owned(),
+                        "data_dlc07.pack".to_owned(),
+                        "../../../data/data_dlc07.pack".to_owned(),
+                        "data_ep.pack".to_owned(),
+                        "data_mh.pack".to_owned(),
+                        "data_yt.pack".to_owned(),
+                        "data_yt_bl.pack".to_owned(),
+                        "database.pack".to_owned(),
+                        "fast.pack".to_owned(),
+                        "fast_bl.pack".to_owned(),
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+                        "models.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "movies_bl.pack".to_owned(),
+                        "movies_dlc06.pack".to_owned(),
+                        "movies_ep.pack".to_owned(),
+                        "movies_mh.pack".to_owned(),
+                        "movies_wb.pack".to_owned(),
+                        "movies_yt.pack".to_owned(),
+                        "movies_yt_bl.pack".to_owned(),
+                        "movies2.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "shaders_bl.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain3.pack".to_owned(),
+                        "terrain4.pack".to_owned(),
+                        "terrain5.pack".to_owned(),
+                        "variants.pack".to_owned(),
+                        "variants_bl.pack".to_owned(),
+                        "variants_dds.pack".to_owned(),
+                        "variants_dds_bl.pack".to_owned(),
+                        "vegetation.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 779_340,
+                    executable: "ThreeKingdoms.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/779340".to_owned(),
                 });
 
@@ -236,9 +320,167 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 594_570,
+                    executable: "Warhammer2.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec!["data.pack".to_owned()],
+                    loc_packs: vec![
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![
+                        "audio.pack".to_owned(),
+                        "audio_2.pack".to_owned(),
+                        "audio_bl.pack".to_owned(),
+                        "audio_bm.pack".to_owned(),
+                        "audio_br.pack".to_owned(),
+                        "audio_cst.pack".to_owned(),
+                        "audio_gc.pack".to_owned(),
+                        "audio_m.pack".to_owned(),
+                        "audio_tk.pack".to_owned(),
+                        "audio_we.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "campaign_variants.pack".to_owned(),
+                        "campaign_variants_2.pack".to_owned(),
+                        "campaign_variants_bl.pack".to_owned(),
+                        "campaign_variants_pro09_.pack".to_owned(),
+                        "campaign_variants_sb.pack".to_owned(),
+                        "campaign_variants_twa02_.pack".to_owned(),
+                        "campaign_variants_wp_.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_1.pack".to_owned(),
+                        "data_2.pack".to_owned(),
+                        "data_bl.pack".to_owned(),
+                        "data_bm.pack".to_owned(),
+                        "data_gv.pack".to_owned(),
+                        "data_hb.pack".to_owned(),
+                        "data_pro09_.pack".to_owned(),
+                        "data_pw.pack".to_owned(),
+                        "data_sb.pack".to_owned(),
+                        "data_sc.pack".to_owned(),
+                        "data_tk.pack".to_owned(),
+                        "data_twa01_.pack".to_owned(),
+                        "data_twa02_.pack".to_owned(),
+                        "data_we.pack".to_owned(),
+                        "data_wp_.pack".to_owned(),
+
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+
+                        "localisation/en/local_en_2.pack".to_owned(),     // English
+                        "localisation/br/local_br_2.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz_2.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge_2.pack".to_owned(),     // German
+                        "localisation/sp/local_sp_2.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr_2.pack".to_owned(),     // French
+                        "localisation/it/local_it_2.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr_2.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl_2.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru_2.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr_2.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn_2.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh_2.pack".to_owned(),     // Traditional Chinese
+
+                        "localisation/en/local_en_gc.pack".to_owned(),     // English
+                        "localisation/br/local_br_gc.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz_gc.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge_gc.pack".to_owned(),     // German
+                        "localisation/sp/local_sp_gc.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr_gc.pack".to_owned(),     // French
+                        "localisation/it/local_it_gc.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr_gc.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl_gc.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru_gc.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr_gc.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn_gc.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh_gc.pack".to_owned(),     // Traditional Chinese
+
+                        "models.pack".to_owned(),
+                        "models_2.pack".to_owned(),
+                        "models_gc.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "models2_2.pack".to_owned(),
+                        "models2_gc.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "movies_2.pack".to_owned(),
+                        "movies2.pack".to_owned(),
+                        "movies3.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "shaders_bl.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain_2.pack".to_owned(),
+                        "terrain_gc.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain2_2.pack".to_owned(),
+                        "terrain2_gc.pack".to_owned(),
+                        "terrain3.pack".to_owned(),
+                        "terrain3_2.pack".to_owned(),
+                        "terrain3_gc.pack".to_owned(),
+                        "terrain4.pack".to_owned(),
+                        "terrain4_2.pack".to_owned(),
+                        "terrain5.pack".to_owned(),
+                        "terrain7.pack".to_owned(),
+                        "terrain7_2.pack".to_owned(),
+                        "terrain7_gc.pack".to_owned(),
+                        "terrain8.pack".to_owned(),
+                        "terrain8_2.pack".to_owned(),
+                        "terrain9.pack".to_owned(),
+                        "variants.pack".to_owned(),
+                        "variants_2.pack".to_owned(),
+                        "variants_bl.pack".to_owned(),
+                        "variants_dds.pack".to_owned(),
+                        "variants_dds_2.pack".to_owned(),
+                        "variants_dds_bl.pack".to_owned(),
+                        "variants_dds_gc.pack".to_owned(),
+                        "variants_dds_sb.pack".to_owned(),
+                        "variants_dds_wp_.pack".to_owned(),
+                        "variants_dds2.pack".to_owned(),
+                        "variants_dds2_2.pack".to_owned(),
+                        "variants_dds2_sb.pack".to_owned(),
+                        "variants_dds2_sc.pack".to_owned(),
+                        "variants_dds2_wp_.pack".to_owned(),
+                        "variants_gc.pack".to_owned(),
+                        "variants_hb.pack".to_owned(),
+                        "variants_sb.pack".to_owned(),
+                        "variants_sc.pack".to_owned(),
+                        "variants_wp_.pack".to_owned(),
+                        "warmachines.pack".to_owned(),
+                        "warmachines_2.pack".to_owned(),
+                        "warmachines_hb.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 594_570,
+                    executable: "TotalWarhammer2.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
                 });
 
@@ -290,9 +532,123 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 364_360,
+                    executable: "Warhammer.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec![
+                        "data.pack".to_owned(),         // Central data PackFile
+                        "data_bl.pack".to_owned(),      // Blood DLC Data
+                        "data_bm.pack".to_owned()       // Beastmen DLC Data
+                    ],
+                    loc_packs: vec![
+                        "localisation/local_en.pack".to_owned(),     // English
+                        "localisation/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/local_cz.pack".to_owned(),     // Czech
+                        "localisation/local_ge.pack".to_owned(),     // German
+                        "localisation/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/local_fr.pack".to_owned(),     // French
+                        "localisation/local_it.pack".to_owned(),     // Italian
+                        "localisation/local_kr.pack".to_owned(),     // Korean
+                        "localisation/local_pl.pack".to_owned(),     // Polish
+                        "localisation/local_ru.pack".to_owned(),     // Russian
+                        "localisation/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![
+                        "boot.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_bl.pack".to_owned(),
+                        "data_bm.pack".to_owned(),
+                        "data_ch.pack".to_owned(),
+                        "data_m.pack".to_owned(),
+                        "data_no.pack".to_owned(),
+                        "data_we.pack".to_owned(),
+                        "data_we_m.pack".to_owned(),
+
+                        "localisation/local_en.pack".to_owned(),     // English
+                        "localisation/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/local_cz.pack".to_owned(),     // Czech
+                        "localisation/local_ge.pack".to_owned(),     // German
+                        "localisation/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/local_fr.pack".to_owned(),     // French
+                        "localisation/local_it.pack".to_owned(),     // Italian
+                        "localisation/local_kr.pack".to_owned(),     // Korean
+                        "localisation/local_pl.pack".to_owned(),     // Polish
+                        "localisation/local_ru.pack".to_owned(),     // Russian
+                        "localisation/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/local_zh.pack".to_owned(),     // Traditional Chinese
+
+                        "localisation/local_en_bl.pack".to_owned(),     // English
+                        "localisation/local_br_bl.pack".to_owned(),     // Brazilian
+                        "localisation/local_cz_bl.pack".to_owned(),     // Czech
+                        "localisation/local_ge_bl.pack".to_owned(),     // German
+                        "localisation/local_sp_bl.pack".to_owned(),     // Spanish
+                        "localisation/local_fr_bl.pack".to_owned(),     // French
+                        "localisation/local_it_bl.pack".to_owned(),     // Italian
+                        "localisation/local_kr_bl.pack".to_owned(),     // Korean
+                        "localisation/local_pl_bl.pack".to_owned(),     // Polish
+                        "localisation/local_ru_bl.pack".to_owned(),     // Russian
+                        "localisation/local_tr_bl.pack".to_owned(),     // Turkish
+                        "localisation/local_cn_bl.pack".to_owned(),     // Simplified Chinese
+                        "localisation/local_zh_bl.pack".to_owned(),     // Traditional Chinese
+
+                        "localisation/local_en_bm.pack".to_owned(),     // English
+                        "localisation/local_br_bm.pack".to_owned(),     // Brazilian
+                        "localisation/local_cz_bm.pack".to_owned(),     // Czech
+                        "localisation/local_ge_bm.pack".to_owned(),     // German
+                        "localisation/local_sp_bm.pack".to_owned(),     // Spanish
+                        "localisation/local_fr_bm.pack".to_owned(),     // French
+                        "localisation/local_it_bm.pack".to_owned(),     // Italian
+                        "localisation/local_kr_bm.pack".to_owned(),     // Korean
+                        "localisation/local_pl_bm.pack".to_owned(),     // Polish
+                        "localisation/local_ru_bm.pack".to_owned(),     // Russian
+                        "localisation/local_tr_bm.pack".to_owned(),     // Turkish
+                        "localisation/local_cn_bm.pack".to_owned(),     // Simplified Chinese
+                        "localisation/local_zh_bm.pack".to_owned(),     // Traditional Chinese
+
+                        "localisation/local_en_we.pack".to_owned(),     // English
+                        "localisation/local_br_we.pack".to_owned(),     // Brazilian
+                        "localisation/local_cz_we.pack".to_owned(),     // Czech
+                        "localisation/local_ge_we.pack".to_owned(),     // German
+                        "localisation/local_sp_we.pack".to_owned(),     // Spanish
+                        "localisation/local_fr_we.pack".to_owned(),     // French
+                        "localisation/local_it_we.pack".to_owned(),     // Italian
+                        "localisation/local_kr_we.pack".to_owned(),     // Korean
+                        "localisation/local_pl_we.pack".to_owned(),     // Polish
+                        "localisation/local_ru_we.pack".to_owned(),     // Russian
+                        "localisation/local_tr_we.pack".to_owned(),     // Turkish
+                        "localisation/local_cn_we.pack".to_owned(),     // Simplified Chinese
+                        "localisation/local_zh_we.pack".to_owned(),     // Traditional Chinese
+
+                        "models.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "shaders_bl.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain3.pack".to_owned(),
+                        "terrain4.pack".to_owned(),
+                        "terrain5.pack".to_owned(),
+                        "terrain6.pack".to_owned(),
+                        "terrain7.pack".to_owned(),
+                        "variants.pack".to_owned(),
+                        "variants_bl.pack".to_owned(),
+                        "variants_dds.pack".to_owned(),
+                        "variants_dds_bl.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 364_360,
+                    executable: "TotalWarhammer.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/364360".to_owned(),
                 });
 
@@ -340,9 +696,67 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 712_100,
+                    executable: "Thrones.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec!["data.pack".to_owned()],
+                    loc_packs: vec![
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![
+                        "blood.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "localisation/en/local_en.pack".to_owned(),     // English
+                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
+                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
+                        "localisation/ge/local_ge.pack".to_owned(),     // German
+                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
+                        "localisation/fr/local_fr.pack".to_owned(),     // French
+                        "localisation/it/local_it.pack".to_owned(),     // Italian
+                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
+                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
+                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
+                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
+                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
+                        "models.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "models3.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "music.pack".to_owned(),
+                        "sound.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "tiles.pack".to_owned(),
+                        "tiles2.pack".to_owned(),
+                        "tiles3.pack".to_owned(),
+                        "tiles4.pack".to_owned(),
+                        "viking.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 712_100,
+                    executable: "ThronesOfBritannia.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/712100".to_owned(),
                 });
 
@@ -390,7 +804,36 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 325_610,
+                    executable: "Attila.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
+                });
+
+                // Internal linux port, shares structure with the one for Windows.
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec!["data.pack".to_owned()],
+                    loc_packs: vec![
+                        "local_en.pack".to_owned(),     // English
+                        "local_br.pack".to_owned(),     // Brazilian
+                        "local_cz.pack".to_owned(),     // Czech
+                        "local_ge.pack".to_owned(),     // German
+                        "local_sp.pack".to_owned(),     // Spanish
+                        "local_fr.pack".to_owned(),     // French
+                        "local_it.pack".to_owned(),     // Italian
+                        "local_kr.pack".to_owned(),     // Korean
+                        "local_pl.pack".to_owned(),     // Polish
+                        "local_ru.pack".to_owned(),     // Russian
+                        "local_tr.pack".to_owned(),     // Turkish
+                        "local_cn.pack".to_owned(),     // Simplified Chinese
+                        "local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    store_id: 325_610,
+                    executable: "Attila".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/325610".to_owned(),
@@ -440,7 +883,9 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 214_950,
+                    executable: "Rome2.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/214950".to_owned(),
@@ -451,7 +896,7 @@ impl SupportedGames {
         });
 
         // Shogun 2
-        // TODO: Revisar los pfhversion de este.
+        // TODO: Ensure the PFHVersions of this one are correct.
         game_list.insert(KEY_SHOGUN_2, GameInfo {
             display_name: DISPLAY_NAME_SHOGUN_2,
             pfh_versions: {
@@ -491,9 +936,60 @@ impl SupportedGames {
                         "local_zh.pack".to_owned(),     // Traditional Chinese
                     ],
                     vanilla_packs: vec![],
+                    use_manifest: true,
                     store_id: 34_330,
+                    executable: "Shogun2.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec!["data.pack".to_owned()],
+                    loc_packs: vec![
+                        "localization/local_en.pack".to_owned(),     // English
+                        "localization/local_br.pack".to_owned(),     // Brazilian
+                        "localization/local_cz.pack".to_owned(),     // Czech
+                        "localization/local_ge.pack".to_owned(),     // German
+                        "localization/local_sp.pack".to_owned(),     // Spanish
+                        "localization/local_fr.pack".to_owned(),     // French
+                        "localization/local_it.pack".to_owned(),     // Italian
+                        "localization/local_kr.pack".to_owned(),     // Korean
+                        "localization/local_pl.pack".to_owned(),     // Polish
+                        "localization/local_ru.pack".to_owned(),     // Russian
+                        "localization/local_tr.pack".to_owned(),     // Turkish
+                        "localization/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localization/local_zh.pack".to_owned(),     // Traditional Chinese
+                    ],
+                    vanilla_packs: vec![
+                        "boot.pack".to_owned(),
+                        "bp_orig.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "localization/local_en.pack".to_owned(),     // English
+                        "localization/local_br.pack".to_owned(),     // Brazilian
+                        "localization/local_cz.pack".to_owned(),     // Czech
+                        "localization/local_ge.pack".to_owned(),     // German
+                        "localization/local_sp.pack".to_owned(),     // Spanish
+                        "localization/local_fr.pack".to_owned(),     // French
+                        "localization/local_it.pack".to_owned(),     // Italian
+                        "localization/local_kr.pack".to_owned(),     // Korean
+                        "localization/local_pl.pack".to_owned(),     // Polish
+                        "localization/local_ru.pack".to_owned(),     // Russian
+                        "localization/local_tr.pack".to_owned(),     // Turkish
+                        "localization/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "localization/local_zh.pack".to_owned(),     // Traditional Chinese
+                        "models.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "sound.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "../fots/data_fots.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 34_330,
+                    executable: "Shogun2.sh".to_owned(),
+                    data_path: "share/data/data".to_owned(),
+                    local_mods_path: "share/data/data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34330".to_owned(),
                 });
 
@@ -607,7 +1103,9 @@ impl SupportedGames {
                         "variantmodels.pack".to_owned(),
                         "variantmodels2.pack".to_owned(),
                     ],
+                    use_manifest: false,
                     store_id: 34_030,
+                    executable: "Napoleon.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/34030".to_owned(),
@@ -734,7 +1232,112 @@ impl SupportedGames {
                         "ui_movies.pack".to_owned(),
                         "voices.pack".to_owned(),
                     ],
+                    use_manifest: false,
                     store_id: 10_500,
+                    executable: "Empire.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
+                });
+
+                data.insert(InstallType::LnxSteam, InstallData {
+                    db_packs: vec![
+                        "main.pack".to_owned(),         // Main DB PackFile
+                        "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
+                        "patch.pack".to_owned(),        // First Patch
+                        "patch2.pack".to_owned(),       // Second Patch
+                        "patch3.pack".to_owned(),       // Third Patch
+                        "patch4.pack".to_owned(),       // Fourth Patch
+                        "patch5.pack".to_owned(),       // Fifth Patch
+                    ],
+                    loc_packs: vec![
+                        "../languages/local_en.pack".to_owned(),     // English
+                        "../languages/patch_en.pack".to_owned(),     // English Patch
+                        "../languages/local_br.pack".to_owned(),     // Brazilian
+                        "../languages/patch_br.pack".to_owned(),     // Brazilian Patch
+                        "../languages/local_cz.pack".to_owned(),     // Czech
+                        "../languages/patch_cz.pack".to_owned(),     // Czech Patch
+                        "../languages/local_ge.pack".to_owned(),     // German
+                        "../languages/patch_ge.pack".to_owned(),     // German Patch
+                        "../languages/local_sp.pack".to_owned(),     // Spanish
+                        "../languages/patch_sp.pack".to_owned(),     // Spanish Patch
+                        "../languages/local_fr.pack".to_owned(),     // French
+                        "../languages/patch_fr.pack".to_owned(),     // French Patch
+                        "../languages/local_it.pack".to_owned(),     // Italian
+                        "../languages/patch_it.pack".to_owned(),     // Italian Patch
+                        "../languages/local_kr.pack".to_owned(),     // Korean
+                        "../languages/patch_kr.pack".to_owned(),     // Korean Patch
+                        "../languages/local_pl.pack".to_owned(),     // Polish
+                        "../languages/patch_pl.pack".to_owned(),     // Polish Patch
+                        "../languages/local_ru.pack".to_owned(),     // Russian
+                        "../languages/patch_ru.pack".to_owned(),     // Russian Patch
+                        "../languages/local_tr.pack".to_owned(),     // Turkish
+                        "../languages/patch_tr.pack".to_owned(),     // Turkish Patch
+                        "../languages/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "../languages/patch_cn.pack".to_owned(),     // Simplified Chinese Patch
+                        "../languages/local_zh.pack".to_owned(),     // Traditional Chinese
+                        "../languages/patch_zh.pack".to_owned(),     // Traditional Chinese Patch
+                    ],
+                    vanilla_packs: vec![
+                        "anim.pack".to_owned(),
+                        "battlepresets.pack".to_owned(),
+                        "battleterrain.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "groupformations.pack".to_owned(),
+                        "../languages/local_en.pack".to_owned(),     // English
+                        "../languages/local_br.pack".to_owned(),     // Brazilian
+                        "../languages/local_cz.pack".to_owned(),     // Czech
+                        "../languages/local_ge.pack".to_owned(),     // German
+                        "../languages/local_sp.pack".to_owned(),     // Spanish
+                        "../languages/local_fr.pack".to_owned(),     // French
+                        "../languages/local_it.pack".to_owned(),     // Italian
+                        "../languages/local_kr.pack".to_owned(),     // Korean
+                        "../languages/local_pl.pack".to_owned(),     // Polish
+                        "../languages/local_ru.pack".to_owned(),     // Russian
+                        "../languages/local_tr.pack".to_owned(),     // Turkish
+                        "../languages/local_cn.pack".to_owned(),     // Simplified Chinese
+                        "../languages/local_zh.pack".to_owned(),     // Traditional Chinese
+                        "main.pack".to_owned(),
+                        "models.pack".to_owned(),
+                        "patch.pack".to_owned(),
+                        "patch_media.pack".to_owned(),
+                        "../languages/patch_en.pack".to_owned(),     // English Patch
+                        "../languages/patch_br.pack".to_owned(),     // Brazilian Patch
+                        "../languages/patch_cz.pack".to_owned(),     // Czech Patch
+                        "../languages/patch_ge.pack".to_owned(),     // German Patch
+                        "../languages/patch_sp.pack".to_owned(),     // Spanish Patch
+                        "../languages/patch_fr.pack".to_owned(),     // French Patch
+                        "../languages/patch_it.pack".to_owned(),     // Italian Patch
+                        "../languages/patch_kr.pack".to_owned(),     // Korean Patch
+                        "../languages/patch_pl.pack".to_owned(),     // Polish Patch
+                        "../languages/patch_ru.pack".to_owned(),     // Russian Patch
+                        "../languages/patch_tr.pack".to_owned(),     // Turkish Patch
+                        "../languages/patch_cn.pack".to_owned(),     // Simplified Chinese Patch
+                        "../languages/patch_zh.pack".to_owned(),     // Traditional Chinese Patch
+                        "patch2.pack".to_owned(),
+                        "patch3.pack".to_owned(),
+                        "patch4.pack".to_owned(),
+                        "patch5.pack".to_owned(),
+                        "seasurfaces.pack".to_owned(),
+                        "sound_non_wavefile_data.pack".to_owned(),
+                        "sounds.pack".to_owned(),
+                        "sounds_animation_triggers.pack".to_owned(),
+                        "sounds_campaign.pack".to_owned(),
+                        "sounds_music.pack".to_owned(),
+                        "sounds_other.pack".to_owned(),
+                        "sounds_placeholder.pack".to_owned(),
+                        "sounds_sfx.pack".to_owned(),
+                        "subtitles.pack".to_owned(),
+                        "supertexture.pack".to_owned(),
+                        "terrain_templates.pack".to_owned(),
+                        "testdata.pack".to_owned(),
+                        "ui.pack".to_owned(),
+                        "ui_movies.pack".to_owned(),
+                        "voices.pack".to_owned(),
+                    ],
+                    use_manifest: false,
+                    store_id: 10_500,
+                    executable: "Empire.sh".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/10500".to_owned(),
@@ -772,7 +1375,9 @@ impl SupportedGames {
                     db_packs: vec!["wad.pack".to_owned()],
                     loc_packs: vec!["local_ex.pack".to_owned()],
                     vanilla_packs: vec![],
+                    use_manifest: false,
                     store_id: 0,
+                    executable: "Arena.exe".to_owned(),
                     data_path: "data".to_owned(),
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "".to_owned(),

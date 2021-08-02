@@ -278,6 +278,8 @@ impl SettingsUI {
 
         for (index, game_supported) in SUPPORTED_GAMES.get_games().iter().enumerate() {
             let spoiler = new_spoiler_safe(&QString::from_std_str(game_supported.get_display_name()).as_ptr(), 200, &paths_frame.as_ptr().static_upcast());
+
+            // Note: ignore the warnings caused by this. They're harmless.
             let game_path_layout = create_grid_layout(spoiler.static_upcast());
 
             let game_key = game_supported.get_game_key_name();

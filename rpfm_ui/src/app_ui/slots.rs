@@ -37,7 +37,7 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packfile::{Manifest, PathType, PFHFileType, CompressionState};
+use rpfm_lib::packfile::{PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 
@@ -331,37 +331,37 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
-                    if !game_data_path.is_dir() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                    if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
 
-                    if pack_path.starts_with(&game_data_path) {
+                    if pack_path.starts_with(&game_local_mods_path) {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        game_local_mods_path.push(&mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            if manifest.0.iter().filter_map(|x|
-                                if x.get_ref_relative_path().ends_with(".pack") {
-                                    Some(x.get_ref_relative_path().to_owned())
-                                } else { None }
-                            ).any(|x| x == mod_name.to_string_lossy()) {
-                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
-                            }
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                        };
+
+                        if ca_paths.contains(&game_local_mods_path) {
+                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                         }
-                        game_data_path.push(&mod_name);
-                        if copy(pack_path, &game_data_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+
+                        if copy(pack_path, &game_local_mods_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
                         }
 
                         // Try to copy the image too if exists.
-                        game_data_path.pop();
-                        game_data_path.push(pack_image_path.file_name().unwrap());
-                        if pack_image_path.is_file() && copy(pack_image_path, &game_data_path).is_err()  {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                        game_local_mods_path.pop();
+                        game_local_mods_path.push(pack_image_path.file_name().unwrap());
+                        if pack_image_path.is_file() && copy(pack_image_path, &game_local_mods_path).is_err()  {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
                         }
 
                         // Report the success, so the user knows it worked.
@@ -388,30 +388,29 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
-                    if !game_data_path.is_dir() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                    if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
 
-                    if pack_path.starts_with(&game_data_path) {
+                    if pack_path.starts_with(&game_local_mods_path) {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        game_local_mods_path.push(&mod_name);
 
-                        // Check if the PackFile is not a CA one before uninstalling.
-                        if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            if manifest.0.iter().filter_map(|x|
-                                if x.get_ref_relative_path().ends_with(".pack") {
-                                    Some(x.get_ref_relative_path().to_owned())
-                                } else { None }
-                            ).any(|x| x == mod_name.to_string_lossy()) {
-                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
-                            }
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                        };
+
+                        if ca_paths.contains(&game_local_mods_path) {
+                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                         }
-                        game_data_path.push(&mod_name);
-                        if remove_file(&game_data_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+
+                        if remove_file(&game_local_mods_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_local_mods_path; 1]), false);
                         }
 
                         // Report the success, so the user knows it worked.

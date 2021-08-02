@@ -115,7 +115,7 @@ impl PartialEq for DecodedData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
-            (DecodedData::F32(x), DecodedData::F32(y)) => ((x * 1_000_000f32).round() / 1_000_000f32) == ((y * 1_000_000f32).round() / 1_000_000f32),
+            (DecodedData::F32(x), DecodedData::F32(y)) => float_eq::float_eq!(x, y, abs <= 0.001),
             (DecodedData::I16(x), DecodedData::I16(y)) => x == y,
             (DecodedData::I32(x), DecodedData::I32(y)) => x == y,
             (DecodedData::I64(x), DecodedData::I64(y)) => x == y,

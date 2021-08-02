@@ -507,7 +507,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_data_path() {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -594,13 +594,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_data_path() {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());

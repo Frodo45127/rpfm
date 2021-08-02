@@ -114,8 +114,14 @@ struct InstallData {
     /// Currently only used for Empire and Napoleon. Relative to data_path.
     vanilla_packs: Vec<String>,
 
+    /// If the manifest of the game should be used to get the vanilla PackFile list, or should we use the hardcoded list.
+    use_manifest: bool,
+
     /// StoreID of the game.
     store_id: i64,
+
+    /// Name of the executable of the game, including extension if it has it.
+    executable: String,
 
     /// /data path of the game, or equivalent. Relative to the game's path.
     data_path: String,
@@ -213,39 +219,53 @@ impl GameInfo {
 
         // Checks to guess what kind of installation we have.
         let base_path_files = get_files_from_subdir(&base_path, false)?;
-        let has_exes_in_base_path = base_path_files.iter().filter_map(|path| path.extension()).any(|extension| extension == "exe");
-        let has_sh_in_base_path = base_path_files.iter().filter_map(|path| path.extension()).any(|extension| extension == "sh");
+        let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
+            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.get_ref_executable()) {
+                Some(install_type)
+            } else { None }
+        ).collect::<Vec<&InstallType>>();
 
-        // If we have exes, assume Windows and check from which store is.
-        // The currently known stores are Steam and Epic.
-        if has_exes_in_base_path {
-
-           // Steam versions of the game have an "steam_api.dll" file.
-            let has_steam_api_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "steam_api.dll" || filename == "steam_api64.dll");
-            let has_eos_sdk_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "EOSSDK-Win64-Shipping.dll");
-            if has_steam_api_dll {
-                Ok(InstallType::WinSteam)
-            }
-
-            // If not, check wether we have epic libs.
-            else if has_eos_sdk_dll {
-                Ok(InstallType::WinEpic)
-            }
-
-            // If neither of those are true, asume it's wargaming/netease (arena?).
-            else {
-                return Ok(InstallType::WinWargaming)
-            }
+        // If no compatible install data was found, use the first one we have.
+        if install_type_by_exe.is_empty() {
+            Ok(self.install_data.keys().next().unwrap().clone())
         }
 
-        // If not, check for shell scripts. If found, is a linux port.
-        else if has_sh_in_base_path {
-            Ok(InstallType::LnxSteam)
+        // If we only have one install type compatible with the executable we have, return it.
+        else if install_type_by_exe.len() == 1 {
+            Ok(install_type_by_exe[0].clone())
         }
 
-        // If the type cannot be found, use WinSteam by default.
+        // If we have multiple install data compatible, it gets more complex.
         else {
-            return Ok(InstallType::WinSteam)
+
+            // First, identify if we have a windows or linux build (mac only exists in your dreams.....).
+            // Can't be both because they have different exe names. Unless you're retarded and you merge both, in which case, fuck you.
+            let is_windows = install_type_by_exe.iter().any(|install_type| install_type == &&InstallType::WinSteam || install_type == &&InstallType::WinEpic || install_type == &&InstallType::WinWargaming);
+
+            if is_windows {
+
+                // Steam versions of the game have a "steam_api.dll" or "steam_api64.dll" file. Epic has "EOSSDK-Win64-Shipping.dll".
+                let has_steam_api_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "steam_api.dll" || filename == "steam_api64.dll");
+                let has_eos_sdk_dll = base_path_files.iter().filter_map(|path| path.file_name()).any(|filename| filename == "EOSSDK-Win64-Shipping.dll");
+                if has_steam_api_dll && install_type_by_exe.contains(&&InstallType::WinSteam) {
+                    Ok(InstallType::WinSteam)
+                }
+
+                // If not, check wether we have epic libs.
+                else if has_eos_sdk_dll && install_type_by_exe.contains(&&InstallType::WinEpic) {
+                    Ok(InstallType::WinEpic)
+                }
+
+                // If neither of those are true, asume it's wargaming/netease (arena?).
+                else {
+                    Ok(InstallType::WinWargaming)
+                }
+            }
+
+            // Otherwise, assume it's linux
+            else {
+                Ok(InstallType::LnxSteam)
+            }
         }
     }
 
@@ -255,6 +275,14 @@ impl GameInfo {
         let install_type = self.get_install_type()?;
         let install_data = self.install_data.get(&install_type).ok_or(Error::from(ErrorKind::GameNotSupported))?;
         Ok(path.join(PathBuf::from(install_data.get_ref_data_path())))
+    }
+
+    /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
+    pub fn get_local_mods_path(&self) -> Result<PathBuf> {
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or(Error::from(ErrorKind::GamePathNotConfigured))?;
+        let install_type = self.get_install_type()?;
+        let install_data = self.install_data.get(&install_type).ok_or(Error::from(ErrorKind::GameNotSupported))?;
+        Ok(path.join(PathBuf::from(install_data.get_ref_local_mods_path())))
     }
 
     /// This function gets the `/assembly_kit` path or equivalent of the game selected, if said game it's configured in the settings.
@@ -291,7 +319,7 @@ impl GameInfo {
             return None;
         }
 
-        let path = path.join(PathBuf::from(downloaded_mods_path));
+        let path = std::fs::canonicalize(path.join(PathBuf::from(downloaded_mods_path))).ok()?;
         let mut paths = vec![];
 
         for path in get_files_from_subdir(&path, true).ok()?.iter() {
@@ -371,50 +399,72 @@ impl GameInfo {
         Some(full_paths)
     }
 
+    /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
+    pub fn use_manifest(&self) -> Result<bool> {
+        let install_type = self.get_install_type()?;
+        let install_data = self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?;
+
+        // If the install_type is linux, or we actually have a hardcoded list, ignore all Manifests.
+        Ok(*install_data.get_ref_use_manifest())
+    }
+
     /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
     ///
     /// If it fails to find a manifest, it falls back to all non-mod files!
     pub fn get_all_ca_packfiles_paths(&self) -> Result<Vec<PathBuf>> {
-        let data_path = self.get_data_path()?;
 
-        // Try to get the manifest, if exists.
-        match Manifest::read_from_game_selected() {
-            Ok(manifest) => {
-                let pack_file_names = manifest.0.iter().filter_map(|x|
-                    if x.get_ref_relative_path().ends_with(".pack") {
-                        Some(x.get_ref_relative_path().to_owned())
-                    } else { None }
-                    ).collect::<Vec<String>>();
+        // Check if we can use the manifest for this.
+        if !self.use_manifest()? {
+            self.get_all_ca_packfiles_paths_no_manifest()
+        } else {
 
-                Ok(pack_file_names.iter().map(|x| {
-                    let mut pack_file_path = data_path.to_path_buf();
-                    pack_file_path.push(x);
-                    pack_file_path
-                }).collect::<Vec<PathBuf>>())
-            }
+            // Try to get the manifest, if exists.
+            match Manifest::read_from_game_selected() {
+                Ok(manifest) => {
+                    let pack_file_names = manifest.0.iter().filter_map(|x|
+                        if x.get_ref_relative_path().ends_with(".pack") {
+                            Some(x.get_ref_relative_path().to_owned())
+                        } else { None }
+                        ).collect::<Vec<String>>();
 
-            // If there is no manifest, use the hardcoded file list for the game, if it has one.
-            Err(_) => {
-                let vanilla_packs = &self.install_data.get(&self.get_install_type()?).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.vanilla_packs;
-                if !vanilla_packs.is_empty() {
-                    Ok(vanilla_packs.iter().map(|x| {
+                    let data_path = self.get_data_path()?;
+                    let mut paths = pack_file_names.iter().map(|x| {
                         let mut pack_file_path = data_path.to_path_buf();
                         pack_file_path.push(x);
                         pack_file_path
-                    }).collect::<Vec<PathBuf>>())
+                    }).collect::<Vec<PathBuf>>();
+                    paths.sort();
+                    Ok(paths)
                 }
 
-                // If there is no hardcoded list, get every path.
-                else {
-                    Ok(get_files_from_subdir(&data_path, false)?.iter()
-                        .filter_map(|x| if let Some(extension) = x.extension() {
-                            if extension.to_string_lossy().to_lowercase() == "pack" {
-                                Some(x.to_owned())
-                            } else { None }
-                        } else { None }).collect::<Vec<PathBuf>>()
-                    )
-                }
+                // If there is no manifest, use the hardcoded file list for the game, if it has one.
+                Err(_) => self.get_all_ca_packfiles_paths_no_manifest()
             }
+        }
+    }
+
+    /// This function tries to get the ca PackFiles without depending on a Manifest. For internal use only.
+    fn get_all_ca_packfiles_paths_no_manifest(&self) -> Result<Vec<PathBuf>> {
+        let data_path = self.get_data_path()?;
+        let install_type = self.get_install_type()?;
+        let vanilla_packs = &self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?.vanilla_packs;
+        if !vanilla_packs.is_empty() {
+            Ok(vanilla_packs.iter().filter_map(|x| {
+                let mut pack_file_path = data_path.to_path_buf();
+                pack_file_path.push(x);
+                std::fs::canonicalize(pack_file_path).ok()
+            }).collect::<Vec<PathBuf>>())
+        }
+
+        // If there is no hardcoded list, get every path.
+        else {
+            Ok(get_files_from_subdir(&data_path, false)?.iter()
+                .filter_map(|x| if let Some(extension) = x.extension() {
+                    if extension.to_string_lossy().to_lowercase() == "pack" {
+                        Some(x.to_owned())
+                    } else { None }
+                } else { None }).collect::<Vec<PathBuf>>()
+            )
         }
     }
 
@@ -426,5 +476,15 @@ impl GameInfo {
             InstallType::WinSteam => Ok(format!("steam://rungameid/{}", self.install_data.get(&install_type).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.get_ref_store_id())),
             _ => todo!()
         }
+    }
+
+    /// This command returns the "Executable" path for the game's installation.
+    pub fn get_executable_path(&self) -> Option<PathBuf> {
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
+        let install_type = self.get_install_type().ok()?;
+        let install_data = self.install_data.get(&install_type)?;
+        let executable_path = path.join(PathBuf::from(install_data.get_ref_executable()));
+
+        Some(executable_path)
     }
 }

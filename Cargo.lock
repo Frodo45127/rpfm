@@ -604,6 +604,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "float_eq"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa334a728fecaf0922f5735ede5f27c08fefc7c4e5b04c5efe02a3861b512f2e"
+
+[[package]]
 name = "fluent"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1826,14 +1832,14 @@ dependencies = [
 
 [[package]]
 name = "rpfm"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "winres",
 ]
 
 [[package]]
 name = "rpfm_cli"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "bytesize",
  "clap",
@@ -1849,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_error"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1875,7 +1881,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "bincode",
  "bitflags",
@@ -1886,6 +1892,7 @@ dependencies = [
  "encoding",
  "fancy-regex",
  "filepath",
+ "float_eq",
  "fraction",
  "git2",
  "half",
@@ -1913,7 +1920,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_macros"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1922,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "open",
  "rpfm_error",
@@ -1932,7 +1939,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "2.5.3"
+version = "2.5.4"
 dependencies = [
  "bincode",
  "chrono",
