@@ -319,7 +319,7 @@ impl GameInfo {
             return None;
         }
 
-        let path = path.join(PathBuf::from(downloaded_mods_path));
+        let path = std::fs::canonicalize(path.join(PathBuf::from(downloaded_mods_path))).ok()?;
         let mut paths = vec![];
 
         for path in get_files_from_subdir(&path, true).ok()?.iter() {
@@ -428,11 +428,13 @@ impl GameInfo {
                         ).collect::<Vec<String>>();
 
                     let data_path = self.get_data_path()?;
-                    Ok(pack_file_names.iter().map(|x| {
+                    let mut paths = pack_file_names.iter().map(|x| {
                         let mut pack_file_path = data_path.to_path_buf();
                         pack_file_path.push(x);
                         pack_file_path
-                    }).collect::<Vec<PathBuf>>())
+                    }).collect::<Vec<PathBuf>>();
+                    paths.sort();
+                    Ok(paths)
                 }
 
                 // If there is no manifest, use the hardcoded file list for the game, if it has one.
@@ -447,10 +449,10 @@ impl GameInfo {
         let install_type = self.get_install_type()?;
         let vanilla_packs = &self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?.vanilla_packs;
         if !vanilla_packs.is_empty() {
-            Ok(vanilla_packs.iter().map(|x| {
+            Ok(vanilla_packs.iter().filter_map(|x| {
                 let mut pack_file_path = data_path.to_path_buf();
                 pack_file_path.push(x);
-                pack_file_path
+                std::fs::canonicalize(pack_file_path).ok()
             }).collect::<Vec<PathBuf>>())
         }
 
