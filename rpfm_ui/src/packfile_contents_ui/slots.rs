@@ -724,10 +724,25 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
 
-                // Get the currently selected items, and check how many of them are valid before trying to rewrite them.
-                // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
-                // names, and if that happen, we have to stop right there that criminal scum.
+                // First, check if it's yet another idiot trying to rename the db folders, and give him a warning.
                 let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let mut are_you_seriously_trying_to_edit_the_damn_table_folder = false;
+                for item_type in &selected_items {
+                    if let TreePathType::Folder(ref path) = item_type {
+                        if path.len() == 2 && path[0].to_lowercase() == "db" {
+                            are_you_seriously_trying_to_edit_the_damn_table_folder = true;
+                            break;
+                        }
+                    }
+                }
+
+                if are_you_seriously_trying_to_edit_the_damn_table_folder {
+                    if !AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rename_db_folder") {
+                        return;
+                    }
+                }
+
+                // Get the data for the rename.
                 if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
                     let mut renaming_data_background: Vec<(PathType, String)> = vec![];
                     for item_type in selected_items {
