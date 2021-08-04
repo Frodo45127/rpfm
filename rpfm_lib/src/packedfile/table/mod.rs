@@ -868,6 +868,8 @@ impl Table {
         // If we succesfully load the TSV file into a reader, check the first two lines to ensure
         // it's a valid TSV for our specific table.
         let mut entries = vec![];
+        let mut field_order = BTreeMap::new();
+        let fields_processed = definition.get_fields_processed();
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
@@ -875,44 +877,48 @@ impl Table {
                 // If it doesn't match with the name we provided, return an error.
                 if row == 0 {
                     if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable.into()); }
-                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != definition.get_version() {
-                        return Err(ErrorKind::ImportTSVWrongVersion.into());
-                    }
+                    let _ = record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))?;
                 }
 
-                // The second line contains the column headers. Is just to help people in other programs, so we skip it.
-                else if row == 1 { continue }
+                // The second line contains the column headers. Get them, so we can map the fields to columns on the tables.
+                else if row == 1 {
+                    field_order = record.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
+                }
 
                 // Then read the rest of the rows as a normal TSV.
-                else if record.len() == definition.get_fields_processed().len() {
-                    let mut entry = vec![];
+                else {
+                    let mut entry = Self::get_new_row(&definition);
                     for (column, field) in record.iter().enumerate() {
-                        match definition.get_fields_processed()[column].get_ref_field_type() {
-                            FieldType::Boolean => {
-                                let value = field.to_lowercase();
-                                if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
-                                else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
-                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
-                            }
-                            FieldType::F32 => entry.push(DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I16 => entry.push(DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I32 => entry.push(DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I64 => entry.push(DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
-                            FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
-                            FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
-                            FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
 
-                            // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
-                            FieldType::SequenceU16(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()),
-                            FieldType::SequenceU32(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
+                        // Get the column name from the header, and try to map it to a column in the table's.
+                        if let Some(column_name) = field_order.get(&(column as u32)) {
+                            if let Some(column_number) = fields_processed.iter().position(|x| x.get_name() == column_name) {
+
+                                entry[column_number] = match fields_processed[column_number].get_ref_field_type() {
+                                    FieldType::Boolean => {
+                                        let value = field.to_lowercase();
+                                        if value == "true" || value == "1" { DecodedData::Boolean(true) }
+                                        else if value == "false" || value == "0" { DecodedData::Boolean(false) }
+                                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
+                                    }
+                                    FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
+                                    FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
+                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
+                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(field.to_owned()),
+
+                                    // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
+                                    FieldType::SequenceU16(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()),
+                                    FieldType::SequenceU32(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
+                                }
+                            }
                         }
                     }
                     entries.push(entry);
                 }
-
-                // If it fails here, return an error with the len of the record instead a field.
-                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()).into()); }
             }
             else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0).into()); }
         }
@@ -935,7 +941,7 @@ impl Table {
         let mut reader = ReaderBuilder::new()
             .delimiter(b'\t')
             .quoting(false)
-            .has_headers(true)
+            .has_headers(false)
             .flexible(true)
             .from_path(&source_path)?;
 
@@ -954,40 +960,53 @@ impl Table {
 
         // Try to import the entries of the file.
         let mut entries = vec![];
+        let mut field_order = BTreeMap::new();
+        let fields_processed = definition.get_fields_processed();
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
                 // The second line contains the column headers. Is just to help people in other programs, not needed to be check.
                 if row == 0 { continue }
 
-                // Then read the rest of the rows as a normal TSV.
-                else if record.len() == definition.get_fields_processed().len() {
-                    let mut entry = vec![];
+                // The second line contains the column headers. Get them, so we can map the fields to columns on the tables.
+                else if row == 1 {
+                    field_order = record.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
+                }
+
+                else {
+
+                    let mut entry = Self::get_new_row(&definition);
                     for (column, field) in record.iter().enumerate() {
-                        match definition.get_fields_processed()[column].get_ref_field_type() {
-                            FieldType::Boolean => {
-                                let value = field.to_lowercase();
-                                if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
-                                else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
-                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
+
+                        // Get the column name from the header, and try to map it to a column in the table's.
+                        if let Some(column_name) = field_order.get(&(column as u32)) {
+                            if let Some(column_number) = fields_processed.iter().position(|x| x.get_name() == column_name) {
+
+                                entry[column_number] = match fields_processed[column_number].get_ref_field_type() {
+                                    FieldType::Boolean => {
+                                        let value = field.to_lowercase();
+                                        if value == "true" || value == "1" { DecodedData::Boolean(true) }
+                                        else if value == "false" || value == "0" { DecodedData::Boolean(false) }
+                                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
+                                    }
+                                    FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
+                                    FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
+                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
+                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(field.to_owned()),
+
+                                    // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
+                                    FieldType::SequenceU16(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()),
+                                    FieldType::SequenceU32(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
+                                }
                             }
-                            FieldType::F32 => entry.push(DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I16 => entry.push(DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I32 => entry.push(DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::I64 => entry.push(DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                            FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
-                            FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
-                            FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
-                            FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
-                            FieldType::SequenceU16(_) |
-                            FieldType::SequenceU32(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
                         }
                     }
                     entries.push(entry);
                 }
-
-                // If it fails here, return an error with the len of the record instead a field.
-                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()).into()); }
             }
 
             else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0).into()); }
