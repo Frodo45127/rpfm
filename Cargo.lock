@@ -1582,6 +1582,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "qt_ui_tools"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ad3bc61b5903878bb272e60080b1b4eb395ab1c6bf8808dbfb78b9fc63bc10c"
+dependencies = [
+ "cpp_core",
+ "qt_core",
+ "qt_gui",
+ "qt_macros",
+ "qt_ritual_build",
+ "qt_widgets",
+]
+
+[[package]]
 name = "qt_widgets"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1954,6 +1968,7 @@ dependencies = [
  "open",
  "qt_core",
  "qt_gui",
+ "qt_ui_tools",
  "qt_widgets",
  "rayon",
  "regex",

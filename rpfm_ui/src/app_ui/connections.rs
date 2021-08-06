@@ -129,6 +129,11 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.templates_save_packfile_to_template.triggered().connect(&slots.templates_save_packfile_to_template);
 
     //-----------------------------------------------//
+    // `Tools` menu connections.
+    //-----------------------------------------------//
+    app_ui.tools_faction_painter.triggered().connect(&slots.tools_faction_painter);
+
+    //-----------------------------------------------//
     // `About` menu connections.
     //-----------------------------------------------//
     app_ui.about_about_qt.triggered().connect(&slots.about_about_qt);

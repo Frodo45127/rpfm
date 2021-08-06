@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>713</width>
+    <height>552</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <widget class="QListView" name="faction_list_view"/>
+   </item>
+   <item row="1" column="1">
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QWidget" name="details_widget" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="11,10,10">
+      <item>
+       <widget class="QLabel" name="faction_name_label">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="banner_groupbox">
+        <property name="title">
+         <string>Banners</string>
+        </property>
+        <layout class="QFormLayout" name="formLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <property name="labelAlignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="banner_colour_primary_label">
+           <property name="text">
+            <string>Primary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="KColorCombo" name="banner_colour_primary"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="banner_colour_secondary_label">
+           <property name="text">
+            <string>Secondary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="banner_colour_tertiary_label">
+           <property name="text">
+            <string>Tertiary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="KColorCombo" name="banner_colour_secondary"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="KColorCombo" name="banner_colour_tertiary"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QPushButton" name="banner_restore_initial_values_button">
+           <property name="text">
+            <string>Restore Initial Values</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QPushButton" name="banner_restore_vanilla_values_button">
+           <property name="text">
+            <string>Restore Vanilla Values</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="uniform_groupbox">
+        <property name="title">
+         <string>Uniforms</string>
+        </property>
+        <layout class="QFormLayout" name="formLayout_2">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <property name="labelAlignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="uniform_colour_primary_label">
+           <property name="text">
+            <string>Primary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="KColorCombo" name="uniform_colour_primary"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="uniform_colour_secondary_label">
+           <property name="text">
+            <string>Secondary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="KColorCombo" name="uniform_colour_secondary"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="uniform_colour_tertiary_label">
+           <property name="text">
+            <string>Tertiary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="KColorCombo" name="uniform_colour_tertiary"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QPushButton" name="uniform_restore_initial_values_button">
+           <property name="text">
+            <string>Restore Initial Values</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QPushButton" name="uniform_restore_vanilla_values_button">
+           <property name="text">
+            <string>Restore Vanilla Values</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>KColorCombo</class>
+   <extends>QComboBox</extends>
+   <header>kcolorcombo.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

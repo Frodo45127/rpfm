@@ -53,6 +53,7 @@ use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
+use crate::tools::faction_painter::ToolFactionPainter;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::*;
@@ -127,6 +128,11 @@ pub struct AppUISlots {
     pub templates_open_custom_templates_folder: QBox<SlotNoArgs>,
     pub templates_open_official_templates_folder: QBox<SlotNoArgs>,
     pub templates_save_packfile_to_template: QBox<SlotNoArgs>,
+
+    //-----------------------------------------------//
+    // `Tools` menu slots.
+    //-----------------------------------------------//
+    pub tools_faction_painter: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -1162,6 +1168,18 @@ impl AppUISlots {
                 }
             }
         ));
+
+        //-----------------------------------------------//
+        // `Tools` menu logic.
+        //-----------------------------------------------//
+
+        let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+                ToolFactionPainter::new(&app_ui, &pack_file_contents_ui);
+            }
+        ));
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -1542,6 +1560,11 @@ impl AppUISlots {
             templates_open_custom_templates_folder,
             templates_open_official_templates_folder,
             templates_save_packfile_to_template,
+
+            //-----------------------------------------------//
+            // `Tools` menu slots.
+            //-----------------------------------------------//
+            tools_faction_painter,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

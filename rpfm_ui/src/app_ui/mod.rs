@@ -92,6 +92,7 @@ pub struct AppUI {
     pub menu_bar_game_selected: QPtr<QMenu>,
     pub menu_bar_special_stuff: QPtr<QMenu>,
     pub menu_bar_templates: QPtr<QMenu>,
+    pub menu_bar_tools: QPtr<QMenu>,
     pub menu_bar_about: QPtr<QMenu>,
     pub menu_bar_debug: QPtr<QMenu>,
 
@@ -241,6 +242,11 @@ pub struct AppUI {
     pub templates_load_official_template_to_packfile: QPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
+    // `Tools` menu.
+    //-------------------------------------------------------------------------------//
+    pub tools_faction_painter: QPtr<QAction>,
+
+    //-------------------------------------------------------------------------------//
     // `About` menu.
     //-------------------------------------------------------------------------------//
     pub about_about_qt: QPtr<QAction>,
@@ -345,6 +351,7 @@ impl AppUI {
         let menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
         let menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
         let menu_bar_templates = menu_bar.add_menu_q_string(&qtr("menu_bar_templates"));
+        let menu_bar_tools = menu_bar.add_menu_q_string(&qtr("menu_bar_tools"));
         let menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
         // This menu is hidden unless you enable it.
@@ -608,6 +615,13 @@ impl AppUI {
         templates_save_packfile_to_template.set_enabled(false);
 
         //-----------------------------------------------//
+        // `Tools` Menu.
+        //-----------------------------------------------//
+
+        // Populate the `Tools` menu.
+        let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
+
+        //-----------------------------------------------//
         // `About` Menu.
         //-----------------------------------------------//
 
@@ -653,6 +667,7 @@ impl AppUI {
             menu_bar_game_selected,
             menu_bar_special_stuff,
             menu_bar_templates,
+            menu_bar_tools,
             menu_bar_about,
             menu_bar_debug,
 
@@ -802,6 +817,11 @@ impl AppUI {
             templates_save_packfile_to_template,
             templates_load_custom_template_to_packfile,
             templates_load_official_template_to_packfile,
+
+            //-------------------------------------------------------------------------------//
+            // "Tools" menu.
+            //-------------------------------------------------------------------------------//
+            tools_faction_painter,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.

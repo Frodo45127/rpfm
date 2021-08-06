@@ -1299,6 +1299,29 @@ pub fn background_loop() {
                 }
             },
 
+            Command::GetPackedFilesFromAllSources(paths) => {
+                let mut packed_files = vec![];
+
+                if let Some(packed_file) = pack_file_decoded.get_packed_file_by_path(&paths) {
+                    packed_files.push((packed_file, DataSource::ParentFiles));
+                }
+
+                if let Ok(packed_file) = dependencies.get_packedfile_from_parent_files(&paths) {
+                    packed_files.push((packed_file, DataSource::ParentFiles));
+                }
+
+                if let Ok(packed_file) = dependencies.get_packedfile_from_game_files(&paths) {
+                    packed_files.push((packed_file, DataSource::GameFiles));
+                }
+
+                //if let Ok(packed_file) = dependencies.get_packedfile_from_asskit_files(&paths) {
+                //    packed_files.push((packed_file, DataSource::AssKitFiles));
+                //}
+
+                CENTRAL_COMMAND.send_message_rust(Response::VecPackedFileDataSource(packed_files));
+            },
+
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

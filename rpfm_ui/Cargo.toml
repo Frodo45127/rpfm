@@ -43,6 +43,7 @@ cpp_core = "^0.6"
 qt_core = "^0.5"
 qt_gui = "^0.5"
 qt_widgets = "^0.5"
+qt_ui_tools = "^0.5"
 
 # Support for formatting math operations.
 meval = "^0.2"

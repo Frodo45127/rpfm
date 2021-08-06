@@ -268,6 +268,9 @@ pub enum Command {
     /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
     GetPackedFile(Vec<String>),
 
+    /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
+    GetPackedFilesFromAllSources(Vec<String>),
+
     /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetCaVp8Format((Vec<String>, SupportedFormats)),
 
@@ -458,6 +461,9 @@ pub enum Response {
 
     /// Response to return `Unknown`.
     Unknown,
+
+    /// Response to return `Vec<(PackedFile, DataSource)>`.
+    VecPackedFileDataSource(Vec<(PackedFile, DataSource)>),
 
     /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
