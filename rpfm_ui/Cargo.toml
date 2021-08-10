@@ -10,6 +10,7 @@ edition = "2018"
 support_rigidmodel = ["rpfm_lib/support_rigidmodel"]
 support_modern_dds = []
 support_uic = ["rpfm_lib/support_uic"]
+only_for_the_brave = []
 
 default = []
 
