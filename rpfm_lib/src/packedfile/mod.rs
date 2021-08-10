@@ -36,6 +36,7 @@ use crate::packedfile::unit_variant::UnitVariant;
 use crate::packfile::packedfile::{CachedPackedFile, PackedFile, RawPackedFile};
 use crate::schema::Schema;
 use crate::SCHEMA;
+use crate::SETTINGS;
 
 pub mod animpack;
 pub mod ca_vp8;
@@ -445,7 +446,7 @@ impl PackedFileType {
                 return Self::UnitVariant
             }
 
-            if esf::EXTENSIONS.iter().find(|x| packedfile_name.ends_with(**x)).is_some() {
+            if esf::EXTENSIONS.iter().find(|x| packedfile_name.ends_with(**x)).is_some() && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
                 return Self::ESF;
             }
 
@@ -541,7 +542,7 @@ impl PackedFileType {
             return Self::UnitVariant
         }
 
-        if esf::EXTENSIONS.iter().find(|x| path.ends_with(**x)).is_some() {
+        if esf::EXTENSIONS.iter().find(|x| path.ends_with(**x)).is_some() && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
             return Self::ESF;
         }
 

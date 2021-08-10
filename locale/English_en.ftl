@@ -1001,3 +1001,7 @@ settings_ui_table_colour_dark_label = Dark theme
 label_incorrect_game_path = Incorrect Game Path:
 incorrect_game_path_explanation = RPFM detected that the Game Path you set in the settings is incorrect.
     This path is needed for many, MANY features to work properly. So set it up properly.
+
+settings_enable_esf_editor = Enable ESF/CCD/SAVE editor:
+tt_settings_debug_enable_esf_editor = This setting allows you to disable the new ESF editor (still in beta) should you face any issues with it,
+    so you can still use RPFM without it.

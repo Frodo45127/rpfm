@@ -102,6 +102,7 @@ impl Settings {
         settings_bool.insert("enable_debug_menu".to_owned(), false);
         settings_bool.insert("spoof_ca_authoring_tool".to_owned(), false);
         settings_bool.insert("enable_rigidmodel_editor".to_owned(), true);
+        settings_bool.insert("enable_esf_editor".to_owned(), true);
 
         // Diagnostics Settings
         settings_bool.insert("diagnostics_trigger_on_open".to_owned(), true);
