@@ -13,6 +13,7 @@ Module containing the ffi functions used for custom widgets.
 !*/
 
 use qt_widgets::QLabel;
+use qt_widgets::QLayout;
 use qt_widgets::QMainWindow;
 use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
@@ -144,6 +145,25 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> *mut QMainWindow; }
 pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure)) }
+}
+
+//---------------------------------------------------------------------------//
+// Spoiler stuff.
+//---------------------------------------------------------------------------//
+
+extern "C" { fn new_spoiler(title: *const QString, animation_duration: i32, parent: *mut QWidget) -> *mut QWidget; }
+pub fn new_spoiler_safe(title: &Ptr<QString>, animation_duration: i32, parent: &Ptr<QWidget>) -> QBox<QWidget> {
+    unsafe { QBox::from_raw(new_spoiler(title.as_raw_ptr(), animation_duration, parent.as_mut_raw_ptr())) }
+}
+
+extern "C" { fn set_spoiler_layout(spoiler: *mut QWidget, layout: *const QLayout); }
+pub fn set_spoiler_layout_safe(spoiler: &Ptr<QWidget>, layout: &Ptr<QLayout>) {
+    unsafe { set_spoiler_layout(spoiler.as_mut_raw_ptr(), layout.as_mut_raw_ptr()) }
+}
+
+extern "C" { fn toggle_animated(spoiler: *mut QWidget); }
+pub fn toggle_animated_safe(spoiler: &Ptr<QWidget>) {
+    unsafe { toggle_animated(spoiler.as_mut_raw_ptr()) }
 }
 
 //---------------------------------------------------------------------------//

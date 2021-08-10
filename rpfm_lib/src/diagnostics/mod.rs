@@ -30,7 +30,6 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::DB;
-use crate::common::get_game_selected_data_path;
 use crate::dependencies::Dependencies;
 use crate::games::VanillaDBTableNameLogic;
 use crate::GAME_SELECTED;
@@ -38,7 +37,6 @@ use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{table::{DecodedData, DependencyData}, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 use crate::schema::FieldType;
-use crate::SUPPORTED_GAMES;
 use crate::SCHEMA;
 
 use self::anim_fragment::{AnimFragmentDiagnostic, AnimFragmentDiagnosticReport, AnimFragmentDiagnosticReportType};
@@ -428,28 +426,26 @@ impl Diagnostics {
                 }
 
                 if !Self::ignore_diagnostic(None, Some("TableIsDataCoring"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    if let Some(supported_game) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()) {
-                        match supported_game.vanilla_db_table_name_logic {
-                            VanillaDBTableNameLogic::FolderName => {
-                                if table.get_table_name_without_tables() == path[1] {
-                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                        cells_affected: vec![],
-                                        message: "Table is datacoring.".to_owned(),
-                                        report_type: TableDiagnosticReportType::TableIsDataCoring,
-                                        level: DiagnosticLevel::Warning,
-                                    });
-                                }
+                    match GAME_SELECTED.read().unwrap().get_vanilla_db_table_name_logic() {
+                        VanillaDBTableNameLogic::FolderName => {
+                            if table.get_table_name_without_tables() == path[1] {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: vec![],
+                                    message: "Table is datacoring.".to_owned(),
+                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                    level: DiagnosticLevel::Warning,
+                                });
                             }
+                        }
 
-                            VanillaDBTableNameLogic::DefaultName(ref default_name) => {
-                                if *name == default_name {
-                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                        cells_affected: vec![],
-                                        message: "Table is datacoring.".to_owned(),
-                                        report_type: TableDiagnosticReportType::TableIsDataCoring,
-                                        level: DiagnosticLevel::Warning,
-                                    });
-                                }
+                        VanillaDBTableNameLogic::DefaultName(ref default_name) => {
+                            if *name == default_name {
+                                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                    cells_affected: vec![],
+                                    message: "Table is datacoring.".to_owned(),
+                                    report_type: TableDiagnosticReportType::TableIsDataCoring,
+                                    level: DiagnosticLevel::Warning,
+                                });
                             }
                         }
                     }
@@ -988,8 +984,8 @@ impl Diagnostics {
             }
         }
 
-        if let Some(path) = get_game_selected_data_path() {
-            if !path.is_dir() {
+        if let Some(path) = GAME_SELECTED.read().unwrap().get_executable_path() {
+            if !path.is_file() {
                 diagnostic.get_ref_mut_result().push(
                     ConfigDiagnosticReport {
                         message: "Game Path for the current Game Selected is incorrect.".to_owned(),

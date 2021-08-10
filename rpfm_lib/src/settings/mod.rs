@@ -28,8 +28,10 @@ use std::io::{BufReader, BufWriter, Write};
 use rpfm_error::Result;
 
 use crate::games::*;
+use crate::games::supported_games::*;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
+use crate::settings::supported_games::KEY_THREE_KINGDOMS;
 use crate::updater::STABLE;
 
 /// Name of the settings file.
@@ -61,8 +63,16 @@ impl Settings {
         let mut settings_bool = BTreeMap::new();
         paths.insert(MYMOD_BASE_PATH.to_owned(), None);
         paths.insert(ZIP_PATH.to_owned(), None);
-        for (folder_name, _) in SUPPORTED_GAMES.iter() {
-            paths.insert((*folder_name).to_string(), None);
+        for game in &SUPPORTED_GAMES.get_games() {
+            let game_key = game.get_game_key_name();
+            paths.insert(game_key.to_owned(), None);
+
+            if game_key != KEY_EMPIRE &&
+                game_key != KEY_NAPOLEON &&
+                game_key != KEY_ARENA {
+
+                paths.insert(game.get_game_key_name() + "_assembly_kit", None);
+            }
         }
 
         // General Settings.

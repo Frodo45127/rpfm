@@ -561,7 +561,7 @@ impl Schema {
     ///
     /// For compatibility purpouses.
     pub fn export_to_json() -> Result<()> {
-        for schema_file in SUPPORTED_GAMES.iter().map(|x| &x.1.schema) {
+        for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
             let schema = Schema::load(&schema_file)?;
 
             let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);

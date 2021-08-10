@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui"
-version = "2.5.3"
+version = "2.5.4"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
@@ -10,6 +10,7 @@ edition = "2018"
 support_rigidmodel = ["rpfm_lib/support_rigidmodel"]
 support_modern_dds = []
 support_uic = ["rpfm_lib/support_uic"]
+only_for_the_brave = []
 
 default = []
 

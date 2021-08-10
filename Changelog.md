@@ -6,6 +6,26 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.5.4]
+### Added
+- Reworked `Game Selected` logic.
+- Added `Assembly Kit` fields to settings.
+
+### Changed
+- Updated compilation instructions.
+- Improved Game folders detection.
+- Improved paths tab on settings.
+
+### Fixed
+- Fixed case sensitive checkbox on Global Search working on inverse.
+- Fixed multiple issues while compiling on linux.
+- Fixed update table not performing type updates correctly.
+- Fixed decoder not picking up updated data after a table gets updated.
+- Fixed lockups on `Rename references` (again).
+- Fixed incorrect action getting triggered after double-cliking the `Dependencies Cache outdated` diagnostic.
+- Fixed `Optimize PackFile` failing to optimize certain float values.
+- Fixed a myriad of issues related to game selected, dependencies cache, diagnostics, and the linux ports of Total War games.
+
 ## [2.5.3]
 ### Added
 - Implemented `Diagnostic Check` command on the CLI.
@@ -407,7 +427,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...HEAD
+[2.5.4]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...v2.5.4
 [2.5.3]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...v2.5.2
 [2.5.1]: https://github.com/Frodo45127/rpfm/compare/v2.5.0...v2.5.1

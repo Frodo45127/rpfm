@@ -650,6 +650,8 @@ impl GlobalSearchUI {
                     let table_model_index = table_model.index_2a(row, column);
                     let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
                     if table_model_index_filtered.is_valid() {
+                        table_view.set_focus_0a();
+                        table_view.set_current_index(table_model_index_filtered.as_ref());
                         table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                         table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }

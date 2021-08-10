@@ -135,15 +135,15 @@ impl SchemaV0 {
 
     pub fn update() {
         println!("Importing schemas from V0 to V1");
-        let legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
-        let mut schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), SchemaV1::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let legacy_schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), Self::load(&y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let mut schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), SchemaV1::load(&y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
         println!("Amount of Schemas V0: {:?}", legacy_schemas.len());
         println!("Amount of schemas V1: {:?}", schemas.len());
         if !schemas.is_empty() {
             schemas.par_iter_mut().for_each(|(game, schema)| {
                 if let Some(legacy_schema) = legacy_schemas.get(game) {
                     legacy_schema.0.iter().for_each(|legacy_versioned_file| schema.add_versioned_file(legacy_versioned_file));
-                    if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {
+                    if let Some(file_name) = SUPPORTED_GAMES.get_games().iter().filter_map(|y| if &y.get_game_key_name() == game { Some(y.get_schema_name()) } else { None }).find(|_| true) {
                         if schema.save(&file_name).is_ok() {
                             println!("SchemaV0 for game {} updated to SchemaV1.", game);
                         }
@@ -156,7 +156,7 @@ impl SchemaV0 {
             let mut legacy_schemas = legacy_schemas.par_iter().map(|(x, y)| ((*x).to_owned(), From::from(y))).collect::<BTreeMap<String, SchemaV2>>();
             println!("Amount of SchemasV2: {:?}", legacy_schemas.len());
             legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
-                if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {
+                if let Some(file_name) = SUPPORTED_GAMES.get_games().iter().filter_map(|y| if &y.get_game_key_name() == game { Some(y.get_schema_name()) }  else { None }).find(|_| true) {
                     if legacy_schema.save(&file_name).is_ok() {
                         println!("SchemaV1 for game {} updated to Schema V2.", game);
                     }

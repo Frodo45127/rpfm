@@ -41,7 +41,6 @@ use rpfm_macros::*;
 use crate::GAME_SELECTED;
 use crate::SCHEMA;
 use crate::SETTINGS;
-use crate::SUPPORTED_GAMES;
 use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::dependencies::Dependencies;
 use crate::packfile::compression::*;
@@ -247,7 +246,7 @@ pub enum PFHVersion {
 ///
 /// The types here are sorted in the same order they'll load when the game starts.
 /// The number in their docs is their numeric value when read from a PackFile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PFHFileType {
 
     /// **(0)**: Used in CA PackFiles, not useful for modding.
@@ -1421,7 +1420,16 @@ impl PackFile {
     }
 
     /// This function sets the `PFHFileType` of the provided `PackFile`.
+    ///
+    /// NOTE: This may change the PFHVersion of this PackFile too.
     pub fn set_pfh_file_type(&mut self, pfh_file_type: PFHFileType) {
+
+        // Make sure the current PFHVersion of this PackFile is compatible with the new PFHFileType.
+        let pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.get_pfh_file_type());
+        if pfh_version != self.get_pfh_version() {
+            self.set_pfh_version(pfh_version);
+        }
+
         self.pfh_file_type = pfh_file_type;
     }
 
@@ -2182,8 +2190,8 @@ impl PackFile {
         pack_file_names: &[String],
     ) {
 
-        let data_packs_paths = get_game_selected_data_packfiles_paths();
-        let content_packs_paths = get_game_selected_content_packfiles_paths();
+        let data_packs_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths();
+        let content_packs_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths();
         let mut loaded_packfiles = vec![];
 
         pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
@@ -2194,7 +2202,7 @@ impl PackFile {
     /// This function tries to get the list of CA PackFile of the currently selected game from the manifest.txt on /data,
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
-        let pack_file_paths = get_all_ca_packfiles_paths()?;
+        let pack_file_paths = GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths()?;
         Self::open_packfiles(&pack_file_paths, true, true, true)
     }
 
@@ -2225,8 +2233,8 @@ impl PackFile {
             let mut packs_paths = packs_paths.iter().filter(|x| x.is_file()).collect::<Vec<&PathBuf>>();
             packs_paths.sort_by_key(|x| x.file_name().unwrap().to_string_lossy().to_string());
 
-            let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0];
-            let pfh_name = if ignore_mods { GAME_SELECTED.read().unwrap().to_owned() } else { String::from("merged_mod.pack")};
+            let pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(PFHFileType::Mod);
+            let pfh_name = if ignore_mods { GAME_SELECTED.read().unwrap().get_game_key_name() } else { String::from("merged_mod.pack")};
             let mut pack_file = Self::new_with_name(&pfh_name, pfh_version);
 
             // Read all the `PackFiles`, one by one, and separate their files by `PFHFileType`.
@@ -2721,7 +2729,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
     pub fn read_from_game_selected() -> Result<Self> {
-        let mut manifest_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
+        let mut manifest_path = GAME_SELECTED.read().unwrap().get_data_path().map_err(|_| Error::from(ErrorKind::GameManifestNotFound))?;
         manifest_path.push("manifest.txt");
 
         let mut reader = ReaderBuilder::new()

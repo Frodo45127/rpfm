@@ -36,6 +36,7 @@ SOURCES += \
     src/resizable_label.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
+    src/spoiler.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_filter.cpp \
     src/tableview_frozen.cpp \
@@ -59,7 +60,8 @@ HEADERS += \
     include/qstring_item_delegate.h \
     include/packed_file_model.h \
     include/resizable_label.h \
-    include/q_main_window_custom.h
+    include/q_main_window_custom.h \
+    include/spoiler.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

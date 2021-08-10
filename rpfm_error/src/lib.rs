@@ -686,6 +686,12 @@ pub enum ErrorKind {
 
     /// Generic error for when we want to say that a string is too long for the text we want.
     StringTooLong(u32),
+
+    /// Error for when the Assembly Kit path for this game is not yet configured.
+    GameAssemblyKitPathNotConfigured,
+
+    /// Error for when we can't find the Manifest where we expect it to be.
+    GameManifestNotFound,
 }
 
 /// Implementation of `Error`.
@@ -769,8 +775,8 @@ impl Display for ErrorKind {
             ErrorKind::IOGenericWrite(paths) => write!(f, "<p>Error while trying to write to disk the following file/s:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOCreateAssetFolder => write!(f, "<p>The MyMod's asset folder does not exists and it cannot be created.</p>"),
             ErrorKind::IOCreateNestedAssetFolder => write!(f, "<p>The folder does not exists and it cannot be created.</p>"),
-            ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p>", path),
-            ErrorKind::IOReadFile(path) => write!(f, "<p>Error while trying to read the following file:</p><p>{:?}</p>", path),
+            ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p><p>This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.", path),
+            ErrorKind::IOReadFile(path) => write!(f, "<p>Error while trying to read the following file:</p><p>{:?}</p><p>This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.", path),
             ErrorKind::IOFolderCannotBeOpened => write!(f, "<p>The folder couldn't be opened. This means either it doesn't exist, or RPFM has no access to it.</p>"),
 
             //-----------------------------------------------------//
@@ -1027,6 +1033,8 @@ impl Display for ErrorKind {
             ErrorKind::PackFileSettingsDecode(cause) => write!(f, "<p>Error while trying to decode the PackFile-Specific Settings:</p><p>{}</p>", cause),
             ErrorKind::NoInstallTypeForGame => write!(f, "<p>The currently selected game doesn't have an Install Type. If this pops up and the Game is not Arena, please report it.</p>"),
             ErrorKind::StringTooLong(size) => write!(f, "<p>The string is too long. The MAX limit is {}.</p>", size),
+            ErrorKind::GameAssemblyKitPathNotConfigured => write!(f, "<p>The Assembly Kit path is not yet configured for the game selected.</p>"),
+            ErrorKind::GameManifestNotFound => write!(f, "<p>The manifest for the Game Selected hasn't been found.</p>"),
         }
     }
 }

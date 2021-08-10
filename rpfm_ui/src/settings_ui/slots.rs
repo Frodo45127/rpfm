@@ -61,6 +61,7 @@ pub struct SettingsUISlots {
     pub select_mymod_path: QBox<SlotNoArgs>,
     pub select_zip_path: QBox<SlotNoArgs>,
     pub select_game_paths: BTreeMap<String, QBox<SlotNoArgs>>,
+    pub select_asskit_paths: BTreeMap<String, QBox<SlotNoArgs>>,
     pub shortcuts: QBox<SlotNoArgs>,
     pub text_editor: QBox<SlotNoArgs>,
     pub font_settings: QBox<SlotNoArgs>,
@@ -110,14 +111,14 @@ impl SettingsUISlots {
         // What happens when we hit the "..." button for MyMods.
         let select_mymod_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
-                ui.update_entry_path(MYMOD_BASE_PATH);
+                ui.update_entry_path(MYMOD_BASE_PATH, false);
             }
         ));
 
         // What happens when we hit the "..." button for 7Zip.
         let select_zip_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
-            ui.update_entry_path(ZIP_PATH);
+            ui.update_entry_path(ZIP_PATH, false);
         }));
 
         // What happens when we hit any of the "..." buttons for the games.
@@ -128,7 +129,20 @@ impl SettingsUISlots {
                 SlotNoArgs::new(&ui.dialog, clone!(
                     key,
                     ui => move || {
-                    ui.update_entry_path(&key);
+                    ui.update_entry_path(&key, false);
+                }))
+            );
+        }
+
+        // What happens when we hit any of the "..." buttons for the asskits.
+        let mut select_asskit_paths = BTreeMap::new();
+        for key in ui.paths_asskit_line_edits.keys() {
+            select_asskit_paths.insert(
+                key.to_owned(),
+                SlotNoArgs::new(&ui.dialog, clone!(
+                    key,
+                    ui => move || {
+                    ui.update_entry_path(&key, true);
                 }))
             );
         }
@@ -260,6 +274,7 @@ impl SettingsUISlots {
             select_mymod_path,
             select_zip_path,
             select_game_paths,
+            select_asskit_paths,
             shortcuts,
             text_editor,
             font_settings,

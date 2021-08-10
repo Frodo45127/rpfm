@@ -36,11 +36,10 @@ use rpfm_lib::common::*;
 use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::games::*;
-use rpfm_lib::packfile::{Manifest, PathType, PFHFileType, CompressionState};
+use rpfm_lib::games::supported_games::*;
+use rpfm_lib::packfile::{PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -332,37 +331,37 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
-                    if !game_data_path.is_dir() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                    if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
 
-                    if pack_path.starts_with(&game_data_path) {
+                    if pack_path.starts_with(&game_local_mods_path) {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        game_local_mods_path.push(&mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            if manifest.0.iter().filter_map(|x|
-                                if x.get_ref_relative_path().ends_with(".pack") {
-                                    Some(x.get_ref_relative_path().to_owned())
-                                } else { None }
-                            ).any(|x| x == mod_name.to_string_lossy()) {
-                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
-                            }
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                        };
+
+                        if ca_paths.contains(&game_local_mods_path) {
+                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                         }
-                        game_data_path.push(&mod_name);
-                        if copy(pack_path, &game_data_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+
+                        if copy(pack_path, &game_local_mods_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
                         }
 
                         // Try to copy the image too if exists.
-                        game_data_path.pop();
-                        game_data_path.push(pack_image_path.file_name().unwrap());
-                        if pack_image_path.is_file() && copy(pack_image_path, &game_data_path).is_err()  {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                        game_local_mods_path.pop();
+                        game_local_mods_path.push(pack_image_path.file_name().unwrap());
+                        if pack_image_path.is_file() && copy(pack_image_path, &game_local_mods_path).is_err()  {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
                         }
 
                         // Report the success, so the user knows it worked.
@@ -389,30 +388,29 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
                 }
 
-                if let Some(mut game_data_path) = get_game_selected_data_path() {
-                    if !game_data_path.is_dir() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                    if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                     }
 
-                    if pack_path.starts_with(&game_data_path) {
+                    if pack_path.starts_with(&game_local_mods_path) {
                         return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
+                        game_local_mods_path.push(&mod_name);
 
-                        // Check if the PackFile is not a CA one before uninstalling.
-                        if let Ok(manifest) = Manifest::read_from_game_selected() {
-                            if manifest.0.iter().filter_map(|x|
-                                if x.get_ref_relative_path().ends_with(".pack") {
-                                    Some(x.get_ref_relative_path().to_owned())
-                                } else { None }
-                            ).any(|x| x == mod_name.to_string_lossy()) {
-                                return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
-                            }
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                            Ok(paths) => paths,
+                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                        };
+
+                        if ca_paths.contains(&game_local_mods_path) {
+                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
                         }
-                        game_data_path.push(&mod_name);
-                        if remove_file(&game_data_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+
+                        if remove_file(&game_local_mods_path).is_err() {
+                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_local_mods_path; 1]), false);
                         }
 
                         // Report the success, so the user knows it worked.
@@ -476,8 +474,7 @@ impl AppUISlots {
                         // Update the TreeView.
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
 
-                        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-                        match &*game_selected {
+                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
@@ -580,9 +577,10 @@ impl AppUISlots {
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // re-select the current `GameSelected` to force it to reload the game's files.
+                            let game_selected_key = GAME_SELECTED.read().unwrap().get_game_key_name();
                             let has_game_selected_path_changed = settings.paths.iter()
                                 .filter(|x| x.0 != "mymods_base_path" && &old_settings.paths[x.0] != x.1)
-                                .any(|x| x.0 == &*GAME_SELECTED.read().unwrap());
+                                .any(|x| x.0 == &game_selected_key);
 
                             if has_game_selected_path_changed {
                                 QAction::trigger(&app_ui.game_selected_group.checked_action());
@@ -921,12 +919,10 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match get_game_selected_install_type().unwrap() {
-                InstallType::Steam(steam_id) => {
-                    if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    };
-                }
+            match GAME_SELECTED.read().unwrap().get_game_launch_command() {
+                Ok(command) => if open::that(&command).is_err() {
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                },
                 _ => show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false),
             }
         }));
@@ -934,7 +930,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(path) = get_game_selected_data_path() {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path() {
                 if open::that(&path).is_err() {
                     show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -945,7 +941,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(path) = get_game_selected_assembly_kit_path() {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() {
                 if open::that(&path).is_err() {
                     show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -983,52 +979,14 @@ impl AppUISlots {
             app_ui => move |_| {
 
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
-
-                    // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                    let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-                    let asskit_path = match version {
-
-                        // Post-Shogun 2 games.
-                        2 => {
-                            if let Some(ref path) = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()] {
-                                let mut path = path.to_path_buf();
-                                path.push("assembly_kit");
-                                path.push("raw_data");
-                                path.push("db");
-                                Some(path)
-                            }
-                            else {
-                                return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
-                            }
+                    let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
+                    let asskit_path = match GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path() {
+                        Ok(path) => Some(path),
+                        Err(error) => {
+                            let error_message = error.to_string() + "<p>" + &tr("generate_dependencies_cache_warn") + "</p>";
+                            show_dialog(&app_ui.main_window, error_message, true);
+                            None
                         }
-
-                        // Shogun 2.
-                        1 => {
-
-                            // Create the FileDialog to get the path of the Assembly Kit.
-                            let file_dialog = QFileDialog::from_q_widget_q_string(
-                                &app_ui.main_window,
-                                &qtr("special_stuff_select_ak_folder"),
-                            );
-
-                            // Set it to only search Folders.
-                            file_dialog.set_file_mode(FileMode::Directory);
-                            file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
-
-                            // Run it and expect a response (1 => Accept, 0 => Cancel).
-                            let mut path = if file_dialog.exec() == 1 {
-                                PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
-                            } else {
-                                return show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
-                            };
-
-                            path.push("raw_data");
-                            path.push("db");
-                            Some(path)
-                        }
-
-                        // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                        _ => None,
                     };
 
                     // If there is no problem, ere we go.
@@ -1218,6 +1176,12 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                #[cfg(feature = "only_for_the_brave")]
+                let only_for_the_brave = ", Only For The Brave";
+
+                #[cfg(not(feature = "only_for_the_brave"))]
+                let only_for_the_brave = "";
+
                 QMessageBox::about(
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
@@ -1229,7 +1193,7 @@ impl AppUISlots {
                                 <td><h2><b>Rusted PackFile Manager</b></h2></td>
                             </tr>
                             <tr>
-                                <td>{} {} Patch</td>
+                                <td>{} {} Patch{}</td>
                             </tr>
                              <tr>
                                 <td>Feature flags enabled: {}</td>
@@ -1272,7 +1236,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, get_feature_flags()))
+                        ", &VERSION, &VERSION_SUBTITLE, &only_for_the_brave, get_feature_flags()))
                     );
             }
         ));
@@ -1309,7 +1273,7 @@ impl AppUISlots {
             app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
+                let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
                 let path = match version {
                     1| 0 => {
 

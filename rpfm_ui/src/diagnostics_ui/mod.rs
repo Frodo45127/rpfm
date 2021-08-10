@@ -50,7 +50,7 @@ use std::rc::Rc;
 
 use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::games::*;
+use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -807,6 +807,8 @@ impl DiagnosticsUI {
                             let table_model_index = table_model.index_2a(row, column);
                             let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
                             if table_model_index_filtered.is_valid() {
+                                table_view.set_focus_0a();
+                                table_view.set_current_index(table_model_index_filtered.as_ref());
                                 table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
@@ -833,6 +835,8 @@ impl DiagnosticsUI {
                             let table_model_index = table_model.index_2a(row, column);
                             let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
                             if table_model_index_filtered.is_valid() {
+                                table_view.set_focus_0a();
+                                table_view.set_current_index(table_model_index_filtered.as_ref());
                                 table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
@@ -849,7 +853,7 @@ impl DiagnosticsUI {
                     "DependenciesCacheNotGenerated" |
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
-                        match &**GAME_SELECTED.read().unwrap() {
+                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
                             KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache.trigger(),
                             KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache.trigger(),
@@ -857,9 +861,9 @@ impl DiagnosticsUI {
                             KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache.trigger(),
                             KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache.trigger(),
                             KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_SHOGUN_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_NAPOLEON => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_EMPIRE => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
+                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache.trigger(),
+                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache.trigger(),
+                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache.trigger(),
                             _ => {}
                         }
                     }

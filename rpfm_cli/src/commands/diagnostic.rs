@@ -22,7 +22,7 @@ use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::PackFile;
 use rpfm_lib::schema::Schema;
-use rpfm_lib::{SCHEMA, SUPPORTED_GAMES};
+use rpfm_lib::SCHEMA;
 
 
 use crate::config::Config;
@@ -45,7 +45,7 @@ pub fn check(
     let mut dependencies = Dependencies::default();
     match &config.game_selected {
         Some(game_selected) => {
-            *SCHEMA.write().unwrap() = Some(Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?);
+            *SCHEMA.write().unwrap() = Some(Schema::load(game_selected.get_schema_name())?);
             let asskit_path = asskit_path.map(|x| PathBuf::from(x));
 
             // Load the PackFiles to check to memory.
@@ -65,9 +65,9 @@ pub fn check(
                     info!("Dependencies rebuild failed. Regenerating...");
                 }
 
-                let version = &SUPPORTED_GAMES[&**game_selected].raw_db_version;
+                let version = game_selected.get_raw_db_version();
 
-                dependencies.generate_dependencies_cache(&asskit_path, *version)?;
+                dependencies.generate_dependencies_cache(&asskit_path, version)?;
                 dependencies.save_to_binary()?;
                 dependencies.rebuild(&[], false)?;
             }

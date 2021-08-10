@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_cli"
-version = "2.5.3"
+version = "2.5.4"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A CLI tool to automate all your modding needs."

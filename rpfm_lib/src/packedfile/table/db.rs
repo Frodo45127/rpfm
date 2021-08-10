@@ -30,9 +30,7 @@ use rpfm_macros::*;
 
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::{decoder::Decoder, encoder::Encoder};
-use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
-use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::Dependencies;
 use crate::packedfile::PackedFileType;
@@ -267,8 +265,7 @@ impl DB {
 
         // Napoleon and Empire do not have GUID, and adding it to their tables crash both games.
         // So for those two games, we ignore the GUID_MARKER and the GUID itself.
-        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-        if game_selected != KEY_EMPIRE && game_selected != KEY_NAPOLEON {
+        if GAME_SELECTED.read().unwrap().get_db_tables_have_guid() {
             packed_file.extend_from_slice(GUID_MARKER);
             if SETTINGS.read().unwrap().settings_bool["disable_uuid_regeneration_on_db_tables"] && !self.uuid.is_empty() {
                 packed_file.encode_packedfile_string_u16(&self.uuid);
@@ -334,7 +331,7 @@ impl DB {
         let mut db_files = vec![];
 
         // Get all the paths we need.
-        if let Ok(pak_file) = get_game_selected_pak_file() {
+        if let Ok(pak_file) = GAME_SELECTED.read().unwrap().get_dependencies_cache_file() {
             if let Ok(pak_file) = File::open(pak_file) {
                 let mut pak_file = BufReader::new(pak_file);
                 let mut data = vec![];

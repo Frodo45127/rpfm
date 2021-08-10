@@ -23,17 +23,17 @@ use chrono::{Utc, DateTime};
 use rpfm_error::{Error, ErrorKind, Result};
 
 use std::cmp::Ordering;
-use std::fs::{DirBuilder, File, read_dir};
+use std::fs::{File, read_dir};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use crate::template;
 use crate::schema;
 use crate::config::get_config_path;
-use crate::games::{InstallType, KEY_TROY};
+use crate::games::supported_games::KEY_TROY;
 use crate::GAME_SELECTED;
-use crate::packfile::Manifest;
-use crate::{SETTINGS, SUPPORTED_GAMES};
+
+use crate::SETTINGS;
 
 pub mod decoder;
 pub mod encoder;
@@ -147,123 +147,6 @@ pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<
     Ok(files)
 }
 
-/// This function gets the `/data` path of the game selected, straighoutta settings, if it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_data_path() -> Option<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(Some(path)) = SETTINGS.read().unwrap().paths.get(game_selected) {
-        Some(path.join(PathBuf::from("data")))
-    } else { None }
-}
-
-/// This function gets the `/assembly_kit` path of the game selected, if supported and it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(Some(path)) = SETTINGS.read().unwrap().paths.get(game_selected) {
-        Some(path.join(PathBuf::from("assembly_kit")))
-    } else { None }
-}
-
-/// This function gets the `/data/xxx.pack` paths of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let base_path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-    let db_packs = &SUPPORTED_GAMES.get(game_selected)?.db_packs;
-    let mut db_paths = vec![];
-    for pack in db_packs {
-        let mut path = base_path.to_path_buf();
-        path.push("data");
-        path.push(pack);
-        db_paths.push(path);
-    }
-    Some(db_paths)
-}
-
-/// This function gets the `/data/xxx.pack` paths of the PackFile with the loc files of the game selected, straighoutta settings, if it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_loc_pack_path() -> Option<Vec<PathBuf>> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let base_path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-    let loc_packs = &SUPPORTED_GAMES.get(game_selected)?.loc_packs;
-    let mut loc_paths = vec![];
-    for pack in loc_packs {
-        let mut path = base_path.to_path_buf();
-        path.push("data");
-        path.push(pack);
-        loc_paths.push(path);
-    }
-    Some(loc_paths)
-}
-
-/// This function gets a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
-    let mut paths = vec![];
-    let data_path = get_game_selected_data_path()?;
-
-    for path in get_files_from_subdir(&data_path, false).ok()?.iter() {
-        match path.extension() {
-            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
-            None => continue,
-        }
-    }
-
-    paths.sort();
-    Some(paths)
-}
-
-/// This function gets a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
-#[allow(dead_code)]
-pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let path = match get_game_selected_install_type().ok()? {
-        InstallType::Steam(steam_id) => {
-            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-            path.pop();
-            path.pop();
-            path.push("workshop");
-            path.push("content");
-            path.push(steam_id.to_string());
-            path
-        }
-        InstallType::Epic => {
-            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-            path.push("mods");
-            path
-        }
-        InstallType::Wargaming => return None,
-    };
-
-    let mut paths = vec![];
-
-    for path in get_files_from_subdir(&path, true).ok()?.iter() {
-        match path.extension() {
-            Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
-            None => continue,
-        }
-    }
-
-    paths.sort();
-    Some(paths)
-}
-
-/// This function gets the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
-#[allow(dead_code)]
-pub fn get_game_selected_pak_file() -> Result<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(pak_file) = &SUPPORTED_GAMES.get(game_selected).ok_or_else(|| Error::from(ErrorKind::GameNotSupported) )?.pak_file {
-        let mut base_path = get_config_path()?;
-        base_path.push("pak_files");
-        base_path.push(pak_file);
-
-        if base_path.is_file() { Ok(base_path) }
-        else { Err(ErrorKind::IOFileNotFound.into()) }
-    }
-    else { Err(ErrorKind::PAKFileNotSupportedForThisGame.into()) }
-}
-
 /// This function gets the `/templates/definitions` path of the game selected, if they exists, and if it's custom or not.
 #[allow(dead_code)]
 pub fn get_game_selected_template_definitions_paths() -> Option<Vec<(bool, PathBuf)>> {
@@ -311,29 +194,25 @@ pub fn get_template_base_path() -> Result<PathBuf> {
 /// This function returns the template definition path.
 #[allow(dead_code)]
 pub fn get_template_definitions_path() -> Result<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::DEFINITIONS_FOLDER))
+    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::DEFINITIONS_FOLDER))
 }
 
 /// This function returns the template assets path.
 #[allow(dead_code)]
 pub fn get_template_assets_path() -> Result<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
+    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::ASSETS_FOLDER))
 }
 
 /// This function returns the custom template definition path.
 #[allow(dead_code)]
 pub fn get_custom_template_definitions_path() -> Result<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::DEFINITIONS_FOLDER))
+    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::DEFINITIONS_FOLDER))
 }
 
 /// This function returns the custom template assets path.
 #[allow(dead_code)]
 pub fn get_custom_template_assets_path() -> Result<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
+    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::ASSETS_FOLDER))
 }
 
 /// This function returns the schema path.
@@ -362,68 +241,13 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
     }
 }
 
-/// This function returns the assembly kit raw data path, or an error if the game selected doesn't have a known path.
-pub fn get_assembly_kit_db_tables_path() -> Result<PathBuf> {
-    let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
-    match version {
-
-        // Post-Shogun 2 games.
-        2 => {
-            let mut path = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
-            path.push("assembly_kit");
-            path.push("raw_data");
-            path.push("db");
-            Ok(path)
-        }
-
-        // Shogun 2/Older games
-        _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
-    }
-}
-
-/// This function returns the install type corresponding to the current game selected.
-#[allow(dead_code)]
-pub fn get_game_selected_install_type() -> Result<InstallType> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let supported_install_types = &SUPPORTED_GAMES.get(game_selected).unwrap().install_type;
-    if supported_install_types.len() == 1 {
-        Ok(supported_install_types[0].clone())
-    }
-    else {
-        Err(ErrorKind::NoInstallTypeForGame.into())
-    }
-}
-
-/// This function gets the destination folder for MyMod packs.
-#[allow(dead_code)]
-pub fn get_mymod_install_path() -> Option<PathBuf> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    match get_game_selected_install_type().ok()? {
-        InstallType::Steam(_) => {
-            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-            path.push("data");
-            Some(path)
-        }
-        InstallType::Epic => {
-            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-            path.push("mods");
-            path.push("mymods");
-
-            // Make sure the folder exists.
-            DirBuilder::new().recursive(true).create(&path).ok()?;
-            Some(path)
-        }
-        InstallType::Wargaming => None,
-    }
-}
-
 /// This function gets the version number of the exe for the current GameSelected, if it exists.
 #[allow(dead_code)]
 pub fn get_game_selected_exe_version_number() -> Result<u32> {
-    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    match game_selected {
+    let game_selected  = GAME_SELECTED.read().unwrap().get_game_key_name();
+    match &*game_selected {
         KEY_TROY => {
-            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
+            let mut path = SETTINGS.read().unwrap().paths[&game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
             path.push("Troy.exe");
             if path.is_file() {
                 let mut data = vec![];
@@ -483,54 +307,5 @@ fn get_pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Erro
             PeFile::from_bytes(bytes)?.resources()
         }
         Err(e) => Err(e),
-    }
-}
-
-
-/// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
-///
-/// If it fails to find a manifest, it falls back to all non-mod files!
-pub fn get_all_ca_packfiles_paths() -> Result<Vec<PathBuf>> {
-    let data_path = get_game_selected_data_path().ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
-
-    // Try to get the manifest, if exists.
-    match Manifest::read_from_game_selected() {
-        Ok(manifest) => {
-            let pack_file_names = manifest.0.iter().filter_map(|x|
-                if x.get_ref_relative_path().ends_with(".pack") {
-                    Some(x.get_ref_relative_path().to_owned())
-                } else { None }
-                ).collect::<Vec<String>>();
-
-            Ok(pack_file_names.iter().map(|x| {
-                let mut pack_file_path = data_path.to_path_buf();
-                pack_file_path.push(x);
-                pack_file_path
-            }).collect::<Vec<PathBuf>>())
-        }
-
-        // If there is no manifest, use the hardcoded file list for the game, if it has one.
-        Err(_) => {
-
-            let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-            let vanilla_packs = &SUPPORTED_GAMES.get(game_selected).unwrap().vanilla_packs;
-            if !vanilla_packs.is_empty() {
-                Ok(vanilla_packs.iter().map(|x| {
-                    let mut pack_file_path = data_path.to_path_buf();
-                    pack_file_path.push(x);
-                    pack_file_path
-                }).collect::<Vec<PathBuf>>())
-            }
-
-            // If there is no hardcoded list, get every path.
-            else {
-                Ok(get_files_from_subdir(&data_path, false)?.iter()
-                    .filter_map(|x| if let Some(extension) = x.extension() {
-                        if extension.to_string_lossy().to_lowercase() == "pack" {
-                            Some(x.to_owned())
-                        } else { None }
-                    } else { None }).collect::<Vec<PathBuf>>())
-            }
-        }
     }
 }

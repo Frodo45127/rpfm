@@ -18,8 +18,7 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packfile::{PackFile, PathType};
-use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::packfile::{PackFile, PathType, PFHFileType};
 
 use crate::config::Config;
 
@@ -232,7 +231,7 @@ pub fn new_packfile(config: &Config, packfile: &str) -> Result<()> {
     match &config.game_selected {
         Some(game_selected) => {
             let packfile_path = PathBuf::from(packfile);
-            let mut packfile = PackFile::new_with_name("x", SUPPORTED_GAMES[&**game_selected].pfh_version[0]);
+            let mut packfile = PackFile::new_with_name("x", game_selected.get_pfh_version_by_file_type(PFHFileType::Mod));
             packfile.save(Some(packfile_path))
         }
         None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),

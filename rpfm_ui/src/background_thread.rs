@@ -92,8 +92,7 @@ pub fn background_loop() {
 
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {
-                let game_selected = GAME_SELECTED.read().unwrap();
-                let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
+                let pack_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
 
                 if let Ok(version_number) = get_game_selected_exe_version_number() {
@@ -235,11 +234,11 @@ pub fn background_loop() {
 
             // In case we want to change the current `Game Selected`...
             Command::SetGameSelected(game_selected) => {
-                *GAME_SELECTED.write().unwrap() = game_selected.to_owned();
+                *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.get_supported_game_from_key(&game_selected).unwrap();
 
                 // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUIILD IT AFTERWARDS.
                 pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-                *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                *SCHEMA.write().unwrap() = Schema::load(&GAME_SELECTED.read().unwrap().get_schema_name()).ok();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
                 }
@@ -249,7 +248,7 @@ pub fn background_loop() {
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
-                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0]);
+                    pack_file_decoded.set_pfh_version(GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(pack_file_decoded.get_pfh_file_type()));
 
                     if let Ok(version_number) = get_game_selected_exe_version_number() {
                         pack_file_decoded.set_game_version(version_number);
@@ -801,7 +800,7 @@ pub fn background_loop() {
 
             // In case we want to save an schema to disk...
             Command::SaveSchema(mut schema) => {
-                match schema.save(&SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().schema) {
+                match schema.save(GAME_SELECTED.read().unwrap().get_schema_name()) {
                     Ok(_) => {
                         *SCHEMA.write().unwrap() = Some(schema);
                         CENTRAL_COMMAND.send_message_rust(Response::Success);
@@ -1048,11 +1047,9 @@ pub fn background_loop() {
                     // If it worked, we have to update the currently open schema with the one we just downloaded and rebuild cache/dependencies with it.
                     Ok(_) => {
 
-                        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-
                         // Encode the decoded tables with the old schema, then re-decode them with the new one.
                         pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-                        *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                        *SCHEMA.write().unwrap() = Schema::load(&GAME_SELECTED.read().unwrap().get_schema_name()).ok();
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
                         }
@@ -1158,10 +1155,13 @@ pub fn background_loop() {
                         }
                     }
 
-                    // Try to save the file.
+                    // Try to save the file. And I mean "try". Someone seems to love crashing here...
                     let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
-                    let mut file = BufWriter::new(File::create(path).unwrap());
-                    file.write_all(table_list.as_bytes()).unwrap();
+
+                    if let Ok(file) = File::create(path) {
+                        let mut file = BufWriter::new(file);
+                        let _ = file.write_all(table_list.as_bytes());
+                    }
                 }
             }
 

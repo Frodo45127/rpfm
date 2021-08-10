@@ -198,7 +198,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     dialog.resize_2a(400, 50);
 
     let main_grid = create_grid_layout(dialog.static_upcast());
-    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap(), &table_name]), &dialog);
+    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap().get_game_key_name(), &table_name]), &dialog);
     let cancel_button = QPushButton::from_q_string(&qtr("cancel"));
     let accept_button = QPushButton::from_q_string(&qtr("send"));
 
@@ -210,7 +210,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
         if let Some(ref guard) = *SENTRY_GUARD.read().unwrap() {
             let mut event = Event::new();
             event.level = Level::Info;
-            event.message = Some(format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap(), table_name));
+            event.message = Some(format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap().get_display_name(), table_name));
 
             let mut envelope = Envelope::from(event);
             let attatchment = Attachment {
