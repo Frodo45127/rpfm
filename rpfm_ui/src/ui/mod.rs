@@ -15,8 +15,14 @@ This module contains the code to manage the main UI and store all his slots.
 !*/
 
 use qt_widgets::QApplication;
+
+#[cfg(feature = "only_for_the_brave")]
 use qt_widgets::QMessageBox;
+
+#[cfg(feature = "only_for_the_brave")]
 use qt_widgets::q_message_box::Icon;
+
+#[cfg(feature = "only_for_the_brave")]
 use qt_widgets::q_message_box::StandardButton;
 
 use qt_gui::QFont;
@@ -42,6 +48,7 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
+#[cfg(feature = "only_for_the_brave")]
 use crate::VERSION;
 use crate::app_ui;
 use crate::app_ui::AppUI;
@@ -57,6 +64,8 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
+
+#[cfg(feature = "only_for_the_brave")]
 use crate::locale::qtr;
 use crate::locale::tr;
 use crate::QT_PROGRAM;

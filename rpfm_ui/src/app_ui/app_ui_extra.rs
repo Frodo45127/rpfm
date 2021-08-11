@@ -65,7 +65,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::are_you_sure;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
