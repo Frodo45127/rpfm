@@ -6,6 +6,22 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented warning when trying to rename a DB folder.
+- Implemented `Only For The Brave` alert.
+- Implemented CCD(CEO)/ESF/SAVE editor.
+
+### Changed
+- Rigidmodel error messages should now be more specific.
+- QtRMV2 Lib updated to 0.8.1.
+- TSVs to be imported no longer require to have all the columns of a table.
+
+### Fixed
+- Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
+- Fixed rare crash when opening PackFiles with the `Check for missing table definitions` setting set.
+- Fixed very rare bug that caused RPFM to fail on reimport very specific TSV.
+
 ## [2.5.4]
 ### Added
 - Reworked `Game Selected` logic.

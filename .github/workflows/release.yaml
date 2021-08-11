@@ -56,7 +56,7 @@ jobs:
           cd C:\actions-runner\_work\rpfm\rpfm
           cargo build --release
           cd rpfm_ui
-          cargo build --release --features "support_rigidmodel support_modern_dds"
+          cargo build --release --features "support_rigidmodel support_modern_dds only_for_the_brave"
         shell: pwsh
 
       - if: matrix.os == 'self-hosted-ubuntu'

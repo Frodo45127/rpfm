@@ -25,6 +25,7 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
         <li>It doesn't support editing compressed nodes.</li>
         <li>The "Label" texts are placeholders. Ignore them.</li>
         <li>Certain numeric fields may accept values higher than they should. It's only an UI issue. The backend already check for those and fix them.</li>
+        <li>The decoder/encoder is not yet optimized for performance, so it takes some time for it to decode/encode ESF files. This means opening ESF and saving them will take longer.</li>
     </ul>
 
 ## General Localization
