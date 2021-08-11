@@ -16,6 +16,15 @@ This module contains the code to manage the main UI and store all his slots.
 
 use qt_widgets::QApplication;
 
+#[cfg(feature = "only_for_the_brave")]
+use qt_widgets::QMessageBox;
+
+#[cfg(feature = "only_for_the_brave")]
+use qt_widgets::q_message_box::Icon;
+
+#[cfg(feature = "only_for_the_brave")]
+use qt_widgets::q_message_box::StandardButton;
+
 use qt_gui::QFont;
 use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::QIcon;
@@ -39,6 +48,8 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
+#[cfg(feature = "only_for_the_brave")]
+use crate::VERSION;
 use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
@@ -53,6 +64,9 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
+
+#[cfg(feature = "only_for_the_brave")]
+use crate::locale::qtr;
 use crate::locale::tr;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
@@ -315,6 +329,26 @@ impl UI {
                         }
                     }
                 }
+            }
+        }
+
+        // Show the "only for the brave" alert for specially unstable builds.
+        #[cfg(feature = "only_for_the_brave")] {
+            let first_boot_setting = QString::from_std_str("firstBoot".to_owned() + VERSION);
+            if !q_settings.contains(&first_boot_setting) {
+
+                let title = qtr("title_only_for_the_brave");
+                let message = qtr("message_only_for_the_brave");
+                QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                    Icon::Warning,
+                    &title,
+                    &message,
+                    QFlags::from(StandardButton::Ok),
+                    &app_ui.main_window,
+                ).exec();
+
+                // Set it so it doesn't popup again for this version.
+                q_settings.set_value(&first_boot_setting, &QVariant::from_bool(true));
             }
         }
 

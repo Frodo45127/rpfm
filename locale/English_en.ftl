@@ -1,5 +1,32 @@
 ### Localization for RPFM-UI - English
 
+## These two need to be changed for special builds, so they go first.
+
+title_only_for_the_brave = Only For The Brave
+message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But... you can check features before anyone else.</p>
+
+    <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version.</p>
+
+    <p>So, in "Only For The Brave" versions, it's hightly reccomended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
+    <ul>
+        <li>RigidModel Editor: it has been updated, but it barely received testing. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
+        <li>ESF Editor: It has received only very limited testing. If you're going to edit mods with ESF/CCD/SAVE files and don't want to edit them by accident, you can disable it in the settings.</li>
+    </ul>
+
+    <p>Notes about the RigidModel Editor:</p>
+    <ul>
+        <li>There are certain buttons that may look like they do nothing. They should work properly on a future update.</li>
+    </ul>
+
+    <p>Notes about the ESF Editor:</p>
+    <ul>
+        <li>It only supports one ESF format (may not open files too old).</li>
+        <li>It doesn't support importing/exporting.</li>
+        <li>It doesn't support editing compressed nodes.</li>
+        <li>The "Label" texts are placeholders. Ignore them.</li>
+        <li>Certain numeric fields may accept values higher than they should. It's only an UI issue. The backend already check for those and fix them.</li>
+    </ul>
+
 ## General Localization
 
 gen_loc_accept = Accept
@@ -1005,3 +1032,11 @@ incorrect_game_path_explanation = RPFM detected that the Game Path you set in th
     This path is needed for many, MANY features to work properly. So set it up properly.
 
 generate_dependencies_cache_warn = This means RPFM will still try to generate the Dependencies Cache, but the diagnostics tool may generate a bunch of false positives.
+
+are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB Editing: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
+    <p>Doing so will cause your game to either not load the mod correctly, or crash on boot.</p>
+
+    <p>If you're doing this because someone told you to <i>rename the tables</i>, he/she/it meant the table files, not the table folders.</p>
+
+    <p>The only reason why there is even a button in this dialog to continue is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
+    <p>If that's not your case, exit this dialog and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>

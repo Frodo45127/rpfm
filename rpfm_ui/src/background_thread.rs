@@ -1152,10 +1152,13 @@ pub fn background_loop() {
                         }
                     }
 
-                    // Try to save the file.
+                    // Try to save the file. And I mean "try". Someone seems to love crashing here...
                     let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
-                    let mut file = BufWriter::new(File::create(path).unwrap());
-                    file.write_all(table_list.as_bytes()).unwrap();
+
+                    if let Ok(file) = File::create(path) {
+                        let mut file = BufWriter::new(file);
+                        let _ = file.write_all(table_list.as_bytes());
+                    }
                 }
             }
 

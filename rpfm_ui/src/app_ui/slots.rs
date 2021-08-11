@@ -1176,6 +1176,12 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                #[cfg(feature = "only_for_the_brave")]
+                let only_for_the_brave = ", Only For The Brave";
+
+                #[cfg(not(feature = "only_for_the_brave"))]
+                let only_for_the_brave = "";
+
                 QMessageBox::about(
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
@@ -1187,7 +1193,7 @@ impl AppUISlots {
                                 <td><h2><b>Rusted PackFile Manager</b></h2></td>
                             </tr>
                             <tr>
-                                <td>{} {} Patch</td>
+                                <td>{} {} Patch{}</td>
                             </tr>
                              <tr>
                                 <td>Feature flags enabled: {}</td>
@@ -1230,7 +1236,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, get_feature_flags()))
+                        ", &VERSION, &VERSION_SUBTITLE, &only_for_the_brave, get_feature_flags()))
                     );
             }
         ));

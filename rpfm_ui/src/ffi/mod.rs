@@ -281,6 +281,23 @@ pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) 
     }
 }
 
+/// This function allow us to get the last error reported by the lib.
+#[cfg(feature = "support_rigidmodel")]
+extern "C" { fn getLastErrorString(parent: *mut QWidget, string: *mut QString) -> bool; }
+#[cfg(feature = "support_rigidmodel")]
+pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
+    unsafe {
+        let string = QString::new();
+        if getLastErrorString(parent.as_mut_raw_ptr(), string.as_mut_raw_ptr()) {
+            Ok(string.to_std_string())
+        } else {
+            Err(ErrorKind::RigidModelParseError.into())
+        }
+    }
+}
+
+
+
 //---------------------------------------------------------------------------//
 // Special functions.
 //---------------------------------------------------------------------------//
