@@ -44,6 +44,7 @@ use crate::views::table::TableType;
 use self::anim_fragment::PackedFileAnimFragmentView;
 use self::animpack::PackedFileAnimPackView;
 use self::ca_vp8::PackedFileCaVp8View;
+use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
@@ -63,6 +64,7 @@ pub mod anim_fragment;
 pub mod animpack;
 pub mod ca_vp8;
 pub mod decoder;
+pub mod esf;
 pub mod external;
 pub mod image;
 pub mod packfile;
@@ -130,6 +132,7 @@ pub enum View {
     AnimPack(Arc<PackedFileAnimPackView>),
     CaVp8(Arc<PackedFileCaVp8View>),
     Decoder(Arc<PackedFileDecoderView>),
+    ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
     PackFileSettings(Arc<PackFileSettingsView>),
@@ -301,6 +304,8 @@ impl PackedFileView {
 
                             // Images are read-only.
                             PackedFileType::Image => return Ok(()),
+
+                            // AnimPacks save on edit.
                             PackedFileType::AnimPack => return Ok(()),
 
                             PackedFileType::AnimFragment => {
@@ -372,6 +377,11 @@ impl PackedFileView {
 
                             // UnitVariant use custom saving.
                             PackedFileType::UnitVariant => return Ok(()),
+
+                            // ESF files are re-generated from the view.
+                            PackedFileType::ESF => if let View::ESF(view) = view {
+                                DecodedPackedFile::ESF(view.save_view())
+                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
 
                             // Ignore these ones.
                             PackedFileType::Unknown | PackedFileType::PackFile => return Ok(()),
@@ -547,6 +557,16 @@ impl PackedFileView {
                                 DecodedPackedFile::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                                    }
+                                    else {
+                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                    }
+                                }
+                                DecodedPackedFile::ESF(esf) => {
+                                    if let View::ESF(old_esf) = view {
+                                        old_esf.reload_view(&esf);
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                                     }
