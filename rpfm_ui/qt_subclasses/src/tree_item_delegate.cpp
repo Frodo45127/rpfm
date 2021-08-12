@@ -32,12 +32,10 @@ QTreeItemDelegate::QTreeItemDelegate(QObject *parent, bool is_dark_theme_enabled
     if (dark_theme) {
         colour_tree_added = QColor(q_settings->value("colour_dark_table_added").toString());
         colour_tree_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
-        colour_tree_added_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
 
     } else {
         colour_tree_added = QColor(q_settings->value("colour_light_table_added").toString());
         colour_tree_modified = QColor(q_settings->value("colour_light_table_modified").toString());
-        colour_tree_added_modified = QColor(q_settings->value("colour_light_table_modified").toString());
     }
 }
 

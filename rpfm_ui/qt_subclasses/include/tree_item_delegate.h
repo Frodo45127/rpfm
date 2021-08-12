@@ -24,7 +24,6 @@ signals:
 protected:
     QColor colour_tree_added;
     QColor colour_tree_modified;
-    QColor colour_tree_added_modified;
 };
 
 #endif // TREE_ITEM_DELEGATE_H
