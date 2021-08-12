@@ -12,8 +12,6 @@
 Module with the slots for AnimPack Views.
 !*/
 
-use qt_gui::SlotOfQStandardItem;
-
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfQString, SlotNoArgs, SlotOfQModelIndex};
 
@@ -40,8 +38,6 @@ pub struct PackedFileAnimPackViewSlots {
     pub copy_in: QBox<SlotOfQModelIndex>,
     pub copy_out: QBox<SlotOfQModelIndex>,
     pub delete: QBox<SlotNoArgs>,
-
-    pub anim_pack_paint_treeview: QBox<SlotOfQStandardItem>,
 
     pub pack_filter_change_text: QBox<SlotOfQString>,
     pub pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
@@ -194,10 +190,6 @@ impl PackedFileAnimPackViewSlots {
             }
         ));
 
-        let anim_pack_paint_treeview = SlotOfQStandardItem::new(&view.pack_tree_view, move |item| {
-            <QBox<QTreeView> as PackTree>::paint_specific_item_treeview(item);
-        });
-
         let pack_filter_change_text = SlotOfQString::new(&view.pack_tree_view.parent(), clone!(
             view => move |_| {
                 PackedFileAnimPackView::filter_files(&view, false);
@@ -241,7 +233,6 @@ impl PackedFileAnimPackViewSlots {
             copy_in,
             copy_out,
             delete,
-            anim_pack_paint_treeview,
             pack_filter_change_text,
             pack_filter_change_autoexpand_matches,
             pack_filter_change_case_sensitive,

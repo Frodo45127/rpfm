@@ -18,7 +18,6 @@ use qt_widgets::QTreeView;
 
 use qt_gui::QCursor;
 use qt_gui::QGuiApplication;
-use qt_gui::SlotOfQStandardItem;
 
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
@@ -64,8 +63,6 @@ pub struct PackFileContentsSlots {
     pub filter_change_autoexpand_matches: QBox<SlotOfBool>,
     pub filter_change_case_sensitive: QBox<SlotOfBool>,
     pub filter_check_regex: QBox<SlotOfQString>,
-
-    pub update_packfile_state: QBox<SlotOfQStandardItem>,
 
     pub contextual_menu: QBox<SlotOfQPoint>,
     pub contextual_menu_enabler: QBox<SlotNoArgs>,
@@ -175,10 +172,6 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
             pack_file_contents_ui.packfile_contents_tree_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
-
-        let update_packfile_state = SlotOfQStandardItem::new(&pack_file_contents_ui.packfile_contents_dock_widget, move |item| {
-            <QBox<QTreeView> as PackTree>::paint_specific_item_treeview(item);
-        });
 
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -1205,8 +1198,6 @@ impl PackFileContentsSlots {
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,
             filter_check_regex,
-
-            update_packfile_state,
 
             contextual_menu,
             contextual_menu_enabler,

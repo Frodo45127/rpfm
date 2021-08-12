@@ -95,6 +95,13 @@ pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, ti
     unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
+/// This function changes the default delegate for all items in a TreeView.
+extern "C" { fn new_tree_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_tree_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
+    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    unsafe { new_tree_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
+}
+
 /// This function setup the special filter used for the PackFile Contents `TreeView`.
 extern "C" { fn new_treeview_filter(parent: *mut QObject) -> *mut QSortFilterProxyModel; }
 pub fn new_treeview_filter_safe(parent: QPtr<QObject>) ->  QBox<QSortFilterProxyModel> {
