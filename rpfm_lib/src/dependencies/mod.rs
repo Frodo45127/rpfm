@@ -117,18 +117,21 @@ impl Dependencies {
 
         if let Ok(needs_updating) = self.needs_updating() {
             if !needs_updating {
+
+                // Clear the intermediate cache on any rebuild.
+                self.cached_data.write().unwrap().clear();
+                *self.cached_data.write().unwrap() = BTreeMap::new();
+
                 if !only_parent_mods {
 
                     // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
                     // the bastart triggers a memory leak in the next step. Not sure why.
                     self.vanilla_cached_packed_files.clear();
                     self.asskit_only_db_tables.clear();
-                    self.cached_data.write().unwrap().clear();
                     self.vanilla_packed_files_cache.write().unwrap().clear();
 
                     self.vanilla_cached_packed_files = HashMap::new();
                     self.asskit_only_db_tables = vec![];
-                    *self.cached_data.write().unwrap() = BTreeMap::new();
                     *self.vanilla_packed_files_cache.write().unwrap() = HashMap::new();
 
                     // Preload the data from the game that only changes on updates.
