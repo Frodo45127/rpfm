@@ -130,15 +130,10 @@ impl Dependencies {
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
 
-        // If we fail to load data, clear the current data, so one game doesn't reuse the data from another!!!!
-        let stored_data = match Self::load_from_binary() {
-            Ok(stored_data) => stored_data,
-            Err(error) => {
-                *self = Self::default();
-                return Err(error);
-            }
-        };
+        // First, clear the current data. Otherwise we'll hit situations where, on certain failures, we get dependencies from one game loaded into another.
+        *self = Self::default();
 
+        let stored_data = Self::load_from_binary()?;
         self.build_date = stored_data.build_date;
 
         if let Ok(needs_updating) = self.needs_updating() {
