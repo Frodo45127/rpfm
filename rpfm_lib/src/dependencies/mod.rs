@@ -33,8 +33,10 @@ use crate::common::*;
 use crate::config::get_config_path;
 use crate::DB;
 use crate::GAME_SELECTED;
+use crate::games::VanillaDBTableNameLogic;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
+use crate::packfile::packedfile::PackedFileInfo;
 use crate::packfile::packedfile::CachedPackedFile;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::DependencyData;
@@ -101,6 +103,20 @@ pub struct Dependencies {
     asskit_only_db_tables: Vec<DB>,
 }
 
+/// This struct contains the minimal data needed (mainly paths), to know what we have loaded in out dependencies.
+#[derive(Debug, Clone, GetRef, GetRefMut)]
+pub struct DependenciesInfo {
+
+    /// Full PackedFile-like paths of each asskit-only table.
+    pub asskit_tables: Vec<PackedFileInfo>,
+
+    /// Full list of vanilla PackedFile paths.
+    pub vanilla_packed_files: Vec<PackedFileInfo>,
+
+    /// Full list of parent PackedFile paths.
+    pub parent_packed_files: Vec<PackedFileInfo>,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -112,7 +128,16 @@ impl Dependencies {
     ///
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
-        let stored_data = Self::load_from_binary()?;
+
+        // If we fail to load data, clear the current data, so one game doesn't reuse the data from another!!!!
+        let stored_data = match Self::load_from_binary() {
+            Ok(stored_data) => stored_data,
+            Err(error) => {
+                *self = Self::default();
+                return Err(error);
+            }
+        };
+
         self.build_date = stored_data.build_date;
 
         if let Ok(needs_updating) = self.needs_updating() {
@@ -497,6 +522,25 @@ impl Dependencies {
             self.parent_cached_folders_caseless.contains(path)
         } else {
             self.parent_cached_folders_cased.contains(&**path)
+        }
+    }
+}
+
+impl From<&Dependencies> for DependenciesInfo {
+    fn from(dependencies: &Dependencies) -> Self {
+        let table_name_logic = GAME_SELECTED.read().unwrap().get_vanilla_db_table_name_logic();
+
+        Self {
+            asskit_tables: dependencies.get_ref_asskit_only_db_tables().iter().map(|table| {
+                let table_name = match table_name_logic {
+                    VanillaDBTableNameLogic::DefaultName(ref name) => name.to_owned(),
+                    VanillaDBTableNameLogic::FolderName => table.get_table_name(),
+                };
+
+                PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
+            }).collect(),
+            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
+            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
         }
     }
 }

@@ -48,8 +48,10 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::packedfile_views::DataSource;
 use crate::{
     GREEN_BRIGHT,
     GREEN_DARK,
@@ -82,6 +84,24 @@ const ITEM_STATUS: i32 = 21;
 
 /// This const is the key of the QVariant that holds if the item changed state should be *undoable* or not.
 const ITEM_IS_FOREVER_MODIFIED: i32 = 22;
+
+/// This const is the key of the QVariant that holds what kind of Root Node we have. Only in root nodes.
+const ROOT_NODE_TYPE: i32 = 23;
+
+/// This const is used to identify an editable PackFile.
+const ROOT_NODE_TYPE_EDITABLE_PACKFILE: i32 = 0;
+
+/// This const is used to identify a non-editable PackFile.
+const ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE: i32 = 1;
+
+/// This const is used to identify an Asskit node.
+const ROOT_NODE_TYPE_ASSKIT: i32 = 2;
+
+/// This const is used to identify a Game data node.
+const ROOT_NODE_TYPE_GAME_DATA: i32 = 3;
+
+/// This const is used to identify a Parent data node.
+const ROOT_NODE_TYPE_PARENT_DATA: i32 = 4;
 
 /// This const is used to identify an item as a PackedFile.
 const ITEM_TYPE_FILE: i32 = 1;
@@ -139,7 +159,7 @@ pub trait PackTree {
     /// This function gives you the `TreeViewTypes` of the items selected in the PackFile Content's TreeView.
     unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<TreePathType>;
 
-    /// This function gives you the `TreeViewTypes` of the items selected in the provided.
+    /// This function gives you the `TreeViewTypes` of the items selected in the provided TreeView.
     unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType>;
 
     /// This function returns the `TreePathType`s not hidden by the applied filter corresponding to the current selection.
@@ -147,8 +167,17 @@ pub trait PackTree {
     /// This always assumes the `TreeView` has a filter. It'll die horrendously otherwise.
     unsafe fn get_item_types_from_selection_filtered(&self) -> Vec<TreePathType>;
 
+    /// This function gives you the `TreePathTypes` and source of all items in a TreeView.
+    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(TreePathType, DataSource)>;
+
     /// This function gives you the item corresponding to an specific `TreePathType`.
     unsafe fn get_item_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
+
+    /// This function gives you the DataSource of the selection of the provided TreeView.
+    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> DataSource;
+
+    /// This function gives you the DataSource of the index of the provided TreeView.
+    unsafe fn get_root_source_type_from_index(&self, index: CppBox<QModelIndex>) -> DataSource;
 
     /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
     /// the number of selected files, and the number of selected folders.
@@ -163,8 +192,8 @@ pub trait PackTree {
     /// This function is used to get the path of a specific ModelIndex in a StandardItemModel. Unsafe version.
     unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
 
-    /// This function gives you the path of the items selected in the PackFile Content's TreeView.
-    unsafe fn get_path_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Vec<String>>;
+    /// This function gives you the path of the items selected in the provided TreeView.
+    unsafe fn get_path_from_selection(&self) -> Vec<Vec<String>>;
 
     /// This function gives you the path it'll have in the PackFile Content's TreeView a file from disk.
     unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>>;
@@ -177,9 +206,9 @@ pub trait PackTree {
     ///
     /// BIG NOTE: Each StandardItem should keep track of his own status, meaning that their data means:
     /// - Position 20: Type. 1 is File, 2 is Folder, 4 is PackFile.
-    /// - Position 21: Status. 0 is untouched, 1 is added, 2 is modified, 3 is added + modified.
+    /// - Position 21: Status. 0 is untouched, 1 is added, 2 is modified.
     /// In case you don't realise, those are bitmasks.
-    unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation);
+    unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation, source: DataSource);
 }
 
 /// This enum has the different possible operations we can do in a `TreeView`.
@@ -188,7 +217,7 @@ pub enum TreeViewOperation {
 
     /// Build the entire `TreeView` from nothing. Requires an option: Some<PathBuf> if the `PackFile` is not editable, `None` if it is.
     /// Also, you can pass a PackFileInfo/PackedFileInfo if you want to build a TreeView with custom data.
-    Build(Option<PathBuf>, Option<(PackFileInfo, Vec<PackedFileInfo>)>),
+    Build(BuildData),
 
     /// Add one or more files/folders to the `TreeView`. Requires a `Vec<TreePathType>` to add to the `TreeView`.
     Add(Vec<TreePathType>),
@@ -235,6 +264,20 @@ pub enum TreePathType {
 
     /// If this comes up, we fucked it up.
     None,
+}
+
+/// This struct represents the data needed to build a TreeView.
+#[derive(Clone, Debug)]
+pub struct BuildData {
+
+    /// The path on disk of the PackFile we're trying to open, in case it has one.
+    pub path: Option<PathBuf>,
+
+    /// The "data" to load this instead of a PackFile from the backend.
+    pub data: Option<(PackFileInfo, Vec<PackedFileInfo>)>,
+
+    /// If this Tree is editable or not (for the root icon).
+    pub editable: bool,
 }
 
 //-------------------------------------------------------------------------------//
@@ -521,6 +564,20 @@ impl PackTree for QBox<QTreeView> {
         item_types
     }
 
+    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(TreePathType, DataSource)> {
+        let items = self.get_items_from_selection(has_filter);
+
+        let model: QPtr<QStandardItemModel> = if has_filter {
+            let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
+            filter.source_model().static_downcast()
+        } else {
+            self.model().static_downcast()
+        };
+
+        items.iter().map(|x| (Self::get_type_from_item(*x, &model), self.get_root_source_type_from_index(model.index_from_item(*x)))).collect()
+    }
+
+
     unsafe fn get_item_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem> {
 
         // Get it another time, this time to use it to hold the current item.
@@ -584,6 +641,53 @@ impl PackTree for QBox<QTreeView> {
             TreePathType::PackFile => item,
             TreePathType::None => unimplemented!(),
         }
+    }
+
+    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> DataSource {
+
+        let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
+
+        let indexes_visual = self.selection_model().selection().indexes();
+        let mut indexes_visual = (0..indexes_visual.count_0a()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
+        indexes_visual.reverse();
+        let mut indexes_real = if let Some(filter) = filter {
+            indexes_visual.iter().map(|x| filter.map_to_source(x.as_ref())).collect::<Vec<CppBox<QModelIndex>>>()
+        } else {
+            indexes_visual
+        };
+
+        let index = indexes_real.remove(0);
+        self.get_root_source_type_from_index(index)
+    }
+
+    unsafe fn get_root_source_type_from_index(&self, mut index: CppBox<QModelIndex>) -> DataSource {
+        let mut parent;
+        let data_source;
+
+        // Loop until we reach the root index.
+        loop {
+
+            // Get this first because, for whatever reason, once we call parent and it's invalid, the index is also invalid.
+            let root_type = index.data_1a(ROOT_NODE_TYPE).to_int_0a();
+            parent = index.parent();
+
+            // If the parent is valid, it's the new item. Otherwise, we stop without adding it (we don't want the PackFile's name in).
+            if parent.is_valid() {
+                index = parent;
+            } else {
+                match root_type {
+                    ROOT_NODE_TYPE_EDITABLE_PACKFILE |
+                    ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE => data_source = DataSource::PackFile,
+                    ROOT_NODE_TYPE_PARENT_DATA => data_source = DataSource::ParentFiles,
+                    ROOT_NODE_TYPE_GAME_DATA => data_source = DataSource::GameFiles,
+                    ROOT_NODE_TYPE_ASSKIT => data_source = DataSource::AssKitFiles,
+                    _ => unimplemented!(),
+                }
+                break;
+            }
+        }
+
+        data_source
     }
 
     unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32) {
@@ -651,13 +755,12 @@ impl PackTree for QBox<QTreeView> {
         path
     }
 
-    unsafe fn get_path_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Vec<String>> {
+    unsafe fn get_path_from_selection(&self) -> Vec<Vec<String>> {
 
         // Create the vector to hold the Paths and get the selected indexes of the TreeView.
-        let tree_view = &pack_file_contents_ui.packfile_contents_tree_view;
-        let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let selection_model = tree_view.selection_model();
+        let selection_model = self.selection_model();
 
         let mut paths: Vec<Vec<String>> = vec![];
         let indexes = filter.map_selection_to_source(&selection_model.selection()).indexes();
@@ -698,7 +801,7 @@ impl PackTree for QBox<QTreeView> {
         for path in &mut paths {
 
             // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
-            let selected_paths = Self::get_path_from_main_treeview_selection(pack_file_contents_ui);
+            let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
             let mut base_path = selected_paths[0].to_vec();
 
             // Combine it with his path to form his full form.
@@ -757,7 +860,7 @@ impl PackTree for QBox<QTreeView> {
         }
     }
 
-    unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation) {
+    unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation, source: DataSource) {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
         let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
 
@@ -765,47 +868,166 @@ impl PackTree for QBox<QTreeView> {
         match operation {
 
             // If we want to build a new TreeView...
-            TreeViewOperation::Build(extra_packfile_path, internal_packed_file) => {
+            TreeViewOperation::Build(build_data) => {
 
-                // Depending on the PackFile we want to build the TreeView with, we ask for his data. Internal files take priority.
-                let (pack_file_data, packed_files_data) = if let Some(data) = internal_packed_file {
-                    data
-                }
-                else if let Some(ref path) = extra_packfile_path {
-                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
-                    if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
-                    else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
-                }
-                else {
-                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
-                    let response = CENTRAL_COMMAND.recv_message_qt();
-                    if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
-                    else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+                // Get the root node and the data to fill the rest.
+                let (big_parent, mut packed_files_data) = match source {
+
+                    // If it's a PackFile, two posibilities: editable (normal packfile) or non-editable (Add From Packfile).
+                    DataSource::PackFile => {
+
+                        // If we got data for it, use it. If not, ask the backend for it.
+                        let (pack_file_data, packed_files_data) = if let Some(data) = build_data.data {
+                            data
+                        }
+                        else if let Some(ref path) = build_data.path {
+                            CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
+                            let response = CENTRAL_COMMAND.recv_message_qt();
+                            if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                            else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
+                        }
+                        else {
+                            CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
+                            let response = CENTRAL_COMMAND.recv_message_qt();
+                            if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                            else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+                        };
+
+                        // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+                        // with the name of the PackFile. All big things start with a lie.
+                        let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&pack_file_data.file_name));
+                        let tooltip = new_pack_file_tooltip(&pack_file_data);
+                        big_parent.set_tool_tip(&QString::from_std_str(tooltip));
+                        big_parent.set_editable(false);
+                        big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
+                        big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+
+                        if build_data.editable {
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
+                        } else {
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
+                        }
+
+                        let icon_type = IconType::PackFile(build_data.editable);
+                        icon_type.set_icon_to_item_safe(&big_parent);
+
+                        // For PackFiles, we only allow one per view.
+                        model.clear();
+
+                        (big_parent.into_ptr(), packed_files_data)
+                    },
+
+                    DataSource::ParentFiles => {
+
+                        // First, get the data.
+                        let (_, packed_files_data) = if let Some(data) = build_data.data { data } else { unimplemented!() };
+
+                        // Then, check if the root item we want already exits.
+                        for row in 0..model.row_count_0a() {
+                            let item = model.item_1a(row);
+                            if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_PARENT_DATA {
+                                model.remove_rows_2a(row, 1);
+                                break;
+                            }
+                        }
+
+                        // Then, get the big parent item.
+                        if !packed_files_data.is_empty() {
+
+                            // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+                            // with the name of the PackFile. All big things start with a lie.
+                            let big_parent = QStandardItem::from_q_string(&qtr("dependencies_parent_files"));
+                            big_parent.set_editable(false);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_PARENT_DATA), ROOT_NODE_TYPE);
+
+                            let icon_type = IconType::PackFile(false);
+                            icon_type.set_icon_to_item_safe(&big_parent);
+
+                            (big_parent.into_ptr(), packed_files_data)
+                        } else {
+                            return
+                        }
+                    },
+
+                    DataSource::GameFiles => {
+
+                        // First, get the data.
+                        let (_, packed_files_data) = if let Some(data) = build_data.data { data } else { unimplemented!() };
+
+                        // Then, check if the root item we want already exits.
+                        for row in 0..model.row_count_0a() {
+                            let item = model.item_1a(row);
+                            if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_GAME_DATA {
+                                model.remove_rows_2a(row, 1);
+                                break;
+                            }
+                        }
+
+                        // Then, get the big parent item.
+                        if !packed_files_data.is_empty() {
+
+                            // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+                            // with the name of the PackFile. All big things start with a lie.
+                            let big_parent = QStandardItem::from_q_string(&qtr("dependencies_game_files"));
+                            big_parent.set_editable(false);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_GAME_DATA), ROOT_NODE_TYPE);
+
+                            let icon_type = IconType::PackFile(false);
+                            icon_type.set_icon_to_item_safe(&big_parent);
+
+                            (big_parent.into_ptr(), packed_files_data)
+                        } else {
+                            return
+                        }
+                    },
+
+                    DataSource::AssKitFiles => {
+
+                        // First, get the data.
+                        let (_, packed_files_data) = if let Some(data) = build_data.data { data } else { unimplemented!() };
+
+                        // Then, check if the root item we want already exits.
+                        for row in 0..model.row_count_0a() {
+                            let item = model.item_1a(row);
+                            if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_ASSKIT {
+                                model.remove_rows_2a(row, 1);
+                                break;
+                            }
+                        }
+
+                        // Then, get the big parent item.
+                        if !packed_files_data.is_empty() {
+
+                            // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
+                            // with the name of the PackFile. All big things start with a lie.
+                            let big_parent = QStandardItem::from_q_string(&qtr("dependencies_asskit_files"));
+                            big_parent.set_editable(false);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
+                            big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+                            big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_ASSKIT), ROOT_NODE_TYPE);
+
+                            let icon_type = IconType::PackFile(false);
+                            icon_type.set_icon_to_item_safe(&big_parent);
+
+                            (big_parent.into_ptr(), packed_files_data)
+                        } else {
+                            return
+                        }
+                    },
+
+                    DataSource::ExternalFile => unimplemented!()
                 };
-                let mut sorted_path_list = packed_files_data;
-
-                // First, we clean the TreeStore and whatever was created in the TreeView.
-                model.clear();
-
-                // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
-                // with the name of the PackFile. All big things start with a lie.
-                let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&pack_file_data.file_name));
-                let tooltip = new_pack_file_tooltip(&pack_file_data);
-                big_parent.set_tool_tip(&QString::from_std_str(tooltip));
-                big_parent.set_editable(false);
-                big_parent.set_data_2a(&QVariant::from_int(ITEM_TYPE_PACKFILE), ITEM_TYPE);
-                big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
-
-                let icon_type = IconType::PackFile(extra_packfile_path.is_some());
-                icon_type.set_icon_to_item_safe(&big_parent);
 
                 // We sort the paths with this horrific monster I don't want to touch ever again, using the following format:
                 // - FolderA
                 // - FolderB
                 // - FileA
                 // - FileB
-                sorted_path_list.par_sort_unstable_by(|a, b| {
+                packed_files_data.par_sort_unstable_by(|a, b| {
                     let a = &a.path;
                     let b = &b.path;
                     let mut index = 0;
@@ -857,11 +1079,11 @@ impl PackTree for QBox<QTreeView> {
 
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
-                for packed_file in &sorted_path_list {
+                for packed_file in &packed_files_data {
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
-                    let mut parent = big_parent.as_ptr();
+                    let mut parent = big_parent;
                     for (index_in_path, name) in packed_file.path.iter().enumerate() {
                         let name = QString::from_std_str(name);
 
@@ -938,7 +1160,7 @@ impl PackTree for QBox<QTreeView> {
 
                 // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
                 let qlist = QListOfQStandardItem::new();
-                qlist.append_q_standard_item(&big_parent.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&big_parent.as_mut_raw_ptr());
 
                 model.append_row_q_list_of_q_standard_item(qlist.as_ref());
                 self.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
@@ -1277,7 +1499,14 @@ impl PackTree for QBox<QTreeView> {
                             }
                         }
 
-                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(None, None)),
+                        // Only editable packfiles can be deleted.
+                        TreePathType::PackFile => {
+                            if model.item_1a(0).data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                                let mut build_data = BuildData::new();
+                                build_data.editable = true;
+                                self.update_treeview(true, TreeViewOperation::Build(build_data), source)
+                            }
+                        },
 
                         // If we don't have anything selected, we do nothing.
                         _ => {},
@@ -1723,6 +1952,19 @@ unsafe fn sort_item_in_tree_view(
 
         // If the Item is invalid, we can't move anymore.
         else { break; }
+    }
+}
+
+/// Implementation of `BuildData`.
+impl BuildData {
+
+    /// This function creates a new build data for a non-editable PackFile.
+    pub fn new() -> Self {
+        Self {
+            path: None,
+            data: None,
+            editable: false,
+        }
     }
 }
 

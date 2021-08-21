@@ -30,7 +30,7 @@ use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::assembly_kit::*;
 use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::dependencies::Dependencies;
+use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
@@ -1165,6 +1165,8 @@ pub fn background_loop() {
             // Ignore errors for now.
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), rebuild_only_current_mod_dependencies);
+                let dependencies_info = DependenciesInfo::from(&dependencies);
+                CENTRAL_COMMAND.send_message_dependencies_info_to_qt(dependencies_info);
             },
 
             Command::CascadeEdition(editions) => {
@@ -1298,6 +1300,24 @@ pub fn background_loop() {
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             },
+
+            //Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
+            //    let added_paths = vec![];
+            //    for (data_source, paths) in &mut paths_by_data_source {
+
+            //        // First, dedup all our paths. Then, get their PackedFiles and add them on mass.
+            //        *paths = PathType::dedup(&paths);
+            //        let packed_files = vec![];
+
+            //        //let packed_files = match data_source {
+            //        //    DataSource::ParentFiles => unimplemented!(),
+            //        //};
+
+            //        added_paths.append(&mut pack_file_decoded.add_packed_files(&packed_files, true, true).unwrap());
+            //    }
+
+            //    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+            //}
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

@@ -59,6 +59,7 @@ use rpfm_macros::{GetRef, GetRefMut, Set};
 use crate::AppUI;
 use crate::communications::Command;
 use crate::CENTRAL_COMMAND;
+use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
@@ -468,7 +469,7 @@ impl DiagnosticsUI {
 
         diagnostics_ui.diagnostics_table_model.clear();
         Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
         Self::filter(app_ui, diagnostics_ui);
         Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
@@ -754,6 +755,7 @@ impl DiagnosticsUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<Self>,
+        dependencies_ui: &Rc<DependenciesUI>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
@@ -770,7 +772,7 @@ impl DiagnosticsUI {
         // If the path is empty, we're looking for the dependency manager.
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if path.is_empty() && diagnostic_type == "DependencyManager" {
-            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
+            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
         } else if !path.is_empty() {
 
             // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
@@ -784,7 +786,7 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.

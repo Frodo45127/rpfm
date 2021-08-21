@@ -56,6 +56,9 @@ use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
 use crate::ASSETS_PATH;
 use crate::DARK_PALETTE;
 use crate::DARK_STYLESHEET;
+use crate::dependencies_ui;
+use crate::dependencies_ui::DependenciesUI;
+use crate::dependencies_ui::slots::DependenciesUISlots;
 use crate::diagnostics_ui;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::diagnostics_ui::slots::DiagnosticsUISlots;
@@ -91,6 +94,7 @@ pub struct UI {
     pub pack_file_contents_ui: Rc<PackFileContentsUI>,
     pub global_search_ui: Rc<GlobalSearchUI>,
     pub diagnostics_ui: Rc<DiagnosticsUI>,
+    pub dependencies_ui: Rc<DependenciesUI>,
 }
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
@@ -121,13 +125,15 @@ impl UI {
         let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window));
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
+        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
 
-        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
-        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
-        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
-        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui);
+        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        let dependencies_slots = DependenciesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);
@@ -140,6 +146,10 @@ impl UI {
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
         packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
+
+        dependencies_ui::connections::set_connections(&dependencies_ui, &dependencies_slots);
+        dependencies_ui::tips::set_tips(&dependencies_ui);
+        dependencies_ui::shortcuts::set_shortcuts(&dependencies_ui);
 
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
@@ -250,7 +260,7 @@ impl UI {
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
             _ => unimplemented!()
         }
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, true);
+        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
@@ -357,6 +367,7 @@ impl UI {
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
+            dependencies_ui
         }
     }
 }

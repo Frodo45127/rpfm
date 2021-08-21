@@ -1040,3 +1040,9 @@ are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB
 
     <p>The only reason why there is even a button in this dialog to continue is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
     <p>If that's not your case, exit this dialog and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
+
+gen_loc_dependencies = Dependencies
+context_menu_import = Import
+dependencies_asskit_files = Assembly Kit Files
+dependencies_game_files = Game Files
+dependencies_parent_files = Parent Files

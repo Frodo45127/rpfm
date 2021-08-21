@@ -95,6 +95,7 @@ macro_rules! clone {
 mod app_ui;
 mod background_thread;
 mod communications;
+mod dependencies_ui;
 mod diagnostics_ui;
 mod ffi;
 mod global_search_ui;
