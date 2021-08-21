@@ -361,7 +361,7 @@ pub enum Command {
     GetPackedFileRawData(Vec<String>),
 
     // This command is used to import files from the dependencies into out PackFile.
-    //ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
+    ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

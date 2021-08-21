@@ -15,6 +15,7 @@ This module contains the code needed to manage the dependencies of the currently
 !*/
 
 use rayon::prelude::*;
+use rayon::iter::Either;
 use serde_derive::{Serialize, Deserialize};
 use unicase::UniCase;
 
@@ -34,7 +35,7 @@ use crate::config::get_config_path;
 use crate::DB;
 use crate::GAME_SELECTED;
 use crate::games::VanillaDBTableNameLogic;
-use crate::packfile::PackFile;
+use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packfile::packedfile::PackedFileInfo;
 use crate::packfile::packedfile::CachedPackedFile;
@@ -451,6 +452,52 @@ impl Dependencies {
         }
     }
 
+    /// This function returns the provided files, if exist, or an error if not, from the game files.
+    pub fn get_packedfiles_from_game_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        let mut packed_files = vec![];
+        let mut errors = vec![];
+        let paths = PathType::dedup(paths);
+
+        for path in paths {
+            match path {
+                PathType::File(path) => match self.get_packedfile_from_game_files(&path) {
+                    Ok(packed_file) => packed_files.push(packed_file),
+                    Err(_) => errors.push(path),
+                },
+                PathType::Folder(base_path) => {
+                    let base_path = base_path.join("/");
+                    let (mut folder_packed_files, mut error_paths) =self.vanilla_cached_packed_files.par_iter()
+                        .filter(|(path, _)| path.starts_with(&base_path) && path.len() > base_path.len())
+                        .partition_map(|(path, cached_packed_file)|
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        );
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+
+                },
+                PathType::PackFile => {
+                    let (mut folder_packed_files, mut error_paths) = self.vanilla_cached_packed_files.par_iter()
+                        .partition_map(|(path, cached_packed_file)| {
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        });
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+                },
+                PathType::None => unimplemented!(),
+            }
+        }
+
+        Ok((packed_files, errors))
+    }
+
     /// This function returns the provided file, if exists, or an error if not, from the parent mod files.
     pub fn get_packedfile_from_parent_files(&self, path: &[String]) -> Result<PackedFile> {
         let path = path.join("/");
@@ -477,6 +524,53 @@ impl Dependencies {
             Ok(packed_file)
         }
     }
+
+   /// This function returns the provided files, if exist, or an error if not, from the parent files.
+    pub fn get_packedfiles_from_parent_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        let mut packed_files = vec![];
+        let mut errors = vec![];
+        let paths = PathType::dedup(paths);
+
+        for path in paths {
+            match path {
+                PathType::File(path) => match self.get_packedfile_from_game_files(&path) {
+                    Ok(packed_file) => packed_files.push(packed_file),
+                    Err(_) => errors.push(path),
+                },
+                PathType::Folder(base_path) => {
+                    let base_path = base_path.join("/");
+                    let (mut folder_packed_files, mut error_paths) =self.parent_cached_packed_files.par_iter()
+                        .filter(|(path, _)| path.starts_with(&base_path) && path.len() > base_path.len())
+                        .partition_map(|(path, cached_packed_file)|
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        );
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+
+                },
+                PathType::PackFile => {
+                    let (mut folder_packed_files, mut error_paths) = self.parent_cached_packed_files.par_iter()
+                        .partition_map(|(path, cached_packed_file)| {
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        });
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+                },
+                PathType::None => unimplemented!(),
+            }
+        }
+
+        Ok((packed_files, errors))
+    }
+
 
     /// This function returns the provided file, if exists, or an error if not, from the asskit files.
     pub fn get_packedfile_from_asskit_files(&self, path: &[String]) -> Result<DB> {

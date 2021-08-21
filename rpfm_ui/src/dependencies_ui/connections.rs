@@ -32,6 +32,8 @@ pub unsafe fn set_connections(ui: &DependenciesUI, slots: &DependenciesUISlots) 
     ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
 
     ui.dependencies_tree_view.custom_context_menu_requested().connect(&slots.contextual_menu);
+    ui.dependencies_tree_view.selection_model().selection_changed().connect(&slots.contextual_menu_enabler);
+    ui.dependencies_tree_view_context_menu.about_to_show().connect(&slots.contextual_menu_enabler);
 
     ui.context_menu_import.triggered().connect(&slots.contextual_menu_import);
     ui.context_menu_copy_path.triggered().connect(&slots.contextual_menu_copy_path);

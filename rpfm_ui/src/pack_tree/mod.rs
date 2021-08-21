@@ -174,7 +174,7 @@ pub trait PackTree {
     unsafe fn get_item_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
 
     /// This function gives you the DataSource of the selection of the provided TreeView.
-    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> DataSource;
+    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> Option<DataSource>;
 
     /// This function gives you the DataSource of the index of the provided TreeView.
     unsafe fn get_root_source_type_from_index(&self, index: CppBox<QModelIndex>) -> DataSource;
@@ -643,7 +643,7 @@ impl PackTree for QBox<QTreeView> {
         }
     }
 
-    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> DataSource {
+    unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> Option<DataSource> {
 
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
 
@@ -656,8 +656,12 @@ impl PackTree for QBox<QTreeView> {
             indexes_visual
         };
 
-        let index = indexes_real.remove(0);
-        self.get_root_source_type_from_index(index)
+        if !indexes_real.is_empty() {
+            let index = indexes_real.remove(0);
+            Some(self.get_root_source_type_from_index(index))
+        } else {
+            None
+        }
     }
 
     unsafe fn get_root_source_type_from_index(&self, mut index: CppBox<QModelIndex>) -> DataSource {

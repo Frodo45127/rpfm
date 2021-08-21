@@ -1301,23 +1301,45 @@ pub fn background_loop() {
                 }
             },
 
-            //Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
-            //    let added_paths = vec![];
-            //    for (data_source, paths) in &mut paths_by_data_source {
+            Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
+                let mut added_paths = vec![];
+                let mut error_paths = vec![];
+                for (data_source, paths) in &paths_by_data_source {
+                    let packed_files: Vec<PackedFile> = match data_source {
+                        DataSource::GameFiles => {
+                            match dependencies.get_packedfiles_from_game_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        }
+                        DataSource::ParentFiles => {
+                            match dependencies.get_packedfiles_from_parent_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        },
 
-            //        // First, dedup all our paths. Then, get their PackedFiles and add them on mass.
-            //        *paths = PathType::dedup(&paths);
-            //        let packed_files = vec![];
+                        _ => unimplemented!(),
+                    };
 
-            //        //let packed_files = match data_source {
-            //        //    DataSource::ParentFiles => unimplemented!(),
-            //        //};
+                    let packed_files_ref = packed_files.iter().collect::<Vec<&PackedFile>>();
+                    added_paths.append(&mut pack_file_decoded.add_packed_files(&packed_files_ref, true, true).unwrap());
+                }
 
-            //        added_paths.append(&mut pack_file_decoded.add_packed_files(&packed_files, true, true).unwrap());
-            //    }
-
-            //    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
-            //}
+                if !error_paths.is_empty() {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::VecVecString(error_paths));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

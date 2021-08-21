@@ -20,22 +20,17 @@ use qt_gui::QGuiApplication;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
-use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use rpfm_lib::packfile::PathType;
-
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::DataSource;
 use crate::QString;
 use crate::utils::*;
-use crate::UI_STATE;
+
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -54,6 +49,7 @@ pub struct DependenciesUISlots {
     pub filter_check_regex: QBox<SlotOfQString>,
 
     pub contextual_menu: QBox<SlotOfQPoint>,
+    pub contextual_menu_enabler: QBox<SlotNoArgs>,
     pub contextual_menu_import: QBox<SlotOfBool>,
     pub contextual_menu_copy_path: QBox<SlotOfBool>,
 
@@ -134,57 +130,48 @@ impl DependenciesUISlots {
             dependencies_ui.dependencies_tree_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
+
+        // Slot to enable/disable contextual actions depending on the selected item.
+        let contextual_menu_enabler = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
+            pack_file_contents_ui,
+            dependencies_ui => move || {
+                if let Some(root_node_type) = dependencies_ui.dependencies_tree_view.get_root_source_type_from_selection(true) {
+
+                    match root_node_type {
+                        DataSource::PackFile => {
+                            dependencies_ui.context_menu_import.set_enabled(false);
+                        },
+                        DataSource::ParentFiles => {
+                            if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                                dependencies_ui.context_menu_import.set_enabled(true);
+                            } else {
+                                dependencies_ui.context_menu_import.set_enabled(false);
+                            }
+                        },
+                        DataSource::GameFiles => {
+                            if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                                dependencies_ui.context_menu_import.set_enabled(true);
+                            } else {
+                                dependencies_ui.context_menu_import.set_enabled(false);
+                            }
+                        },
+                        DataSource::AssKitFiles => {
+                            dependencies_ui.context_menu_import.set_enabled(false);
+                        },
+                        DataSource::ExternalFile => {
+                            dependencies_ui.context_menu_import.set_enabled(false);
+                        },
+                    }
+                }
+            }
+        ));
+
         // What happens when we trigger the "Import" action in the Contextual Menu.
         let contextual_menu_import = SlotOfBool::new(&dependencies_ui.dependencies_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move |_| {
-/*
-            let paths = dependencies_ui.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
-            let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-            let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-            let asskit_paths = paths.iter().filter_map(|(path, source)| if let DataSource::AssKitFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-
-            let mut paths_by_source = BTreeMap::new();
-            if !parent_paths.is_empty() {
-                paths_by_source.insert(DataSource::ParentFiles, parent_paths);
-            }
-
-            if !game_paths.is_empty() {
-                paths_by_source.insert(DataSource::GameFiles, game_paths);
-            }
-
-            if !asskit_paths.is_empty() {
-                paths_by_source.insert(DataSource::AssKitFiles, asskit_paths);
-            }
-
-            CENTRAL_COMMAND.send_message_qt(Command::ImportDependenciesToOpenPackFile(paths_by_source));
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
-            match response {
-                Response::VecPathType(added_paths) => {
-                    let paths = added_paths.iter().map(From::from).collect::<Vec<TreePathType>>();
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
-                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
-
-                    // Try to reload all open files which data we altered, and close those that failed.
-                    let failed_paths = added_paths.iter().filter_map(|path| {
-                        if let PathType::File(ref path) = path {
-                            if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                                if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                    Some(path.to_vec())
-                                } else { None }
-                            } else { None }
-                        } else { None }
-                    }).collect::<Vec<Vec<String>>>();
-
-                    for path in &failed_paths {
-                        let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
-                    }
-                },
-                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }*/
+                dependencies_ui.import_dependencies(&app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -219,6 +206,7 @@ impl DependenciesUISlots {
             filter_check_regex,
 
             contextual_menu,
+            contextual_menu_enabler,
             contextual_menu_import,
             contextual_menu_copy_path,
 

@@ -1399,8 +1399,10 @@ impl AppUI {
                         DataSource::AssKitFiles => {
                             let selected_items = dependencies_ui.dependencies_tree_view.get_item_types_from_selection(true);
                             if selected_items.len() == 1 {
-                                data_source = dependencies_ui.dependencies_tree_view.get_root_source_type_from_selection(true);
-                                selected_items[0].clone()
+                                if let Some(data_source_tree) = dependencies_ui.dependencies_tree_view.get_root_source_type_from_selection(true) {
+                                    data_source = data_source_tree;
+                                    selected_items[0].clone()
+                                } else { return }
                             } else { return }
                         }
 
@@ -2574,8 +2576,18 @@ impl AppUI {
             AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
         }
 
-        // Always trigger the missing definitions code and the rebuilt for dependencies.
         if rebuild_dependencies {
+
+            // Purge all views that depend on the dependencies.
+            let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
+                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
+                .collect();
+
+            for (data_source, path) in paths_to_close {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                    return show_dialog(&app_ui.main_window, error, false);
+                }
+            }
 
             // Disable the main window so we can avoid certain issues.
             app_ui.main_window.set_enabled(false);

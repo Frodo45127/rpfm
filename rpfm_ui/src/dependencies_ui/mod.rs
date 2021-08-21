@@ -33,9 +33,22 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
 
+use std::collections::BTreeMap;
+use std::rc::Rc;
+
+use rpfm_error::ErrorKind;
+use rpfm_lib::packfile::PathType;
+
+use crate::app_ui::AppUI;
+use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::locale::qtr;
-use crate::utils::create_grid_layout;
+use crate::packedfile_views::DataSource;
+use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::UI_STATE;
+use crate::utils::*;
 
 pub mod connections;
 pub mod shortcuts;
@@ -202,5 +215,62 @@ impl DependenciesUI {
     pub unsafe fn start_delayed_updates_timer(&self) {
         self.filter_timer_delayed_updates.set_interval(500);
         self.filter_timer_delayed_updates.start_0a();
+    }
+
+    /// This function is used to import dependencies into our own PackFile.
+    pub unsafe fn import_dependencies(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+
+        let paths = self.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
+        let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
+        let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
+
+        let mut paths_by_source = BTreeMap::new();
+        if !parent_paths.is_empty() {
+            paths_by_source.insert(DataSource::ParentFiles, parent_paths);
+        }
+
+        if !game_paths.is_empty() {
+            paths_by_source.insert(DataSource::GameFiles, game_paths);
+        }
+
+        app_ui.main_window.set_enabled(false);
+        CENTRAL_COMMAND.send_message_qt(Command::ImportDependenciesToOpenPackFile(paths_by_source));
+        let response1 = CENTRAL_COMMAND.recv_message_qt();
+        let response2 = CENTRAL_COMMAND.recv_message_qt();
+        match response1 {
+            Response::VecPathType(added_paths) => {
+                let paths = added_paths.iter().map(From::from).collect::<Vec<TreePathType>>();
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+
+                // Try to reload all open files which data we altered, and close those that failed.
+                let failed_paths = added_paths.iter().filter_map(|path| {
+                    if let PathType::File(ref path) = path {
+                        if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
+                            if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                                Some(path.to_vec())
+                            } else { None }
+                        } else { None }
+                    } else { None }
+                }).collect::<Vec<Vec<String>>>();
+
+                for path in &failed_paths {
+                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                }
+            }
+
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response1),
+        }
+
+        match response2 {
+            Response::Success => {},
+            Response::VecVecString(error_paths) => show_dialog(&app_ui.main_window, ErrorKind::DependenciesImportFailure(error_paths), false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
+        }
+
+        // Re-enable the Main Window.
+        app_ui.main_window.set_enabled(true);
     }
 }
