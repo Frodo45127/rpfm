@@ -1529,6 +1529,17 @@ impl AppUISlots {
                             DataSource::GameFiles => {
                                 dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
 
+                                let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
+                                    if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
+                                        Some(packed_file_view.get_ref_path().to_vec())
+                                    } else { None }
+                                });
+
+                                // If we're overwriting a PackedFile already on our PackFile, remove it.
+                                if let Some(path_to_purge) = path_to_purge {
+                                    let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
+                                }
+
                                 if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
                                     index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
                                 }) {
