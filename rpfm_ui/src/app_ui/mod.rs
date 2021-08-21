@@ -268,6 +268,7 @@ pub struct AppUI {
     pub tab_bar_packed_file_close_all_right: QPtr<QAction>,
     pub tab_bar_packed_file_prev: QPtr<QAction>,
     pub tab_bar_packed_file_next: QPtr<QAction>,
+    pub tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -324,6 +325,7 @@ impl AppUI {
         let tab_bar_packed_file_close_all_right = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_tabs_to_right"));
         let tab_bar_packed_file_prev = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("prev_tab"));
         let tab_bar_packed_file_next = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("next_tab"));
+        let tab_bar_packed_file_import_from_dependencies = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("import_from_dependencies"));
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -331,8 +333,10 @@ impl AppUI {
         tab_bar_packed_file_close_all_right.set_enabled(true);
         tab_bar_packed_file_prev.set_enabled(true);
         tab_bar_packed_file_next.set_enabled(true);
+        tab_bar_packed_file_import_from_dependencies.set_enabled(true);
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
+        tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);
 
         //-----------------------------------------------//
         // Menu bar.
@@ -830,7 +834,8 @@ impl AppUI {
             tab_bar_packed_file_close_all_left,
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
-            tab_bar_packed_file_next
+            tab_bar_packed_file_next,
+            tab_bar_packed_file_import_from_dependencies
         }
     }
 }

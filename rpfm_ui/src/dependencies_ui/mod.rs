@@ -218,20 +218,7 @@ impl DependenciesUI {
     }
 
     /// This function is used to import dependencies into our own PackFile.
-    pub unsafe fn import_dependencies(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-
-        let paths = self.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
-        let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-        let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-
-        let mut paths_by_source = BTreeMap::new();
-        if !parent_paths.is_empty() {
-            paths_by_source.insert(DataSource::ParentFiles, parent_paths);
-        }
-
-        if !game_paths.is_empty() {
-            paths_by_source.insert(DataSource::GameFiles, game_paths);
-        }
+    pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<PathType>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         app_ui.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::ImportDependenciesToOpenPackFile(paths_by_source));

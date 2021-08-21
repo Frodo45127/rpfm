@@ -2414,14 +2414,14 @@ impl AppUI {
     }
 
     /// Update the PackedFileView names, to ensure we have no collisions.
-    pub unsafe fn update_views_names(app_ui: &Rc<AppUI>) {
+    pub unsafe fn update_views_names(&self) {
 
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
         for packed_file_view in open_packedfiles.iter() {
             let widget = packed_file_view.get_mut_widget();
-            if app_ui.tab_bar_packed_file.index_of(widget) != -1 {
+            if self.tab_bar_packed_file.index_of(widget) != -1 {
 
                 // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
@@ -2474,8 +2474,8 @@ impl AppUI {
                     name.push_str(" (Preview)");
                 }
 
-                let index = app_ui.tab_bar_packed_file.index_of(widget);
-                app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                let index = self.tab_bar_packed_file.index_of(widget);
+                self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
             }
         }
     }

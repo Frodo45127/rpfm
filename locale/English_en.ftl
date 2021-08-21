@@ -1046,3 +1046,4 @@ context_menu_import = Import
 dependencies_asskit_files = Assembly Kit Files
 dependencies_game_files = Game Files
 dependencies_parent_files = Parent Files
+import_from_dependencies = Import from Dependencies
