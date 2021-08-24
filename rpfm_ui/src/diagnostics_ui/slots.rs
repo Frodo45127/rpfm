@@ -22,6 +22,7 @@ use std::rc::Rc;
 use rpfm_lib::packfile::PathType;
 
 use crate::AppUI;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
@@ -55,6 +56,7 @@ impl DiagnosticsUISlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Self {
 
         // Checker slots.
@@ -84,8 +86,9 @@ impl DiagnosticsUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui => move |model_index_filter| {
-                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, model_index_filter.as_ptr());
+            diagnostics_ui,
+            dependencies_ui => move |model_index_filter| {
+                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, model_index_filter.as_ptr());
             }
         ));
 

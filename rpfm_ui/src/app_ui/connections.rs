@@ -163,4 +163,5 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tab_bar_packed_file_close_all_right.triggered().connect(&slots.tab_bar_packed_file_close_all_right);
     app_ui.tab_bar_packed_file_prev.triggered().connect(&slots.tab_bar_packed_file_prev);
     app_ui.tab_bar_packed_file_next.triggered().connect(&slots.tab_bar_packed_file_next);
+    app_ui.tab_bar_packed_file_import_from_dependencies.triggered().connect(&slots.tab_bar_packed_file_import_from_dependencies);
 }

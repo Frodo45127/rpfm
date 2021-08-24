@@ -157,6 +157,7 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.tab_bar_packed_file_close_all_right.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_close_tab_all_right"])));
     app_ui.tab_bar_packed_file_prev.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_tab_prev"])));
     app_ui.tab_bar_packed_file_next.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_tab_next"])));
+    app_ui.tab_bar_packed_file_import_from_dependencies.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_import_from_dependencies"])));
 
     app_ui.tab_bar_packed_file_close.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.tab_bar_packed_file_close_all.set_shortcut_context(ShortcutContext::ApplicationShortcut);
@@ -164,6 +165,7 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.tab_bar_packed_file_close_all_right.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.tab_bar_packed_file_prev.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.tab_bar_packed_file_next.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.tab_bar_packed_file_import_from_dependencies.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_close);
     app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_close_all);
@@ -171,4 +173,5 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_close_all_right);
     app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_prev);
     app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_next);
+    app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_import_from_dependencies);
 }

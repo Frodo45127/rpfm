@@ -50,6 +50,7 @@ use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response};
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
@@ -447,7 +448,7 @@ impl GlobalSearchUI {
         Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
         Self::load_schema_matches_to_ui(&model_schema, &tree_view_schema, &global_search.matches_schema);
         UI_STATE.set_global_search(&global_search);
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
@@ -496,7 +497,7 @@ impl GlobalSearchUI {
             Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
                 // Update the views of the updated PackedFiles.
                 for replace_match in matches {
@@ -576,7 +577,7 @@ impl GlobalSearchUI {
                     }
                 }
 
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
             _ => unimplemented!()
         }
@@ -593,6 +594,7 @@ impl GlobalSearchUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
@@ -629,7 +631,7 @@ impl GlobalSearchUI {
         }
 
         UI_STATE.set_packfile_contents_read_only(false);
-        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
 
         // If it's a table, focus on the matched cell.
         if is_match {

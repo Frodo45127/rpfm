@@ -26,6 +26,7 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::{ContextMenuPolicy, DockWidgetArea};
 use qt_core::QBox;
+use qt_core::QObject;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
@@ -33,7 +34,7 @@ use qt_core::QString;
 
 use rpfm_lib::SETTINGS;
 
-use crate::ffi::{new_packed_file_model_safe, new_treeview_filter_safe};
+use crate::ffi::*;
 use crate::locale::qtr;
 use crate::utils::create_grid_layout;
 
@@ -135,6 +136,9 @@ impl PackFileContentsUI {
         packfile_contents_tree_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         packfile_contents_tree_view.set_expands_on_double_click(true);
         packfile_contents_tree_view.header().set_stretch_last_section(false);
+
+        // Apply the view's delegate.
+        new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);
 
         // Not yet working.
         if SETTINGS.read().unwrap().settings_bool["packfile_treeview_resize_to_fit"] {
