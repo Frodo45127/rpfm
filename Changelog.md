@@ -11,16 +11,19 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented warning when trying to rename a DB folder.
 - Implemented `Only For The Brave` alert.
 - Implemented CCD(CEO)/ESF/SAVE editor.
+- Implemented Dependencies view.
+- Implemented `Import from dependencies`.
 
 ### Changed
 - Rigidmodel error messages should now be more specific.
-- QtRMV2 Lib updated to 0.8.1.
+- QtRMV2 Lib updated to 0.8.2.
 - TSVs to be imported no longer require to have all the columns of a table.
 
 ### Fixed
 - Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
 - Fixed rare crash when opening PackFiles with the `Check for missing table definitions` setting set.
 - Fixed very rare bug that caused RPFM to fail on reimport very specific TSV.
+- Fixed a bug that caused dependencies to not update properly on game selected change.
 
 ## [2.5.4]
 ### Added

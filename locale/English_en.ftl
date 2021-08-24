@@ -9,7 +9,7 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
 
     <p>So, in "Only For The Brave" versions, it's hightly reccomended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
     <ul>
-        <li>RigidModel Editor: it has been updated, but it barely received testing. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
+        <li>RigidModel Editor: it has been updated with more testing than before. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
         <li>ESF Editor: It has received only very limited testing. If you're going to edit mods with ESF/CCD/SAVE files and don't want to edit them by accident, you can disable it in the settings.</li>
     </ul>
 
