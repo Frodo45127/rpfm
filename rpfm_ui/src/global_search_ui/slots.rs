@@ -18,6 +18,7 @@ use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -56,6 +57,7 @@ impl GlobalSearchSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
@@ -110,8 +112,9 @@ impl GlobalSearchSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui => move |model_index_filter| {
-            GlobalSearchUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, model_index_filter.as_ptr());
+            diagnostics_ui,
+            dependencies_ui => move |model_index_filter| {
+            GlobalSearchUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, model_index_filter.as_ptr());
         }));
 
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..

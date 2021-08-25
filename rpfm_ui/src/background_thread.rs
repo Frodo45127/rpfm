@@ -30,7 +30,7 @@ use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::assembly_kit::*;
 use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::dependencies::Dependencies;
+use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
@@ -1168,6 +1168,8 @@ pub fn background_loop() {
             // Ignore errors for now.
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), rebuild_only_current_mod_dependencies);
+                let dependencies_info = DependenciesInfo::from(&dependencies);
+                CENTRAL_COMMAND.send_message_dependencies_info_to_qt(dependencies_info);
             },
 
             Command::CascadeEdition(editions) => {
@@ -1301,6 +1303,46 @@ pub fn background_loop() {
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             },
+
+            Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
+                let mut added_paths = vec![];
+                let mut error_paths = vec![];
+                for (data_source, paths) in &paths_by_data_source {
+                    let packed_files: Vec<PackedFile> = match data_source {
+                        DataSource::GameFiles => {
+                            match dependencies.get_packedfiles_from_game_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        }
+                        DataSource::ParentFiles => {
+                            match dependencies.get_packedfiles_from_parent_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        },
+
+                        _ => unimplemented!(),
+                    };
+
+                    let packed_files_ref = packed_files.iter().collect::<Vec<&PackedFile>>();
+                    added_paths.append(&mut pack_file_decoded.add_packed_files(&packed_files_ref, true, true).unwrap());
+                }
+
+                if !error_paths.is_empty() {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::VecVecString(error_paths));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

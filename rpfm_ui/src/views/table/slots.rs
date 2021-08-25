@@ -34,6 +34,7 @@ use rpfm_lib::packfile::PathType;
 use rpfm_lib::packedfile::table::Table;
 
 use crate::app_ui::AppUI;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
@@ -124,6 +125,7 @@ impl TableViewSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     ) -> Self {
 
@@ -554,8 +556,9 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui => move || {
-                if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui) {
+            diagnostics_ui,
+            dependencies_ui => move || {
+                if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     log_to_status_bar(&error);
                 }
             }
@@ -570,8 +573,9 @@ impl TableViewSlots {
                 app_ui,
                 pack_file_contents_ui,
                 global_search_ui,
-                diagnostics_ui => move || {
-                    if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &field_name) {
+                diagnostics_ui,
+                dependencies_ui => move || {
+                    if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &field_name) {
                         log_to_status_bar(&error);
                     }
                 }
@@ -670,6 +674,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
+            dependencies_ui,
             view => move |model_index| {
                 if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
                     let data = model_index.data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
@@ -688,6 +693,7 @@ impl TableViewSlots {
                         &global_search_ui,
                         &pack_file_contents_ui,
                         &diagnostics_ui,
+                        &dependencies_ui,
                         table_data,
                         view.data_source.clone()
                     ) {

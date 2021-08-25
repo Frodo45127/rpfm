@@ -52,6 +52,7 @@ use rpfm_lib::template::*;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
@@ -116,7 +117,8 @@ impl TemplateUI {
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Option<(Vec<(String, bool)>, Vec<(String, String)>)> {
 
         let wazard = QWizard::new_1a(&app_ui.main_window);
@@ -138,7 +140,7 @@ impl TemplateUI {
 
         // Load the named sections, one per page.
         for section in ui.template.get_sections() {
-            let page = Self::load_section(&ui, &section, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
+            let page = Self::load_section(&ui, &section, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui);
             ui.wazard.add_page(&page);
         }
 
@@ -184,7 +186,8 @@ impl TemplateUI {
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> QBox<QWizardPage> {
 
         let page = QWizardPage::new_1a(&ui.wazard);
@@ -204,7 +207,7 @@ impl TemplateUI {
 
         count += 2;
         ui.template.get_params().iter().filter(|x| x.get_ref_section() == section.get_ref_key()).for_each(|z| {
-            let field = Self::load_field_data(ui, z, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
+            let field = Self::load_field_data(ui, z, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui);
             grid.add_widget_5a(&field, count as i32, column, 1, 1);
             count += 1;
         });
@@ -250,7 +253,8 @@ impl TemplateUI {
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> QBox<QWidget> {
 
         let widget = QWidget::new_0a();
@@ -421,7 +425,7 @@ impl TemplateUI {
             // These are semi-full tables, without cells referencing params.
             ParamType::Table(definition) => {
                 let table_data = TableType::NormalTable(Table::new(definition));
-                let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
                 ui.params.borrow_mut().push((param.get_ref_key().to_owned(), table_view.get_mut_ptr_table_view_primary().static_upcast(), param.get_ref_param_type().clone(), *param.get_ref_is_required()));
             }
         }

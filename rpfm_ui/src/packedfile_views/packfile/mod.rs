@@ -42,7 +42,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::packedfile_views::{BuildData, DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 
@@ -108,7 +108,11 @@ impl PackFileExtraView {
         tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         tree_view.set_expands_on_double_click(false);
         //tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.clone()), None));
+        //
+        let mut build_data = BuildData::new();
+        build_data.path = Some(pack_file_path.clone());
+        build_data.editable = false;
+        tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_line_edit = QLineEdit::from_q_widget(pack_file_view.get_mut_widget());

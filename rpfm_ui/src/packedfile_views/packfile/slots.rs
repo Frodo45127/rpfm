@@ -92,8 +92,8 @@ impl PackFileExtraViewSlots {
 
                             // Update the TreeView.
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()));
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 /*
                             // Update the global search stuff, if needed.
