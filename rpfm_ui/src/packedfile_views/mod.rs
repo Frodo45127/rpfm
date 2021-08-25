@@ -567,7 +567,7 @@ impl PackedFileView {
                                 DecodedPackedFile::ESF(esf) => {
                                     if let View::ESF(old_esf) = view {
                                         old_esf.reload_view(&esf);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                                     }
                                     else {

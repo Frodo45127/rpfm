@@ -1724,7 +1724,7 @@ impl AppUI {
 
                         PackedFileType::ESF => {
                             if SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
-                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                     Ok(packed_file_info) => {
 
                                         // Add the file to the 'Currently open' list and make it visible.
@@ -1733,7 +1733,9 @@ impl AppUI {
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
                                         if let Some(packed_file_info) = packed_file_info {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                            if data_source == DataSource::PackFile {
+                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                            }
                                         }
                                     },
                                     Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::ESFDecode(format!("{}", error)), false),
