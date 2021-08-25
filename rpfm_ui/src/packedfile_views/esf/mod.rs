@@ -40,6 +40,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::AppUI;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -97,6 +98,7 @@ impl PackedFileESFView {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
@@ -180,7 +182,8 @@ impl PackedFileESFView {
             &app_ui,
             &global_search_ui,
             &pack_file_contents_ui,
-            &diagnostics_ui
+            &diagnostics_ui,
+            &dependencies_ui,
         );
 
         connections::set_connections(&view, &slots);
