@@ -2565,8 +2565,11 @@ impl AppUI {
         if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || SCHEMA.read().unwrap().is_none() {
             game_changed = true;
 
-            // Disable the Main Window (so we can't do other stuff).
-            app_ui.main_window.set_enabled(false);
+            // Disable the main window if it's not yet disabled so we can avoid certain issues.
+            let was_window_disabled = !app_ui.main_window.is_enabled();
+            if !was_window_disabled {
+                app_ui.main_window.set_enabled(false);
+            }
 
             // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
             // We have to wait because we need the GameSelected update before updating the menus.
@@ -2584,11 +2587,43 @@ impl AppUI {
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
 
-            // Re-enable the Main Window.
-            app_ui.main_window.set_enabled(true);
-
             // Change the GameSelected Icon. Disabled until we find better icons.
             GameSelectedIcons::set_game_selected_icon(&app_ui);
+
+            if rebuild_dependencies {
+
+                // Purge all views that depend on the dependencies.
+                let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
+                    .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
+                    .collect();
+
+                for (data_source, path) in paths_to_close {
+                    if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                        return show_dialog(&app_ui.main_window, error, false);
+                    }
+                }
+
+                CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
+                let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
+
+                let mut parent_build_data = BuildData::new();
+                parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+
+                let mut game_build_data = BuildData::new();
+                game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+
+                let mut asskit_build_data = BuildData::new();
+                asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+            }
+
+            // Reenable the main window once everything is reloaded.
+            if !was_window_disabled {
+                app_ui.main_window.set_enabled(true);
+            }
         }
 
         // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
@@ -2597,40 +2632,6 @@ impl AppUI {
             AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
         }
 
-        if rebuild_dependencies {
-
-            // Purge all views that depend on the dependencies.
-            let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
-                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
-                .collect();
-
-            for (data_source, path) in paths_to_close {
-                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
-                    return show_dialog(&app_ui.main_window, error, false);
-                }
-            }
-
-            // Disable the main window so we can avoid certain issues.
-            app_ui.main_window.set_enabled(false);
-            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
-            let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
-
-            let mut parent_build_data = BuildData::new();
-            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
-
-            let mut game_build_data = BuildData::new();
-            game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
-
-            let mut asskit_build_data = BuildData::new();
-            asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
-
-            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
-            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
-
-            // Reenable the main window once everything is reloaded.
-            app_ui.main_window.set_enabled(true);
-        }
         CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
     }
 }
