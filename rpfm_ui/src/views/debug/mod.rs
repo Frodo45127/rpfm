@@ -72,6 +72,7 @@ impl DebugView {
 
         let (packed_file_type, text) = match packed_file {
             DecodedPackedFile::UnitVariant(data) => (PackedFileType::UnitVariant, serde_json::to_string_pretty(&data)?),
+            DecodedPackedFile::ESF(data) => (PackedFileType::ESF, serde_json::to_string_pretty(&data)?),
             _ => unimplemented!(),
         };
 
@@ -96,6 +97,7 @@ impl DebugView {
 
         let decoded_packed_file = match self.packed_file_type {
             PackedFileType::UnitVariant => DecodedPackedFile::UnitVariant(serde_json::from_str(&string)?),
+            PackedFileType::ESF => DecodedPackedFile::ESF(serde_json::from_str(&string)?),
             _ => unimplemented!(),
         };
 

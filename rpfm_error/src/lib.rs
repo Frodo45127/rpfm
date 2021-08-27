@@ -460,6 +460,28 @@ pub enum ErrorKind {
     PackedFileIsNotUnitVariant,
 
     //--------------------------------//
+    // ESF Errors
+    //--------------------------------//
+
+    /// Error for when a ESF PackedFile fails to decode. Contains the error message.
+    ESFDecode(String),
+
+    /// Error for when we detect an unsupported data type on a ESF file.
+    ESFUnsupportedDataType(String),
+
+    /// Error for when we detect an unsupported signature on a ESF file.
+    ESFUnsupportedSignature(String),
+
+    /// Error for when we detect the decoding of a ESF has left bytes untouched.
+    ESFIncompleteDecoding,
+
+    /// Error for when we fail ot find an specific record name.
+    ESFRecordNameNotFound(u32),
+
+    /// Error for when we fail ot find an specific string.
+    ESFStringNotFound(u32),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -911,7 +933,17 @@ impl Display for ErrorKind {
             ErrorKind::UICDecode(cause) => write!(f, "<p>Error while trying to decode the UIC PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
-            // UIC Errors
+            // ESF Errors
+            //--------------------------------//
+            ErrorKind::ESFDecode(cause) => write!(f, "<p>Error while trying to decode the ESF PackedFile:</p><p>{}</p>", cause),
+            ErrorKind::ESFUnsupportedDataType(data_type) => write!(f, "<p>Unsupported data type: {}</p>", data_type),
+            ErrorKind::ESFUnsupportedSignature(signature) => write!(f, "<p>Unsupported signature: {}</p>", signature),
+            ErrorKind::ESFIncompleteDecoding => write!(f, "<p>There are bytes still to decode, but the decoding process has finished. This means RPFM cannot yet decode this file correctly</p><p>If you see this message, please report it to RPFM's author so support for the file that caused the error can be implemented.</p>"),
+            ErrorKind::ESFStringNotFound(index) => write!(f, "<p>String not found: {}</p>", index),
+            ErrorKind::ESFRecordNameNotFound(index) => write!(f, "<p>Record name not found: {}</p>", index),
+
+            //--------------------------------//
+            // UnitVariant Errors
             //--------------------------------//
             ErrorKind::UnitVariantDecode(cause) => write!(f, "<p>Error while trying to decode the Unit Variant PackedFile:</p><p>{}</p>", cause),
             ErrorKind::PackedFileIsNotUnitVariant => write!(f, "<p>This PackedFile is not an Unit Variant</p>"),

@@ -28,6 +28,7 @@ use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+use rpfm_lib::packedfile::esf::ESF;
 use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
@@ -433,6 +434,9 @@ pub enum Response {
     /// Response to return `(CaVp8, PackedFileInfo)`.
     CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),
 
+    /// Response to return `(ESF, PackedFileInfo)`.
+    ESFPackedFileInfo((ESF, PackedFileInfo)),
+
     /// Response to return `(Image, PackedFileInfo)`.
     ImagePackedFileInfo((Image, PackedFileInfo)),
 
@@ -681,7 +685,7 @@ impl CentralCommand {
     /// This function does only try once, and it locks the thread. Use it only in small stuff.
     #[allow(dead_code)]
     pub fn recv_message_qt(&self) -> Response {
-        let response = self.receiver_qt.recv() ;
+        let response = self.receiver_qt.recv();
         match response {
             Ok(data) => data,
             Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)

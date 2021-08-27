@@ -324,7 +324,7 @@ impl Template {
             PackedFileType::GroupFormations,
             PackedFileType::MatchedCombat,
             PackedFileType::RigidModel,
-            PackedFileType::StarPos,
+            PackedFileType::ESF,
             PackedFileType::PackFileSettings,
             PackedFileType::Unknown,
             PackedFileType::Text(TextType::Plain)

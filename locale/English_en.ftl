@@ -1042,6 +1042,9 @@ are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB
     <p>The only reason why there is even a button in this dialog to continue is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
     <p>If that's not your case, exit this dialog and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
 
+settings_enable_esf_editor = Enable ESF/CCD/SAVE editor:
+tt_settings_debug_enable_esf_editor = This setting allows you to disable the new ESF editor (still in beta) should you face any issues with it,
+    so you can still use RPFM without it.
 gen_loc_dependencies = Dependencies
 context_menu_import = Import
 dependencies_asskit_files = Assembly Kit Files
