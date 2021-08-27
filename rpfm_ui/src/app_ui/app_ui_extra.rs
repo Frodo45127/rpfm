@@ -2562,11 +2562,15 @@ impl AppUI {
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
         let mut game_changed = false;
+
+        // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
+        let was_window_disabled = !app_ui.main_window.is_enabled();
+
+        // If the game changed, change the game selected.
         if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || SCHEMA.read().unwrap().is_none() {
             game_changed = true;
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
-            let was_window_disabled = !app_ui.main_window.is_enabled();
             if !was_window_disabled {
                 app_ui.main_window.set_enabled(false);
             }
@@ -2589,41 +2593,45 @@ impl AppUI {
 
             // Change the GameSelected Icon. Disabled until we find better icons.
             GameSelectedIcons::set_game_selected_icon(&app_ui);
+        }
 
-            if rebuild_dependencies {
+        // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
+        if rebuild_dependencies {
 
-                // Purge all views that depend on the dependencies.
-                let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
-                    .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
-                    .collect();
+            // Purge all views that depend on the dependencies.
+            let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
+                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
+                .collect();
 
-                for (data_source, path) in paths_to_close {
-                    if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
-                        return show_dialog(&app_ui.main_window, error, false);
-                    }
+            for (data_source, path) in paths_to_close {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                    return show_dialog(&app_ui.main_window, error, false);
                 }
+            }
 
-                CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
-                let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
+            // Request a rebuild. If thee game changed, do a full rebuild. If not, only rebuild the parent's data.
+            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
+            let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
 
-                let mut parent_build_data = BuildData::new();
-                parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+            let mut parent_build_data = BuildData::new();
+            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
 
+            if game_changed {
                 let mut game_build_data = BuildData::new();
                 game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
 
                 let mut asskit_build_data = BuildData::new();
                 asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
 
-                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
                 dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
                 dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
             }
+        }
 
-            // Reenable the main window once everything is reloaded.
-            if !was_window_disabled {
-                app_ui.main_window.set_enabled(true);
-            }
+        // Reenable the main window once everything is reloaded.
+        if !was_window_disabled {
+            app_ui.main_window.set_enabled(true);
         }
 
         // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
@@ -2631,7 +2639,6 @@ impl AppUI {
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
             AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
         }
-
         CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
     }
 }
