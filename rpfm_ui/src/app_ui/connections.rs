@@ -67,6 +67,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.view_toggle_packfile_contents.toggled().connect(&slots.view_toggle_packfile_contents);
     app_ui.view_toggle_global_search_panel.toggled().connect(&slots.view_toggle_global_search_panel);
     app_ui.view_toggle_diagnostics_panel.toggled().connect(&slots.view_toggle_diagnostics_panel);
+    app_ui.view_toggle_dependencies_panel.toggled().connect(&slots.view_toggle_dependencies_panel);
 
     //-----------------------------------------------//
     // `Game Selected` menu connections.

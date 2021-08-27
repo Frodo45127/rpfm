@@ -102,6 +102,7 @@ mymod_game = Game of the Mod:
 view_toggle_packfile_contents = Toggle &PackFile Contents
 view_toggle_global_search_panel = Toggle Global Search Window
 view_toggle_diagnostics_panel = Toggle Diagnostics Window
+view_toggle_dependencies_panel = Toggle Dependencies Window
 
 ## Game Selected Menu
 
@@ -1047,3 +1048,8 @@ dependencies_asskit_files = Assembly Kit Files
 dependencies_game_files = Game Files
 dependencies_parent_files = Parent Files
 import_from_dependencies = Import from Dependencies
+global_search_search_source = Search Source
+global_search_source_packfile = Packfile
+global_search_source_parent = Parent Files
+global_search_source_game = Game Files
+global_search_source_asskit = Assembly Kit Tables

@@ -23,6 +23,7 @@ use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QPushButton;
+use qt_widgets::QRadioButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
@@ -37,7 +38,9 @@ use qt_core::QFlags;
 use qt_core::QModelIndex;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
+use qt_core::QObject;
 use qt_core::QRegExp;
+use qt_core::QSignalBlocker;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
 
@@ -45,7 +48,8 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
+use rpfm_error::ErrorKind;
+use rpfm_lib::global_search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -83,6 +87,11 @@ pub struct GlobalSearchUI {
     pub global_search_clear_button: QBox<QPushButton>,
     pub global_search_case_sensitive_checkbox: QBox<QCheckBox>,
     pub global_search_use_regex_checkbox: QBox<QCheckBox>,
+
+    pub global_search_search_source_packfile: QBox<QRadioButton>,
+    pub global_search_search_source_parent: QBox<QRadioButton>,
+    pub global_search_search_source_game: QBox<QRadioButton>,
+    pub global_search_search_source_asskit: QBox<QRadioButton>,
 
     pub global_search_search_on_all_checkbox: QBox<QCheckBox>,
     pub global_search_search_on_dbs_checkbox: QBox<QCheckBox>,
@@ -157,6 +166,15 @@ impl GlobalSearchUI {
         let global_search_case_sensitive_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &global_search_search_frame);
         let global_search_use_regex_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_use_regex"), &global_search_search_frame);
 
+        let global_search_search_source_group_box = QGroupBox::from_q_string_q_widget(&qtr("global_search_search_source"), &global_search_search_frame);
+        let global_search_search_source_grid = create_grid_layout(global_search_search_source_group_box.static_upcast());
+
+        let global_search_search_source_packfile = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_packfile"), &global_search_search_source_group_box);
+        let global_search_search_source_parent = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_parent"), &global_search_search_source_group_box);
+        let global_search_search_source_game = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_game"), &global_search_search_source_group_box);
+        let global_search_search_source_asskit = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_asskit"), &global_search_search_source_group_box);
+        global_search_search_source_packfile.set_checked(true);
+
         let global_search_search_on_group_box = QGroupBox::from_q_string_q_widget(&qtr("global_search_search_on"), &global_search_search_frame);
         let global_search_search_on_grid = create_grid_layout(global_search_search_on_group_box.static_upcast());
 
@@ -183,7 +201,13 @@ impl GlobalSearchUI {
         global_search_search_grid.add_widget_5a(&global_search_clear_button, 0, 3, 1, 1);
         global_search_search_grid.add_widget_5a(&global_search_case_sensitive_checkbox, 0, 4, 1, 1);
         global_search_search_grid.add_widget_5a(&global_search_use_regex_checkbox, 1, 4, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_search_on_group_box, 2, 0, 1, 10);
+        global_search_search_grid.add_widget_5a(&global_search_search_source_group_box, 2, 0, 1, 10);
+        global_search_search_grid.add_widget_5a(&global_search_search_on_group_box, 3, 0, 1, 10);
+
+        global_search_search_source_grid.add_widget_5a(&global_search_search_source_packfile, 0, 0, 1, 1);
+        global_search_search_source_grid.add_widget_5a(&global_search_search_source_parent, 0, 1, 1, 1);
+        global_search_search_source_grid.add_widget_5a(&global_search_search_source_game, 0, 2, 1, 1);
+        global_search_search_source_grid.add_widget_5a(&global_search_search_source_asskit, 0, 3, 1, 1);
 
         global_search_search_on_grid.add_widget_5a(&global_search_search_on_all_checkbox, 0, 0, 1, 1);
         global_search_search_on_grid.add_widget_5a(&global_search_search_on_dbs_checkbox, 0, 1, 1, 1);
@@ -352,6 +376,11 @@ impl GlobalSearchUI {
             global_search_case_sensitive_checkbox,
             global_search_use_regex_checkbox,
 
+            global_search_search_source_packfile,
+            global_search_search_source_parent,
+            global_search_search_source_game,
+            global_search_search_source_asskit,
+
             global_search_search_on_all_checkbox,
             global_search_search_on_dbs_checkbox,
             global_search_search_on_locs_checkbox,
@@ -408,6 +437,16 @@ impl GlobalSearchUI {
 
         // If we don't have text to search, return.
         if global_search.pattern.is_empty() { return; }
+
+        if global_search_ui.global_search_search_source_packfile.is_checked() {
+            global_search.source = SearchSource::PackFile;
+        } else if global_search_ui.global_search_search_source_parent.is_checked() {
+            global_search.source = SearchSource::ParentFiles;
+        } else if global_search_ui.global_search_search_source_game.is_checked() {
+            global_search.source = SearchSource::GameFiles;
+        } else if global_search_ui.global_search_search_source_asskit.is_checked() {
+            global_search.source = SearchSource::AssKitFiles;
+        }
 
         if global_search_ui.global_search_search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
@@ -467,6 +506,11 @@ impl GlobalSearchUI {
     pub unsafe fn replace_current(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, global_search_ui: &Rc<Self>) {
 
         let mut global_search = UI_STATE.get_global_search();
+
+        if global_search.source != SearchSource::PackFile {
+            return show_dialog(&app_ui.main_window, ErrorKind::GobalReplaceOverDependencies, false);
+        }
+
         global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
         global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
@@ -535,6 +579,11 @@ impl GlobalSearchUI {
         Self::search(pack_file_contents_ui, global_search_ui);
 
         let mut global_search = UI_STATE.get_global_search();
+
+        if global_search.source != SearchSource::PackFile {
+            return show_dialog(&app_ui.main_window, ErrorKind::GobalReplaceOverDependencies, false);
+        }
+
         global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
         global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
@@ -618,24 +667,65 @@ impl GlobalSearchUI {
             path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect()
         };
 
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+        let global_search = UI_STATE.get_global_search();
+        let data_source = match global_search.source {
+            SearchSource::PackFile => {
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
 
-        // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
-        UI_STATE.set_packfile_contents_read_only(true);
+                // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
+                UI_STATE.set_packfile_contents_read_only(true);
 
-        if let Some(ref tree_index) = tree_index {
-            if tree_index.is_valid() {
-                pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-            }
-        }
+                if let Some(ref tree_index) = tree_index {
+                    if tree_index.is_valid() {
+                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    }
+                }
 
-        UI_STATE.set_packfile_contents_read_only(false);
-        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+                UI_STATE.set_packfile_contents_read_only(false);
+                DataSource::PackFile
+            },
+
+            SearchSource::ParentFiles => {
+                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::ParentFiles);
+                if let Some(ref tree_index) = tree_index {
+                    if tree_index.is_valid() {
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    }
+                }
+                DataSource::ParentFiles
+            },
+            SearchSource::GameFiles => {
+                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::GameFiles);
+                if let Some(ref tree_index) = tree_index {
+                    if tree_index.is_valid() {
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    }
+                }
+                DataSource::GameFiles
+            },
+            SearchSource::AssKitFiles => {
+                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::AssKitFiles);
+                if let Some(ref tree_index) = tree_index {
+                    if tree_index.is_valid() {
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    }
+                }
+                DataSource::AssKitFiles
+            },
+        };
+
+        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, data_source);
 
         // If it's a table, focus on the matched cell.
         if is_match {
-            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == data_source).find(|x| *x.get_ref_path() == path) {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {

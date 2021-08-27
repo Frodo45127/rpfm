@@ -105,6 +105,7 @@ pub struct AppUISlots {
     pub view_toggle_packfile_contents: QBox<SlotOfBool>,
     pub view_toggle_global_search_panel: QBox<SlotOfBool>,
     pub view_toggle_diagnostics_panel: QBox<SlotOfBool>,
+    pub view_toggle_dependencies_panel: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Game Selected` menu slots.
@@ -897,10 +898,12 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui,
-            global_search_ui => move || {
+            global_search_ui,
+            dependencies_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
                 app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
                 app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible());
+                app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
         }));
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -922,6 +925,12 @@ impl AppUISlots {
             diagnostics_ui => move |state| {
                 if !state { diagnostics_ui.get_ref_diagnostics_dock_widget().hide(); }
                 else { diagnostics_ui.get_ref_diagnostics_dock_widget().show();}
+        }));
+
+        let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
+            dependencies_ui => move |state| {
+                if !state { dependencies_ui.dependencies_dock_widget.hide(); }
+                else { dependencies_ui.dependencies_dock_widget.show();}
         }));
 
         //-----------------------------------------------//
@@ -1595,6 +1604,7 @@ impl AppUISlots {
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,
+            view_toggle_dependencies_panel,
 
             //-----------------------------------------------//
             // `Game Selected` menu slots.

@@ -673,6 +673,9 @@ pub enum ErrorKind {
 
     /// Error for when we fail to import a number of paths from the dependencies.
     DependenciesImportFailure(Vec<Vec<String>>),
+
+    /// Error for when the user tries to do a Global Replace over dependencies.
+    GobalReplaceOverDependencies,
 }
 
 /// Implementation of `Error`.
@@ -1007,6 +1010,7 @@ impl Display for ErrorKind {
             ErrorKind::GameAssemblyKitPathNotConfigured => write!(f, "<p>The Assembly Kit path is not yet configured for the game selected.</p>"),
             ErrorKind::GameManifestNotFound => write!(f, "<p>The manifest for the Game Selected hasn't been found.</p>"),
             ErrorKind::DependenciesImportFailure(paths) => write!(f, "<p>There was an error importing the following files:</p> <ul>{}</ul>", paths.iter().map(|x| "<li>".to_owned() + &x.join("/") + "</li>").collect::<String>()),
+            ErrorKind::GobalReplaceOverDependencies => write!(f, "<p>The dependencies are read-only. You cannot do a Global Replace over them.</p>"),
         }
     }
 }

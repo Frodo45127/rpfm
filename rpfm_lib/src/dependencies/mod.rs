@@ -493,6 +493,25 @@ impl Dependencies {
         Ok((packed_files, errors))
     }
 
+    /// This function returns all the PackedFiles in the game files of the provided types.
+    pub fn get_packedfiles_from_game_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
+        self.vanilla_cached_packed_files.par_iter()
+            .filter_map(|(_, cached_packed_file)| {
+                let y = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
+                if strict_match_mode {
+                    if packed_file_types.contains(&y) {
+                        PackedFile::try_from(cached_packed_file).ok()
+                    } else {
+                        None
+                    }
+                } else if y.eq_non_strict_slice(packed_file_types) {
+                    PackedFile::try_from(cached_packed_file).ok()
+                } else {
+                    None
+                }
+            }).collect()
+    }
+
     /// This function returns the provided file, if exists, or an error if not, from the parent mod files.
     pub fn get_packedfile_from_parent_files(&self, path: &[String]) -> Result<PackedFile> {
         let path = path.join("/");
@@ -566,6 +585,24 @@ impl Dependencies {
         Ok((packed_files, errors))
     }
 
+    /// This function returns all the PackedFiles in the parent files of the provided types.
+    pub fn get_packedfiles_from_parent_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
+        self.parent_cached_packed_files.par_iter()
+            .filter_map(|(_, cached_packed_file)| {
+                let y = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
+                if strict_match_mode {
+                    if packed_file_types.contains(&y) {
+                        PackedFile::try_from(cached_packed_file).ok()
+                    } else {
+                        None
+                    }
+                } else if y.eq_non_strict_slice(packed_file_types) {
+                    PackedFile::try_from(cached_packed_file).ok()
+                } else {
+                    None
+                }
+            }).collect()
+    }
 
     /// This function returns the provided file, if exists, or an error if not, from the asskit files.
     pub fn get_packedfile_from_asskit_files(&self, path: &[String]) -> Result<DB> {

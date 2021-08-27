@@ -1678,9 +1678,7 @@ impl TableView {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
-                        if let DataSource::PackFile = data_source {
-                            pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
-                        }
+                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
@@ -1767,9 +1765,7 @@ impl TableView {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
-                        if let DataSource::PackFile = data_source {
-                            pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
-                        }
+                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {

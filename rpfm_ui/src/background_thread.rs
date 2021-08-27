@@ -227,7 +227,7 @@ pub fn background_loop() {
 
             // In case we want to launch a global search on a `PackFile`...
             Command::GlobalSearch(mut global_search) => {
-                global_search.search(&mut pack_file_decoded);
+                global_search.search(&mut pack_file_decoded, &dependencies);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
                 CENTRAL_COMMAND.send_message_global_search_update_to_qt((global_search, packed_files_info));
             }

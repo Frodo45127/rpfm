@@ -767,7 +767,7 @@ impl DiagnosticsUI {
         let item_path = model.item_2a(model_index.row(), 3);
         let path = item_path.text().to_std_string();
         let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
 
         // If the path is empty, we're looking for the dependency manager.
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();

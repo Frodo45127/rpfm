@@ -142,7 +142,7 @@ pub trait PackTree {
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
     ///
     /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
-    unsafe fn expand_treeview_to_item(&self, path: &[String]) -> Option<Ptr<QModelIndex>>;
+    unsafe fn expand_treeview_to_item(&self, path: &[String], source: DataSource) -> Option<Ptr<QModelIndex>>;
 
     /// This function is used to expand an item and all it's children recursively.
     unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool);
@@ -395,12 +395,51 @@ impl PackTree for QBox<QTreeView> {
         }
     }
 
-    unsafe fn expand_treeview_to_item(&self, path: &[String]) -> Option<Ptr<QModelIndex>> {
+    unsafe fn expand_treeview_to_item(&self, path: &[String], source: DataSource) -> Option<Ptr<QModelIndex>> {
         let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
         // Get the first item's index, as that one should always exist (the Packfile).
-        let mut item = model.item_1a(0);
+        let mut item = match source {
+            DataSource::PackFile => model.item_1a(0),
+            DataSource::ParentFiles => {
+                let mut root_item = None;
+                for row in 0..model.row_count_0a() {
+                    let item = model.item_1a(row);
+                    if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_PARENT_DATA {
+                        root_item = Some(item);
+                        break;
+                    }
+                }
+
+                root_item?
+            },
+            DataSource::GameFiles => {
+                let mut root_item = None;
+                for row in 0..model.row_count_0a() {
+                    let item = model.item_1a(row);
+                    if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_GAME_DATA {
+                        root_item = Some(item);
+                        break;
+                    }
+                }
+
+                root_item?
+            },
+            DataSource::AssKitFiles => {
+                let mut root_item = None;
+                for row in 0..model.row_count_0a() {
+                    let item = model.item_1a(row);
+                    if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_ASSKIT {
+                        root_item = Some(item);
+                        break;
+                    }
+                }
+
+                root_item?
+            },
+            DataSource::ExternalFile => return None,
+        };
         let model_index = model.index_2a(0, 0);
         let filtered_index = filter.map_from_source(&model_index);
 
@@ -1347,7 +1386,7 @@ impl PackTree for QBox<QTreeView> {
                         }
 
                         if SETTINGS.read().unwrap().settings_bool["expand_treeview_when_adding_items"] {
-                            self.expand_treeview_to_item(path);
+                            self.expand_treeview_to_item(path, source);
                         }
                     }
                 }
@@ -1592,7 +1631,7 @@ impl PackTree for QBox<QTreeView> {
                 for ((path_type, new_path), packed_file_info) in path_types.iter().zip(packed_files_info.iter())  {
                     let taken_row = Self::take_row_from_type(path_type, &model);
                     Self::add_row_to_path(taken_row, &model, new_path, packed_file_info);
-                    self.expand_treeview_to_item(&new_path);
+                    self.expand_treeview_to_item(&new_path, source);
                 }
             },
 
