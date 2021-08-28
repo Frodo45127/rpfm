@@ -336,9 +336,6 @@ impl AppUI {
                 build_data.editable = true;
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
-                // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
-
                 // Close the Global Search stuff and reset the filter's history.
                 GlobalSearchUI::clear(&global_search_ui);
 
@@ -453,6 +450,9 @@ impl AppUI {
 
                 UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+
+                // Re-enable the Main Window.
+                app_ui.main_window.set_enabled(true);
             }
 
             // If we got an error...
