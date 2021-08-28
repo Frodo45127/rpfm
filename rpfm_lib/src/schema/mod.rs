@@ -981,7 +981,7 @@ impl Definition {
 
                     if let Some(ref table) = raw_field.column_source_table {
                         if let Some(ref columns) = raw_field.column_source_column {
-                            if !columns.is_empty() {
+                            if !table.is_empty() && !columns.is_empty() && !columns[0].is_empty() {
                                 field.is_reference = Some((table.to_owned(), columns[0].to_owned()));
                                 if columns.len() > 1 {
                                     field.lookup = Some(columns[1..].to_vec());

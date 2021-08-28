@@ -130,8 +130,10 @@ impl Dependencies {
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
 
-        // First, clear the current data. Otherwise we'll hit situations where, on certain failures, we get dependencies from one game loaded into another.
-        *self = Self::default();
+        // First, clear the current data if we intend to rebuild the entire thing. Otherwise we'll hit situations where, on certain failures, we get dependencies from one game loaded into another.
+        if !only_parent_mods {
+            *self = Self::default();
+        }
 
         let stored_data = Self::load_from_binary()?;
         self.build_date = stored_data.build_date;
@@ -461,7 +463,7 @@ impl Dependencies {
                 },
                 PathType::Folder(base_path) => {
                     let base_path = base_path.join("/");
-                    let (mut folder_packed_files, mut error_paths) =self.vanilla_cached_packed_files.par_iter()
+                    let (mut folder_packed_files, mut error_paths) = self.vanilla_cached_packed_files.par_iter()
                         .filter(|(path, _)| path.starts_with(&base_path) && path.len() > base_path.len())
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
