@@ -38,7 +38,7 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packfile::{PathType, PFHFileType, CompressionState};
+use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 
@@ -1004,7 +1004,8 @@ impl AppUISlots {
 
         // What happens when we trigger the "Generate Dependencies Cache" action.
         let special_stuff_generate_dependencies_cache = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+            app_ui,
+            dependencies_ui => move |_| {
 
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
@@ -1023,7 +1024,22 @@ impl AppUISlots {
                     CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(asskit_path, version));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
-                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
+                        Response::DependenciesInfo(response) => {
+                            let mut parent_build_data = BuildData::new();
+                            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+
+                            let mut game_build_data = BuildData::new();
+                            game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+
+                            let mut asskit_build_data = BuildData::new();
+                            asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+
+                            show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
+                        },
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }

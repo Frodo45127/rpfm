@@ -261,8 +261,9 @@ pub fn background_loop() {
                 match dependencies.generate_dependencies_cache(&path, version) {
                     Ok(_) => match dependencies.save_to_binary() {
                         Ok(_) => {
-                            CENTRAL_COMMAND.send_message_rust(Response::Success);
                             let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
+                            let dependencies_info = DependenciesInfo::from(&dependencies);
+                            CENTRAL_COMMAND.send_message_rust(Response::DependenciesInfo(dependencies_info));
                         },
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     },

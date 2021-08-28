@@ -507,6 +507,9 @@ pub enum Response {
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
+
+    /// Response to return `DependenciesInfo`.
+    DependenciesInfo(DependenciesInfo)
 }
 
 #[allow(dead_code)]
