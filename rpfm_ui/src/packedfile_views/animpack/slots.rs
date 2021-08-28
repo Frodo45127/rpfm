@@ -12,8 +12,6 @@
 Module with the slots for AnimPack Views.
 !*/
 
-use qt_gui::SlotOfQStandardItem;
-
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfQString, SlotNoArgs, SlotOfQModelIndex};
 
@@ -40,8 +38,6 @@ pub struct PackedFileAnimPackViewSlots {
     pub copy_in: QBox<SlotOfQModelIndex>,
     pub copy_out: QBox<SlotOfQModelIndex>,
     pub delete: QBox<SlotNoArgs>,
-
-    pub anim_pack_paint_treeview: QBox<SlotOfQStandardItem>,
 
     pub pack_filter_change_text: QBox<SlotOfQString>,
     pub pack_filter_change_autoexpand_matches: QBox<SlotOfBool>,
@@ -95,11 +91,11 @@ impl PackedFileAnimPackViewSlots {
 
                             // Update the AnimPack TreeView with the new files.
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()));
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()));
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]));
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -134,8 +130,8 @@ impl PackedFileAnimPackViewSlots {
 
                             // Update the AnimPack TreeView with the new files.
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()));
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()));
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Reload all the views belonging to overwritten files.
@@ -180,10 +176,10 @@ impl PackedFileAnimPackViewSlots {
                         Response::Success => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(tree_item_types));
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(tree_item_types), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]));
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
@@ -193,10 +189,6 @@ impl PackedFileAnimPackViewSlots {
                 }
             }
         ));
-
-        let anim_pack_paint_treeview = SlotOfQStandardItem::new(&view.pack_tree_view, move |item| {
-            <QBox<QTreeView> as PackTree>::paint_specific_item_treeview(item);
-        });
 
         let pack_filter_change_text = SlotOfQString::new(&view.pack_tree_view.parent(), clone!(
             view => move |_| {
@@ -241,7 +233,6 @@ impl PackedFileAnimPackViewSlots {
             copy_in,
             copy_out,
             delete,
-            anim_pack_paint_treeview,
             pack_filter_change_text,
             pack_filter_change_autoexpand_matches,
             pack_filter_change_case_sensitive,

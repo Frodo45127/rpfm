@@ -41,6 +41,7 @@ SOURCES += \
     src/tableview_filter.cpp \
     src/tableview_frozen.cpp \
     src/text_editor.cpp \
+    src/tree_item_delegate.cpp \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
@@ -56,6 +57,7 @@ HEADERS += \
     include/spinbox_item_delegate.h \
     include/doublespinbox_item_delegate.h \
     include/text_editor.h \
+    include/tree_item_delegate.h \
     include/treeview_filter.h \
     include/qstring_item_delegate.h \
     include/packed_file_model.h \

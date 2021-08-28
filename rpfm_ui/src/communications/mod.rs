@@ -22,11 +22,13 @@ use std::process::exit;
 
 use rpfm_error::Error;
 
+use rpfm_lib::dependencies::DependenciesInfo;
 use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+use rpfm_lib::packedfile::esf::ESF;
 use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
@@ -64,6 +66,7 @@ pub struct CentralCommand {
     sender_diagnostics_to_qt: Sender<Diagnostics>,
     sender_diagnostics_update_to_qt: Sender<(Diagnostics, Vec<PackedFileInfo>)>,
     sender_global_search_update_to_qt: Sender<(GlobalSearch, Vec<PackedFileInfo>)>,
+    sender_dependencies_info_to_qt: Sender<DependenciesInfo>,
     sender_save_packfile: Sender<Response>,
     sender_save_packedfile: Sender<Response>,
 
@@ -75,6 +78,7 @@ pub struct CentralCommand {
     receiver_diagnostics_to_qt: Receiver<Diagnostics>,
     receiver_diagnostics_update_to_qt: Receiver<(Diagnostics, Vec<PackedFileInfo>)>,
     receiver_global_search_update_to_qt: Receiver<(GlobalSearch, Vec<PackedFileInfo>)>,
+    receiver_dependencies_info_to_qt: Receiver<DependenciesInfo>,
     receiver_save_packfile: Receiver<Response>,
     receiver_save_packedfile: Receiver<Response>,
 }
@@ -356,6 +360,9 @@ pub enum Command {
 
     /// This command is used to get the raw data of a PackedFile.
     GetPackedFileRawData(Vec<String>),
+
+    // This command is used to import files from the dependencies into out PackFile.
+    ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -427,6 +434,9 @@ pub enum Response {
     /// Response to return `(CaVp8, PackedFileInfo)`.
     CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),
 
+    /// Response to return `(ESF, PackedFileInfo)`.
+    ESFPackedFileInfo((ESF, PackedFileInfo)),
+
     /// Response to return `(Image, PackedFileInfo)`.
     ImagePackedFileInfo((Image, PackedFileInfo)),
 
@@ -497,6 +507,9 @@ pub enum Response {
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
+
+    /// Response to return `DependenciesInfo`.
+    DependenciesInfo(DependenciesInfo)
 }
 
 #[allow(dead_code)]
@@ -521,6 +534,7 @@ impl Default for CentralCommand {
         let diagnostics_response_channel = unbounded();
         let diagnostics_update_response_channel = unbounded();
         let global_search_update_response_channel = unbounded();
+        let dependencies_info_channel = unbounded();
         let save_packedfile_response_channel = unbounded();
         let save_packfile_response_channel = unbounded();
         Self {
@@ -532,6 +546,7 @@ impl Default for CentralCommand {
             sender_diagnostics_to_qt: diagnostics_response_channel.0,
             sender_diagnostics_update_to_qt: diagnostics_update_response_channel.0,
             sender_global_search_update_to_qt: global_search_update_response_channel.0,
+            sender_dependencies_info_to_qt: dependencies_info_channel.0,
             sender_save_packfile: save_packfile_response_channel.0,
             sender_save_packedfile: save_packedfile_response_channel.0,
             receiver_qt: response_channel.1,
@@ -542,6 +557,7 @@ impl Default for CentralCommand {
             receiver_diagnostics_to_qt: diagnostics_response_channel.1,
             receiver_diagnostics_update_to_qt: diagnostics_update_response_channel.1,
             receiver_global_search_update_to_qt: global_search_update_response_channel.1,
+            receiver_dependencies_info_to_qt: dependencies_info_channel.1,
             receiver_save_packfile: save_packfile_response_channel.1,
             receiver_save_packedfile: save_packedfile_response_channel.1,
         }
@@ -615,6 +631,14 @@ impl CentralCommand {
         }
     }
 
+    /// This function serves to send dependencies messages from the background thread to the main thread.
+    #[allow(dead_code)]
+    pub fn send_message_dependencies_info_to_qt(&self, data: DependenciesInfo) {
+        if self.sender_dependencies_info_to_qt.send(data).is_err() {
+            panic!("{}", THREADS_SENDER_ERROR);
+        }
+    }
+
     /// This function serves to send message from the background thread to the main thread when a PackedFile is saved.
     #[allow(dead_code)]
     pub fn send_message_save_packedfile(&self, data: Response) {
@@ -664,7 +688,7 @@ impl CentralCommand {
     /// This function does only try once, and it locks the thread. Use it only in small stuff.
     #[allow(dead_code)]
     pub fn recv_message_qt(&self) -> Response {
-        let response = self.receiver_qt.recv() ;
+        let response = self.receiver_qt.recv();
         match response {
             Ok(data) => data,
             Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
@@ -797,6 +821,26 @@ impl CentralCommand {
             match response {
                 Ok(data) => return data,
                 Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+            }
+            unsafe { event_loop.process_events_0a(); }
+        }
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    #[allow(dead_code)]
+    pub fn recv_message_dependencies_info_to_qt_try(&self) -> DependenciesInfo {
+        let event_loop = unsafe { QEventLoop::new_0a() };
+        loop {
+
+            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+            let response = self.receiver_dependencies_info_to_qt.try_recv();
+            match response {
+                Ok(data) => return data,
+                Err(error) => if error.is_disconnected() {
+                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                }
             }
             unsafe { event_loop.process_events_0a(); }
         }

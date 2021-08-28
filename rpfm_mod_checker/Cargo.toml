@@ -11,7 +11,7 @@ rpfm_error = { path = "../rpfm_error" }
 rpfm_lib = { path = "../rpfm_lib" }
 
 # Support for open files in a native way.
-open = "^1.2"
+open = "^2.0"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

@@ -58,10 +58,6 @@ pub mod packedfile;
 #[cfg(test)]
 mod packfile_test;
 
-/// These consts are used for dealing with Time-related operations.
-const WINDOWS_TICK: i64 = 10_000_000;
-const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
-
 /// These are the different Preamble/Id the PackFiles can have.
 const PFH6_PREAMBLE: &str = "PFH6"; // PFH6
 const PFH5_PREAMBLE: &str = "PFH5"; // PFH5

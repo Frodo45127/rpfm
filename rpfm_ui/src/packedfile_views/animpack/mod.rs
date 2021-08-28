@@ -45,7 +45,7 @@ use crate::communications::*;
 use crate::ffi::*;
 use crate::locale::qtr;
 use crate::pack_tree::PackTree;
-use crate::packedfile_views::{PackedFileView, TreeViewOperation, View, ViewType};
+use crate::packedfile_views::{BuildData, DataSource, PackedFileView, TreeViewOperation, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 use self::slots::PackedFileAnimPackViewSlots;
@@ -165,7 +165,11 @@ impl PackedFileAnimPackView {
         anim_pack_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         anim_pack_tree_view.set_expands_on_double_click(false);
         anim_pack_tree_view.header().set_stretch_last_section(false);
-        anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(None, Some((anim_pack_file_info, anim_packed_file_info))));
+
+        let mut build_data = BuildData::new();
+        build_data.data = Some((anim_pack_file_info, anim_packed_file_info));
+        build_data.editable = false;
+        anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let anim_pack_filter_line_edit = QLineEdit::from_q_widget(packed_file_view.get_mut_widget());
@@ -233,7 +237,10 @@ impl PackedFileAnimPackView {
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: (PackFileInfo, Vec<PackedFileInfo>)) {
-        self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(None, Some(data)));
+        let mut build_data = BuildData::new();
+        build_data.data = Some(data);
+        build_data.editable = false;
+        self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
     }
 
     /// Function to filter the TreeViews.

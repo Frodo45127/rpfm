@@ -27,8 +27,6 @@ pub unsafe fn set_connections(ui: &Arc<PackedFileAnimPackView>, slots: &PackedFi
     ui.get_ref_pack_tree_view().double_clicked().connect(&slots.copy_in);
     ui.get_ref_anim_pack_tree_view().double_clicked().connect(&slots.copy_out);
 
-    ui.get_ref_anim_pack_tree_model().item_changed().connect(&slots.anim_pack_paint_treeview);
-
     ui.get_ref_pack_filter_line_edit().text_changed().connect(&slots.pack_filter_change_text);
     ui.get_ref_pack_filter_autoexpand_matches_button().toggled().connect(&slots.pack_filter_change_autoexpand_matches);
     ui.get_ref_pack_filter_case_sensitive_button().toggled().connect(&slots.pack_filter_change_case_sensitive);

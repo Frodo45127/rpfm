@@ -32,7 +32,7 @@ use crate::assembly_kit::table_definition::RawDefinition;
 use crate::assembly_kit::localisable_fields::RawLocalisableFields;
 use crate::{GAME_SELECTED, SCHEMA};
 use crate::dependencies::Dependencies;
-use crate::packfile::PackFile;
+use crate::packfile::PathType;
 use crate::packedfile::table::db::DB;
 use crate::schema::*;
 
@@ -78,33 +78,31 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
         let raw_db_version = GAME_SELECTED.read().unwrap().get_raw_db_version();
         match raw_db_version {
             2 | 1 => {
-                if let Some(packfile_db_path) = GAME_SELECTED.read().unwrap().get_db_packs_paths() {
-                    let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
 
-                    let mut ass_kit_schemas_path =
-                        if raw_db_version == 1 {
-                            if let Some(path) = ass_kit_path { path }
-                            else { return Err(ErrorKind::SchemaNotFound.into()) }
-                        }
-                        else if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() { path }
-                        else { return Err(ErrorKind::SchemaNotFound.into()) };
+                let mut ass_kit_schemas_path =
+                    if raw_db_version == 1 {
+                        if let Some(path) = ass_kit_path { path }
+                        else { return Err(ErrorKind::SchemaNotFound.into()) }
+                    }
+                    else if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() { path }
+                    else { return Err(ErrorKind::SchemaNotFound.into()) };
 
-                    ass_kit_schemas_path.push("raw_data");
-                    ass_kit_schemas_path.push("db");
+                ass_kit_schemas_path.push("raw_data");
+                ass_kit_schemas_path.push("db");
 
-                    // This one is notably missing in Warhammer 2, so it's optional.
-                    let raw_localisable_fields: Option<RawLocalisableFields> =
-                        if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_schemas_path, raw_db_version) {
-                            let file = BufReader::new(File::open(&file_path)?);
-                            from_reader(file).ok()
-                        } else { None };
+                // This one is notably missing in Warhammer 2, so it's optional.
+                let raw_localisable_fields: Option<RawLocalisableFields> =
+                    if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_schemas_path, raw_db_version) {
+                        let file = BufReader::new(File::open(&file_path)?);
+                        from_reader(file).ok()
+                    } else { None };
 
-                    let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false, dependencies)?;
-                    schema.get_ref_mut_versioned_file_db_all().par_iter_mut().for_each(|versioned_file| {
-                        if let VersionedFile::DB(table_name, definitions) = versioned_file {
-                            let name = &table_name[0..table_name.len() - 7];
-                            if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
-                                let mut vanilla_tables = packfile_db.get_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
+                let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false, dependencies)?;
+                schema.get_ref_mut_versioned_file_db_all().par_iter_mut().for_each(|versioned_file| {
+                    if let VersionedFile::DB(table_name, definitions) = versioned_file {
+                        let name = &table_name[0..table_name.len() - 7];
+                        if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
+                            if let Ok((ref mut vanilla_tables, ref mut _error_paths)) = dependencies.get_packedfiles_from_game_files(&[PathType::Folder(vec!["db".to_owned(), table_name.to_owned()])]) {
                                 if !vanilla_tables.is_empty() {
                                     let vanilla_table = &mut vanilla_tables[0];
                                     if let Ok(vanilla_table_data) = vanilla_table.get_raw_data_and_keep_it() {
@@ -120,12 +118,9 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
                                 }
                             }
                         }
-                    });
-                    schema.save(&GAME_SELECTED.read().unwrap().get_schema_name())?;
-
-                    Ok(())
-                }
-                else { Err(ErrorKind::GamePathNotConfigured.into()) }
+                    }
+                });
+                schema.save(&GAME_SELECTED.read().unwrap().get_schema_name())
             }
             _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
         }

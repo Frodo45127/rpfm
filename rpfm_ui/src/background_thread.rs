@@ -30,7 +30,7 @@ use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::assembly_kit::*;
 use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::dependencies::Dependencies;
+use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
@@ -227,7 +227,7 @@ pub fn background_loop() {
 
             // In case we want to launch a global search on a `PackFile`...
             Command::GlobalSearch(mut global_search) => {
-                global_search.search(&mut pack_file_decoded);
+                global_search.search(&mut pack_file_decoded, &dependencies);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
                 CENTRAL_COMMAND.send_message_global_search_update_to_qt((global_search, packed_files_info));
             }
@@ -261,8 +261,9 @@ pub fn background_loop() {
                 match dependencies.generate_dependencies_cache(&path, version) {
                     Ok(_) => match dependencies.save_to_binary() {
                         Ok(_) => {
-                            CENTRAL_COMMAND.send_message_rust(Response::Success);
                             let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
+                            let dependencies_info = DependenciesInfo::from(&dependencies);
+                            CENTRAL_COMMAND.send_message_rust(Response::DependenciesInfo(dependencies_info));
                         },
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     },
@@ -540,6 +541,7 @@ pub fn background_loop() {
                                                 DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&**packed_file)))),
                                                 DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                                 DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                                 DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
                                                 DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
                                                 DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
@@ -570,6 +572,7 @@ pub fn background_loop() {
                                             DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
                                             DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
@@ -598,6 +601,7 @@ pub fn background_loop() {
                                             DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
                                             DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
                                             DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
@@ -1165,6 +1169,8 @@ pub fn background_loop() {
             // Ignore errors for now.
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), rebuild_only_current_mod_dependencies);
+                let dependencies_info = DependenciesInfo::from(&dependencies);
+                CENTRAL_COMMAND.send_message_dependencies_info_to_qt(dependencies_info);
             },
 
             Command::CascadeEdition(editions) => {
@@ -1298,6 +1304,46 @@ pub fn background_loop() {
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             },
+
+            Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
+                let mut added_paths = vec![];
+                let mut error_paths = vec![];
+                for (data_source, paths) in &paths_by_data_source {
+                    let packed_files: Vec<PackedFile> = match data_source {
+                        DataSource::GameFiles => {
+                            match dependencies.get_packedfiles_from_game_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        }
+                        DataSource::ParentFiles => {
+                            match dependencies.get_packedfiles_from_parent_files(paths) {
+                                Ok((packed_files, mut errors)) => {
+                                    error_paths.append(&mut errors);
+                                    packed_files
+                                }
+                                Err(_) => unimplemented!()
+                            }
+                        },
+
+                        _ => unimplemented!(),
+                    };
+
+                    let packed_files_ref = packed_files.iter().collect::<Vec<&PackedFile>>();
+                    added_paths.append(&mut pack_file_decoded.add_packed_files(&packed_files_ref, true, true).unwrap());
+                }
+
+                if !error_paths.is_empty() {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::VecVecString(error_paths));
+                } else {
+                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
