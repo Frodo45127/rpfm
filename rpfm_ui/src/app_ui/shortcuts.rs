@@ -50,6 +50,8 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
 
     app_ui.view_toggle_packfile_contents.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_packfile_contents"])));
     app_ui.view_toggle_global_search_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_global_search_panel"])));
+    app_ui.view_toggle_diagnostics_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_diagnostics_panel"])));
+    app_ui.view_toggle_dependencies_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_dependencies_panel"])));
 
     app_ui.game_selected_launch_game.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["launch_game"])));
     app_ui.game_selected_open_game_data_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_data_folder"])));
@@ -109,6 +111,8 @@ pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
 
     app_ui.view_toggle_packfile_contents.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.view_toggle_global_search_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.view_toggle_diagnostics_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.view_toggle_dependencies_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.game_selected_launch_game.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.game_selected_open_game_data_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);

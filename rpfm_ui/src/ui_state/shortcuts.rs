@@ -51,9 +51,11 @@ const SHORTCUTS_MENU_BAR_MYMOD: [(&str, &str); 5] = [
 ];
 
 /// List of shortcuts for the `View` Menu.
-const SHORTCUTS_MENU_BAR_VIEW: [(&str, &str); 2] = [
+const SHORTCUTS_MENU_BAR_VIEW: [(&str, &str); 4] = [
     ("view_toggle_packfile_contents", ""),
     ("view_toggle_global_search_panel", "Ctrl+Shift+F"),
+    ("view_toggle_diagnostics_panel", ""),
+    ("view_toggle_dependencies_panel", ""),
 ];
 
 /// List of shortcuts for the `Game Selected` Menu.
