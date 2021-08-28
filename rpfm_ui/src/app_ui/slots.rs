@@ -325,7 +325,13 @@ impl AppUISlots {
 
         // This slot is used for the "Install" action.
         let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+            app_ui,
+            pack_file_contents_ui => move |_| {
+
+                // Save before installing, to ensure we always have the latest data on install.
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
+                    return show_dialog(&app_ui.main_window, error, false);
+                }
 
                 // Get the current path of the PackFile.
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
