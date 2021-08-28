@@ -6,6 +6,32 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented warning when trying to rename a DB folder.
+- Implemented `Only For The Brave` alert.
+- Implemented CCD(CEO)/ESF/SAVE editor.
+- Implemented Dependencies view.
+- Implemented `Import from dependencies`.
+- Implemented Global Search support for dependencies.
+
+### Changed
+- Rigidmodel error messages should now be more specific.
+- RigidModel View updated to 0.8.2.
+- TSVs to be imported no longer require to have all the columns of a table.
+- When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
+
+### Fixed
+- Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
+- Fixed rare crash when opening PackFiles with the `Check for missing table definitions` setting set.
+- Fixed very rare bug that caused RPFM to fail on reimport very specific TSV.
+- Fixed a bug that caused dependencies to not update properly on game selected change.
+- Fixed multiple bugs that caused dependencies to become missing or unloaded from time to time.
+- Fixed a CTD caused by opening a menu when a PackFile is being opened.
+- Fixed missing shortcuts in the view submenu.
+- Fixed dependencies going away immediatly after generating them.
+- Fixed `Some("","")` references being incorrectly imported from the Assembly Kit.
+
 ## [2.5.4]
 ### Added
 - Reworked `Game Selected` logic.
