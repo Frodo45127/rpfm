@@ -32,7 +32,7 @@ pub mod faction_painter;
 //-------------------------------------------------------------------------------//
 
 /// This struct represents the common content and behavior shared across Tools.
-struct Tool {
+pub struct Tool {
     used_paths: Vec<PathType>,
 }
 
@@ -58,32 +58,36 @@ impl Tool {
 
     /// This function takes care of reloading open files we have edited with the tool.
     pub unsafe fn reload_used_paths(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+        let mut paths_to_purge = vec![];
         for path_type in &self.used_paths {
             match path_type {
                 PathType::File(ref path) => {
-                    if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                            paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
                 PathType::Folder(ref path) => {
-                    for packed_file_view in open_packedfiles.iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
+                    for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                            paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
                 PathType::PackFile => {
-                    for packed_file_view in &mut *open_packedfiles {
+                    for packed_file_view in &mut *UI_STATE.set_open_packedfiles() {
                         if packed_file_view.reload(&packed_file_view.get_path(), &pack_file_contents_ui).is_err() {
-                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_view.get_ref_path(), DataSource::PackFile, false);
+                            paths_to_purge.push(packed_file_view.get_path().to_vec());
                         }
                     }
                 },
                 PathType::None => unimplemented!(),
             }
+        }
+
+        for path in &paths_to_purge {
+            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
         }
     }
 }
