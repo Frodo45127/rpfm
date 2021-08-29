@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>713</width>
+    <width>802</width>
     <height>552</height>
    </rect>
   </property>
@@ -26,12 +26,28 @@
    </item>
    <item row="0" column="1">
     <widget class="QWidget" name="details_widget" native="true">
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="11,10,10">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,10,10">
       <item>
-       <widget class="QLabel" name="faction_name_label">
-        <property name="text">
-         <string/>
-        </property>
+       <widget class="QWidget" name="faction_info_widget" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="faction_icon_label">
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignLeft">
+          <widget class="QLabel" name="faction_name_label">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
       <item>
