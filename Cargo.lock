@@ -2028,6 +2028,7 @@ dependencies = [
  "serde_json",
  "simplelog",
  "unic-langid",
+ "unicase",
  "uuid",
  "winres",
 ]
