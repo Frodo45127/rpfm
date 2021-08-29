@@ -31,7 +31,7 @@ use rpfm_lib::packedfile::rigidmodel::RigidModel;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::{new_rigid_model_view_safe, set_rigid_model_view_safe, get_rigid_model_from_view_safe};
+use crate::ffi::*;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 
 //-------------------------------------------------------------------------------//
@@ -68,7 +68,13 @@ impl PackedFileRigidModelView {
         // Create the new view and populate it.
         let data = QByteArray::from_slice(&rigid_model.data);
         let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
-        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
+        if set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr()).is_err() {
+            match get_last_rigid_model_error(&editor.as_ptr().static_upcast()) {
+                Ok(error) => Err(error)?,
+                Err(error) => Err(error)?,
+            }
+        }
+
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);

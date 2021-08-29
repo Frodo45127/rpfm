@@ -51,7 +51,7 @@ use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
+use rpfm_lib::packfile::{PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -64,12 +64,13 @@ use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::are_you_sure;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
-use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
@@ -331,10 +332,9 @@ impl AppUI {
                 app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                 // Update the TreeView.
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
-
-                // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                let mut build_data = BuildData::new();
+                build_data.editable = true;
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                 // Close the Global Search stuff and reset the filter's history.
                 GlobalSearchUI::clear(&global_search_ui);
@@ -449,7 +449,10 @@ impl AppUI {
                 }
 
                 UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+
+                // Re-enable the Main Window.
+                app_ui.main_window.set_enabled(true);
             }
 
             // If we got an error...
@@ -519,7 +522,7 @@ impl AppUI {
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
                     Response::PackFileInfo(pack_file_info) => {
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                         let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(&file_name));
@@ -540,7 +543,7 @@ impl AppUI {
             let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {
                 Response::PackFileInfo(pack_file_info) => {
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                     let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
@@ -553,7 +556,7 @@ impl AppUI {
         }
 
         // Clean the treeview and the views from markers.
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             packed_file_view.clean();
@@ -781,7 +784,8 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -949,11 +953,12 @@ impl AppUI {
                     pack_file_contents_ui,
                     global_search_ui,
                     diagnostics_ui,
+                    dependencies_ui,
                     template_name,
                     is_custom => move |_| {
                         match Template::load(&template_name, is_custom) {
                             Ok(template) => {
-                                if let Some((options, params)) = TemplateUI::load(&template, &app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui) {
+                                if let Some((options, params)) = TemplateUI::load(&template, &app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui) {
                                     match Self::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));
@@ -961,8 +966,8 @@ impl AppUI {
                                             match response {
                                                 Response::VecVecString(packed_file_paths) => {
                                                     let paths = packed_file_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
-                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
                                                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                                                     // Try to reload all open files which data we altered, and close those that failed.
@@ -1358,10 +1363,11 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         packed_file_path: Option<Vec<String>>,
         is_preview: bool,
         is_external: bool,
-        data_source: DataSource,
+        mut data_source: DataSource,
     ) {
 
         // Conditions to open:
@@ -1380,9 +1386,28 @@ impl AppUI {
         if should_be_opened {
             let item_type = match packed_file_path {
                 Some(packed_file_path) => TreePathType::File(packed_file_path),
+
+                // If none path has been provided, we have to do some magic to find out what we're opening.
                 None => {
-                    let selected_items = pack_file_contents_ui.packfile_contents_tree_view.get_item_types_from_selection(true);
-                    if selected_items.len() == 1 { selected_items[0].clone() } else { return }
+                    match data_source {
+                        DataSource::PackFile => {
+                            let selected_items = pack_file_contents_ui.packfile_contents_tree_view.get_item_types_from_selection(true);
+                            if selected_items.len() == 1 { selected_items[0].clone() } else { return }
+                        },
+                        DataSource::ParentFiles |
+                        DataSource::GameFiles |
+                        DataSource::AssKitFiles => {
+                            let selected_items = dependencies_ui.dependencies_tree_view.get_item_types_from_selection(true);
+                            if selected_items.len() == 1 {
+                                if let Some(data_source_tree) = dependencies_ui.dependencies_tree_view.get_root_source_type_from_selection(true) {
+                                    data_source = data_source_tree;
+                                    selected_items[0].clone()
+                                } else { return }
+                            } else { return }
+                        }
+
+                        DataSource::ExternalFile => unimplemented!(),
+                    }
                 }
             };
 
@@ -1454,7 +1479,7 @@ impl AppUI {
 
                         // If the file is an AnimFragment PackedFile...
                         PackedFileType::AnimFragment => {
-                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1462,7 +1487,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                    }
                                 },
 
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
@@ -1479,7 +1506,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                    }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
                             }
@@ -1487,7 +1516,7 @@ impl AppUI {
 
                         // If the file is an AnimTable PackedFile...
                         PackedFileType::AnimTable => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1496,7 +1525,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
@@ -1513,7 +1544,9 @@ impl AppUI {
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                    }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
                             }
@@ -1521,7 +1554,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1530,7 +1563,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
@@ -1539,7 +1574,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1548,7 +1583,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => {
@@ -1569,7 +1606,7 @@ impl AppUI {
 
                         // If the file is a MatchedCombat PackedFile...
                         PackedFileType::MatchedCombat => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1578,7 +1615,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
@@ -1596,7 +1635,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
@@ -1616,7 +1657,9 @@ impl AppUI {
                                         let mut open_list = UI_STATE.set_open_packedfiles();
                                         open_list.push(tab);
                                         if let Some(packed_file_info) = packed_file_info {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                            if data_source == DataSource::PackFile {
+                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                            }
                                         }
                                     },
                                     Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
@@ -1633,7 +1676,9 @@ impl AppUI {
                                 app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.push(tab);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                if data_source == DataSource::PackFile {
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                }
                             }
                         }
 
@@ -1649,7 +1694,9 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::UICDecode(format!("{}", error)), false),
@@ -1666,10 +1713,33 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                        }
                                     }
                                 },
                                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::UnitVariantDecode(format!("{}", error)), false),
+                            }
+                        }
+
+                        PackedFileType::ESF => {
+                            if SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
+                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                                    Ok(packed_file_info) => {
+
+                                        // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+                                        if let Some(packed_file_info) = packed_file_info {
+                                            if data_source == DataSource::PackFile {
+                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
+                                            }
+                                        }
+                                    },
+                                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::ESFDecode(format!("{}", error)), false),
+                                }
                             }
                         }
 
@@ -1803,6 +1873,7 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1841,7 +1912,7 @@ impl AppUI {
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                 Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.
@@ -1988,7 +2059,7 @@ impl AppUI {
 
                             // Get the currently selected paths (or the complete path, in case of DB Tables),
                             // and only continue if there is only one and it's not empty.
-                            let selected_paths = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
+                            let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
                             let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
                                 vec!["db".to_owned(), table.to_owned(), name.to_owned()]
                             }
@@ -2017,8 +2088,8 @@ impl AppUI {
                                 let response = CENTRAL_COMMAND.recv_message_qt();
                                 match response {
                                     Response::Success => {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]));
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]));
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]), DataSource::PackFile);
                                         UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                                     }
 
@@ -2125,8 +2196,8 @@ impl AppUI {
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
                     Response::Success => {
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]));
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -2364,14 +2435,14 @@ impl AppUI {
     }
 
     /// Update the PackedFileView names, to ensure we have no collisions.
-    pub unsafe fn update_views_names(app_ui: &Rc<AppUI>) {
+    pub unsafe fn update_views_names(&self) {
 
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
         for packed_file_view in open_packedfiles.iter() {
             let widget = packed_file_view.get_mut_widget();
-            if app_ui.tab_bar_packed_file.index_of(widget) != -1 {
+            if self.tab_bar_packed_file.index_of(widget) != -1 {
 
                 // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
@@ -2424,8 +2495,8 @@ impl AppUI {
                     name.push_str(" (Preview)");
                 }
 
-                let index = app_ui.tab_bar_packed_file.index_of(widget);
-                app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                let index = self.tab_bar_packed_file.index_of(widget);
+                self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
             }
         }
     }
@@ -2477,6 +2548,7 @@ impl AppUI {
     pub unsafe fn change_game_selected(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         rebuild_dependencies: bool
     ) {
 
@@ -2490,11 +2562,18 @@ impl AppUI {
         if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
         let mut game_changed = false;
+
+        // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
+        let was_window_disabled = !app_ui.main_window.is_enabled();
+
+        // If the game changed, change the game selected.
         if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || SCHEMA.read().unwrap().is_none() {
             game_changed = true;
 
-            // Disable the Main Window (so we can't do other stuff).
-            app_ui.main_window.set_enabled(false);
+            // Disable the main window if it's not yet disabled so we can avoid certain issues.
+            if !was_window_disabled {
+                app_ui.main_window.set_enabled(false);
+            }
 
             // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
             // We have to wait because we need the GameSelected update before updating the menus.
@@ -2508,26 +2587,57 @@ impl AppUI {
             // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
             if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
                 UI_STATE.set_operational_mode(&app_ui, None);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
 
-            // Re-enable the Main Window.
-            app_ui.main_window.set_enabled(true);
-
             // Change the GameSelected Icon. Disabled until we find better icons.
             GameSelectedIcons::set_game_selected_icon(&app_ui);
+        }
+
+        // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
+        if rebuild_dependencies {
+
+            // Purge all views that depend on the dependencies.
+            let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
+                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
+                .collect();
+
+            for (data_source, path) in paths_to_close {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                    return show_dialog(&app_ui.main_window, error, false);
+                }
+            }
+
+            // Request a rebuild. If thee game changed, do a full rebuild. If not, only rebuild the parent's data.
+            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
+            let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
+
+            let mut parent_build_data = BuildData::new();
+            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+
+            if game_changed {
+                let mut game_build_data = BuildData::new();
+                game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+
+                let mut asskit_build_data = BuildData::new();
+                asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+            }
+        }
+
+        // Reenable the main window once everything is reloaded.
+        if !was_window_disabled {
+            app_ui.main_window.set_enabled(true);
         }
 
         // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
         AppUI::enable_packfile_actions(&app_ui, &pack_path, false);
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
             AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
-        }
-
-        // Always trigger the missing definitions code and the rebuilt for dependencies.
-        if rebuild_dependencies {
-            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
         }
         CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
     }

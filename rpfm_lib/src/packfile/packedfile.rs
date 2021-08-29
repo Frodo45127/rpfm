@@ -861,6 +861,21 @@ impl From<&PackedFile> for PackedFileInfo {
     }
 }
 
+/// Implementation to create a `PackedFileInfo` from a `CachedPackedFile`.
+impl From<&CachedPackedFile> for PackedFileInfo {
+    fn from(packedfile: &CachedPackedFile) -> Self {
+        Self {
+            path: packedfile.packed_file_path.replace("\\", "/").split("/").map(|x| x.to_owned()).collect(),
+            packfile_name: packedfile.pack_file_path.replace("\\", "/").split("/").last().unwrap().to_owned(),
+            timestamp: 0,
+            is_compressed: packedfile.is_compressed,
+            is_encrypted: packedfile.is_encrypted.is_some(),
+            is_cached: false,
+            cached_type: String::new(),
+        }
+    }
+}
+
 /// Implementation to create a `PackedFile` from a `AnimPacked`.
 impl From<&AnimPacked> for PackedFile {
     fn from(anim_packed: &AnimPacked) -> Self {

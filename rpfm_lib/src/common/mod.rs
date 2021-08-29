@@ -46,6 +46,10 @@ mod decoder_test;
 #[cfg(test)]
 mod encoder_test;
 
+/// These consts are used for dealing with Time-related operations.
+pub const WINDOWS_TICK: i64 = 10_000_000;
+pub const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
+
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 #[allow(dead_code)]
 pub fn get_files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {

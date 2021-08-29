@@ -44,6 +44,7 @@ use crate::views::table::TableType;
 use self::anim_fragment::PackedFileAnimFragmentView;
 use self::animpack::PackedFileAnimPackView;
 use self::ca_vp8::PackedFileCaVp8View;
+use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
@@ -63,6 +64,7 @@ pub mod anim_fragment;
 pub mod animpack;
 pub mod ca_vp8;
 pub mod decoder;
+pub mod esf;
 pub mod external;
 pub mod image;
 pub mod packfile;
@@ -105,7 +107,7 @@ pub enum ViewType {
 }
 
 /// This enum represents the source of the data in the view.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Ord, PartialOrd, Eq)]
 pub enum DataSource {
 
     /// This means the data is from somewhere in our PackFile.
@@ -130,6 +132,7 @@ pub enum View {
     AnimPack(Arc<PackedFileAnimPackView>),
     CaVp8(Arc<PackedFileCaVp8View>),
     Decoder(Arc<PackedFileDecoderView>),
+    ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
     PackFileSettings(Arc<PackFileSettingsView>),
@@ -301,6 +304,8 @@ impl PackedFileView {
 
                             // Images are read-only.
                             PackedFileType::Image => return Ok(()),
+
+                            // AnimPacks save on edit.
                             PackedFileType::AnimPack => return Ok(()),
 
                             PackedFileType::AnimFragment => {
@@ -348,7 +353,7 @@ impl PackedFileView {
                                 CENTRAL_COMMAND.send_message_qt(Command::SetDependencyPackFilesList(entries));
 
                                 // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
                                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                                 return Ok(())
@@ -372,6 +377,11 @@ impl PackedFileView {
 
                             // UnitVariant use custom saving.
                             PackedFileType::UnitVariant => return Ok(()),
+
+                            // ESF files are re-generated from the view.
+                            PackedFileType::ESF => if let View::ESF(view) = view {
+                                DecodedPackedFile::ESF(view.save_view())
+                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
 
                             // Ignore these ones.
                             PackedFileType::Unknown | PackedFileType::PackFile => return Ok(()),
@@ -431,7 +441,7 @@ impl PackedFileView {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
                                 }
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -442,7 +452,7 @@ impl PackedFileView {
                         Response::AnimPackPackedFileInfo((anim_pack, packed_file_info)) => {
                             if let View::AnimPack(old_anim_pack) = view {
                                 old_anim_pack.reload_view(anim_pack);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -454,7 +464,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::AnimTable(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -465,7 +475,7 @@ impl PackedFileView {
                         Response::CaVp8PackedFileInfo((ca_vp8, packed_file_info)) => {
                             if let View::CaVp8(old_ca_vp8) = view {
                                 old_ca_vp8.reload_view(&ca_vp8);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
@@ -476,7 +486,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::DB(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -487,7 +497,7 @@ impl PackedFileView {
                         Response::ImagePackedFileInfo((image, packed_file_info)) => {
                             if let View::Image(old_image) = view {
                                 old_image.reload_view(&image);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
@@ -498,7 +508,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Loc(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -510,7 +520,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::MatchedCombat(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -522,7 +532,7 @@ impl PackedFileView {
                         Response::RigidModelPackedFileInfo((rigidmodel, packed_file_info)) => {
                             if let View::RigidModel(old_rigidmodel) = view {
                                 old_rigidmodel.reload_view(&rigidmodel);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -533,7 +543,7 @@ impl PackedFileView {
                         Response::TextPackedFileInfo((text, packed_file_info)) => {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -547,7 +557,17 @@ impl PackedFileView {
                                 DecodedPackedFile::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+
+                                    }
+                                    else {
+                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                    }
+                                }
+                                DecodedPackedFile::ESF(esf) => {
+                                    if let View::ESF(old_esf) = view {
+                                        old_esf.reload_view(&esf);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                                     }
                                     else {

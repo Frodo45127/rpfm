@@ -42,6 +42,16 @@ fn test_encode_integer_u16() {
     assert_eq!(data, vec![2, 1]);
 }
 
+/// Test to make sure the u24 integer encoder (`encode_integer_u24()`) works properly.
+#[test]
+fn test_encode_integer_u24() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_u24(8492696);
+    assert_eq!(data, vec![152, 150, 129]);
+}
+
 /// Test to make sure the u32 integer encoder (`encode_integer_u32()`) works properly.
 #[test]
 fn test_encode_integer_u32() {
@@ -60,6 +70,16 @@ fn test_encode_integer_u64() {
     let mut data = vec![];
     data.encode_integer_u64(258);
     assert_eq!(data, vec![2, 1, 0, 0, 0, 0, 0, 0]);
+}
+
+/// Test to make sure the uleb128 encoded integer encoder (`encode_integer_cauleb128()`) works properly.
+#[test]
+fn test_encode_integer_cauleb128() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_cauleb128(10);
+    assert_eq!(data, vec![10]);
 }
 
 /// Test to make sure the i8 integer encoder (`encode_integer_i8()`) works properly.
@@ -82,6 +102,16 @@ fn test_encode_integer_i16() {
     assert_eq!(data, vec![254, 254]);
 }
 
+/// Test to make sure the i24 integer encoder (`encode_integer_i24()`) works properly.
+#[test]
+fn test_encode_integer_i24() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_i24(8492696);
+    assert_eq!(data, vec![152, 150, 129]);
+}
+
 /// Test to make sure the i32 integer encoder (`encode_integer_i32()`) works properly.
 #[test]
 fn test_encode_integer_i32() {
@@ -102,7 +132,7 @@ fn test_encode_integer_i64() {
     assert_eq!(data, vec![254, 254, 255, 255, 255, 255, 255, 255]);
 }
 
-/// Test to make sure the f64 float encoder (`encode_float_f32()`) works properly.
+/// Test to make sure the f32 float encoder (`encode_float_f32()`) works properly.
 #[test]
 fn test_encode_float_f32() {
 
@@ -110,6 +140,16 @@ fn test_encode_float_f32() {
     let mut data = vec![];
     data.encode_float_f32(-10.2);
     assert_eq!(data, vec![51, 51, 35, 193]);
+}
+
+/// Test to make sure the f64 float encoder (`encode_float_f64()`) works properly.
+#[test]
+fn test_encode_float_f64() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_float_f64(-10.2);
+    assert_eq!(data, vec![102, 102, 102, 102, 102, 102, 36, 192]);
 }
 
 /// Test to make sure the u8 string encoder (`encode_string_u8()`) works properly.

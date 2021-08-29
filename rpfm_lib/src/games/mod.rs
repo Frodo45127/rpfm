@@ -104,12 +104,6 @@ pub enum InstallType {
 #[derive(GetRef, Clone, Debug)]
 struct InstallData {
 
-    /// These are the PackFiles that contain db tables. Relative to data_path.
-    db_packs: Vec<String>,
-
-    /// These are the PackFiles that contain localization stuff. Relative to data_path.
-    loc_packs: Vec<String>,
-
     /// List of vanilla packs, to be use as reference for knowning what PackFiles are vanilla in games without a manifest file.
     /// Currently only used for Empire and Napoleon. Relative to data_path.
     vanilla_packs: Vec<String>,
@@ -361,42 +355,6 @@ impl GameInfo {
         DirBuilder::new().recursive(true).create(&path).ok()?;
 
         Some(path)
-    }
-
-    /// This function gets the `/data/xxx.pack` or equivalent paths with db tables of the game selected, if said game it's configured in the settings.
-    pub fn get_db_packs_paths(&self) -> Option<Vec<PathBuf>> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
-        let install_type = self.get_install_type().ok()?;
-        let install_data = self.install_data.get(&install_type)?;
-        let data_path = path.join(PathBuf::from(install_data.get_ref_data_path()));
-        let db_packs_paths = install_data.get_ref_db_packs();
-
-        let mut full_paths = vec![];
-        for pack_path in db_packs_paths {
-            let mut path = data_path.to_path_buf();
-            path.push(pack_path);
-            full_paths.push(path);
-        }
-
-        Some(full_paths)
-    }
-
-    /// This function gets the `/data/xxx.pack` or equivalent paths with loc tables of the game selected, if said game it's configured in the settings.
-    pub fn get_loc_packs_paths(&self) -> Option<Vec<PathBuf>> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
-        let install_type = self.get_install_type().ok()?;
-        let install_data = self.install_data.get(&install_type)?;
-        let data_path = path.join(PathBuf::from(install_data.get_ref_data_path()));
-        let loc_packs_paths = install_data.get_ref_loc_packs();
-
-        let mut full_paths = vec![];
-        for pack_path in loc_packs_paths {
-            let mut path = data_path.to_path_buf();
-            path.push(pack_path);
-            full_paths.push(path);
-        }
-
-        Some(full_paths)
     }
 
     /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.

@@ -1,6 +1,6 @@
 [package]
 name = "rpfm"
-version = "2.5.4"
+version = "2.5.101"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Launcher of RPFM, to allow autorestarting on update."

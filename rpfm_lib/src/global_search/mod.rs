@@ -19,6 +19,9 @@ use rayon::prelude::*;
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::dependencies::Dependencies;
+use crate::games::VanillaDBTableNameLogic;
+use crate::GAME_SELECTED;
 use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFileInfo;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
@@ -54,6 +57,9 @@ pub struct GlobalSearch {
 
     /// If the search must be done using regex instead basic matching.
     pub use_regex: bool,
+
+    /// Where should we search.
+    pub source: SearchSource,
 
     /// If we should search on DB Tables.
     pub search_on_dbs: bool,
@@ -96,6 +102,15 @@ pub enum MatchHolder {
     Schema(SchemaMatches),
 }
 
+/// This enum is specifies the source where the search should be performed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SearchSource {
+    PackFile,
+    ParentFiles,
+    GameFiles,
+    AssKitFiles,
+}
+
 //---------------------------------------------------------------p----------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -108,6 +123,7 @@ impl Default for GlobalSearch {
             replace_text: "".to_owned(),
             case_sensitive: false,
             use_regex: false,
+            source: SearchSource::PackFile,
             search_on_dbs: true,
             search_on_locs: true,
             search_on_texts: true,
@@ -124,7 +140,7 @@ impl Default for GlobalSearch {
 impl GlobalSearch {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn search(&mut self, pack_file: &mut PackFile) {
+    pub fn search(&mut self, pack_file: &mut PackFile, dependencies: &Dependencies) {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
@@ -142,34 +158,118 @@ impl GlobalSearch {
 
         // If we got no schema, don't even decode.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            if self.search_on_dbs {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::DB, false);
-                self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_path().to_vec();
-                    if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                        Some(self.search_on_db(&path, &data, &matching_mode))
-                    } else { None }
-                }).collect();
-            }
 
-            if self.search_on_locs {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false);
-                self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_path().to_vec();
-                    if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                        Some(self.search_on_loc(&path, &data, &matching_mode))
-                    } else { None }
-                }).collect();
-            }
+            match self.source {
+                SearchSource::PackFile => {
+                    if self.search_on_dbs {
+                        let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::DB, false);
+                        self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
 
-            if self.search_on_texts {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
-                self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_path().to_vec();
-                    if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                        Some(self.search_on_text(&path, &data, &matching_mode))
-                    } else { None }
-                }).collect();
+                    if self.search_on_locs {
+                        let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false);
+                        self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+
+                    if self.search_on_texts {
+                        let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
+                        self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+                }
+                SearchSource::ParentFiles => {
+                    if self.search_on_dbs {
+                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::DB], false);
+                        self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+
+                    if self.search_on_locs {
+                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Loc], false);
+                        self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+
+                    if self.search_on_texts {
+                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
+                        self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+                },
+                SearchSource::GameFiles => {
+                    if self.search_on_dbs {
+                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::DB], false);
+                        self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+
+                    if self.search_on_locs {
+                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Loc], false);
+                        self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+
+                    if self.search_on_texts {
+                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
+                        self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                            let path = packed_file.get_path().to_vec();
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
+                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            } else { None }
+                        }).collect();
+                    }
+                },
+
+                // Asskit files are only tables.
+                SearchSource::AssKitFiles => {
+                    if self.search_on_dbs {
+                        let game_selected = GAME_SELECTED.read().unwrap();
+                        let tables = dependencies.get_ref_asskit_only_db_tables();
+                        self.matches_db = tables.par_iter().filter_map(|table| {
+                            let table_name = match game_selected.get_vanilla_db_table_name_logic() {
+                                VanillaDBTableNameLogic::FolderName => table.get_table_name(),
+                                VanillaDBTableNameLogic::DefaultName(ref default_name) => default_name.to_owned()
+                            };
+
+                            let path = vec!["db".to_owned(), table.get_table_name(), table_name];
+                            Some(self.search_on_db(&path, &table, &matching_mode))
+                        }).collect();
+                    }
+                },
             }
 
             if self.search_on_schema {
@@ -191,6 +291,9 @@ impl GlobalSearch {
 
         // Don't do anything if we have no pattern to search.
         if self.pattern.is_empty() { return }
+
+        // This is only useful for PackFiles, not for dependencies..
+        if self.source != SearchSource::PackFile { return }
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {

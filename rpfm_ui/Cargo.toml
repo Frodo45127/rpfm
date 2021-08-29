@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui"
-version = "2.5.4"
+version = "2.5.101"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
@@ -10,6 +10,7 @@ edition = "2018"
 support_rigidmodel = ["rpfm_lib/support_rigidmodel"]
 support_modern_dds = []
 support_uic = ["rpfm_lib/support_uic"]
+only_for_the_brave = []
 
 default = []
 
@@ -36,7 +37,7 @@ chrono = "^0.4"
 regex = "^1"
 
 # Support for open files in a native way.
-open = "^1.2"
+open = "^2.0"
 
 # Qt dependencies.
 cpp_core = "^0.6"
@@ -52,7 +53,7 @@ meval = "^0.2"
 uuid = { version = "^0.8", features = ["v4"] }
 
 # Translation support.
-fluent = "^0.15"
+fluent = "^0.16"
 fluent-bundle = "^0.15"
 unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
@@ -63,7 +64,7 @@ rayon = "^1.3"
 # Logging support.
 log = "^0.4"
 simplelog = "^0.10"
-sentry = "^0.22"
+sentry = "^0.23"
 
 # Better iterator support.
 itertools = "^0.10"

@@ -37,17 +37,26 @@ pub trait Encoder {
     /// This function allows us to encode an u16 integer into the provided `Vec<u8>`.
     fn encode_integer_u16(&mut self, integer: u16);
 
+    /// This function allows us to encode an u24 integer into the provided `Vec<u8>`.
+    fn encode_integer_u24(&mut self, integer: u32);
+
     /// This function allows us to encode an u32 integer into the provided `Vec<u8>`.
     fn encode_integer_u32(&mut self, integer: u32);
 
     /// This function allows us to encode an u64 integer into the provided `Vec<u8>`.
     fn encode_integer_u64(&mut self, integer: u64);
 
+    /// This function allows us to encode an u32 integer with ULEB_128 (CA's flavour of it) encoding into the provided `Vec<u8>`.
+    fn encode_integer_cauleb128(&mut self, integer: u32);
+
     /// This function allows us to encode an i8 integer into the provided `Vec<u8>`.
     fn encode_integer_i8(&mut self, integer: i8);
 
     /// This function allows us to encode an i16 integer into the provided `Vec<u8>`.
     fn encode_integer_i16(&mut self, integer: i16);
+
+    /// This function allows us to encode an i24 integer into the provided `Vec<u8>`.
+    fn encode_integer_i24(&mut self, integer: i32);
 
     /// This function allows us to encode an i32 integer into the provided `Vec<u8>`.
     fn encode_integer_i32(&mut self, integer: i32);
@@ -57,6 +66,9 @@ pub trait Encoder {
 
     /// This function allows us to encode a f32 float into the provided `Vec<u8>`.
     fn encode_float_f32(&mut self, float: f32);
+
+    /// This function allows us to encode a f64 float into the provided `Vec<u8>`.
+    fn encode_float_f64(&mut self, float: f64);
 
     /// This function allows us to encode an UTF-8 String into the provided `Vec<u8>`.
     fn encode_string_u8(&mut self, string: &str);
@@ -109,6 +121,11 @@ impl Encoder for Vec<u8> {
         self.write_u16::<LittleEndian>(integer).unwrap();
     }
 
+    fn encode_integer_u24(&mut self, integer: u32) {
+        self.write_u32::<LittleEndian>(integer).unwrap();
+        self.pop();
+    }
+
     fn encode_integer_u32(&mut self, integer: u32) {
         self.write_u32::<LittleEndian>(integer).unwrap();
     }
@@ -117,12 +134,42 @@ impl Encoder for Vec<u8> {
         self.write_u64::<LittleEndian>(integer).unwrap();
     }
 
+    fn encode_integer_cauleb128(&mut self, mut integer: u32) {
+        let mut data = vec![];
+
+        loop {
+
+            // Get the byte to encode.
+            let byte = integer & 0x7f;
+
+            // If it's not the last one, encode it with the 0x80 bit set,
+            // and move the rest of the number to be ready to check the next one.
+            if byte != integer {
+                data.push(byte as u8 | 0x80);
+                integer >>= 7;
+            } else {
+                data.push(byte as u8 | 0x80);
+                break;
+            }
+        }
+
+        data.reverse();
+        *data.last_mut().unwrap() &= 0x7f;
+
+        self.extend_from_slice(&data);
+    }
+
     fn encode_integer_i8(&mut self, integer: i8) {
         self.push(integer as u8);
     }
 
     fn encode_integer_i16(&mut self, integer: i16) {
         self.write_i16::<LittleEndian>(integer).unwrap();
+    }
+
+    fn encode_integer_i24(&mut self, integer: i32) {
+        self.write_i32::<LittleEndian>(integer).unwrap();
+        self.pop();
     }
 
     fn encode_integer_i32(&mut self, integer: i32) {
@@ -135,6 +182,10 @@ impl Encoder for Vec<u8> {
 
     fn encode_float_f32(&mut self, float: f32) {
         self.write_f32::<LittleEndian>(float).unwrap();
+    }
+
+    fn encode_float_f64(&mut self, float: f64) {
+        self.write_f64::<LittleEndian>(float).unwrap();
     }
 
     fn encode_string_u8(&mut self, string: &str) {

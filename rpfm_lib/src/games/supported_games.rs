@@ -95,22 +95,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinEpic, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 0,
@@ -121,22 +105,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 1_099_410,
@@ -174,22 +142,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["database.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 779_340,
@@ -200,22 +152,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec!["database.pack".to_owned()],
-                    loc_packs: vec![
-                        "localisation/en/local_en.pack".to_owned(),     // English
-                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
-                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
-                        "localisation/ge/local_ge.pack".to_owned(),     // German
-                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
-                        "localisation/fr/local_fr.pack".to_owned(),     // French
-                        "localisation/it/local_it.pack".to_owned(),     // Italian
-                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
-                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
-                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
-                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
-                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![
                         "audio.pack".to_owned(),
                         "audio_bl.pack".to_owned(),
@@ -303,22 +239,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 594_570,
@@ -329,22 +249,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "localisation/en/local_en.pack".to_owned(),     // English
-                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
-                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
-                        "localisation/ge/local_ge.pack".to_owned(),     // German
-                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
-                        "localisation/fr/local_fr.pack".to_owned(),     // French
-                        "localisation/it/local_it.pack".to_owned(),     // Italian
-                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
-                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
-                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
-                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
-                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![
                         "audio.pack".to_owned(),
                         "audio_2.pack".to_owned(),
@@ -511,26 +415,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec![
-                        "data.pack".to_owned(),         // Central data PackFile
-                        "data_bl.pack".to_owned(),      // Blood DLC Data
-                        "data_bm.pack".to_owned()       // Beastmen DLC Data
-                    ],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 364_360,
@@ -541,26 +425,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec![
-                        "data.pack".to_owned(),         // Central data PackFile
-                        "data_bl.pack".to_owned(),      // Blood DLC Data
-                        "data_bm.pack".to_owned()       // Beastmen DLC Data
-                    ],
-                    loc_packs: vec![
-                        "localisation/local_en.pack".to_owned(),     // English
-                        "localisation/local_br.pack".to_owned(),     // Brazilian
-                        "localisation/local_cz.pack".to_owned(),     // Czech
-                        "localisation/local_ge.pack".to_owned(),     // German
-                        "localisation/local_sp.pack".to_owned(),     // Spanish
-                        "localisation/local_fr.pack".to_owned(),     // French
-                        "localisation/local_it.pack".to_owned(),     // Italian
-                        "localisation/local_kr.pack".to_owned(),     // Korean
-                        "localisation/local_pl.pack".to_owned(),     // Polish
-                        "localisation/local_ru.pack".to_owned(),     // Russian
-                        "localisation/local_tr.pack".to_owned(),     // Turkish
-                        "localisation/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "localisation/local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![
                         "boot.pack".to_owned(),
                         "data.pack".to_owned(),
@@ -679,22 +543,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 712_100,
@@ -705,22 +553,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "localisation/en/local_en.pack".to_owned(),     // English
-                        "localisation/br/local_br.pack".to_owned(),     // Brazilian
-                        "localisation/cz/local_cz.pack".to_owned(),     // Czech
-                        "localisation/ge/local_ge.pack".to_owned(),     // German
-                        "localisation/sp/local_sp.pack".to_owned(),     // Spanish
-                        "localisation/fr/local_fr.pack".to_owned(),     // French
-                        "localisation/it/local_it.pack".to_owned(),     // Italian
-                        "localisation/kr/local_kr.pack".to_owned(),     // Korean
-                        "localisation/pl/local_pl.pack".to_owned(),     // Polish
-                        "localisation/ru/local_ru.pack".to_owned(),     // Russian
-                        "localisation/tr/local_tr.pack".to_owned(),     // Turkish
-                        "localisation/cn/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "localisation/zh/local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![
                         "blood.pack".to_owned(),
                         "boot.pack".to_owned(),
@@ -787,22 +619,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 325_610,
@@ -814,22 +630,6 @@ impl SupportedGames {
 
                 // Internal linux port, shares structure with the one for Windows.
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 325_610,
@@ -866,22 +666,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data_rome2.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 214_950,
@@ -919,22 +703,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "local_cz.pack".to_owned(),     // Czech
-                        "local_ge.pack".to_owned(),     // German
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "local_fr.pack".to_owned(),     // French
-                        "local_it.pack".to_owned(),     // Italian
-                        "local_kr.pack".to_owned(),     // Korean
-                        "local_pl.pack".to_owned(),     // Polish
-                        "local_ru.pack".to_owned(),     // Russian
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![],
                     use_manifest: true,
                     store_id: 34_330,
@@ -945,22 +713,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec!["data.pack".to_owned()],
-                    loc_packs: vec![
-                        "localization/local_en.pack".to_owned(),     // English
-                        "localization/local_br.pack".to_owned(),     // Brazilian
-                        "localization/local_cz.pack".to_owned(),     // Czech
-                        "localization/local_ge.pack".to_owned(),     // German
-                        "localization/local_sp.pack".to_owned(),     // Spanish
-                        "localization/local_fr.pack".to_owned(),     // French
-                        "localization/local_it.pack".to_owned(),     // Italian
-                        "localization/local_kr.pack".to_owned(),     // Korean
-                        "localization/local_pl.pack".to_owned(),     // Polish
-                        "localization/local_ru.pack".to_owned(),     // Russian
-                        "localization/local_tr.pack".to_owned(),     // Turkish
-                        "localization/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "localization/local_zh.pack".to_owned(),     // Traditional Chinese
-                    ],
                     vanilla_packs: vec![
                         "boot.pack".to_owned(),
                         "bp_orig.pack".to_owned(),
@@ -1020,42 +772,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
-                        "data.pack".to_owned(),         // Main DB PackFile
-                        "patch.pack".to_owned(),        // First Patch
-                        "patch2.pack".to_owned(),       // Second Patch
-                        "patch3.pack".to_owned(),       // Third Patch
-                        "patch4.pack".to_owned(),       // Fourth Patch
-                        "patch6.pack".to_owned(),       // Six Patch
-                    ],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),         // English
-                        "local_en_patch.pack".to_owned(),   // English Patch
-                        "local_br.pack".to_owned(),         // Brazilian
-                        "local_br_patch.pack".to_owned(),   // Brazilian Patch
-                        "local_cz.pack".to_owned(),         // Czech
-                        "local_cz_patch.pack".to_owned(),   // Czech Patch
-                        "local_ge.pack".to_owned(),         // German
-                        "local_ge_patch.pack".to_owned(),   // German Patch
-                        "local_sp.pack".to_owned(),         // Spanish
-                        "local_sp_patch.pack".to_owned(),   // Spanish Patch
-                        "local_fr.pack".to_owned(),         // French
-                        "local_fr_patch.pack".to_owned(),   // French Patch
-                        "local_it.pack".to_owned(),         // Italian
-                        "local_it_patch.pack".to_owned(),   // Italian Patch
-                        "local_kr.pack".to_owned(),         // Korean
-                        "local_kr_patch.pack".to_owned(),   // Korean Patch
-                        "local_pl.pack".to_owned(),         // Polish
-                        "local_pl_patch.pack".to_owned(),   // Polish Patch
-                        "local_ru.pack".to_owned(),         // Russian
-                        "local_ru_patch.pack".to_owned(),   // Russian Patch
-                        "local_tr.pack".to_owned(),         // Turkish
-                        "local_tr_patch.pack".to_owned(),   // Turkish Patch
-                        "local_cn.pack".to_owned(),         // Simplified Chinese
-                        "local_cn_patch.pack".to_owned(),   // Simplified Chinese Patch
-                        "local_zh.pack".to_owned(),         // Traditional Chinese
-                        "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
-                    ],
                     vanilla_packs: vec![
                         "battleterrain.pack".to_owned(),
                         "boot.pack".to_owned(),
@@ -1138,43 +854,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    db_packs: vec![
-                        "main.pack".to_owned(),         // Main DB PackFile
-                        "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
-                        "patch.pack".to_owned(),        // First Patch
-                        "patch2.pack".to_owned(),       // Second Patch
-                        "patch3.pack".to_owned(),       // Third Patch
-                        "patch4.pack".to_owned(),       // Fourth Patch
-                        "patch5.pack".to_owned(),       // Fifth Patch
-                    ],
-                    loc_packs: vec![
-                        "local_en.pack".to_owned(),     // English
-                        "patch_en.pack".to_owned(),     // English Patch
-                        "local_br.pack".to_owned(),     // Brazilian
-                        "patch_br.pack".to_owned(),     // Brazilian Patch
-                        "local_cz.pack".to_owned(),     // Czech
-                        "patch_cz.pack".to_owned(),     // Czech Patch
-                        "local_ge.pack".to_owned(),     // German
-                        "patch_ge.pack".to_owned(),     // German Patch
-                        "local_sp.pack".to_owned(),     // Spanish
-                        "patch_sp.pack".to_owned(),     // Spanish Patch
-                        "local_fr.pack".to_owned(),     // French
-                        "patch_fr.pack".to_owned(),     // French Patch
-                        "local_it.pack".to_owned(),     // Italian
-                        "patch_it.pack".to_owned(),     // Italian Patch
-                        "local_kr.pack".to_owned(),     // Korean
-                        "patch_kr.pack".to_owned(),     // Korean Patch
-                        "local_pl.pack".to_owned(),     // Polish
-                        "patch_pl.pack".to_owned(),     // Polish Patch
-                        "local_ru.pack".to_owned(),     // Russian
-                        "patch_ru.pack".to_owned(),     // Russian Patch
-                        "local_tr.pack".to_owned(),     // Turkish
-                        "patch_tr.pack".to_owned(),     // Turkish Patch
-                        "local_cn.pack".to_owned(),     // Simplified Chinese
-                        "patch_cn.pack".to_owned(),     // Simplified Chinese Patch
-                        "local_zh.pack".to_owned(),     // Traditional Chinese
-                        "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
-                    ],
                     vanilla_packs: vec![
                         "anim.pack".to_owned(),
                         "battlepresets.pack".to_owned(),
@@ -1241,43 +920,6 @@ impl SupportedGames {
                 });
 
                 data.insert(InstallType::LnxSteam, InstallData {
-                    db_packs: vec![
-                        "main.pack".to_owned(),         // Main DB PackFile
-                        "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
-                        "patch.pack".to_owned(),        // First Patch
-                        "patch2.pack".to_owned(),       // Second Patch
-                        "patch3.pack".to_owned(),       // Third Patch
-                        "patch4.pack".to_owned(),       // Fourth Patch
-                        "patch5.pack".to_owned(),       // Fifth Patch
-                    ],
-                    loc_packs: vec![
-                        "../languages/local_en.pack".to_owned(),     // English
-                        "../languages/patch_en.pack".to_owned(),     // English Patch
-                        "../languages/local_br.pack".to_owned(),     // Brazilian
-                        "../languages/patch_br.pack".to_owned(),     // Brazilian Patch
-                        "../languages/local_cz.pack".to_owned(),     // Czech
-                        "../languages/patch_cz.pack".to_owned(),     // Czech Patch
-                        "../languages/local_ge.pack".to_owned(),     // German
-                        "../languages/patch_ge.pack".to_owned(),     // German Patch
-                        "../languages/local_sp.pack".to_owned(),     // Spanish
-                        "../languages/patch_sp.pack".to_owned(),     // Spanish Patch
-                        "../languages/local_fr.pack".to_owned(),     // French
-                        "../languages/patch_fr.pack".to_owned(),     // French Patch
-                        "../languages/local_it.pack".to_owned(),     // Italian
-                        "../languages/patch_it.pack".to_owned(),     // Italian Patch
-                        "../languages/local_kr.pack".to_owned(),     // Korean
-                        "../languages/patch_kr.pack".to_owned(),     // Korean Patch
-                        "../languages/local_pl.pack".to_owned(),     // Polish
-                        "../languages/patch_pl.pack".to_owned(),     // Polish Patch
-                        "../languages/local_ru.pack".to_owned(),     // Russian
-                        "../languages/patch_ru.pack".to_owned(),     // Russian Patch
-                        "../languages/local_tr.pack".to_owned(),     // Turkish
-                        "../languages/patch_tr.pack".to_owned(),     // Turkish Patch
-                        "../languages/local_cn.pack".to_owned(),     // Simplified Chinese
-                        "../languages/patch_cn.pack".to_owned(),     // Simplified Chinese Patch
-                        "../languages/local_zh.pack".to_owned(),     // Traditional Chinese
-                        "../languages/patch_zh.pack".to_owned(),     // Traditional Chinese Patch
-                    ],
                     vanilla_packs: vec![
                         "anim.pack".to_owned(),
                         "battlepresets.pack".to_owned(),
@@ -1372,8 +1014,6 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinWargaming, InstallData {
-                    db_packs: vec!["wad.pack".to_owned()],
-                    loc_packs: vec!["local_ex.pack".to_owned()],
                     vanilla_packs: vec![],
                     use_manifest: false,
                     store_id: 0,

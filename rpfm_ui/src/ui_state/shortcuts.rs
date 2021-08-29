@@ -51,9 +51,11 @@ const SHORTCUTS_MENU_BAR_MYMOD: [(&str, &str); 5] = [
 ];
 
 /// List of shortcuts for the `View` Menu.
-const SHORTCUTS_MENU_BAR_VIEW: [(&str, &str); 2] = [
+const SHORTCUTS_MENU_BAR_VIEW: [(&str, &str); 4] = [
     ("view_toggle_packfile_contents", ""),
     ("view_toggle_global_search_panel", "Ctrl+Shift+F"),
+    ("view_toggle_diagnostics_panel", ""),
+    ("view_toggle_dependencies_panel", ""),
 ];
 
 /// List of shortcuts for the `Game Selected` Menu.
@@ -82,7 +84,7 @@ const SHORTCUTS_MENU_BAR_ABOUT: [(&str, &str); 6] = [
 ];
 
 /// List of shortcuts for the PackFile Contents Contextual Menu.
-const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 25] = [
+const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 26] = [
     ("add_file", "Ctrl+A"),
     ("add_folder", "Ctrl+Shift+A"),
     ("add_from_packfile", "Ctrl+Alt+A"),
@@ -108,10 +110,11 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 25] = [
     ("open_notes", "Ctrl+Y"),
     ("expand_all", "Ctrl++"),
     ("collapse_all", "Ctrl+-"),
+    ("import_from_dependencies", ""),
 ];
 
 /// List of shortcuts for the Table PackedFile's Contextual Menu.
-const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 30] = [
+const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 31] = [
     ("add_row", "Ctrl+Shift+A"),
     ("insert_row", "Ctrl+I"),
     ("delete_row", "Ctrl+Del"),
@@ -143,6 +146,7 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 30] = [
     ("shortcut_close_tab_all_right", ""),
     ("shortcut_tab_prev", "Ctrl+Shift+Tab"),
     ("shortcut_tab_next", "Ctrl+Tab"),
+    ("shortcut_import_from_dependencies", ""),
 ];
 
 /// List of shortcuts for the Table Decoder.

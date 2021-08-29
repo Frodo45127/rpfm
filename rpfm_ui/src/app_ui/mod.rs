@@ -159,6 +159,7 @@ pub struct AppUI {
     pub view_toggle_packfile_contents: QPtr<QAction>,
     pub view_toggle_global_search_panel: QPtr<QAction>,
     pub view_toggle_diagnostics_panel: QPtr<QAction>,
+    pub view_toggle_dependencies_panel: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
@@ -274,6 +275,7 @@ pub struct AppUI {
     pub tab_bar_packed_file_close_all_right: QPtr<QAction>,
     pub tab_bar_packed_file_prev: QPtr<QAction>,
     pub tab_bar_packed_file_next: QPtr<QAction>,
+    pub tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -330,6 +332,7 @@ impl AppUI {
         let tab_bar_packed_file_close_all_right = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_tabs_to_right"));
         let tab_bar_packed_file_prev = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("prev_tab"));
         let tab_bar_packed_file_next = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("next_tab"));
+        let tab_bar_packed_file_import_from_dependencies = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("import_from_dependencies"));
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -337,8 +340,10 @@ impl AppUI {
         tab_bar_packed_file_close_all_right.set_enabled(true);
         tab_bar_packed_file_prev.set_enabled(true);
         tab_bar_packed_file_next.set_enabled(true);
+        tab_bar_packed_file_import_from_dependencies.set_enabled(true);
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
+        tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);
 
         //-----------------------------------------------//
         // Menu bar.
@@ -487,10 +492,12 @@ impl AppUI {
         let view_toggle_packfile_contents = menu_bar_view.add_action_q_string(&qtr("view_toggle_packfile_contents"));
         let view_toggle_global_search_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_global_search_panel"));
         let view_toggle_diagnostics_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_diagnostics_panel"));
+        let view_toggle_dependencies_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_dependencies_panel"));
 
         view_toggle_packfile_contents.set_checkable(true);
         view_toggle_global_search_panel.set_checkable(true);
         view_toggle_diagnostics_panel.set_checkable(true);
+        view_toggle_dependencies_panel.set_checkable(true);
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
@@ -736,6 +743,7 @@ impl AppUI {
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,
+            view_toggle_dependencies_panel,
 
             //-------------------------------------------------------------------------------//
             // "Game Selected" menu.
@@ -850,7 +858,8 @@ impl AppUI {
             tab_bar_packed_file_close_all_left,
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
-            tab_bar_packed_file_next
+            tab_bar_packed_file_next,
+            tab_bar_packed_file_import_from_dependencies
         }
     }
 }

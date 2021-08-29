@@ -38,6 +38,7 @@ use rpfm_lib::schema::Definition;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
@@ -81,7 +82,8 @@ impl PackedFileAnimFragmentView {
         app_ui: &Rc<AppUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>
     ) -> Result<PackedFileInfo> {
 
         // Get the decoded Table.
@@ -135,6 +137,7 @@ impl PackedFileAnimFragmentView {
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
+            dependencies_ui,
             TableType::AnimFragment(From::from(table_data_1)),
             None,
             packed_file_view.data_source.clone()
@@ -146,6 +149,7 @@ impl PackedFileAnimFragmentView {
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
+            dependencies_ui,
             TableType::AnimFragment(From::from(table_data_2)),
             None,
             packed_file_view.data_source.clone()

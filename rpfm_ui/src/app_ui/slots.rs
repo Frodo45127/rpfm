@@ -26,6 +26,7 @@ use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QUrl;
 
+use std::collections::BTreeMap;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -37,19 +38,20 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packfile::{PathType, PFHFileType, CompressionState};
+use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
-use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{View, ViewType};
+use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
+use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -104,6 +106,7 @@ pub struct AppUISlots {
     pub view_toggle_packfile_contents: QBox<SlotOfBool>,
     pub view_toggle_global_search_panel: QBox<SlotOfBool>,
     pub view_toggle_diagnostics_panel: QBox<SlotOfBool>,
+    pub view_toggle_dependencies_panel: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Game Selected` menu slots.
@@ -169,6 +172,7 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_close_all_right: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
 }
 
 pub struct AppUITempSlots {}
@@ -186,6 +190,7 @@ impl AppUISlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Self {
 
         //-----------------------------------------------//
@@ -197,8 +202,9 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui => move || {
-                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            diagnostics_ui,
+            dependencies_ui => move || {
+                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
             }
         ));
 
@@ -243,7 +249,9 @@ impl AppUISlots {
                     app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
                     // Update the TreeView.
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
+                    let mut build_data = BuildData::new();
+                    build_data.editable = true;
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                     // Re-enable the Main Window.
                     app_ui.main_window.set_enabled(true);
@@ -323,7 +331,13 @@ impl AppUISlots {
 
         // This slot is used for the "Install" action.
         let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+            app_ui,
+            pack_file_contents_ui => move |_| {
+
+                // Save before installing, to ensure we always have the latest data on install.
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
+                    return show_dialog(&app_ui.main_window, error, false);
+                }
 
                 // Get the current path of the PackFile.
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
@@ -478,7 +492,9 @@ impl AppUISlots {
                         app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                         // Update the TreeView.
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
+                        let mut build_data = BuildData::new();
+                        build_data.editable = true;
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                         match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
@@ -702,7 +718,10 @@ impl AppUISlots {
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
+
+                            let mut build_data = BuildData::new();
+                            build_data.editable = true;
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
                             let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                             packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                             packfile_item.set_text(&QString::from_std_str(&full_mod_name));
@@ -810,7 +829,7 @@ impl AppUISlots {
                         UI_STATE.set_operational_mode(&app_ui, None);
                         CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                         show_dialog(&app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
@@ -891,10 +910,12 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui,
-            global_search_ui => move || {
+            global_search_ui,
+            dependencies_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
                 app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
                 app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible());
+                app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
         }));
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -916,6 +937,12 @@ impl AppUISlots {
             diagnostics_ui => move |state| {
                 if !state { diagnostics_ui.get_ref_diagnostics_dock_widget().hide(); }
                 else { diagnostics_ui.get_ref_diagnostics_dock_widget().show();}
+        }));
+
+        let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
+            dependencies_ui => move |state| {
+                if !state { dependencies_ui.dependencies_dock_widget.hide(); }
+                else { dependencies_ui.dependencies_dock_widget.show();}
         }));
 
         //-----------------------------------------------//
@@ -971,8 +998,9 @@ impl AppUISlots {
         // NOTE: NEVER EVER AGAIN SHALL YOU TRIGGER HERE A REBUILD OF THE GAME-SPECIFIC SLOTS!!!!!!!!!!
         let change_game_selected = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
-            pack_file_contents_ui => move |_| {
-                AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, true);
+            pack_file_contents_ui,
+            dependencies_ui => move |_| {
+                AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
             }
         ));
 
@@ -982,7 +1010,8 @@ impl AppUISlots {
 
         // What happens when we trigger the "Generate Dependencies Cache" action.
         let special_stuff_generate_dependencies_cache = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+            app_ui,
+            dependencies_ui => move |_| {
 
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
@@ -1001,7 +1030,22 @@ impl AppUISlots {
                     CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(asskit_path, version));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
-                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true),
+                        Response::DependenciesInfo(response) => {
+                            let mut parent_build_data = BuildData::new();
+                            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+
+                            let mut game_build_data = BuildData::new();
+                            game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+
+                            let mut asskit_build_data = BuildData::new();
+                            asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+
+                            show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
+                        },
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
@@ -1034,7 +1078,7 @@ impl AppUISlots {
                         Response::VecVecString(response) => {
                             let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response), DataSource::PackFile);
                             show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
                         }
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -1067,7 +1111,7 @@ impl AppUISlots {
                     Response::StringVecVecString(response) => {
                         let message = response.0;
                         let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
                         show_dialog(&app_ui.main_window, &message, true);
                     }
 
@@ -1111,8 +1155,10 @@ impl AppUISlots {
                         let response = CENTRAL_COMMAND.recv_message_qt_try();
                         match response {
                             Response::PackFileInfo(pack_file_info) => {
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                                let mut build_data = BuildData::new();
+                                build_data.editable = true;
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
                                 let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                                 packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
@@ -1194,6 +1240,12 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                #[cfg(feature = "only_for_the_brave")]
+                let only_for_the_brave = ", Only For The Brave";
+
+                #[cfg(not(feature = "only_for_the_brave"))]
+                let only_for_the_brave = "";
+
                 QMessageBox::about(
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
@@ -1205,7 +1257,7 @@ impl AppUISlots {
                                 <td><h2><b>Rusted PackFile Manager</b></h2></td>
                             </tr>
                             <tr>
-                                <td>{} {} Patch</td>
+                                <td>{} {} Patch{}</td>
                             </tr>
                              <tr>
                                 <td>Feature flags enabled: {}</td>
@@ -1248,7 +1300,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, get_feature_flags()))
+                        ", &VERSION, &VERSION_SUBTITLE, &only_for_the_brave, get_feature_flags()))
                     );
             }
         ));
@@ -1499,6 +1551,62 @@ impl AppUISlots {
             }
         ));
 
+        let tab_bar_packed_file_import_from_dependencies = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            dependencies_ui => move || {
+
+                // What this does:
+                // - Get the data source and path of the open file.
+                // - Import it into our mod.
+                // - Change the data source of the view to PackFile, so we can reuse the view.
+                let index = app_ui.tab_bar_packed_file.current_index();
+                if index != -1 {
+                    let mut paths_by_source = BTreeMap::new();
+                    let data_source_and_path = if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|packed_file_view| {
+                        index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                    }) {
+                        let path = packed_file_view.get_ref_path();
+                        let data_source = packed_file_view.get_data_source();
+                        paths_by_source.insert(data_source, vec![PathType::File(path.to_vec())]);
+                        Some((data_source, path.to_vec()))
+                    } else { None };
+
+                    if let Some((data_source, path)) = data_source_and_path {
+                        match data_source {
+                            DataSource::ParentFiles |
+                            DataSource::GameFiles => {
+                                dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
+
+                                let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
+                                    if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
+                                        Some(packed_file_view.get_ref_path().to_vec())
+                                    } else { None }
+                                });
+
+                                // If we're overwriting a PackedFile already on our PackFile, remove it.
+                                if let Some(path_to_purge) = path_to_purge {
+                                    let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
+                                }
+
+                                if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
+                                    index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                                }) {
+                                    packed_file_view.set_data_source(DataSource::PackFile);
+                                    if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
+                                        show_dialog(&app_ui.main_window, &error, false);
+                                    }
+
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                app_ui.update_views_names();
+            }
+        ));
+
         // And here... we return all the slots.
 		Self {
 
@@ -1536,6 +1644,7 @@ impl AppUISlots {
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,
+            view_toggle_dependencies_panel,
 
             //-----------------------------------------------//
             // `Game Selected` menu slots.
@@ -1601,6 +1710,7 @@ impl AppUISlots {
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
+            tab_bar_packed_file_import_from_dependencies
 		}
 	}
 }
@@ -1611,8 +1721,9 @@ impl AppUITempSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
         AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
     }
 }

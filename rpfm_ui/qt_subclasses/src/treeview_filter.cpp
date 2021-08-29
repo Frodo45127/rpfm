@@ -1,4 +1,4 @@
-﻿#include "treeview_filter.h"
+#include "treeview_filter.h"
 #include <QSortFilterProxyModel>
 #include <QItemSelection>
 #include <QRegExp>
@@ -31,6 +31,17 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
     if (sourceModel()->hasChildren(currntIndex)) {
         for (int i = 0; i < sourceModel()->rowCount(currntIndex) && !result; ++i) {
 
+            QString extraData1 = currntIndex.data(41).toString();
+            QString extraData2 = currntIndex.data(42).toString();
+
+            if (!extraData1.isEmpty()) {
+                result |= extraData1.contains(filterRegExp());
+            }
+
+            if (!extraData2.isEmpty()) {
+                result |= extraData2.contains(filterRegExp());
+            }
+
             // Keep the parent if a children is shown.
             result |= filterAcceptsRow(i, currntIndex);
         }
@@ -39,12 +50,21 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
     // If it's a file, and it's not visible, there is a special behavior:
     // if the parent matches the filter, we assume all it's children do it too.
     // This is to avoid the "Show table folder, no table file" problem.
-    else {
-        result = QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
-        if (!result) {
-            QModelIndex granpa = source_parent.parent();
-            int granpa_row = source_parent.row();
-            result = QSortFilterProxyModel::filterAcceptsRow(granpa_row, granpa);
+    else if (!result) {
+
+        QModelIndex granpa = source_parent.parent();
+        int granpa_row = source_parent.row();
+        result = QSortFilterProxyModel::filterAcceptsRow(granpa_row, granpa);
+
+        QString extraData1 = currntIndex.data(41).toString();
+        QString extraData2 = currntIndex.data(42).toString();
+
+        if (!extraData1.isEmpty()) {
+            result |= extraData1.contains(filterRegExp());
+        }
+
+        if (!extraData2.isEmpty()) {
+            result |= extraData2.contains(filterRegExp());
         }
     }
 

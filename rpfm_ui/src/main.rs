@@ -95,6 +95,7 @@ macro_rules! clone {
 mod app_ui;
 mod background_thread;
 mod communications;
+mod dependencies_ui;
 mod diagnostics_ui;
 mod ffi;
 mod global_search_ui;
@@ -282,7 +283,7 @@ const QT_PROGRAM: &str = "rpfm";
 fn main() {
 
     // Log the crashes so the user can send them himself.
-    if !cfg!(debug_assertions) && CrashReport::init().is_err() {
+    if CrashReport::init().is_err() {
         let _ = CombinedLogger::init(
             vec![
                 TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),

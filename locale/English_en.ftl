@@ -1,5 +1,32 @@
 ### Localization for RPFM-UI - English
 
+## These two need to be changed for special builds, so they go first.
+
+title_only_for_the_brave = Only For The Brave
+message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But... you can check features before anyone else.</p>
+
+    <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version.</p>
+
+    <p>So, in "Only For The Brave" versions, it's hightly reccomended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
+    <ul>
+        <li>RigidModel Editor: it has been updated, but it barely received testing. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
+        <li>ESF Editor: It has received only very limited testing. If you're going to edit mods with ESF/CCD/SAVE files and don't want to edit them by accident, you can disable it in the settings.</li>
+    </ul>
+
+    <p>Notes about the RigidModel Editor:</p>
+    <ul>
+        <li>There are certain buttons that may look like they do nothing. They should work properly on a future update.</li>
+    </ul>
+
+    <p>Notes about the ESF Editor:</p>
+    <ul>
+        <li>It only supports one ESF format (may not open files too old).</li>
+        <li>It doesn't support importing/exporting.</li>
+        <li>It doesn't support editing compressed nodes.</li>
+        <li>The "Label" texts are placeholders. Ignore them.</li>
+        <li>Certain numeric fields may accept values higher than they should. It's only an UI issue. The backend already check for those and fix them.</li>
+    </ul>
+
 ## General Localization
 
 gen_loc_accept = Accept
@@ -75,6 +102,7 @@ mymod_game = Game of the Mod:
 view_toggle_packfile_contents = Toggle &PackFile Contents
 view_toggle_global_search_panel = Toggle Global Search Window
 view_toggle_diagnostics_panel = Toggle Diagnostics Window
+view_toggle_dependencies_panel = Toggle Dependencies Window
 
 ## Game Selected Menu
 
@@ -1014,6 +1042,20 @@ are_you_sure_rename_db_folder = <p>You are trying to break the golden rule of DB
     <p>The only reason why there is even a button in this dialog to continue is for the very specific situation when you're trying to fix a table folder that someone else renamed.</p>
     <p>If that's not your case, exit this dialog and remember: <b>NEVER RENAME THE TABLE FOLDERS</b>.</p>
 
+settings_enable_esf_editor = Enable ESF/CCD/SAVE editor:
+tt_settings_debug_enable_esf_editor = This setting allows you to disable the new ESF editor (still in beta) should you face any issues with it,
+    so you can still use RPFM without it.
+gen_loc_dependencies = Dependencies
+context_menu_import = Import
+dependencies_asskit_files = Assembly Kit Files
+dependencies_game_files = Game Files
+dependencies_parent_files = Parent Files
+import_from_dependencies = Import from Dependencies
+global_search_search_source = Search Source
+global_search_source_packfile = Packfile
+global_search_source_parent = Parent Files
+global_search_source_game = Game Files
+global_search_source_asskit = Assembly Kit Tables
 menu_bar_tools = Tools
 tools_faction_painter = Faction Painter
 faction_painter_title = Faction Painter
