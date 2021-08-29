@@ -19,6 +19,8 @@ use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
 use qt_widgets::QWidget;
 
+use qt_gui::QColor;
+
 #[cfg(feature = "support_modern_dds")]
 use qt_gui::QImage;
 use qt_gui::QPixmap;
@@ -39,7 +41,6 @@ use qt_core::QTimer;
 use qt_core::QListOfInt;
 use qt_core::CaseSensitivity;
 
-#[cfg(feature = "support_rigidmodel")]
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
@@ -214,7 +215,7 @@ pub fn get_text_safe(document: &QBox<QWidget>) -> Ptr<QString> {
     unsafe { Ptr::from_raw(get_text(document.as_mut_raw_ptr())) }
 }
 
-/// This function allow us to set the text of  the provided KTextEditor.
+/// This function allow us to set the text of the provided KTextEditor.
 extern "C" { fn set_text(document: *mut QWidget, string: *mut QString, highlighting_mode: *mut QString); }
 pub fn set_text_safe(document: &QBox<QWidget>, string: &Ptr<QString>, highlighting_mode: &Ptr<QString>) {
     unsafe { set_text(document.as_mut_raw_ptr(), string.as_mut_raw_ptr(), highlighting_mode.as_mut_raw_ptr()) }
@@ -224,6 +225,22 @@ pub fn set_text_safe(document: &QBox<QWidget>, string: &Ptr<QString>, highlighti
 extern "C" { fn open_text_editor_config(parent: *mut QWidget); }
 pub fn open_text_editor_config_safe(parent: &Ptr<QWidget>) {
     unsafe { open_text_editor_config(parent.as_mut_raw_ptr()) }
+}
+
+//---------------------------------------------------------------------------//
+// KColorCombo stuff.
+//---------------------------------------------------------------------------//
+
+/// This function allow us to get the QColor from the provided KColorCombo.
+extern "C" { fn get_color(view: *mut QWidget) -> u32; }
+pub fn get_color_safe(view: &Ptr<QWidget>) -> CppBox<QColor> {
+    unsafe { QColor::from_rgba(get_color(view.as_mut_raw_ptr())) }
+}
+
+/// This function allow us to set the QColor of the provided KColorCombo.
+extern "C" { fn set_color(view: *mut QWidget, color: *mut QColor); }
+pub fn set_color_safe(view: &Ptr<QWidget>, color: &Ptr<QColor>) {
+    unsafe { set_color(view.as_mut_raw_ptr(), color.as_mut_raw_ptr()) }
 }
 
 //---------------------------------------------------------------------------//
