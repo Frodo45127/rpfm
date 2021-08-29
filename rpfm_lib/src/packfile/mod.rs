@@ -942,6 +942,11 @@ impl PackFile {
         self.packed_files.par_iter_mut().filter(|x| paths.contains(&x.get_path())).collect()
     }
 
+    /// This function returns a copy of all the `PackedFiles` in the provided paths, in a case insensitive manner.
+    pub fn get_packed_files_by_paths_unicased(&self, paths: Vec<UniCase<String>>) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&UniCase::new(x.get_path().join("/")))).cloned().collect()
+    }
+
     /// This function returns a copy of all the `PackedFiles` starting with the provided path.
     pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
         self.packed_files.par_iter().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).cloned().collect()
@@ -955,6 +960,18 @@ impl PackFile {
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
+    pub fn get_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<PackedFile> {
+        let path_provided_len = path.chars().count();
+        self.packed_files.par_iter().filter(|x| {
+            if !path.is_empty() {
+                let path_str = x.get_path().join("/");
+                let path_len = path_str.chars().count();
+                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+            } else { false }
+        }).cloned().collect()
     }
 
     /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
@@ -1129,6 +1146,54 @@ impl PackFile {
         self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(From::from)
     }
 
+    /// This function returns a copy of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
+    pub fn get_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<PackedFile> {
+
+        // Keep the PathTypes added so we can return them to the UI easely.
+        let path_types = PathType::dedup(path_types);
+
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            matches!(item, PathType::PackFile)
+        });
+
+        let we_have_folder = path_types.par_iter().any(|item| {
+            matches!(item, PathType::Folder(_))
+        });
+
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            self.get_packed_files_all()
+        }
+
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            self.get_packed_files_by_paths_unicased(paths_files)
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/")))  } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            let mut packed_files = self.get_packed_files_by_paths_unicased(paths_files);
+
+            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
+                if let PathType::Folder(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).map(|path| self.get_packed_files_by_path_start_unicased(path))
+            .flatten()
+            .collect::<Vec<PackedFile>>());
+            packed_files
+        }
+    }
+
+    /// This function returns a copy of all the PackedFiles in the provided PathTypes.
     pub fn get_packed_files_by_path_type(&mut self, path_types: &[PathType]) -> Vec<PackedFile> {
 
         // Keep the PathTypes added so we can return them to the UI easely.
