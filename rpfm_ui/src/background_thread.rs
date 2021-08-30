@@ -18,7 +18,7 @@ use open::that_in_background;
 use rayon::prelude::*;
 use uuid::Uuid;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -312,9 +312,6 @@ pub fn background_loop() {
 
             // In case we want to check if there is a Dependency Database loaded...
             Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(dependencies.game_has_vanilla_data_loaded())),
-
-            // In case we want to check if there is a Schema loaded...
-            Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
@@ -1239,7 +1236,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GeneticHTMLError(tr("source_data_for_field_not_found")).into()));
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GenericHTMLError(tr("source_data_for_field_not_found")).into()));
                 }
             },
 
@@ -1283,7 +1280,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GeneticHTMLError(tr("loc_key_not_found")).into()));
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GenericHTMLError(tr("loc_key_not_found")).into()));
                 }
             },
 
@@ -1345,28 +1342,107 @@ pub fn background_loop() {
                 }
             },
 
+            // TODO: This has to be case insensitive.
             Command::GetPackedFilesFromAllSources(paths) => {
-                let mut packed_files = vec![];
+                let mut packed_files = HashMap::new();
 
-                if let Some(packed_file) = pack_file_decoded.get_packed_file_by_path(&paths) {
-                    packed_files.push((packed_file, DataSource::ParentFiles));
+                // Get PackedFiles requested from the Parent Files.
+                let mut packed_files_parent = BTreeMap::new();
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files(&paths) {
+                    for packed_file in packed_files_decoded {
+                        packed_files_parent.insert(packed_file.get_path().to_vec(), packed_file);
+                    }
+                    packed_files.insert(DataSource::ParentFiles, packed_files_parent);
                 }
 
-                if let Ok(packed_file) = dependencies.get_packedfile_from_parent_files(&paths) {
-                    packed_files.push((packed_file, DataSource::ParentFiles));
+                // Get PackedFiles requested from the Game Files.
+                let mut packed_files_game = BTreeMap::new();
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files(&paths) {
+                    for packed_file in packed_files_decoded {
+                        packed_files_game.insert(packed_file.get_path().to_vec(), packed_file);
+                    }
+                    packed_files.insert(DataSource::GameFiles, packed_files_game);
                 }
 
-                if let Ok(packed_file) = dependencies.get_packedfile_from_game_files(&paths) {
-                    packed_files.push((packed_file, DataSource::GameFiles));
-                }
-
-                //if let Ok(packed_file) = dependencies.get_packedfile_from_asskit_files(&paths) {
-                //    packed_files.push((packed_file, DataSource::AssKitFiles));
+                // Get PackedFiles requested from the AssKit Files.
+                //let mut packed_files_asskit = BTreeMap::new();
+                //if let Ok((packed_files_decoded, _)) = dependencies.get_packedfile_from_asskit_files(&paths) {
+                //    for packed_file in packed_files_decoded {
+                //        packed_files_asskit.insert(packed_file.get_path().to_vec(), packed_file);
+                //    }
+                //    packed_files.insert(DataSource::AssKitFiles, packed_files_asskit);
                 //}
 
-                CENTRAL_COMMAND.send_message_rust(Response::VecPackedFileDataSource(packed_files));
+                // Get PackedFiles requested from the currently open PackFile, if any.
+                let mut packed_files_packfile = BTreeMap::new();
+                for packed_file in pack_file_decoded.get_packed_files_by_path_type_unicased(&paths) {
+                    packed_files_packfile.insert(packed_file.get_path().to_vec(), packed_file );
+                }
+                packed_files.insert(DataSource::PackFile, packed_files_packfile);
+
+                // Return the full list of PackedFiles requested, splited by source.
+                CENTRAL_COMMAND.send_message_rust(Response::HashMapDataSourceBTreeMapVecStringPackedFile(packed_files));
             },
 
+            // TODO: This has to be case insensitive.
+            Command::SavePackedFilesToPackFileAndClean(packed_files) => {
+
+                let mut added_paths = vec![];
+                if let Some(packed_files) = packed_files.get(&DataSource::GameFiles) {
+                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
+                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
+                        added_paths.append(&mut paths);
+                    }
+                }
+
+                if let Some(packed_files) = packed_files.get(&DataSource::ParentFiles) {
+                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
+                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
+                        added_paths.append(&mut paths);
+                    }
+                }
+
+                if let Some(packed_files) = packed_files.get(&DataSource::PackFile) {
+                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
+                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
+                        added_paths.append(&mut paths);
+                    }
+                }
+
+                // Clean up duplicates from overwrites.
+                added_paths.sort();
+                added_paths.dedup();
+
+                // For merging/optimizing, we need to isolate DB Tables and Loc PackedFiles.
+                let mut db_files: BTreeMap<String, Vec<Vec<String>>> = BTreeMap::new();
+                let mut loc_files = vec![];
+
+                for path in &added_paths {
+                    if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(path) {
+                        match packed_file.get_packed_file_type(false) {
+                            PackedFileType::DB => {
+
+                                // DB Files must also be divided in groups.
+                                match db_files.get_mut(&path[1]) {
+                                    Some(db_data) => db_data.push(path.to_vec()),
+                                    None => { db_files.insert(path[1].to_owned(), vec![path.to_vec()]); }
+                                }
+                            },
+                            PackedFileType::Loc => loc_files.push(path.to_vec()),
+                            _ => {}
+                        }
+                    }
+                }
+
+                // Merge them in groups.
+                let mut paths_to_add: Vec<Vec<String>> = db_files.values().map(|paths| pack_file_decoded.merge_tables(paths, "test", true).unwrap() ).collect();
+                paths_to_add.push(pack_file_decoded.merge_tables(&loc_files, "test", true).unwrap());
+
+                // Then, optimize the PackFile.
+                let paths_to_delete = pack_file_decoded.optimize(&dependencies);
+
+                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)));
+            },
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

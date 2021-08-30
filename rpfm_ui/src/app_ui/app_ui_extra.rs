@@ -1988,26 +1988,15 @@ impl AppUI {
         // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
         if packed_file_type == PackedFileType::DB {
 
-            CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
-            CENTRAL_COMMAND.send_message_qt(Command::IsThereASchema);
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            let is_there_a_dependency_database = match response {
-                Response::Bool(it_is) => it_is,
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            };
-
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            let is_there_a_schema = match response {
-                Response::Bool(it_is) => it_is,
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            };
-
-            if !is_there_a_dependency_database {
-                return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false);
+            if SCHEMA.read().unwrap().is_none() {
+                return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
             }
 
-            if !is_there_a_schema {
-                return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
+            CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
+                Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false); },
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
 

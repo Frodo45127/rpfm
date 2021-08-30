@@ -107,7 +107,7 @@ pub enum ViewType {
 }
 
 /// This enum represents the source of the data in the view.
-#[derive(Debug, PartialEq, Clone, Copy, Ord, PartialOrd, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Ord, PartialOrd)]
 pub enum DataSource {
 
     /// This means the data is from somewhere in our PackFile.

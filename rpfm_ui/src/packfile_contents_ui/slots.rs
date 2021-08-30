@@ -33,6 +33,7 @@ use rpfm_lib::{common::get_files_from_subdir, packfile::RESERVED_NAME_NOTES};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};
+use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -414,21 +415,14 @@ impl PackFileContentsSlots {
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
                 CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
-                CENTRAL_COMMAND.send_message_qt(Command::IsThereASchema);
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 };
 
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                let is_there_a_schema = match response {
-                    Response::Bool(it_is) => it_is,
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                };
-
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
-                if !is_there_a_dependency_database || !is_there_a_schema {
+                if !is_there_a_dependency_database || SCHEMA.read().unwrap().is_none() {
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                     pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(false);
                     pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(false);

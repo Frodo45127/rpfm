@@ -16,7 +16,7 @@ use qt_core::QEventLoop;
 
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -182,9 +182,6 @@ pub enum Command {
     /// This command is used when we want to know if there is a Dependency Database loaded in memory.
     IsThereADependencyDatabase,
 
-    /// This command is used when we want to know if there is a Schema loaded in memory.
-    IsThereASchema,
-
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///
     /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
@@ -273,7 +270,7 @@ pub enum Command {
     GetPackedFile(Vec<String>),
 
     /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
-    GetPackedFilesFromAllSources(Vec<String>),
+    GetPackedFilesFromAllSources(Vec<PathType>),
 
     /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetCaVp8Format((Vec<String>, SupportedFormats)),
@@ -366,6 +363,9 @@ pub enum Command {
 
     // This command is used to import files from the dependencies into out PackFile.
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
+
+    /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
+    SavePackedFilesToPackFileAndClean(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -515,7 +515,10 @@ pub enum Response {
     VecU8(Vec<u8>),
 
     /// Response to return `DependenciesInfo`.
-    DependenciesInfo(DependenciesInfo)
+    DependenciesInfo(DependenciesInfo),
+
+    /// Response to return `HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>`.
+    HashMapDataSourceBTreeMapVecStringPackedFile(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>),
 }
 
 #[allow(dead_code)]

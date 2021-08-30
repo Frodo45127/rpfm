@@ -604,7 +604,7 @@ pub enum ErrorKind {
     NoHTMLError(String),
 
     /// Error for just passing a message along.
-    GeneticHTMLError(String),
+    GenericHTMLError(String),
 
     /// Error for when we're trying add/rename/whatever a file with a reserved path.
     ReservedFiles,
@@ -697,7 +697,13 @@ pub enum ErrorKind {
     DependenciesImportFailure(Vec<Vec<String>>),
 
     /// Error for when the user tries to do a Global Replace over dependencies.
-    GobalReplaceOverDependencies,
+    GlobalReplaceOverDependencies,
+
+    /// Error for when we select an unsupported game for a tool we're trying to use.
+    GameSelectedNotSupportedForTool,
+
+    /// Error for when one of the widgets in a Template UI fails to be found.
+    TemplateUIWidgetNotFound,
 }
 
 /// Implementation of `Error`.
@@ -1011,7 +1017,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
-            ErrorKind::GeneticHTMLError(error) => write!(f,"{}", error),
+            ErrorKind::GenericHTMLError(error) => write!(f,"{}", error),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
@@ -1042,7 +1048,9 @@ impl Display for ErrorKind {
             ErrorKind::GameAssemblyKitPathNotConfigured => write!(f, "<p>The Assembly Kit path is not yet configured for the game selected.</p>"),
             ErrorKind::GameManifestNotFound => write!(f, "<p>The manifest for the Game Selected hasn't been found.</p>"),
             ErrorKind::DependenciesImportFailure(paths) => write!(f, "<p>There was an error importing the following files:</p> <ul>{}</ul>", paths.iter().map(|x| "<li>".to_owned() + &x.join("/") + "</li>").collect::<String>()),
-            ErrorKind::GobalReplaceOverDependencies => write!(f, "<p>The dependencies are read-only. You cannot do a Global Replace over them.</p>"),
+            ErrorKind::GlobalReplaceOverDependencies => write!(f, "<p>The dependencies are read-only. You cannot do a Global Replace over them.</p>"),
+            ErrorKind::GameSelectedNotSupportedForTool => write!(f, "<p>This tool is not supported for the currently selected game.</p>"),
+            ErrorKind::TemplateUIWidgetNotFound => write!(f, "<p>One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.</p>"),
         }
     }
 }
@@ -1185,13 +1193,13 @@ impl From<SetLoggerError> for Error {
 /// Implementation to create an `Error` from a `git2::Error`.
 impl From<git2::Error> for Error {
     fn from(error: git2::Error) -> Self {
-        Self::from(ErrorKind::GeneticHTMLError(error.message().to_string()))
+        Self::from(ErrorKind::GenericHTMLError(error.message().to_string()))
     }
 }
 
 /// Implementation to create an `Error` from a `self_update::errors::Error`.
 impl From<self_update::errors::Error> for Error {
     fn from(error: self_update::errors::Error) -> Self {
-        Self::from(ErrorKind::GeneticHTMLError(error.to_string()))
+        Self::from(ErrorKind::GenericHTMLError(error.to_string()))
     }
 }

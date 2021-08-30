@@ -14,6 +14,8 @@ Module with all the code to connect `ToolFactionPainter` signals with their corr
 This module is, and should stay, private, as it's only glue between the `ToolFactionPainter` and `ToolFactionPainterSlots` structs.
 !*/
 
+use qt_widgets::q_dialog_button_box::StandardButton;
+
 use super::{ToolFactionPainter, slots::ToolFactionPainterSlots};
 
 /// This function connects all the actions from the provided `ToolFactionPainter` with their slots in `ToolFactionPainterSlots`.
@@ -21,7 +23,10 @@ use super::{ToolFactionPainter, slots::ToolFactionPainterSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &ToolFactionPainter, slots: &ToolFactionPainterSlots) {
-    //ui.restore_default_button.released().connect(&slots.restore_default);
-    //ui.cancel_button.released().connect(ui.dialog.slot_close());
-    //ui.accept_button.released().connect(ui.dialog.slot_accept());
+    ui.faction_list_view.selection_model().selection_changed().connect(&slots.load_data_to_detailed_view);
+    ui.faction_list_filter_line_edit.text_changed().connect(&slots.filter_edited);
+    ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
+
+    ui.button_box.button(StandardButton::Cancel).released().connect(ui.dialog.slot_close());
+    ui.button_box.button(StandardButton::Ok).released().connect(ui.dialog.slot_accept());
 }

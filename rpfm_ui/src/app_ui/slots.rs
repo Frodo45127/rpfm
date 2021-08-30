@@ -1222,7 +1222,9 @@ impl AppUISlots {
         let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
-                ToolFactionPainter::new(&app_ui, &pack_file_contents_ui);
+                if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
             }
         ));
 

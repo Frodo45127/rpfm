@@ -12,8 +12,9 @@
 Module with all the code related to `ToolFactionPainterSlots`.
 !*/
 
-use qt_core::QBox;
 use qt_core::SlotNoArgs;
+use qt_core::QBox;
+use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
 
@@ -23,11 +24,13 @@ use super::*;
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains all the slots we need to respond to signals of EVERY widget/action in the `ShortcutsUI` struct.
+/// This struct contains all the slots we need to respond to signals of EVERY widget/action in the `ToolFactionPainter` struct.
 ///
-/// This means everything you can do with the stuff you have in the `ShortcutsUI` goes here.
+/// This means everything you can do with the stuff you have in the `ToolFactionPainter` goes here.
 pub struct ToolFactionPainterSlots {
-    pub restore_default: QBox<SlotNoArgs>,
+    pub delayed_updates: QBox<SlotNoArgs>,
+    pub load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
+    pub filter_edited: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -38,17 +41,43 @@ pub struct ToolFactionPainterSlots {
 impl ToolFactionPainterSlots {
 
     /// This function creates a new `ToolFactionPainterSlots`.
-    pub unsafe fn new(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, ui: &Rc<ToolFactionPainter>) -> Self {
+    pub unsafe fn new(ui: &Rc<ToolFactionPainter>) -> Self {
 
-        // What happens when we hit the "Restore Default" action.
-        let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
+        let delayed_updates = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
-                //ShortcutsUI::load(&ui, &Shortcuts::new());
+                ui.filter_list();
+            }
+        ));
+
+        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(&ui.dialog, clone!(
+            ui => move |after, before| {
+
+                // Save the previous data if needed.
+                if before.count_0a() == 1 {
+                    let filter_index = before.take_at(0).indexes().take_at(0);
+                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    ui.save_from_detailed_view(index.as_ref());
+                }
+
+                // Load the new data.
+                if after.count_0a() == 1 {
+                    let filter_index = after.take_at(0).indexes().take_at(0);
+                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    ui.load_to_detailed_view(index.as_ref());
+                }
+            }
+        ));
+
+        let filter_edited = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.start_delayed_updates_timer();
             }
         ));
 
         ToolFactionPainterSlots {
-            restore_default
+            delayed_updates,
+            load_data_to_detailed_view,
+            filter_edited
         }
     }
 }

@@ -508,7 +508,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::PackFile {
-            return show_dialog(&app_ui.main_window, ErrorKind::GobalReplaceOverDependencies, false);
+            return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
@@ -581,7 +581,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::PackFile {
-            return show_dialog(&app_ui.main_window, ErrorKind::GobalReplaceOverDependencies, false);
+            return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
