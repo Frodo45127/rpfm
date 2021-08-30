@@ -334,13 +334,22 @@ impl TableView {
 
     /// This function fills the currently provided cells with a set of ids.
     pub unsafe fn generate_ids(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-        if let Some(value) = self.create_generate_ids_dialog() {
 
-            // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-            let indexes = self.table_view_primary.selection_model().selection().indexes();
-            let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
 
+        // Get the initial value of the dialog.
+        let initial_value = if let Some(first) = indexes_sorted.first() {
+            if first.is_valid() {
+                if let Ok(data) = self.table_filter.map_to_source(*first).data_0a().to_string().to_std_string().parse::<i32>() {
+                    data
+                } else { 0 }
+            } else { 0 }
+        } else { 0 };
+
+        if let Some(value) = self.create_generate_ids_dialog(initial_value) {
             let mut real_cells = vec![];
             let mut values = vec![];
 
@@ -1123,7 +1132,7 @@ impl TableView {
     }
 
     /// This function creates the entire "Generate Ids" dialog for tables. It returns the starting id, or None.
-    pub unsafe fn create_generate_ids_dialog(&self) -> Option<i32> {
+    pub unsafe fn create_generate_ids_dialog(&self, initial_value: i32) -> Option<i32> {
 
         // Create and configure the dialog.
         let dialog = QDialog::new_1a(&self.table_view_primary);
@@ -1141,6 +1150,7 @@ impl TableView {
         let starting_id_spin_box = QSpinBox::new_1a(&dialog);
         starting_id_spin_box.set_minimum(i32::MIN);
         starting_id_spin_box.set_maximum(i32::MAX);
+        starting_id_spin_box.set_value(initial_value);
         let accept_button = QPushButton::from_q_string(&qtr("generate_ids_accept"));
 
         main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 1);
