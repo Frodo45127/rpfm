@@ -31,6 +31,10 @@ pub struct ToolFactionPainterSlots {
     pub delayed_updates: QBox<SlotNoArgs>,
     pub load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     pub filter_edited: QBox<SlotNoArgs>,
+    pub banner_restore_initial_values: QBox<SlotNoArgs>,
+    pub banner_restore_vanilla_values: QBox<SlotNoArgs>,
+    pub uniform_restore_initial_values: QBox<SlotNoArgs>,
+    pub uniform_restore_vanilla_values: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -74,10 +78,38 @@ impl ToolFactionPainterSlots {
             }
         ));
 
+        let banner_restore_initial_values = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.banner_restore_initial_values();
+            }
+        ));
+
+        let banner_restore_vanilla_values = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.banner_restore_vanilla_values();
+            }
+        ));
+
+        let uniform_restore_initial_values = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.uniform_restore_initial_values();
+            }
+        ));
+
+        let uniform_restore_vanilla_values = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                ui.uniform_restore_vanilla_values();
+            }
+        ));
+
         ToolFactionPainterSlots {
             delayed_updates,
             load_data_to_detailed_view,
-            filter_edited
+            filter_edited,
+            banner_restore_initial_values,
+            banner_restore_vanilla_values,
+            uniform_restore_initial_values,
+            uniform_restore_vanilla_values,
         }
     }
 }

@@ -704,6 +704,9 @@ pub enum ErrorKind {
 
     /// Error for when one of the widgets in a Template UI fails to be found.
     TemplateUIWidgetNotFound,
+
+    /// Error for when we try to get an inexistant column from a table. Contains the column name.
+    ColumnNotFoundInTable(String)
 }
 
 /// Implementation of `Error`.
@@ -1051,6 +1054,7 @@ impl Display for ErrorKind {
             ErrorKind::GlobalReplaceOverDependencies => write!(f, "<p>The dependencies are read-only. You cannot do a Global Replace over them.</p>"),
             ErrorKind::GameSelectedNotSupportedForTool => write!(f, "<p>This tool is not supported for the currently selected game.</p>"),
             ErrorKind::TemplateUIWidgetNotFound => write!(f, "<p>One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.</p>"),
+            ErrorKind::ColumnNotFoundInTable(column_name) => write!(f, "<p>The column '{}' is missing from the table we expected to contain it.</p>", column_name),
         }
     }
 }

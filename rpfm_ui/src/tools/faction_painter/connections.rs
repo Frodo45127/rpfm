@@ -27,6 +27,11 @@ pub unsafe fn set_connections(ui: &ToolFactionPainter, slots: &ToolFactionPainte
     ui.faction_list_filter_line_edit.text_changed().connect(&slots.filter_edited);
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
 
+    ui.banner_restore_initial_values_button.released().connect(&slots.banner_restore_initial_values);
+    ui.banner_restore_vanilla_values_button.released().connect(&slots.banner_restore_vanilla_values);
+    ui.uniform_restore_initial_values_button.released().connect(&slots.uniform_restore_initial_values);
+    ui.uniform_restore_vanilla_values_button.released().connect(&slots.uniform_restore_vanilla_values);
+
     ui.button_box.button(StandardButton::Cancel).released().connect(ui.dialog.slot_close());
     ui.button_box.button(StandardButton::Ok).released().connect(ui.dialog.slot_accept());
 }

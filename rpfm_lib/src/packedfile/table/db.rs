@@ -154,6 +154,11 @@ impl DB {
         self.table.get_ref_table_data()
     }
 
+    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
+        self.table.get_column_position_by_name(column_name)
+    }
+
     /// This function returns the amount of entries in this DB Table.
     pub fn get_entry_count(&self) -> usize {
         self.table.get_entry_count()

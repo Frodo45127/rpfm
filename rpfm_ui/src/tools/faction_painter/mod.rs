@@ -244,35 +244,35 @@ impl ToolFactionPainter {
 
         // First, get the faction's data.
         if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_data(data, &mut processed_data);
+            Self::get_faction_data(data, &mut processed_data)?;
         }
         if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_data(data, &mut processed_data);
+            Self::get_faction_data(data, &mut processed_data)?;
         }
         if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_data(data, &mut processed_data);
+            Self::get_faction_data(data, &mut processed_data)?;
         }
 
         // Then, get the banner colours.
         if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_banner_data(data, &mut processed_data);
+            Self::get_faction_banner_data(data, &mut processed_data, DataSource::GameFiles)?;
         }
         if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_banner_data(data, &mut processed_data);
+            Self::get_faction_banner_data(data, &mut processed_data, DataSource::ParentFiles)?;
         }
         if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_banner_data(data, &mut processed_data);
+            Self::get_faction_banner_data(data, &mut processed_data, DataSource::PackFile)?;
         }
 
         // Then, get the uniform colours.
         if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_uniform_data(data, &mut processed_data);
+            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::GameFiles)?;
         }
         if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_uniform_data(data, &mut processed_data);
+            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::ParentFiles)?;
         }
         if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_uniform_data(data, &mut processed_data);
+            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::PackFile)?;
         }
 
         // Finally, grab the flag files. For that, get the paths from each faction's data, and request the flag icons.
@@ -404,6 +404,15 @@ impl ToolFactionPainter {
 
     /// This function loads the data of a faction into the detailed view.
     pub unsafe fn load_to_detailed_view(&self, index: Ref<QModelIndex>) {
+
+        // If it's the first faction loaded into the detailed view, enable the groupboxes so they can be edited.
+        if !self.banner_groupbox.is_enabled() {
+            self.banner_groupbox.set_enabled(true);
+        }
+        if !self.uniform_groupbox.is_enabled() {
+            self.uniform_groupbox.set_enabled(true);
+        }
+
         let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
         let screen_name = data.get("screen_name").unwrap();
         self.get_ref_faction_name_label().set_text(&QString::from_std_str(screen_name));
@@ -452,6 +461,88 @@ impl ToolFactionPainter {
         self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), FACTION_DATA);
     }
 
+    /// This function restores the banner colours to its initial values when we opened the tool.
+    pub unsafe fn banner_restore_initial_values(&self) {
+        let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
+        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+
+        if let Some(banner_primary) = data.get("banner_initial_primary") {
+            let banner_primary = banner_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_primary[0], banner_primary[1], banner_primary[2]).as_ptr());
+        }
+        if let Some(banner_secondary) = data.get("banner_initial_secondary") {
+            let banner_secondary = banner_secondary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_secondary[0], banner_secondary[1], banner_secondary[2]).as_ptr());
+        }
+        if let Some(banner_tertiary) = data.get("banner_initial_tertiary") {
+            let banner_tertiary = banner_tertiary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_tertiary[0], banner_tertiary[1], banner_tertiary[2]).as_ptr());
+        }
+    }
+
+    /// This function restores the banner colours to its vanilla values when we opened the tool.
+    ///
+    /// Note: This one can fail if the faction is custom and not in the game files. The button should already be disabled
+    /// in those cases, but we also control it here, just in case.
+    pub unsafe fn banner_restore_vanilla_values(&self) {
+        let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
+        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+
+        if let Some(banner_primary) = data.get("banner_vanilla_primary") {
+            let banner_primary = banner_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_primary[0], banner_primary[1], banner_primary[2]).as_ptr());
+        }
+        if let Some(banner_secondary) = data.get("banner_vanilla_secondary") {
+            let banner_secondary = banner_secondary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_secondary[0], banner_secondary[1], banner_secondary[2]).as_ptr());
+        }
+        if let Some(banner_tertiary) = data.get("banner_vanilla_tertiary") {
+            let banner_tertiary = banner_tertiary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_tertiary[0], banner_tertiary[1], banner_tertiary[2]).as_ptr());
+        }
+    }
+
+    /// This function restores the uniform colours to its initial values when we opened the tool.
+    pub unsafe fn uniform_restore_initial_values(&self) {
+        let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
+        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+
+        if let Some(uniform_primary) = data.get("uniform_initial_primary") {
+            let uniform_primary = uniform_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_primary[0], uniform_primary[1], uniform_primary[2]).as_ptr());
+        }
+        if let Some(uniform_secondary) = data.get("uniform_initial_secondary") {
+            let uniform_secondary = uniform_secondary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_secondary[0], uniform_secondary[1], uniform_secondary[2]).as_ptr());
+        }
+        if let Some(uniform_tertiary) = data.get("uniform_initial_tertiary") {
+            let uniform_tertiary = uniform_tertiary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_tertiary[0], uniform_tertiary[1], uniform_tertiary[2]).as_ptr());
+        }
+    }
+
+    /// This function restores the uniform colours to its vanilla values when we opened the tool.
+    ///
+    /// Note: This one can fail if the faction is custom and not in the game files. The button should already be disabled
+    /// in those cases, but we also control it here, just in case.
+    pub unsafe fn uniform_restore_vanilla_values(&self) {
+        let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
+        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+
+        if let Some(uniform_primary) = data.get("uniform_vanilla_primary") {
+            let uniform_primary = uniform_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_primary[0], uniform_primary[1], uniform_primary[2]).as_ptr());
+        }
+        if let Some(uniform_secondary) = data.get("uniform_vanilla_secondary") {
+            let uniform_secondary = uniform_secondary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_secondary[0], uniform_secondary[1], uniform_secondary[2]).as_ptr());
+        }
+        if let Some(uniform_tertiary) = data.get("uniform_vanilla_tertiary") {
+            let uniform_tertiary = uniform_tertiary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+            set_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_tertiary[0], uniform_tertiary[1], uniform_tertiary[2]).as_ptr());
+        }
+    }
+
     /// Function to trigger certain delayed actions, like the filter.
     pub unsafe fn start_delayed_updates_timer(&self) {
         self.timer_delayed_updates.set_interval(500);
@@ -484,230 +575,263 @@ impl ToolFactionPainter {
         self.uniform_restore_vanilla_values_button.set_text(&qtr("restore_vanilla_values"));
     }
 
-    unsafe fn get_faction_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) {
+    /// This function gets the data needed for the tool from the factions table.
+    unsafe fn get_faction_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
 
         // First, get the keys, names and flags from the factions tables.
         for (path, packed_file) in data.iter_mut() {
-            if path[1] == "factions_tables" {
+            if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "factions_tables" {
 
-                let decoded = packed_file.decode_return_ref().unwrap();
-                if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(decoded) = packed_file.decode_return_ref() {
+                    if let DecodedPackedFile::DB(table) = decoded {
 
-                    // We need multiple column's data for this to work.
-                    let key_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "key").unwrap();
-                    let name_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "screen_name").unwrap();
-                    let flag_path_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "flags_path").unwrap();
+                        // We need multiple column's data for this to work.
+                        let key_column = table.get_column_position_by_name("key")?;
+                        let name_column = table.get_column_position_by_name("screen_name")?;
+                        let flag_path_column = table.get_column_position_by_name("flags_path")?;
 
-                    for row in table.get_ref_table_data() {
-                        let mut data = BTreeMap::new();
+                        for row in table.get_ref_table_data() {
+                            let mut data = BTreeMap::new();
 
-                        match row[name_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => {
-                                data.insert("screen_name".to_owned(), value.to_owned());
+                            match row[name_column] {
+                                DecodedData::StringU8(ref value) |
+                                DecodedData::StringU16(ref value) |
+                                DecodedData::OptionalStringU8(ref value) |
+                                DecodedData::OptionalStringU16(ref value) => {
+                                    data.insert("screen_name".to_owned(), value.to_owned());
+                                }
+                                _ => unimplemented!(),
                             }
-                            _ => unimplemented!(),
-                        }
 
-                        match row[flag_path_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => {
-                                data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
+                            match row[flag_path_column] {
+                                DecodedData::StringU8(ref value) |
+                                DecodedData::StringU16(ref value) |
+                                DecodedData::OptionalStringU8(ref value) |
+                                DecodedData::OptionalStringU16(ref value) => {
+                                    data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
+                                }
+                                _ => unimplemented!(),
                             }
-                            _ => unimplemented!(),
-                        }
 
-                        match row[key_column] {
-                            DecodedData::StringU8(ref key) |
-                            DecodedData::StringU16(ref key) |
-                            DecodedData::OptionalStringU8(ref key) |
-                            DecodedData::OptionalStringU16(ref key) => {
-                                data.insert("key".to_owned(), key.to_owned());
-                                processed_data.insert(key.to_owned(), data);
+                            match row[key_column] {
+                                DecodedData::StringU8(ref key) |
+                                DecodedData::StringU16(ref key) |
+                                DecodedData::OptionalStringU8(ref key) |
+                                DecodedData::OptionalStringU16(ref key) => {
+                                    data.insert("key".to_owned(), key.to_owned());
+                                    processed_data.insert(key.to_owned(), data);
+                                }
+                                _ => unimplemented!(),
                             }
-                            _ => unimplemented!(),
                         }
                     }
                 }
             }
         }
+        Ok(())
     }
 
-    unsafe fn get_faction_banner_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) {
+    /// This function gets the data needed for the tool from the faction_banners table.
+    unsafe fn get_faction_banner_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
-            if path[1] == "faction_banners_tables" {
+            if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_banners_tables" {
 
-                let decoded = packed_file.decode_return_ref().unwrap();
-                if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(decoded) = packed_file.decode_return_ref() {
+                    if let DecodedPackedFile::DB(table) = decoded {
 
-                    // We need multiple column's data for this to work.
-                    let key_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "key").unwrap();
+                        // We need multiple column's data for this to work.
+                        let key_column = table.get_column_position_by_name("key")?;
 
-                    let primary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_red").unwrap();
-                    let primary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_green").unwrap();
-                    let primary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_blue").unwrap();
+                        let primary_colour_r_column = table.get_column_position_by_name("primary_red")?;
+                        let primary_colour_g_column = table.get_column_position_by_name("primary_green")?;
+                        let primary_colour_b_column = table.get_column_position_by_name("primary_blue")?;
 
-                    let secondary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_red").unwrap();
-                    let secondary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_green").unwrap();
-                    let secondary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_blue").unwrap();
+                        let secondary_colour_r_column = table.get_column_position_by_name("secondary_red")?;
+                        let secondary_colour_g_column = table.get_column_position_by_name("secondary_green")?;
+                        let secondary_colour_b_column = table.get_column_position_by_name("secondary_blue")?;
 
-                    let tertiary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_red").unwrap();
-                    let tertiary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_green").unwrap();
-                    let tertiary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_blue").unwrap();
-                    dbg!(table.get_ref_table_data());
+                        let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_red")?;
+                        let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_green")?;
+                        let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_blue")?;
 
-                    for row in table.get_ref_table_data() {
-                        let key = match row[key_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => value,
-                            _ => unimplemented!(),
-                        };
-
-                        if let Some(faction_data) = processed_data.get_mut(key) {
-                            let primary_r = match row[primary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let primary_g = match row[primary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let primary_b = match row[primary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
+                        for row in table.get_ref_table_data() {
+                            let key = match row[key_column] {
+                                DecodedData::StringU8(ref value) |
+                                DecodedData::StringU16(ref value) |
+                                DecodedData::OptionalStringU8(ref value) |
+                                DecodedData::OptionalStringU16(ref value) => value,
                                 _ => unimplemented!(),
                             };
 
-                            let secondary_r = match row[secondary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let secondary_g = match row[secondary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let secondary_b = match row[secondary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
+                            if let Some(faction_data) = processed_data.get_mut(key) {
+                                let primary_r = match row[primary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let primary_g = match row[primary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let primary_b = match row[primary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            let tertiary_r = match row[tertiary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let tertiary_g = match row[tertiary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let tertiary_b = match row[tertiary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
+                                let secondary_r = match row[secondary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let secondary_g = match row[secondary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let secondary_b = match row[secondary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
-                            let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
-                            let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+                                let tertiary_r = match row[tertiary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let tertiary_g = match row[tertiary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let tertiary_b = match row[tertiary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            faction_data.insert("banner_primary".to_owned(), primary);
-                            faction_data.insert("banner_secondary".to_owned(), secondary);
-                            faction_data.insert("banner_tertiary".to_owned(), tertiary);
+                                let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
+                                let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
+                                let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+
+                                // If we're processing the game files, set the vanilla values.
+                                if let DataSource::GameFiles = data_source {
+                                    faction_data.insert("banner_vanilla_primary".to_owned(), primary.to_owned());
+                                    faction_data.insert("banner_vanilla_secondary".to_owned(), secondary.to_owned());
+                                    faction_data.insert("banner_vanilla_tertiary".to_owned(), tertiary.to_owned());
+                                }
+
+                                // Set the initial values. The last value inputted is the initial one due to how we load the data.
+                                faction_data.insert("banner_initial_primary".to_owned(), primary.to_owned());
+                                faction_data.insert("banner_initial_secondary".to_owned(), secondary.to_owned());
+                                faction_data.insert("banner_initial_tertiary".to_owned(), tertiary.to_owned());
+                                faction_data.insert("banner_primary".to_owned(), primary);
+                                faction_data.insert("banner_secondary".to_owned(), secondary);
+                                faction_data.insert("banner_tertiary".to_owned(), tertiary);
+
+                            }
                         }
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
-    unsafe fn get_faction_uniform_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) {
+    /// This function gets the data needed for the tool from the faction_uniform_colours table.
+    unsafe fn get_faction_uniform_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
-            if path[1] == "faction_uniform_colours_tables" {
+            if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_uniform_colours_tables" {
 
-                let decoded = packed_file.decode_return_ref().unwrap();
-                if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(decoded) = packed_file.decode_return_ref() {
+                    if let DecodedPackedFile::DB(table) = decoded {
 
-                    // We need multiple column's data for this to work.
-                    let key_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "faction_name").unwrap();
+                        // We need multiple column's data for this to work.
+                        let key_column = table.get_column_position_by_name("faction_name")?;
 
-                    let primary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_r").unwrap();
-                    let primary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_g").unwrap();
-                    let primary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_b").unwrap();
+                        let primary_colour_r_column = table.get_column_position_by_name("primary_colour_r")?;
+                        let primary_colour_g_column = table.get_column_position_by_name("primary_colour_g")?;
+                        let primary_colour_b_column = table.get_column_position_by_name("primary_colour_b")?;
 
-                    let secondary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_r").unwrap();
-                    let secondary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_g").unwrap();
-                    let secondary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_b").unwrap();
+                        let secondary_colour_r_column = table.get_column_position_by_name("secondary_colour_r")?;
+                        let secondary_colour_g_column = table.get_column_position_by_name("secondary_colour_g")?;
+                        let secondary_colour_b_column = table.get_column_position_by_name("secondary_colour_b")?;
 
-                    let tertiary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_r").unwrap();
-                    let tertiary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_g").unwrap();
-                    let tertiary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_b").unwrap();
+                        let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_colour_r")?;
+                        let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_colour_g")?;
+                        let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_colour_b")?;
 
-                    for row in table.get_ref_table_data() {
-                        let key = match row[key_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => value,
-                            _ => unimplemented!(),
-                        };
-
-                        if let Some(faction_data) = processed_data.get_mut(key) {
-                            let primary_r = match row[primary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let primary_g = match row[primary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let primary_b = match row[primary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
+                        for row in table.get_ref_table_data() {
+                            let key = match row[key_column] {
+                                DecodedData::StringU8(ref value) |
+                                DecodedData::StringU16(ref value) |
+                                DecodedData::OptionalStringU8(ref value) |
+                                DecodedData::OptionalStringU16(ref value) => value,
                                 _ => unimplemented!(),
                             };
 
-                            let secondary_r = match row[secondary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let secondary_g = match row[secondary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let secondary_b = match row[secondary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
+                            if let Some(faction_data) = processed_data.get_mut(key) {
+                                let primary_r = match row[primary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let primary_g = match row[primary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let primary_b = match row[primary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            let tertiary_r = match row[tertiary_colour_r_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let tertiary_g = match row[tertiary_colour_g_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
-                            let tertiary_b = match row[tertiary_colour_b_column] {
-                                DecodedData::I32(ref value) => value,
-                                _ => unimplemented!(),
-                            };
+                                let secondary_r = match row[secondary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let secondary_g = match row[secondary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let secondary_b = match row[secondary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
-                            let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
-                            let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+                                let tertiary_r = match row[tertiary_colour_r_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let tertiary_g = match row[tertiary_colour_g_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
+                                let tertiary_b = match row[tertiary_colour_b_column] {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => unimplemented!(),
+                                };
 
-                            faction_data.insert("uniform_primary".to_owned(), primary);
-                            faction_data.insert("uniform_secondary".to_owned(), secondary);
-                            faction_data.insert("uniform_tertiary".to_owned(), tertiary);
+                                let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
+                                let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
+                                let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+
+                                // If we're processing the game files, set the vanilla values.
+                                if let DataSource::GameFiles = data_source {
+                                    faction_data.insert("uniform_vanilla_primary".to_owned(), primary.to_owned());
+                                    faction_data.insert("uniform_vanilla_secondary".to_owned(), secondary.to_owned());
+                                    faction_data.insert("uniform_vanilla_tertiary".to_owned(), tertiary.to_owned());
+                                }
+
+                                // Set the initial values. The last value inputted is the initial one due to how we load the data.
+                                faction_data.insert("uniform_initial_primary".to_owned(), primary.to_owned());
+                                faction_data.insert("uniform_initial_secondary".to_owned(), secondary.to_owned());
+                                faction_data.insert("uniform_initial_tertiary".to_owned(), tertiary.to_owned());
+                                faction_data.insert("uniform_primary".to_owned(), primary);
+                                faction_data.insert("uniform_secondary".to_owned(), secondary);
+                                faction_data.insert("uniform_tertiary".to_owned(), tertiary);
+                            }
                         }
                     }
                 }
             }
         }
+
+        Ok(())
     }
 
     unsafe fn save_faction_banner_data(&self, data: &BTreeMap<String, String>, packed_files: &mut BTreeMap<Vec<String>, PackedFile>) -> Option<()> {

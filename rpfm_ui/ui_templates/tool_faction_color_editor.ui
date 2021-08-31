@@ -52,6 +52,9 @@
       </item>
       <item>
        <widget class="QGroupBox" name="banner_groupbox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="title">
          <string>Banners</string>
         </property>
@@ -111,6 +114,9 @@
       </item>
       <item>
        <widget class="QGroupBox" name="uniform_groupbox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="title">
          <string>Uniforms</string>
         </property>
