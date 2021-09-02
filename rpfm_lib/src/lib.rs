@@ -27,7 +27,6 @@ use std::sync::{Arc, RwLock};
 
 use crate::games::{GameInfo, supported_games::{SupportedGames, KEY_THREE_KINGDOMS}};
 use crate::packedfile::table::db::DB;
-use crate::packfile::packedfile::PackedFile;
 use crate::schema::Schema;
 use crate::settings::Settings;
 
@@ -42,7 +41,6 @@ pub mod packedfile;
 pub mod packfile;
 pub mod schema;
 pub mod settings;
-pub mod template;
 pub mod updater;
 
 // Statics, so we don't need to pass them everywhere to use them.

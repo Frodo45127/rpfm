@@ -38,7 +38,6 @@ use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
-use rpfm_lib::template::Template;
 use rpfm_lib::updater::APIResponse;
 
 use crate::app_ui::NewPackedFile;
@@ -296,20 +295,6 @@ pub enum Command {
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
 
-    /// This command is used to load a template into the currently open PackFile.
-    /// The data it contains is:
-    /// - Template.
-    /// - Options list.
-    /// - Params list.
-    /// - Is custom?
-    ApplyTemplate(Template, Vec<(String, bool)>, Vec<(String, String)>, bool),
-
-    /// This command is used to save a PackFile into a template.
-    SaveTemplate(Template),
-
-    /// This command is used to update the templates.
-    UpdateTemplates,
-
     /// This command is used to update the program to the last version available, if possible.
     UpdateMainProgram,
 
@@ -322,17 +307,11 @@ pub enum Command {
     /// This command is used to trigger a partial diagnostics check over the open PackFile.
     DiagnosticsUpdate((Diagnostics, Vec<PathType>)),
 
-    /// This command is used to check for template updates.
-    CheckTemplateUpdates,
-
     /// This command is used to get the settings of the currently open PackFile. True if the message is for the autosave.
     GetPackFileSettings(bool),
 
     /// This command is used to set the settings of the currently open PackFile.
     SetPackFileSettings(PackFileSettings),
-
-    /// This command is used to get the definitions of all the tables in the PackFile.
-    GetDefinitionList,
 
     /// This command is used to trigger the debug missing table definition's code.
     GetMissingDefinitions,
@@ -492,9 +471,6 @@ pub enum Response {
 
     /// Response to return `PackFileSettings`.
     PackFileSettings(PackFileSettings),
-
-    /// Response to return `Vec<(String, Definition)>`.
-    VecStringDefinition(Vec<(String, Definition)>),
 
     /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
     VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),

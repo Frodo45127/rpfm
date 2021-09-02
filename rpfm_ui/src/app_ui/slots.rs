@@ -126,13 +126,6 @@ pub struct AppUISlots {
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
-    // `Templates` menu slots.
-    //-----------------------------------------------//
-    pub templates_open_custom_templates_folder: QBox<SlotNoArgs>,
-    pub templates_open_official_templates_folder: QBox<SlotNoArgs>,
-    pub templates_save_packfile_to_template: QBox<SlotNoArgs>,
-
-    //-----------------------------------------------//
     // `Tools` menu slots.
     //-----------------------------------------------//
     pub tools_faction_painter: QBox<SlotNoArgs>,
@@ -146,7 +139,6 @@ pub struct AppUISlots {
     pub about_patreon_link: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
-    pub about_check_templates_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -202,9 +194,8 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui,
-            dependencies_ui => move || {
-                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+            diagnostics_ui => move || {
+                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
 
@@ -1181,41 +1172,6 @@ impl AppUISlots {
         ));
 
         //-----------------------------------------------//
-        // `Templates` menu logic.
-        //-----------------------------------------------//
-
-        let templates_open_custom_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
-                match get_custom_template_definitions_path() {
-                    Ok(path) => if open::that(&path).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    },
-                    Err(error) => show_dialog(&app_ui.main_window, error, false),
-                }
-            }
-        ));
-
-        let templates_open_official_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
-                match get_template_definitions_path() {
-                    Ok(path) => if open::that(&path).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    },
-                    Err(error) => show_dialog(&app_ui.main_window, error, false),
-                }
-            }
-        ));
-
-        let templates_save_packfile_to_template = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui => move || {
-                if let Err(error) = AppUI::save_to_template(&app_ui, &pack_file_contents_ui) {
-                    show_dialog(&app_ui.main_window, error, false);
-                }
-            }
-        ));
-
-        //-----------------------------------------------//
         // `Tools` menu logic.
         //-----------------------------------------------//
 
@@ -1324,13 +1280,6 @@ impl AppUISlots {
         let about_check_schema_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 AppUI::check_schema_updates(&app_ui, true);
-            }
-        ));
-
-        // What happens when we trigger the "Update Templates" action.
-        let about_check_templates_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                AppUI::check_template_updates(&app_ui, true);
             }
         ));
 
@@ -1666,13 +1615,6 @@ impl AppUISlots {
             special_stuff_rescue_packfile,
 
             //-----------------------------------------------//
-            // `Templates` menu slots.
-            //-----------------------------------------------//
-            templates_open_custom_templates_folder,
-            templates_open_official_templates_folder,
-            templates_save_packfile_to_template,
-
-            //-----------------------------------------------//
             // `Tools` menu slots.
             //-----------------------------------------------//
             tools_faction_painter,
@@ -1686,7 +1628,6 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
-            about_check_templates_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.
@@ -1723,9 +1664,8 @@ impl AppUITempSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
     }
 }

@@ -43,7 +43,6 @@ use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
-use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
@@ -1014,30 +1013,6 @@ pub fn background_loop() {
                 }
             }
 
-            // When we want to apply a template over the open PackFile...
-            Command::ApplyTemplate(mut template, options, params, is_custom) => {
-                match template.apply_template(&options, &params, &mut pack_file_decoded, &dependencies, is_custom) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
-            // When we want to apply a template over the open PackFile...
-            Command::SaveTemplate(mut template) => {
-                match template.save_from_packfile(&mut pack_file_decoded) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
-            // When we want to update the templates..
-            Command::UpdateTemplates => {
-                match Template::update() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
             // When we want to update our schemas...
             Command::UpdateSchemas => {
                 match Schema::update_schema_repo() {
@@ -1118,16 +1093,6 @@ pub fn background_loop() {
 
             Command::SetPackFileSettings(settings) => {
                 pack_file_decoded.set_settings(&settings);
-            }
-
-            Command::GetDefinitionList => {
-                let tables = pack_file_decoded.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
-                let definitions = tables.iter().filter_map(|x| x.get_decoded_from_memory().ok()).filter_map(|y| match y {
-                    DecodedPackedFile::DB(table) => Some((table.get_table_name(), table.get_definition())),
-                    DecodedPackedFile::Loc(table) => Some(("loc".to_string(), table.get_definition())),
-                    _ => None,
-                }).collect::<Vec<(String, Definition)>>();
-                CENTRAL_COMMAND.send_message_rust(Response::VecStringDefinition(definitions));
             }
 
             Command::GetMissingDefinitions => {
@@ -1405,7 +1370,7 @@ pub fn background_loop() {
             },
 
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 }

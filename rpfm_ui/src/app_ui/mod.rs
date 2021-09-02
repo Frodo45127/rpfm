@@ -91,7 +91,6 @@ pub struct AppUI {
     pub menu_bar_view: QPtr<QMenu>,
     pub menu_bar_game_selected: QPtr<QMenu>,
     pub menu_bar_special_stuff: QPtr<QMenu>,
-    pub menu_bar_templates: QPtr<QMenu>,
     pub menu_bar_tools: QPtr<QMenu>,
     pub menu_bar_about: QPtr<QMenu>,
     pub menu_bar_debug: QPtr<QMenu>,
@@ -234,15 +233,6 @@ pub struct AppUI {
     pub special_stuff_rescue_packfile: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
-    // `Templates` menu.
-    //-------------------------------------------------------------------------------//
-    pub templates_open_custom_templates_folder: QPtr<QAction>,
-    pub templates_open_official_templates_folder: QPtr<QAction>,
-    pub templates_save_packfile_to_template: QPtr<QAction>,
-    pub templates_load_custom_template_to_packfile: QPtr<QMenu>,
-    pub templates_load_official_template_to_packfile: QPtr<QMenu>,
-
-    //-------------------------------------------------------------------------------//
     // `Tools` menu.
     //-------------------------------------------------------------------------------//
     pub tools_faction_painter: QPtr<QAction>,
@@ -256,7 +246,6 @@ pub struct AppUI {
     pub about_patreon_link: QPtr<QAction>,
     pub about_check_updates: QPtr<QAction>,
     pub about_check_schema_updates: QPtr<QAction>,
-    pub about_check_template_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -355,7 +344,6 @@ impl AppUI {
         let menu_bar_view = menu_bar.add_menu_q_string(&qtr("menu_bar_view"));
         let menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
         let menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
-        let menu_bar_templates = menu_bar.add_menu_q_string(&qtr("menu_bar_templates"));
         let menu_bar_tools = menu_bar.add_menu_q_string(&qtr("menu_bar_tools"));
         let menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
@@ -606,22 +594,6 @@ impl AppUI {
         menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
         //-----------------------------------------------//
-        // `Templates` Menu.
-        //-----------------------------------------------//
-
-        // Populate the `Game Selected` menu.
-        let templates_open_custom_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_custom_templates_folder"));
-        let templates_open_official_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_official_templates_folder"));
-        let templates_save_packfile_to_template = menu_bar_templates.add_action_q_string(&qtr("templates_save_packfile_to_template"));
-        let templates_load_custom_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_custom_template_to_packfile"));
-        let templates_load_official_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_official_template_to_packfile"));
-
-        menu_bar_templates.insert_separator(&templates_save_packfile_to_template);
-
-        // Disable all the Contextual Menu actions by default.
-        templates_save_packfile_to_template.set_enabled(false);
-
-        //-----------------------------------------------//
         // `Tools` Menu.
         //-----------------------------------------------//
 
@@ -639,7 +611,6 @@ impl AppUI {
         let about_patreon_link = menu_bar_about.add_action_q_string(&qtr("about_patreon_link"));
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
-        let about_check_template_updates = menu_bar_about.add_action_q_string(&qtr("about_check_template_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -673,7 +644,6 @@ impl AppUI {
             menu_bar_view,
             menu_bar_game_selected,
             menu_bar_special_stuff,
-            menu_bar_templates,
             menu_bar_tools,
             menu_bar_about,
             menu_bar_debug,
@@ -818,15 +788,6 @@ impl AppUI {
             special_stuff_rescue_packfile,
 
             //-------------------------------------------------------------------------------//
-            // "Templates" menu.
-            //-------------------------------------------------------------------------------//
-            templates_open_custom_templates_folder,
-            templates_open_official_templates_folder,
-            templates_save_packfile_to_template,
-            templates_load_custom_template_to_packfile,
-            templates_load_official_template_to_packfile,
-
-            //-------------------------------------------------------------------------------//
             // "Tools" menu.
             //-------------------------------------------------------------------------------//
             tools_faction_painter,
@@ -840,7 +801,6 @@ impl AppUI {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
-            about_check_template_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.

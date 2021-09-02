@@ -107,7 +107,6 @@ mod packfile_contents_ui;
 mod packedfile_views;
 mod shortcuts_ui;
 mod settings_ui;
-mod template_ui;
 mod tools;
 mod ui;
 mod ui_state;

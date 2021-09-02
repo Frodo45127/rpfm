@@ -57,7 +57,6 @@ use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::MYMOD_BASE_PATH;
-use rpfm_lib::template::Template;
 use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 
 use super::AppUI;
@@ -72,7 +71,6 @@ use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
@@ -624,10 +622,6 @@ impl AppUI {
         app_ui.change_packfile_type_group.set_enabled(enable);
         app_ui.change_packfile_type_index_includes_timestamp.set_enabled(enable);
 
-        app_ui.templates_save_packfile_to_template.set_enabled(enable);
-        app_ui.templates_load_custom_template_to_packfile.set_enabled(enable);
-        app_ui.templates_load_official_template_to_packfile.set_enabled(enable);
-
         app_ui.special_stuff_rescue_packfile.set_enabled(enable);
 
         // If we are enabling...
@@ -785,7 +779,6 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -793,8 +786,6 @@ impl AppUI {
         app_ui.packfile_open_from_content.clear();
         app_ui.packfile_open_from_data.clear();
         app_ui.packfile_open_from_autosave.clear();
-        app_ui.templates_load_custom_template_to_packfile.clear();
-        app_ui.templates_load_official_template_to_packfile.clear();
 
         //---------------------------------------------------------------------------------------//
         // Build the menus...
@@ -936,80 +927,11 @@ impl AppUI {
             }
         }
 
-        // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut template_paths = get_game_selected_template_definitions_paths();
-        if let Some(ref mut paths) = template_paths {
-            paths.sort_unstable_by_key(|x| x.1.file_name().unwrap().to_string_lossy().as_ref().to_owned());
-            for (is_custom, path) in paths {
-
-                // That means our file is a valid PackFile and it needs to be added to the menu.
-                let template_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let template_load_action = if *is_custom { app_ui.templates_load_custom_template_to_packfile.add_action_q_string(&QString::from_std_str(&template_name)) }
-                else { app_ui.templates_load_official_template_to_packfile.add_action_q_string(&QString::from_std_str(&template_name)) };
-
-                // Create the slot for that action.
-                let slot_load_template = SlotOfBool::new(&template_load_action, clone!(
-                    app_ui,
-                    pack_file_contents_ui,
-                    global_search_ui,
-                    diagnostics_ui,
-                    dependencies_ui,
-                    template_name,
-                    is_custom => move |_| {
-                        match Template::load(&template_name, is_custom) {
-                            Ok(template) => {
-                                if let Some((options, params)) = TemplateUI::load(&template, &app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui) {
-                                    match Self::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
-                                        Ok(_) => {
-                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));
-                                            let response = CENTRAL_COMMAND.recv_message_qt_try();
-                                            match response {
-                                                Response::VecVecString(packed_file_paths) => {
-                                                    let paths = packed_file_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
-                                                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
-
-                                                    // Try to reload all open files which data we altered, and close those that failed.
-                                                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                                                    packed_file_paths.iter().for_each(|path| {
-                                                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                                                            if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false) {
-                                                                    show_dialog(&app_ui.main_window, error, false);
-                                                                }
-                                                            }
-                                                        }
-                                                    });
-                                                }
-                                                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-
-                                                // In ANY other situation, it's a message problem.
-                                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                                            }
-                                        }
-                                        Err(error) => show_dialog(&app_ui.main_window, error, false),
-                                    }
-
-                                }
-                            }
-                            Err(error) => show_dialog(&app_ui.main_window, error, false),
-                        }
-                    }
-                ));
-
-                // Connect the slot and store it.
-                template_load_action.triggered().connect(&slot_load_template);
-            }
-        }
-
         // Only if the submenu has items, we enable it.
         app_ui.packfile_open_recent.menu_action().set_visible(!app_ui.packfile_open_recent.actions().is_empty());
         app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
         app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
         app_ui.packfile_open_from_autosave.menu_action().set_visible(!app_ui.packfile_open_from_autosave.actions().is_empty());
-        app_ui.templates_load_custom_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_custom_template_to_packfile.actions().is_empty());
-        app_ui.templates_load_official_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_official_template_to_packfile.actions().is_empty());
     }
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
@@ -1270,82 +1192,6 @@ impl AppUI {
             match response {
                 Response::Success => {
                     dialog.set_text(&qtr("schema_update_success"));
-                    close_button.set_enabled(true);
-                },
-                Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(&error.to_string()));
-                    close_button.set_enabled(true);
-                }
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }
-        }
-    }
-
-    /// This function checks if there is any newer version of RPFM's templates released.
-    ///
-    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
-    pub unsafe fn check_template_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckTemplateUpdates);
-
-        // Create the dialog to show the response and configure it.
-        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("update_template_checker"),
-            &qtr("update_searching"),
-            QFlags::from(q_message_box::StandardButton::Close),
-            &app_ui.main_window,
-        );
-
-        let close_button = dialog.button(q_message_box::StandardButton::Close);
-        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-        update_button.set_enabled(false);
-
-        dialog.set_modal(true);
-        if use_dialog {
-            dialog.show();
-        }
-
-        // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-        let message = match response_thread {
-            Response::APIResponseSchema(ref response) => {
-                match response {
-                    APIResponseSchema::NewUpdate => {
-                        update_button.set_enabled(true);
-                        qtr("template_new_update")
-                    }
-                    APIResponseSchema::NoUpdate => {
-                        if !use_dialog { return; }
-                        qtr("template_no_update")
-                    }
-                    APIResponseSchema::NoLocalFiles => {
-                        update_button.set_enabled(true);
-                        qtr("update_no_local_template")
-                    }
-                }
-            }
-
-            Response::Error(error) => {
-                if !use_dialog { return; }
-                qtre("api_response_error", &[&error.to_string()])
-            }
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
-        };
-
-        // If we hit "Update", try to update the schemas.
-        dialog.set_text(&message);
-        if dialog.exec() == 0 {
-            CENTRAL_COMMAND.send_message_qt(Command::UpdateTemplates);
-
-            dialog.show();
-            dialog.set_text(&qtr("update_in_prog"));
-            update_button.set_enabled(false);
-            close_button.set_enabled(false);
-
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
-            match response {
-                Response::Success => {
-                    dialog.set_text(&qtr("template_update_success"));
                     close_button.set_enabled(true);
                 },
                 Response::Error(error) => {
@@ -2194,30 +2040,6 @@ impl AppUI {
                 }
             }
         }
-    }
-
-    /// This function creates a new Template by saving the currently open PackFile into a template.
-    pub unsafe fn save_to_template(
-        app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) -> Result<Option<String>> {
-
-        // Launch the dialog and wait for the answer.
-        if let Some(template) = SaveTemplateUI::load(app_ui) {
-
-            // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-            AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
-
-            // Create the PackFile.
-            let name = template.get_ref_name().to_owned();
-            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(template));
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            match response {
-                Response::Success => Ok(Some(name)),
-                Response::Error(error) => Err(error),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }
-        } else { Ok(None) }
     }
 
     /// This function creates the entire "New Folder" dialog.

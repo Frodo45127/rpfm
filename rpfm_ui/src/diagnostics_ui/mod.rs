@@ -447,7 +447,6 @@ impl DiagnosticsUI {
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
         app_ui.menu_bar_packfile.set_enabled(false);
-        app_ui.menu_bar_templates.set_enabled(false);
 
         CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
         diagnostics_ui.diagnostics_table_model.clear();
@@ -458,7 +457,6 @@ impl DiagnosticsUI {
         UI_STATE.set_diagnostics(&diagnostics);
 
         app_ui.menu_bar_packfile.set_enabled(true);
-        app_ui.menu_bar_templates.set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
