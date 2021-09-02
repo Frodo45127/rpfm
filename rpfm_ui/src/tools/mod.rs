@@ -34,13 +34,14 @@ use rpfm_macros::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
+use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::SCHEMA;
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packedfile_views::DataSource;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{BuildData, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 
@@ -116,12 +117,16 @@ impl Tool {
     }
 
     /// This function saves the tools data to the PackFile, in a common way across all tools, and triggers the relevant UI updates.
-    pub unsafe fn save(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
-        // First, check if we actually have an open PackFile.
+    pub unsafe fn save(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_files: &[PackedFile]) -> Result<()> {
 
+        // First, check if we actually have an open PackFile. If we don't have one, we need to generate it and promp a save.
+        if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() == 0 {
+            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(BuildData::new()), DataSource::PackFile);
+        }
 
-        // Then, save the PackedFiles to the PackFile and update the view.
-        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFilesToPackFileAndClean(self.packed_files.borrow().clone()));
+        // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
+        // the data edited by the tool into the current files, or we have to insert the files as new.
+        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
             Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)) => {
@@ -191,5 +196,12 @@ impl Tool {
         for path in &paths_to_purge {
             let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
         }
+    }
+
+    /// This function returns the data on a row's column, or an error if said column doesn't exist.
+    ///
+    /// It's an utility function for tools.
+    pub fn get_row_by_column_index(row: &[DecodedData], index: usize) -> Result<&DecodedData> {
+        row.get(index).ok_or_else(|| ErrorKind::ToolTableColumnNotFound.into())
     }
 }

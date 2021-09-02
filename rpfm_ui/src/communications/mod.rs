@@ -365,7 +365,7 @@ pub enum Command {
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
 
     /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
-    SavePackedFilesToPackFileAndClean(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>)
+    SavePackedFilesToPackFileAndClean(Vec<PackedFile>)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -471,9 +471,6 @@ pub enum Response {
 
     /// Response to return `Unknown`.
     Unknown,
-
-    /// Response to return `Vec<(PackedFile, DataSource)>`.
-    VecPackedFileDataSource(Vec<(PackedFile, DataSource)>),
 
     /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),

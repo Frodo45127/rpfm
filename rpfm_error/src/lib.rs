@@ -706,7 +706,13 @@ pub enum ErrorKind {
     TemplateUIWidgetNotFound,
 
     /// Error for when we try to get an inexistant column from a table. Contains the column name.
-    ColumnNotFoundInTable(String)
+    ColumnNotFoundInTable(String),
+
+    /// Error for when we try to access an inexistent column of a table.
+    ToolTableColumnNotFound,
+
+    /// Error for when we try to access a column expecting the wrong type.
+    ToolTableColumnNotOfTypeWeExpected,
 }
 
 /// Implementation of `Error`.
@@ -1055,6 +1061,8 @@ impl Display for ErrorKind {
             ErrorKind::GameSelectedNotSupportedForTool => write!(f, "<p>This tool is not supported for the currently selected game.</p>"),
             ErrorKind::TemplateUIWidgetNotFound => write!(f, "<p>One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.</p>"),
             ErrorKind::ColumnNotFoundInTable(column_name) => write!(f, "<p>The column '{}' is missing from the table we expected to contain it.</p>", column_name),
+            ErrorKind::ToolTableColumnNotFound => write!(f, "<p>One of the columns we need is not in the table we're searching for. This means either the tool needs updating, or you have some weird tables there.</p>"),
+            ErrorKind::ToolTableColumnNotOfTypeWeExpected => write!(f, "<p>One of the columns we need is not of the type we expected. This means either the tool needs updating, or you have some weird tables there.</p>"),
         }
     }
 }

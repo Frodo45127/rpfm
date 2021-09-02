@@ -1387,61 +1387,21 @@ pub fn background_loop() {
             // TODO: This has to be case insensitive.
             Command::SavePackedFilesToPackFileAndClean(packed_files) => {
 
+                // We receive a list of edited PackedFiles. The UI is the one that takes care of editing them to have the data we want where we want.
+                // Also, the UI is responsible for naming them in case they're new. Here we grab them and directly add them into the PackFile.
+                let packed_files = packed_files.iter().collect::<Vec<&PackedFile>>();
                 let mut added_paths = vec![];
-                if let Some(packed_files) = packed_files.get(&DataSource::GameFiles) {
-                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
-                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
-                        added_paths.append(&mut paths);
-                    }
-                }
-
-                if let Some(packed_files) = packed_files.get(&DataSource::ParentFiles) {
-                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
-                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
-                        added_paths.append(&mut paths);
-                    }
-                }
-
-                if let Some(packed_files) = packed_files.get(&DataSource::PackFile) {
-                    let packed_files = packed_files.values().collect::<Vec<&PackedFile>>();
-                    if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
-                        added_paths.append(&mut paths);
-                    }
+                if let Ok(mut paths) = pack_file_decoded.add_packed_files(&packed_files, true, true) {
+                    added_paths.append(&mut paths);
                 }
 
                 // Clean up duplicates from overwrites.
                 added_paths.sort();
                 added_paths.dedup();
 
-                // For merging/optimizing, we need to isolate DB Tables and Loc PackedFiles.
-                let mut db_files: BTreeMap<String, Vec<Vec<String>>> = BTreeMap::new();
-                let mut loc_files = vec![];
-
-                for path in &added_paths {
-                    if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(path) {
-                        match packed_file.get_packed_file_type(false) {
-                            PackedFileType::DB => {
-
-                                // DB Files must also be divided in groups.
-                                match db_files.get_mut(&path[1]) {
-                                    Some(db_data) => db_data.push(path.to_vec()),
-                                    None => { db_files.insert(path[1].to_owned(), vec![path.to_vec()]); }
-                                }
-                            },
-                            PackedFileType::Loc => loc_files.push(path.to_vec()),
-                            _ => {}
-                        }
-                    }
-                }
-
-                // Merge them in groups.
-                let mut paths_to_add: Vec<Vec<String>> = db_files.values().map(|paths| pack_file_decoded.merge_tables(paths, "test", true).unwrap() ).collect();
-                paths_to_add.push(pack_file_decoded.merge_tables(&loc_files, "test", true).unwrap());
-
-                // Then, optimize the PackFile.
+                // Then, optimize the PackFile. This should remove any non-edited rows/files.
                 let paths_to_delete = pack_file_decoded.optimize(&dependencies);
-
-                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)));
+                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((added_paths, paths_to_delete)));
             },
 
             // These two belong to the network thread, not to this one!!!!

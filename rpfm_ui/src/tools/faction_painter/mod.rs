@@ -42,6 +42,7 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
+use rayon::prelude::*;
 use unicase::UniCase;
 
 use std::collections::{BTreeMap, HashMap};
@@ -49,7 +50,7 @@ use std::collections::{BTreeMap, HashMap};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::table::DecodedData;
+use rpfm_lib::packedfile::table::{db::DB, DecodedData};
 
 use rpfm_macros::*;
 
@@ -352,6 +353,7 @@ impl ToolFactionPainter {
         // First, save whatever is currently open in the detailed view.
         self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
 
+        // Get each faction's data as a BTreeMap of data/value.
         let data_to_save = (0..self.faction_list_model.row_count_0a())
             .map(|row| serde_json::from_str(
                 &self.faction_list_model.data_2a(
@@ -362,44 +364,11 @@ impl ToolFactionPainter {
             .collect::<Vec<BTreeMap<String, String>>>();
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
-        for data in &data_to_save {
-            let mut found_banner = false;
-            if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::PackFile) {
-                found_banner |= self.save_faction_banner_data(data, packed_files).is_some();
-            }
-
-            if !found_banner {
-                if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::ParentFiles) {
-                    found_banner |= self.save_faction_banner_data(data, packed_files).is_some();
-                }
-            }
-
-            if !found_banner {
-                if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::GameFiles) {
-                    self.save_faction_banner_data(data, packed_files);
-                }
-            }
-
-            let mut found_uniform = false;
-            if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::PackFile) {
-                found_uniform |= self.save_faction_uniform_data(data, packed_files).is_some();
-            }
-
-            if !found_uniform {
-                if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::ParentFiles) {
-                    found_uniform |= self.save_faction_uniform_data(data, packed_files).is_some();
-                }
-            }
-
-            if !found_uniform {
-                if let Some(packed_files) = self.tool.packed_files.borrow_mut().get_mut(&DataSource::GameFiles) {
-                    self.save_faction_uniform_data(data, packed_files);
-                }
-            }
-        }
+        let banner_packed_file = self.save_faction_banner_data(&data_to_save)?;
+        let uniform_packed_file = self.save_faction_uniform_data(&data_to_save)?;
 
         // Once we got the PackedFiles to save properly edited, call the generic tool `save` function to save them to a PackFile.
-        self.tool.save(app_ui, pack_file_contents_ui)
+        self.tool.save(app_ui, pack_file_contents_ui, &[banner_packed_file, uniform_packed_file])
     }
 
     /// This function loads the data of a faction into the detailed view.
@@ -593,27 +562,27 @@ impl ToolFactionPainter {
                         for row in table.get_ref_table_data() {
                             let mut data = BTreeMap::new();
 
-                            match row[name_column] {
+                            match Tool::get_row_by_column_index(row, name_column)? {
                                 DecodedData::StringU8(ref value) |
                                 DecodedData::StringU16(ref value) |
                                 DecodedData::OptionalStringU8(ref value) |
                                 DecodedData::OptionalStringU16(ref value) => {
                                     data.insert("screen_name".to_owned(), value.to_owned());
                                 }
-                                _ => unimplemented!(),
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             }
 
-                            match row[flag_path_column] {
+                            match Tool::get_row_by_column_index(row, flag_path_column)? {
                                 DecodedData::StringU8(ref value) |
                                 DecodedData::StringU16(ref value) |
                                 DecodedData::OptionalStringU8(ref value) |
                                 DecodedData::OptionalStringU16(ref value) => {
                                     data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
                                 }
-                                _ => unimplemented!(),
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             }
 
-                            match row[key_column] {
+                            match Tool::get_row_by_column_index(row, key_column)? {
                                 DecodedData::StringU8(ref key) |
                                 DecodedData::StringU16(ref key) |
                                 DecodedData::OptionalStringU8(ref key) |
@@ -621,7 +590,7 @@ impl ToolFactionPainter {
                                     data.insert("key".to_owned(), key.to_owned());
                                     processed_data.insert(key.to_owned(), data);
                                 }
-                                _ => unimplemented!(),
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             }
                         }
                     }
@@ -656,52 +625,52 @@ impl ToolFactionPainter {
                         let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_blue")?;
 
                         for row in table.get_ref_table_data() {
-                            let key = match row[key_column] {
+                            let key = match Tool::get_row_by_column_index(row, key_column)? {
                                 DecodedData::StringU8(ref value) |
                                 DecodedData::StringU16(ref value) |
                                 DecodedData::OptionalStringU8(ref value) |
                                 DecodedData::OptionalStringU16(ref value) => value,
-                                _ => unimplemented!(),
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             if let Some(faction_data) = processed_data.get_mut(key) {
-                                let primary_r = match row[primary_colour_r_column] {
+                                let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let primary_g = match row[primary_colour_g_column] {
+                                let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let primary_b = match row[primary_colour_b_column] {
+                                let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-
-                                let secondary_r = match row[secondary_colour_r_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-                                let secondary_g = match row[secondary_colour_g_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-                                let secondary_b = match row[secondary_colour_b_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
 
-                                let tertiary_r = match row[tertiary_colour_r_column] {
+                                let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let tertiary_g = match row[tertiary_colour_g_column] {
+                                let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let tertiary_b = match row[tertiary_colour_b_column] {
+                                let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+
+                                let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+                                let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+                                let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
 
                                 let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
@@ -723,6 +692,14 @@ impl ToolFactionPainter {
                                 faction_data.insert("banner_secondary".to_owned(), secondary);
                                 faction_data.insert("banner_tertiary".to_owned(), tertiary);
 
+                                // Also save the full row, so we can easely edit it and put it into a file later on.
+                                faction_data.insert("banner_row".to_owned(), serde_json::to_string(row)?);
+
+                                // Store the definition, so we can re-use it later to recreate the table.
+                                if faction_data.get("banner_definition").is_none() {
+                                    let definition = serde_json::to_string(table.get_ref_definition())?;
+                                    faction_data.insert("banner_definition".to_owned(), definition);
+                                }
                             }
                         }
                     }
@@ -758,52 +735,52 @@ impl ToolFactionPainter {
                         let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_colour_b")?;
 
                         for row in table.get_ref_table_data() {
-                            let key = match row[key_column] {
+                            let key = match Tool::get_row_by_column_index(row, key_column)? {
                                 DecodedData::StringU8(ref value) |
                                 DecodedData::StringU16(ref value) |
                                 DecodedData::OptionalStringU8(ref value) |
                                 DecodedData::OptionalStringU16(ref value) => value,
-                                _ => unimplemented!(),
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             if let Some(faction_data) = processed_data.get_mut(key) {
-                                let primary_r = match row[primary_colour_r_column] {
+                                let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let primary_g = match row[primary_colour_g_column] {
+                                let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let primary_b = match row[primary_colour_b_column] {
+                                let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-
-                                let secondary_r = match row[secondary_colour_r_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-                                let secondary_g = match row[secondary_colour_g_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
-                                };
-                                let secondary_b = match row[secondary_colour_b_column] {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
 
-                                let tertiary_r = match row[tertiary_colour_r_column] {
+                                let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let tertiary_g = match row[tertiary_colour_g_column] {
+                                let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
-                                let tertiary_b = match row[tertiary_colour_b_column] {
+                                let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
                                     DecodedData::I32(ref value) => value,
-                                    _ => unimplemented!(),
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+
+                                let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+                                let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                };
+                                let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
+                                    DecodedData::I32(ref value) => value,
+                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                                 };
 
                                 let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
@@ -824,6 +801,15 @@ impl ToolFactionPainter {
                                 faction_data.insert("uniform_primary".to_owned(), primary);
                                 faction_data.insert("uniform_secondary".to_owned(), secondary);
                                 faction_data.insert("uniform_tertiary".to_owned(), tertiary);
+
+                                // Also save the full row, so we can easely edit it and put it into a file later on.
+                                faction_data.insert("uniform_row".to_owned(), serde_json::to_string(row)?);
+
+                                // Store the definition, so we can re-use it later to recreate the table.
+                                if faction_data.get("uniform_definition").is_none() {
+                                    let definition = serde_json::to_string(table.get_ref_definition())?;
+                                    faction_data.insert("uniform_definition".to_owned(), definition);
+                                }
                             }
                         }
                     }
@@ -834,125 +820,101 @@ impl ToolFactionPainter {
         Ok(())
     }
 
-    unsafe fn save_faction_banner_data(&self, data: &BTreeMap<String, String>, packed_files: &mut BTreeMap<Vec<String>, PackedFile>) -> Option<()> {
-        for (path, packed_file) in packed_files.iter_mut().rev() {
-            if path[1] == "faction_banners_tables" {
-                let decoded = packed_file.decode_return_ref_mut().unwrap();
-                if let DecodedPackedFile::DB(table) = decoded {
+    /// This function takes care of saving the banner's data into a PackedFile.
+    unsafe fn save_faction_banner_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+        if let Some(first) = data.first() {
+            if let Some(definition) = first.get("banner_definition") {
+                let mut table = DB::new("faction_banners_tables", None, &serde_json::from_str(definition)?);
 
-                    // We need multiple column's data for this to work.
-                    let key_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "key").unwrap();
+                let primary_colour_r_column = table.get_column_position_by_name("primary_red")?;
+                let primary_colour_g_column = table.get_column_position_by_name("primary_green")?;
+                let primary_colour_b_column = table.get_column_position_by_name("primary_blue")?;
 
-                    let primary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_red").unwrap();
-                    let primary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_green").unwrap();
-                    let primary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_blue").unwrap();
+                let secondary_colour_r_column = table.get_column_position_by_name("secondary_red")?;
+                let secondary_colour_g_column = table.get_column_position_by_name("secondary_green")?;
+                let secondary_colour_b_column = table.get_column_position_by_name("secondary_blue")?;
 
-                    let secondary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_red").unwrap();
-                    let secondary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_green").unwrap();
-                    let secondary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_blue").unwrap();
+                let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_red")?;
+                let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_green")?;
+                let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_blue")?;
 
-                    let tertiary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_red").unwrap();
-                    let tertiary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_green").unwrap();
-                    let tertiary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_blue").unwrap();
+                let table_data = data.par_iter()
+                    .filter_map(|row_data| {
+                        let row = row_data.get("banner_row")?;
+                        let mut row: Vec<DecodedData> = serde_json::from_str(&row).ok()?;
 
-                    let mut table_data = table.get_table_data();
-                    for row in &mut table_data {
-                        let key = match row[key_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => value,
-                            _ => unimplemented!(),
-                        };
+                        let primary = row_data.get("banner_primary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let secondary = row_data.get("banner_secondary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let tertiary = row_data.get("banner_tertiary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
-                        if let Some(faction_key) = data.get("key") {
-                            if faction_key == key {
-                                let primary = data.get("banner_primary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                                let secondary = data.get("banner_secondary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                                let tertiary = data.get("banner_tertiary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        row[primary_colour_r_column] = DecodedData::I32(primary[0]);
+                        row[primary_colour_g_column] = DecodedData::I32(primary[1]);
+                        row[primary_colour_b_column] = DecodedData::I32(primary[2]);
 
-                                row[primary_colour_r_column] = DecodedData::I32(primary[0]);
-                                row[primary_colour_g_column] = DecodedData::I32(primary[1]);
-                                row[primary_colour_b_column] = DecodedData::I32(primary[2]);
+                        row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
+                        row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
+                        row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
 
-                                row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
-                                row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
-                                row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
+                        row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
+                        row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
+                        row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
 
-                                row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
-                                row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
-                                row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
+                        Some(row)
+                    }).collect::<Vec<Vec<DecodedData>>>();
 
-                                table.set_table_data(&table_data);
-                                return Some(());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        None
+                table.set_table_data(&table_data)?;
+                let path = vec!["db".to_owned(), "faction_banners_tables".to_owned(), "test".to_owned()];
+                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
+            } else { Err(ErrorKind::Generic.into()) }
+        } else { Err(ErrorKind::Generic.into()) }
     }
 
-    unsafe fn save_faction_uniform_data(&self, data: &BTreeMap<String, String>, packed_files: &mut BTreeMap<Vec<String>, PackedFile>) -> Option<()> {
-        for (path, packed_file) in packed_files.iter_mut().rev() {
-            if path[1] == "faction_uniform_colours_tables" {
-                let decoded = packed_file.decode_return_ref_mut().unwrap();
-                if let DecodedPackedFile::DB(table) = decoded {
+    /// This function takes care of saving the banner's data into a PackedFile.
+    unsafe fn save_faction_uniform_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+        if let Some(first) = data.first() {
+            if let Some(definition) = first.get("uniform_definition") {
+                let mut table = DB::new("faction_uniform_colours_tables", None, &serde_json::from_str(definition)?);
 
-                    // We need multiple column's data for this to work.
-                    let key_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "faction_name").unwrap();
+                let primary_colour_r_column = table.get_column_position_by_name("primary_colour_r")?;
+                let primary_colour_g_column = table.get_column_position_by_name("primary_colour_g")?;
+                let primary_colour_b_column = table.get_column_position_by_name("primary_colour_b")?;
 
-                    let primary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_r").unwrap();
-                    let primary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_g").unwrap();
-                    let primary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "primary_colour_b").unwrap();
+                let secondary_colour_r_column = table.get_column_position_by_name("secondary_colour_r")?;
+                let secondary_colour_g_column = table.get_column_position_by_name("secondary_colour_g")?;
+                let secondary_colour_b_column = table.get_column_position_by_name("secondary_colour_b")?;
 
-                    let secondary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_r").unwrap();
-                    let secondary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_g").unwrap();
-                    let secondary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "secondary_colour_b").unwrap();
+                let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_colour_r")?;
+                let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_colour_g")?;
+                let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_colour_b")?;
 
-                    let tertiary_colour_r_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_r").unwrap();
-                    let tertiary_colour_g_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_g").unwrap();
-                    let tertiary_colour_b_column = table.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == "tertiary_colour_b").unwrap();
+                let table_data = data.par_iter()
+                    .filter_map(|row_data| {
+                        let row = row_data.get("uniform_row")?;
+                        let mut row: Vec<DecodedData> = serde_json::from_str(&row).ok()?;
 
-                    let mut table_data = table.get_table_data();
-                    for row in &mut table_data {
-                        let key = match row[key_column] {
-                            DecodedData::StringU8(ref value) |
-                            DecodedData::StringU16(ref value) |
-                            DecodedData::OptionalStringU8(ref value) |
-                            DecodedData::OptionalStringU16(ref value) => value,
-                            _ => unimplemented!(),
-                        };
+                        let primary = row_data.get("uniform_primary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let secondary = row_data.get("uniform_secondary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let tertiary = row_data.get("uniform_tertiary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
-                        if let Some(faction_key) = data.get("key") {
-                            if faction_key == key {
-                                let primary = data.get("uniform_primary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                                let secondary = data.get("uniform_secondary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                                let tertiary = data.get("uniform_tertiary").unwrap().split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        row[primary_colour_r_column] = DecodedData::I32(primary[0]);
+                        row[primary_colour_g_column] = DecodedData::I32(primary[1]);
+                        row[primary_colour_b_column] = DecodedData::I32(primary[2]);
 
-                                row[primary_colour_r_column] = DecodedData::I32(primary[0]);
-                                row[primary_colour_g_column] = DecodedData::I32(primary[1]);
-                                row[primary_colour_b_column] = DecodedData::I32(primary[2]);
+                        row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
+                        row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
+                        row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
 
-                                row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
-                                row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
-                                row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
+                        row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
+                        row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
+                        row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
 
-                                row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
-                                row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
-                                row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
+                        Some(row)
+                    }).collect::<Vec<Vec<DecodedData>>>();
 
-                                table.set_table_data(&table_data);
-                                return Some(());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        None
+                table.set_table_data(&table_data)?;
+                let path = vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned(), "test".to_owned()];
+                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
+            } else { Err(ErrorKind::Generic.into()) }
+        } else { Err(ErrorKind::Generic.into()) }
     }
 }
