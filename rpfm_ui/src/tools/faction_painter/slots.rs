@@ -47,13 +47,13 @@ impl ToolFactionPainterSlots {
     /// This function creates a new `ToolFactionPainterSlots`.
     pub unsafe fn new(ui: &Rc<ToolFactionPainter>) -> Self {
 
-        let delayed_updates = SlotNoArgs::new(&ui.dialog, clone!(
+        let delayed_updates = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.filter_list();
             }
         ));
 
-        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(&ui.dialog, clone!(
+        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move |after, before| {
 
                 // Save the previous data if needed.
@@ -72,31 +72,31 @@ impl ToolFactionPainterSlots {
             }
         ));
 
-        let filter_edited = SlotNoArgs::new(&ui.dialog, clone!(
+        let filter_edited = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.start_delayed_updates_timer();
             }
         ));
 
-        let banner_restore_initial_values = SlotNoArgs::new(&ui.dialog, clone!(
+        let banner_restore_initial_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.banner_restore_initial_values();
             }
         ));
 
-        let banner_restore_vanilla_values = SlotNoArgs::new(&ui.dialog, clone!(
+        let banner_restore_vanilla_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.banner_restore_vanilla_values();
             }
         ));
 
-        let uniform_restore_initial_values = SlotNoArgs::new(&ui.dialog, clone!(
+        let uniform_restore_initial_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.uniform_restore_initial_values();
             }
         ));
 
-        let uniform_restore_vanilla_values = SlotNoArgs::new(&ui.dialog, clone!(
+        let uniform_restore_vanilla_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 ui.uniform_restore_vanilla_values();
             }

@@ -14,7 +14,7 @@ Module with all the code for managing the UI.
 This module contains the code to manage the main UI and store all his slots.
 !*/
 
-use qt_widgets::QWidget;
+use qt_widgets::{QDialog, QWidget};
 
 use qt_core::QBox;
 
@@ -55,7 +55,7 @@ pub mod faction_painter;
 #[derive(GetRef, GetRefMut)]
 pub struct Tool {
 
-    /// Main widget of the tool, built from a Template.
+    /// Main widget of the tool, built from a Template. Usually, the dialog.
     main_widget: QBox<QWidget>,
 
     /// Paths which the tool requires data from.
@@ -114,6 +114,11 @@ impl Tool {
             used_paths,
             packed_files: Rc::new(RefCell::new(HashMap::new())),
         })
+    }
+
+    /// This function returns the main widget casted as a QDialog, which should be the type of the widget defined in the UI Template.
+    pub unsafe fn get_ref_dialog(&self) -> qt_core::QPtr<QDialog> {
+        self.main_widget.static_downcast::<QDialog>()
     }
 
     /// This function saves the tools data to the PackFile, in a common way across all tools, and triggers the relevant UI updates.

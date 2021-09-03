@@ -32,6 +32,6 @@ pub unsafe fn set_connections(ui: &ToolFactionPainter, slots: &ToolFactionPainte
     ui.uniform_restore_initial_values_button.released().connect(&slots.uniform_restore_initial_values);
     ui.uniform_restore_vanilla_values_button.released().connect(&slots.uniform_restore_vanilla_values);
 
-    ui.button_box.button(StandardButton::Cancel).released().connect(ui.dialog.slot_close());
-    ui.button_box.button(StandardButton::Ok).released().connect(ui.dialog.slot_accept());
+    ui.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
+    ui.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
 }

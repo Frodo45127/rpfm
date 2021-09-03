@@ -15,7 +15,6 @@ This tool is a simple dialog, where you can choose a faction from a list, and ch
 !*/
 
 use qt_widgets::QComboBox;
-use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
@@ -85,7 +84,6 @@ const TOOL_SUPPORTED_GAMES: [&str; 1] = ["warhammer_2"];
 #[derive(GetRef, GetRefMut)]
 pub struct ToolFactionPainter {
     tool: Tool,
-    dialog: QBox<QDialog>,
     timer_delayed_updates: QBox<QTimer>,
     faction_list_view: QPtr<QListView>,
     faction_list_filter: QBox<QSortFilterProxyModel>,
@@ -124,14 +122,9 @@ impl ToolFactionPainter {
     /// This function creates the tool's dialog. NOTE: This can fail at runtime if any of the expected widgets is not in the UI's XML.
     pub unsafe fn new(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
 
-        // Build the tool's dialog.
-        let dialog = QDialog::new_1a(&app_ui.main_window);
-        dialog.set_window_title(&qtr("faction_painter_title"));
-        dialog.set_modal(true);
-
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         let paths = vec![PathType::Folder(vec!["db".to_owned()])];
-        let tool = Tool::new(&dialog, &paths, &TOOL_SUPPORTED_GAMES, VIEW)?;
+        let tool = Tool::new(&app_ui.main_window, &paths, &TOOL_SUPPORTED_GAMES, VIEW)?;
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
         // ListView.
@@ -174,13 +167,12 @@ impl ToolFactionPainter {
         faction_list_filter.set_source_model(&faction_list_model);
 
         // Filter timer.
-        let timer_delayed_updates = QTimer::new_1a(&dialog);
+        let timer_delayed_updates = QTimer::new_1a(tool.get_ref_main_widget());
         timer_delayed_updates.set_single_shot(true);
 
         // Build the view itself.
         let view = Rc::new(Self{
             tool,
-            dialog,
             timer_delayed_updates,
             faction_list_view,
             faction_list_filter,
@@ -220,7 +212,7 @@ impl ToolFactionPainter {
         view.load_data()?;
 
         // If we hit ok, save the data back to the PackFile.
-        if view.dialog.exec() == 1 {
+        if view.tool.get_ref_dialog().exec() == 1 {
             view.save_data(app_ui, pack_file_contents_ui)?;
         }
 
