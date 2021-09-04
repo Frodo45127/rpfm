@@ -52,19 +52,6 @@ pub mod shortcuts;
 pub mod slots;
 pub mod tips;
 
-// Display name, adapted to support Pnemonics.
-const GAME_SELECTED_TROY: &str = "Troy";
-const GAME_SELECTED_THREE_KINGDOMS: &str = "Three Kingdoms";
-const GAME_SELECTED_WARHAMMER_2: &str = "Warhammer 2";
-const GAME_SELECTED_WARHAMMER: &str = "Warhammer";
-const GAME_SELECTED_THRONES_OF_BRITANNIA: &str = "Thrones of Britannia";
-const GAME_SELECTED_ATTILA: &str = "Attila";
-const GAME_SELECTED_ROME_2: &str = "Rome 2";
-const GAME_SELECTED_SHOGUN_2: &str = "Shogun 2";
-const GAME_SELECTED_NAPOLEON: &str = "Napoleon";
-const GAME_SELECTED_EMPIRE: &str = "Empire";
-const GAME_SELECTED_ARENA: &str = "Arena";
-
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -443,16 +430,16 @@ impl AppUI {
 
         menu_bar_mymod.add_separator();
 
-        let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
 
         menu_bar_mymod.insert_separator(&mymod_new);
 
@@ -498,17 +485,17 @@ impl AppUI {
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_assembly_kit_folder"));
         let game_selected_open_config_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_config_folder"));
 
-        let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
-        let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ARENA));
+        let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
+        let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ARENA));
 
         game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name()))).as_ref());
         game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name()))).as_ref());
@@ -555,16 +542,16 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Special Stuff` menu with submenus.
-        let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
         let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.

@@ -48,7 +48,7 @@ use std::thread;
 
 use rpfm_error::ctd::CrashReport;
 
-use rpfm_lib::config::{init_config_path, get_config_path};
+use rpfm_lib::settings::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;

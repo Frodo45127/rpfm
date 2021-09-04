@@ -61,7 +61,7 @@ use std::path::PathBuf;
 
 use rpfm_error::Result;
 
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::SUPPORTED_GAMES;
 use crate::schema::SCHEMA_FOLDER;
 

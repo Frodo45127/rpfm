@@ -31,7 +31,6 @@ use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::*;
-use crate::config::get_config_path;
 use crate::DB;
 use crate::GAME_SELECTED;
 use crate::games::VanillaDBTableNameLogic;
@@ -42,6 +41,7 @@ use crate::packfile::packedfile::CachedPackedFile;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::DependencyData;
 use crate::SCHEMA;
+use crate::settings::get_config_path;
 
 const BINARY_EXTENSION: &str = "pak2";
 const DEPENDENCIES_FOLDER: &str = "dependencies";

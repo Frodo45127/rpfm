@@ -67,7 +67,7 @@ use std::io::{BufReader, Write};
 
 use rpfm_error::Result;
 
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::schema::SCHEMA_FOLDER;
 use crate::SUPPORTED_GAMES;
 

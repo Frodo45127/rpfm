@@ -19,7 +19,7 @@ use std::fs::File;
 use rpfm_error::ctd::CrashReport;
 use rpfm_error::Result;
 
-use rpfm_lib::config::get_config_path;
+use rpfm_lib::settings::get_config_path;
 
 //---------------------------------------------------------------------------//
 //                          Logging helpers

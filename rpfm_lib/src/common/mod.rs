@@ -28,7 +28,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use crate::schema;
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::games::supported_games::KEY_TROY;
 use crate::GAME_SELECTED;
 

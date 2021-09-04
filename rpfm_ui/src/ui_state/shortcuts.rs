@@ -23,7 +23,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
 use rpfm_error::Result;
-use rpfm_lib::config::get_config_path;
+use rpfm_lib::settings::get_config_path;
 
 /// Name of the file which contains the current shortcuts of the program.
 const SHORTCUTS_FILE: &str = "shortcuts.ron";

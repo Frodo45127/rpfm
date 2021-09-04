@@ -21,7 +21,7 @@ use rpfm_error::{Result, Error, ErrorKind};
 use rpfm_macros::*;
 
 use crate::common::get_files_from_subdir;
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::packfile::{Manifest, PFHFileType, PFHVersion};
 use crate::SETTINGS;
 

@@ -34,7 +34,6 @@ pub mod assembly_kit;
 pub mod common;
 pub mod dependencies;
 pub mod diagnostics;
-pub mod config;
 pub mod games;
 pub mod global_search;
 pub mod packedfile;

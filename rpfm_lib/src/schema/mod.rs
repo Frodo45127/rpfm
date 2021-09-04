@@ -84,7 +84,7 @@ use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
 use crate::SUPPORTED_GAMES;
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;

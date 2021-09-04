@@ -34,12 +34,12 @@ use std::rc::Rc;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::common::*;
-use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
+use rpfm_lib::settings::get_config_path;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;

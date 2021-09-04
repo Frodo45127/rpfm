@@ -13,8 +13,8 @@
 //! It has to be initialized at the begining, before any command gets executed.
 
 use rpfm_error::Result;
-use rpfm_lib::config::init_config_path;
 use rpfm_lib::games::*;
+use rpfm_lib::settings::init_config_path;
 use rpfm_lib::SUPPORTED_GAMES;
 
 /// This struct serves to hold the configuration used during the execution of the program.
