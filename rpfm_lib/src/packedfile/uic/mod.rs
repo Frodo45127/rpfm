@@ -79,7 +79,7 @@ impl UIC {
     /// This function takes an `UIC` and encodes it to `Vec<u8>`.
     pub fn save(&self) -> Vec<u8> {
         let mut data = vec![];
-        data.encode_string_u8(&SIGNATURE);
+        data.encode_string_u8(SIGNATURE);
         data.encode_integer_u32(self.version);
 
         data

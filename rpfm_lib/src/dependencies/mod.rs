@@ -262,7 +262,7 @@ impl Dependencies {
         // This one can fail, leaving the dependencies with only game data.
         // This is needed to support table creation on Empire and Napoleon.
         if let Some(path) = asskit_path {
-            let _ = self.generate_asskit_only_db_tables(&path, version);
+            let _ = self.generate_asskit_only_db_tables(path, version);
         }
 
         Ok(())
@@ -279,7 +279,7 @@ impl Dependencies {
         raw_db_path: &Path,
         version: i16,
     ) -> Result<()> {
-        let (raw_tables, _) = RawTable::read_all(&raw_db_path, version, true, self)?;
+        let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, self)?;
         self.asskit_only_db_tables = raw_tables.par_iter().map(From::from).collect::<Vec<DB>>();
 
         Ok(())
@@ -470,7 +470,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         );
 
@@ -483,7 +483,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)| {
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         });
 
@@ -562,7 +562,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         );
 
@@ -575,7 +575,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)| {
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         });
 
@@ -669,8 +669,8 @@ impl From<&Dependencies> for DependenciesInfo {
 
                 PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
             }).collect(),
-            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
-            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
+            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(PackedFileInfo::from).collect(),
+            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(PackedFileInfo::from).collect(),
         }
     }
 }

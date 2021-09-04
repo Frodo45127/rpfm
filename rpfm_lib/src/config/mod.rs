@@ -43,15 +43,11 @@ pub fn init_config_path() -> Result<()> {
     let autosaves_path = config_path.join("autosaves");
 	let error_path = config_path.join("error");
 	let schemas_path = config_path.join("schemas");
-    let templates_path = config_path.join("templates");
-    let templates_custom_path = config_path.join("templates_custom");
 
     DirBuilder::new().recursive(true).create(&autosaves_path)?;
     DirBuilder::new().recursive(true).create(&config_path)?;
     DirBuilder::new().recursive(true).create(&error_path)?;
     DirBuilder::new().recursive(true).create(&schemas_path)?;
-    DirBuilder::new().recursive(true).create(&templates_path)?;
-    DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 
     // Init autosave files if they're not yet initialized. Minimum 1.
     let mut max_autosaves = SETTINGS.read().unwrap().settings_string["autosave_amount"].parse::<i32>().unwrap_or(10);
@@ -71,7 +67,7 @@ pub fn init_config_path() -> Result<()> {
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
 pub fn get_config_path() -> Result<PathBuf> {
 	if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
-        match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
+        match ProjectDirs::from(QUALIFIER, ORGANISATION, PROGRAM_NAME) {
     		Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
     		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
     	}

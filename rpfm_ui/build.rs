@@ -33,12 +33,12 @@ fn main() {
 
     // These check whether you have qmake and nmake installed, because they're needed to get the custom widget's lib compiled.
     if Command::new("qmake").output().is_err() {
-        stdout().write(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(98);
     }
 
     if Command::new("nmake").output().is_err() {
-        stdout().write(b"ERROR: You either don't have nmake installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have nmake installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(99);
     }
 
@@ -70,12 +70,12 @@ fn main() {
 
     // These check whether you have qmake and make installed, because they're needed to get the custom widget's lib compiled.
     if Command::new("qmake").output().is_err() {
-        stdout().write(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(98);
     }
 
     if Command::new("make").output().is_err() {
-        stdout().write(b"ERROR: You either don't have make installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have make installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(99);
     }
 
@@ -100,12 +100,12 @@ fn main() {
 
     // These check whether you have qmake and gmake installed, because they're needed to get the custom widget's lib compiled.
     if Command::new("qmake").output().is_err() {
-        stdout().write(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have qmake installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(98);
     }
 
     if Command::new("make").output().is_err() {
-        stdout().write(b"ERROR: You either don't have make installed, or it's not in the path. Fix that before continuing.").unwrap();
+        stdout().write_all(b"ERROR: You either don't have make installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(99);
     }
 

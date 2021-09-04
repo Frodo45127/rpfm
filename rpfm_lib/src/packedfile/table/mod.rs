@@ -391,7 +391,7 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type(), &new_definition.get_fields_processed()[*new_pos as usize].get_default_value()));
+                    entry.push(DecodedData::default(new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type(), new_definition.get_fields_processed()[*new_pos as usize].get_default_value()));
                 }
 
                 // Otherwise, we got a moved column. Check here if it needs type conversion.
@@ -495,7 +495,7 @@ impl Table {
                     FieldType::SequenceU16(definition) => {
                         if let Ok(entry_count) = data.decode_packedfile_integer_u16(*index, &mut index) {
                             let mut sub_table = Table::new(definition);
-                            sub_table.decode(&data, entry_count.into(), index, return_incomplete)?;
+                            sub_table.decode(data, entry_count.into(), index, return_incomplete)?;
                             Ok(DecodedData::SequenceU16(sub_table)) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
                     }
@@ -504,7 +504,7 @@ impl Table {
                     FieldType::SequenceU32(definition) => {
                         if let Ok(entry_count) = data.decode_packedfile_integer_u32(*index, &mut index) {
                             let mut sub_table = Table::new(definition);
-                            sub_table.decode(&data, entry_count, index, return_incomplete)?;
+                            sub_table.decode(data, entry_count, index, return_incomplete)?;
                             Ok(DecodedData::SequenceU32(sub_table)) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
                     }
@@ -635,10 +635,10 @@ impl Table {
 
                                 // If there are no problems, encode the data.
                                 match row[data_column] {
-                                    DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(&Self::unescape_special_chars(&data)),
-                                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&Self::unescape_special_chars(&data)),
-                                    DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(&Self::unescape_special_chars(&data)),
-                                    DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(&Self::unescape_special_chars(&data)),
+                                    DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(&Self::unescape_special_chars(data)),
+                                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&Self::unescape_special_chars(data)),
+                                    DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(&Self::unescape_special_chars(data)),
+                                    DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(&Self::unescape_special_chars(data)),
                                     _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
                                 }
                             }
@@ -762,8 +762,8 @@ impl Table {
                             vec![DecodedData::OptionalStringU16(String::new()); 1]
                         }
                     },
-                    FieldType::SequenceU16(ref definition) => vec![DecodedData::SequenceU16(Table::new(&definition)); 1],
-                    FieldType::SequenceU32(ref definition) => vec![DecodedData::SequenceU32(Table::new(&definition)); 1]
+                    FieldType::SequenceU16(ref definition) => vec![DecodedData::SequenceU16(Table::new(definition)); 1],
+                    FieldType::SequenceU32(ref definition) => vec![DecodedData::SequenceU32(Table::new(definition)); 1]
                 }
             )
             .flatten()
@@ -896,7 +896,7 @@ impl Table {
 
                 // Then read the rest of the rows as a normal TSV.
                 else {
-                    let mut entry = Self::get_new_row(&definition);
+                    let mut entry = Self::get_new_row(definition);
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.
@@ -1103,7 +1103,7 @@ impl Table {
         };
 
         let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(version)?.clone() }
-        else { schema.get_ref_versioned_file_db(&table_type)?.get_version(version)?.clone() };
+        else { schema.get_ref_versioned_file_db(table_type)?.get_version(version)?.clone() };
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((&table_type, version))?;

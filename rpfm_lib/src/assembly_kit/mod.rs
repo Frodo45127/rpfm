@@ -108,9 +108,9 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
                                     if let Ok(vanilla_table_data) = vanilla_table.get_raw_data_and_keep_it() {
                                         if let Ok((version, _, _, _, _)) = DB::read_header(&vanilla_table_data) {
                                             if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.get_version() == version) {
-                                                definition.update_from_raw_definition(&raw_definition);
+                                                definition.update_from_raw_definition(raw_definition);
                                                 if let Some(ref raw_localisable_fields) = raw_localisable_fields {
-                                                    definition.update_from_raw_localisable_fields(&raw_definition, &raw_localisable_fields.fields)
+                                                    definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
                                                 }
                                             }
                                         }
@@ -120,7 +120,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies:
                         }
                     }
                 });
-                schema.save(&GAME_SELECTED.read().unwrap().get_schema_name())
+                schema.save(GAME_SELECTED.read().unwrap().get_schema_name())
             }
             _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
         }

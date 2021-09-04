@@ -141,7 +141,7 @@ impl GameInfo {
 
     /// This function returns the "Display" name of the Game, meaning properly written.
     pub fn get_display_name(&self) -> &str {
-        &self.display_name
+        self.display_name
     }
 
     /// This function returns the PFHVersion corresponding to the provided PackFile type. If it's not found, it defaults to the one used by mods.
@@ -209,7 +209,7 @@ impl GameInfo {
 
     /// This function tries to get the correct InstallType for the currently configured installation of the game.
     pub fn get_install_type(&self) -> Result<InstallType> {
-        let base_path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or(Error::from(ErrorKind::GamePathNotConfigured))?;
+        let base_path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
 
         // Checks to guess what kind of installation we have.
         let base_path_files = get_files_from_subdir(&base_path, false)?;
@@ -265,23 +265,23 @@ impl GameInfo {
 
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings
     pub fn get_data_path(&self) -> Result<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or(Error::from(ErrorKind::GamePathNotConfigured))?;
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
         let install_type = self.get_install_type()?;
-        let install_data = self.install_data.get(&install_type).ok_or(Error::from(ErrorKind::GameNotSupported))?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
         Ok(path.join(PathBuf::from(install_data.get_ref_data_path())))
     }
 
     /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
     pub fn get_local_mods_path(&self) -> Result<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or(Error::from(ErrorKind::GamePathNotConfigured))?;
+        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
         let install_type = self.get_install_type()?;
-        let install_data = self.install_data.get(&install_type).ok_or(Error::from(ErrorKind::GameNotSupported))?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
         Ok(path.join(PathBuf::from(install_data.get_ref_local_mods_path())))
     }
 
     /// This function gets the `/assembly_kit` path or equivalent of the game selected, if said game it's configured in the settings.
     pub fn get_assembly_kit_path(&self) -> Result<PathBuf> {
-        SETTINGS.read().unwrap().paths.get(&(self.get_game_key_name() + "_assembly_kit")).cloned().flatten().ok_or(Error::from(ErrorKind::GameAssemblyKitPathNotConfigured))
+        SETTINGS.read().unwrap().paths.get(&(self.get_game_key_name() + "_assembly_kit")).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GameAssemblyKitPathNotConfigured))
     }
 
     /// This function returns the assembly kit raw data path, or an error if this game doesn't have a known path.

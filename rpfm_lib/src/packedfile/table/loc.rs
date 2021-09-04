@@ -139,8 +139,8 @@ impl Loc {
 
         // Then try to decode all the entries.
         let mut index = HEADER_SIZE as usize;
-        let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+        let mut table = Table::new(definition);
+        table.decode(packed_file_data, entry_count, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }

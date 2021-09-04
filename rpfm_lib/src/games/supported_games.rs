@@ -65,6 +65,13 @@ pub struct SupportedGames {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
+/// Default Implementation for `SupportedGames`.
+impl Default for SupportedGames {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Implementation for `SupportedGames`.
 impl SupportedGames {
 
@@ -1034,7 +1041,7 @@ impl SupportedGames {
 
     /// This function returns a GameInfo from a game name.
     pub fn get_supported_game_from_key(&self, key: &str) -> Result<&GameInfo> {
-        self.games.get(key).ok_or(ErrorKind::GameNotSupported.into())
+        self.games.get(key).ok_or_else(|| ErrorKind::GameNotSupported.into())
     }
 
     /// This function returns a vec with references to the full list of supported games.

@@ -355,7 +355,7 @@ impl Decoder for [u8] {
     fn decode_packedfile_integer_cauleb128(&self, index: &mut usize) -> Result<u32> {
         let mut size: u32 = 0;
         let mut byte = if let Some(byte) = self.get(*index) { byte }
-        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode a cauleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>")).into()) };
+        else { return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode a cauleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>".to_owned()).into()) };
 
         while(byte & 0x80) != 0 {
             size = (size << 7) | (byte & 0x7f) as u32;
@@ -366,7 +366,7 @@ impl Decoder for [u8] {
                 byte = new_byte;
             }
             else {
-                return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an cauleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>")).into())
+                return Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an cauleb_128 value:</p><ul><li>No bytes left to decode.</li></ul>".to_owned()).into())
             }
         }
 

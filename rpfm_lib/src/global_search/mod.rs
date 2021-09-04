@@ -165,8 +165,8 @@ impl GlobalSearch {
                         let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::DB, false);
                         self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_db(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -175,8 +175,8 @@ impl GlobalSearch {
                         let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false);
                         self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_loc(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -185,8 +185,8 @@ impl GlobalSearch {
                         let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
                         self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_text(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -196,8 +196,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::DB], false);
                         self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_db(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -206,8 +206,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Loc], false);
                         self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_loc(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -216,8 +216,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
                         self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_text(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -227,8 +227,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::DB], false);
                         self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_db(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_db(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -237,8 +237,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Loc], false);
                         self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_loc(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_loc(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -247,8 +247,8 @@ impl GlobalSearch {
                         let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
                         self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(&schema) {
-                                Some(self.search_on_text(&path, &data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                Some(self.search_on_text(&path, data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -266,7 +266,7 @@ impl GlobalSearch {
                             };
 
                             let path = vec!["db".to_owned(), table.get_table_name(), table_name];
-                            Some(self.search_on_db(&path, &table, &matching_mode))
+                            Some(self.search_on_db(&path, table, &matching_mode))
                         }).collect();
                     }
                 },
@@ -323,21 +323,21 @@ impl GlobalSearch {
         // If we got no schema, don't even decode.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             for path in &paths {
-                if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
-                    match packed_file.decode_return_ref_no_locks(&schema).unwrap_or(&DecodedPackedFile::Unknown) {
+                if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(path) {
+                    match packed_file.decode_return_ref_no_locks(schema).unwrap_or(&DecodedPackedFile::Unknown) {
                         DecodedPackedFile::DB(data) => {
                             if self.search_on_dbs {
-                                self.matches_db.push(self.search_on_db(&path, data, &matching_mode));
+                                self.matches_db.push(self.search_on_db(path, data, &matching_mode));
                             }
                         }
                         DecodedPackedFile::Loc(data) => {
                             if self.search_on_locs {
-                                self.matches_loc.push(self.search_on_loc(&path, data, &matching_mode));
+                                self.matches_loc.push(self.search_on_loc(path, data, &matching_mode));
                             }
                         }
                         DecodedPackedFile::Text(data) => {
                             if self.search_on_texts {
-                                self.matches_text.push(self.search_on_text(&path, data, &matching_mode));
+                                self.matches_text.push(self.search_on_text(path, data, &matching_mode));
                             }
                         }
                         _ => continue,
@@ -389,7 +389,7 @@ impl GlobalSearch {
                 match match_file {
                     MatchHolder::Table(match_table) => {
                         if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
-                            if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                            if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(schema) {
                                 match packed_file {
                                     DecodedPackedFile::DB(ref mut table) => {
                                         let mut data = table.get_table_data();
@@ -461,7 +461,7 @@ impl GlobalSearch {
             let mut changed_files = vec![];
             for match_table in &self.matches_db {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
-                    if let Ok(DecodedPackedFile::DB(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                    if let Ok(DecodedPackedFile::DB(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(schema) {
                         let mut data = table.get_table_data();
                         for match_data in &match_table.matches {
 
@@ -483,7 +483,7 @@ impl GlobalSearch {
 
             for match_table in &self.matches_loc {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
-                    if let Ok(DecodedPackedFile::Loc(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                    if let Ok(DecodedPackedFile::Loc(ref mut table)) = packed_file.decode_return_ref_mut_no_locks(schema) {
                         let mut data = table.get_table_data();
                         for match_data in &match_table.matches {
 
@@ -566,8 +566,8 @@ impl GlobalSearch {
     fn replace_match(&self, text: &mut String, matching_mode: &MatchingMode) {
         match matching_mode {
             MatchingMode::Regex(regex) => {
-                if regex.is_match(&text) {
-                    *text = regex.replace_all(&text, &*self.replace_text).to_string();
+                if regex.is_match(text) {
+                    *text = regex.replace_all(text, &*self.replace_text).to_string();
                 }
             }
             MatchingMode::Pattern => {
@@ -716,7 +716,7 @@ impl GlobalSearch {
                         MatchingMode::Regex(regex) => {
                             for definition in definitions {
                                 for (index, field) in definition.get_fields_processed().iter().enumerate() {
-                                    if regex.is_match(&field.get_name()) {
+                                    if regex.is_match(field.get_name()) {
                                         matches.push(SchemaMatch::new(
                                             definition.get_version(),
                                             index as u32,
@@ -787,9 +787,9 @@ impl GlobalSearch {
     ) {
         match matching_mode {
             MatchingMode::Regex(regex) => {
-                if regex.is_match(&text) {
+                if regex.is_match(text) {
                     let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
-                    matches.push(TableMatch::new(&column_name, column_number, row_number, text));
+                    matches.push(TableMatch::new(column_name, column_number, row_number, text));
                 }
             }
 

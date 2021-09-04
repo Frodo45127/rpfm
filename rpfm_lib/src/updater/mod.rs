@@ -80,7 +80,7 @@ pub fn update_main_program() -> Result<()> {
     let last_release = get_last_release(update_channel)?;
 
     // Get the download for our architecture.
-    let asset = last_release.asset_for(&get_target()).ok_or_else(|| Error::from(ErrorKind::NoUpdateForYourArchitecture))?;
+    let asset = last_release.asset_for(get_target()).ok_or_else(|| Error::from(ErrorKind::NoUpdateForYourArchitecture))?;
     let mut tmp_path = std::env::current_exe().unwrap();
     tmp_path.pop();
     let tmp_dir = Builder::new()
@@ -106,7 +106,7 @@ pub fn update_main_program() -> Result<()> {
     let mut dest_base_path = current_exe()?;
     dest_base_path.pop();
 
-    for updated_file in &get_files_from_subdir(&tmp_dir.path(), true)? {
+    for updated_file in &get_files_from_subdir(tmp_dir.path(), true)? {
 
         // Ignore the downloaded ZIP.
         if let Some(extension) = updated_file.extension() {
@@ -129,7 +129,7 @@ pub fn update_main_program() -> Result<()> {
         dest_folder.pop();
         DirBuilder::new().recursive(true).create(&dest_folder)?;
 
-        Move::from_source(&updated_file)
+        Move::from_source(updated_file)
             .replace_using_temp(&tmp_file)
             .to_dest(&dest_file)?;
     }

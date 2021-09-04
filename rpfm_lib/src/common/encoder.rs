@@ -144,11 +144,10 @@ impl Encoder for Vec<u8> {
 
             // If it's not the last one, encode it with the 0x80 bit set,
             // and move the rest of the number to be ready to check the next one.
+            data.push(byte as u8 | 0x80);
             if byte != integer {
-                data.push(byte as u8 | 0x80);
                 integer >>= 7;
             } else {
-                data.push(byte as u8 | 0x80);
                 break;
             }
         }
@@ -193,7 +192,7 @@ impl Encoder for Vec<u8> {
     }
 
     fn encode_string_u8_iso_8859_1(&mut self, string: &str) {
-        self.extend_from_slice(&ISO_8859_1.encode(&string, EncoderTrap::Replace).unwrap());
+        self.extend_from_slice(&ISO_8859_1.encode(string, EncoderTrap::Replace).unwrap());
     }
 
     fn encode_string_u8_0padded(&mut self, (string, size): &(String, usize)) -> Result<()> {

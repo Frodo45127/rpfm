@@ -214,7 +214,7 @@ impl PackedFile {
                     Some(ref schema) => schema.get_ref_last_definition_loc()?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
-                DecodedPackedFile::Loc(Loc::new(&definition))
+                DecodedPackedFile::Loc(Loc::new(definition))
             },
 
             // For dbs, we create them with their last definition, if we found one, and their table name.
@@ -224,7 +224,7 @@ impl PackedFile {
                     Some(ref schema) => schema.get_ref_last_definition_db(table_name, dependencies)?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
-                DecodedPackedFile::DB(DB::new(&table_name, None, &table_definition))
+                DecodedPackedFile::DB(DB::new(table_name, None, table_definition))
             }
 
             // TODO: Add Text files here.
@@ -552,7 +552,7 @@ impl RawPackedFile {
         let mut file = BufReader::new(File::open(&path_as_file)?);
         let mut data = vec![];
         file.read_to_end(&mut data)?;
-        Ok(RawPackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref())?, false, data))
+        Ok(RawPackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(file.get_ref())?, false, data))
     }
 
     /// This function loads the data of a `RawPackedFile` to memory, if it isn't loaded already.
@@ -605,8 +605,8 @@ impl RawPackedFile {
     pub fn get_data_and_keep_it(&mut self) -> Result<Vec<u8>> {
         let data = match self.data {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
-                if is_encrypted.is_some() { *data = decrypt_packed_file(&data); }
-                if *is_compressed { *data = decompress_data(&data)?; }
+                if is_encrypted.is_some() { *data = decrypt_packed_file(data); }
+                if *is_compressed { *data = decompress_data(data)?; }
                 *is_compressed = false;
                 *is_encrypted = None;
                 return Ok(data.to_vec())
@@ -630,8 +630,8 @@ impl RawPackedFile {
     pub fn get_ref_mut_data_and_keep_it(&mut self) -> Result<&mut Vec<u8>> {
         let data = match self.data {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
-                if is_encrypted.is_some() { *data = decrypt_packed_file(&data); }
-                if *is_compressed { *data = decompress_data(&data)?; }
+                if is_encrypted.is_some() { *data = decrypt_packed_file(data); }
+                if *is_compressed { *data = decompress_data(data)?; }
                 *is_compressed = false;
                 *is_encrypted = None;
                 return Ok(data)
@@ -865,8 +865,8 @@ impl From<&PackedFile> for PackedFileInfo {
 impl From<&CachedPackedFile> for PackedFileInfo {
     fn from(packedfile: &CachedPackedFile) -> Self {
         Self {
-            path: packedfile.packed_file_path.replace("\\", "/").split("/").map(|x| x.to_owned()).collect(),
-            packfile_name: packedfile.pack_file_path.replace("\\", "/").split("/").last().unwrap().to_owned(),
+            path: packedfile.packed_file_path.replace("\\", "/").split('/').map(|x| x.to_owned()).collect(),
+            packfile_name: packedfile.pack_file_path.replace("\\", "/").split('/').last().unwrap().to_owned(),
             timestamp: 0,
             is_compressed: packedfile.is_compressed,
             is_encrypted: packedfile.is_encrypted.is_some(),

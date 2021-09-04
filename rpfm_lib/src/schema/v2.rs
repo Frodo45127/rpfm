@@ -223,7 +223,7 @@ impl SchemaV2 {
             match a {
                 VersionedFileV2::DB(table_name_a, _) => {
                     match b {
-                        VersionedFileV2::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
+                        VersionedFileV2::DB(table_name_b, _) => table_name_a.cmp(table_name_b),
                         _ => Ordering::Less,
                     }
                 }
@@ -246,11 +246,11 @@ impl SchemaV2 {
 
     pub fn update() {
         println!("Importing schemas from V2 to V3");
-        let mut legacy_schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), Self::load(&y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV3>>();
+        let mut legacy_schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), Self::load(y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV3>>();
         println!("Amount of SchemasV2: {:?}", legacy_schemas.len());
         legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
             if let Some(file_name) = SUPPORTED_GAMES.get_games().iter().filter_map(|y| if &y.get_game_key_name() == game { Some(y.get_schema_name()) } else { None }).find(|_| true) {
-                if legacy_schema.save(&file_name).is_ok() {
+                if legacy_schema.save(file_name).is_ok() {
                     println!("SchemaV2 for game {} updated to SchemaV3.", game);
                 }
             }

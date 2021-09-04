@@ -74,7 +74,7 @@ impl ESF {
         offset = nodes_offset;
 
         // This file is a big tree hanging from the root node, so just decode everything recursively.
-        let root_node = Self::read_node(&packed_file_data, &mut offset, true, &record_names, &strings_utf8, &strings_utf16)?;
+        let root_node = Self::read_node(packed_file_data, &mut offset, true, &record_names, &strings_utf8, &strings_utf16)?;
 
         // If we're not at the exact end of the nodes, something failed.
         if offset != record_names_offset as usize {
@@ -127,14 +127,14 @@ impl ESF {
         // Then UTF-16 Strings.
         strings_data.encode_integer_u32(strings_utf16.len() as u32);
         for (index, string) in strings_utf16.iter().enumerate() {
-            strings_data.encode_packedfile_string_u16(&string);
+            strings_data.encode_packedfile_string_u16(string);
             strings_data.encode_integer_u32(index as u32);
         }
 
         // Then UTF-8 Strings.
         strings_data.encode_integer_u32(strings_utf8.len() as u32);
         for (index, string) in strings_utf8.iter().enumerate() {
-            strings_data.encode_packedfile_string_u8(&string);
+            strings_data.encode_packedfile_string_u8(string);
             strings_data.encode_integer_u32(index as u32);
         }
 
@@ -1131,7 +1131,7 @@ impl ESF {
                     for group_node in &value.children {
                         let mut group_node_data = vec![];
                         for node in group_node {
-                            let child_node = Self::save_node(&node, false, record_names, strings_utf8, strings_utf16);
+                            let child_node = Self::save_node(node, false, record_names, strings_utf8, strings_utf16);
                             group_node_data.extend_from_slice(&child_node);
                         }
 
@@ -1146,7 +1146,7 @@ impl ESF {
                     // For non-nested nodes, we just get the first and only children group.
                     if let Some(children) = value.children.get(0) {
                         for node in children {
-                            let child_node = Self::save_node(&node, false, record_names, strings_utf8, strings_utf16);
+                            let child_node = Self::save_node(node, false, record_names, strings_utf8, strings_utf16);
                             childs_data.extend_from_slice(&child_node);
                         }
                     }
@@ -1171,15 +1171,15 @@ impl ESF {
         match node_type {
             NodeType::Utf16(value) => if !strings_utf16.contains(value) { strings_utf16.push(value.to_owned()) },
             NodeType::Ascii(value) => if !strings_utf8.contains(value) { strings_utf8.push(value.to_owned()) },
-            NodeType::Utf16Array(value) => value.iter().for_each(|value| if !strings_utf16.contains(&value) { strings_utf16.push(value.to_owned()) }),
-            NodeType::AsciiArray(value) => value.iter().for_each(|value| if !strings_utf8.contains(&value) { strings_utf8.push(value.to_owned()) }),
+            NodeType::Utf16Array(value) => value.iter().for_each(|value| if !strings_utf16.contains(value) { strings_utf16.push(value.to_owned()) }),
+            NodeType::AsciiArray(value) => value.iter().for_each(|value| if !strings_utf8.contains(value) { strings_utf8.push(value.to_owned()) }),
             NodeType::Record(value) => {
                 if !record_names.contains(&value.name) {
                     record_names.push(value.name.to_owned());
                 }
                 for node_group in &value.children {
                     for node in node_group {
-                        Self::read_string_from_node(&node, record_names, strings_utf8, strings_utf16);
+                        Self::read_string_from_node(node, record_names, strings_utf8, strings_utf16);
                     }
                 }
             },

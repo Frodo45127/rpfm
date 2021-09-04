@@ -1562,7 +1562,7 @@ impl PackFile {
 
         // If we have a mix of files and folders... then we get the paths according to the type.
         let mut paths: Vec<Vec<String>> = path_types.par_iter()
-            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(&path)) } else { None })
+            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(path)) } else { None })
             .flatten()
             .collect::<Vec<Vec<String>>>();
 
@@ -1734,7 +1734,7 @@ impl PackFile {
         // Decode the files and put them in their respective list.
         for path in paths {
             if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(path) {
-                match packed_file.decode_return_ref_no_locks(&schema)? {
+                match packed_file.decode_return_ref_no_locks(schema)? {
                     DecodedPackedFile::DB(table) => db_files.push(table.clone()),
                     DecodedPackedFile::Loc(table) => loc_files.push(table.clone()),
                     _ => return Err(ErrorKind::InvalidFilesForMerging.into())
@@ -2009,7 +2009,7 @@ impl PackFile {
                         match table_type {
                             TSV_NAME_LOC => {
                                 let definition = schema.get_ref_versioned_file_loc()?.get_version(table_version)?;
-                                if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type) {
+                                if let Ok(table) = Loc::import_tsv(definition, path, table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -2039,8 +2039,8 @@ impl PackFile {
                                 else { error_files.push(path.to_string_lossy().to_string()); }
                             }
                             _ => {
-                                let definition = schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?;
-                                if let Ok(table) = DB::import_tsv(&definition, &path, &table_type) {
+                                let definition = schema.get_ref_versioned_file_db(table_type)?.get_version(table_version)?;
+                                if let Ok(table) = DB::import_tsv(definition, path, table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -2160,7 +2160,7 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, &TSV_NAME_LOC) {
+                                match data.export_tsv(&export_path, TSV_NAME_LOC) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
@@ -2309,7 +2309,7 @@ impl PackFile {
             let mut mod_files = vec![];
             let mut movie_files = vec![];
             for path in packs_paths {
-                match Self::read(&path, use_lazy_loading) {
+                match Self::read(path, use_lazy_loading) {
                     Ok(mut pack) => match pack.get_pfh_file_type() {
                         PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
                         PFHFileType::Release => release_files.append(&mut pack.packed_files),
@@ -2633,17 +2633,17 @@ impl PackFile {
             }
 
             if *should_be_compressed && !*is_compressed {
-                *data = compress_data(&data)?;
+                *data = compress_data(data)?;
                 *is_compressed = true;
             }
             else if !*should_be_compressed && *is_compressed {
-                *data = decompress_data(&data)?;
+                *data = decompress_data(data)?;
                 *is_compressed = false;
             }
 
             // Encryption is not yet supported. Unencrypt everything.
             if is_encrypted.is_some() {
-                *data = decrypt_packed_file(&data);
+                *data = decrypt_packed_file(data);
                 *is_encrypted = None;
                 *should_be_encrypted = None;
             }
@@ -2652,7 +2652,7 @@ impl PackFile {
         // Save notes, if needed.
         if let Some(note) = &self.notes {
             let mut data = vec![];
-            data.encode_string_u8(&note);
+            data.encode_string_u8(note);
             let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
             let packed_file = PackedFile::new_from_raw(&raw_data);
             self.packed_files.push(packed_file);
@@ -2660,7 +2660,7 @@ impl PackFile {
 
         // Saving PackFile settings.
         let mut data = vec![];
-        data.write_all(&to_string_pretty(&self.settings)?.as_bytes())?;
+        data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
         let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
         let packed_file = PackedFile::new_from_raw(&raw_data);
         self.packed_files.push(packed_file);
@@ -2709,7 +2709,7 @@ impl PackFile {
 
         // Write the entire header.
         let mut header = vec![];
-        header.encode_string_u8(&self.pfh_version.get_value());
+        header.encode_string_u8(self.pfh_version.get_value());
         header.encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value());
         header.encode_integer_u32(self.pack_files.len() as u32);
         header.encode_integer_u32(pack_file_index.len() as u32);
