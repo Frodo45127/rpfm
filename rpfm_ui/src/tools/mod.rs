@@ -162,9 +162,6 @@ impl Tool {
 
         // Reload the paths edited by the tool whose views are open.
         self.reload_used_paths(app_ui, pack_file_contents_ui);
-
-        // Re-enable the Main Window.
-        app_ui.main_window.set_enabled(true);
         Ok(())
     }
 

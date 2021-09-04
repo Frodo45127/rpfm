@@ -1133,9 +1133,11 @@ impl AppUISlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move || {
+                app_ui.main_window.set_enabled(false);
                 if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
+                app_ui.main_window.set_enabled(true);
             }
         ));
 

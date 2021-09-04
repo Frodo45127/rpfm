@@ -2472,7 +2472,10 @@ impl AppUI {
         }
 
         // Disable the main window, so the user can't interrupt the process or iterfere with it.
-        app_ui.main_window.set_enabled(false);
+        let window_was_disabled = app_ui.main_window.is_enabled();
+        if !window_was_disabled {
+            app_ui.main_window.set_enabled(false);
+        }
 
         // Close any open PackedFile and clear the global search pannel.
         let _ = AppUI::purge_them_all(&app_ui,  &pack_file_contents_ui, false);
@@ -2496,9 +2499,6 @@ impl AppUI {
         build_data.editable = true;
         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
-        // Re-enable the Main Window.
-        app_ui.main_window.set_enabled(true);
-
         // Enable the actions available for the PackFile from the `MenuBar`.
         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), true);
 
@@ -2508,5 +2508,10 @@ impl AppUI {
 
         // Force a dependency rebuild.
         CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(false));
+
+        // Re-enable the Main Window.
+        if !window_was_disabled {
+            app_ui.main_window.set_enabled(true);
+        }
     }
 }
