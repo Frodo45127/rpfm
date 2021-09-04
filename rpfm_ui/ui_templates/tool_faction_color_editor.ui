@@ -14,13 +14,7 @@
    <string>Dialog</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
-   </item>
-   <item row="0" column="0" rowspan="2" colspan="2">
-    <widget class="QListView" name="faction_list_view"/>
-   </item>
-   <item row="0" column="2">
+   <item row="0" column="2" colspan="2">
     <widget class="QWidget" name="details_widget" native="true">
      <layout class="QVBoxLayout" name="verticalLayout" stretch="0,10,10">
       <item>
@@ -173,7 +167,23 @@
      </layout>
     </widget>
    </item>
-   <item row="2" column="2">
+   <item row="1" column="2" colspan="2">
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QFormLayout" name="formLayout_3">
+      <item row="0" column="0">
+       <widget class="QLabel" name="packed_file_name_label">
+        <property name="text">
+         <string>File name:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="packed_file_name_line_edit"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="3">
     <widget class="QDialogButtonBox" name="button_box">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -182,6 +192,12 @@
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
+   </item>
+   <item row="0" column="0" rowspan="3" colspan="2">
+    <widget class="QListView" name="faction_list_view"/>
+   </item>
+   <item row="3" column="1">
+    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
    </item>
   </layout>
  </widget>

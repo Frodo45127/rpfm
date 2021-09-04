@@ -1066,3 +1066,4 @@ secondary = Secondary
 tertiary = Tertiary
 restore_initial_values = Restore Initial Values
 restore_vanilla_values = Restore Vanilla Values
+packed_file_name = PackedFile Name

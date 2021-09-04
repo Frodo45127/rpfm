@@ -76,6 +76,9 @@ const FACTION_ICON: i32 = 61;
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 1] = ["warhammer_2"];
 
+/// Default name for files saved with this tool.
+const DEFAULT_FILENAME: &str = "faction_painter_edited";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -109,6 +112,8 @@ pub struct ToolFactionPainter {
     uniform_colour_tertiary: QPtr<QComboBox>,
     uniform_restore_initial_values_button: QPtr<QPushButton>,
     uniform_restore_vanilla_values_button: QPtr<QPushButton>,
+    packed_file_name_label: QPtr<QLabel>,
+    packed_file_name_line_edit: QPtr<QLineEdit>,
     button_box: QPtr<QDialogButtonBox>,
 }
 
@@ -162,6 +167,9 @@ impl ToolFactionPainter {
         let uniform_restore_initial_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("uniform_restore_initial_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
         let uniform_restore_vanilla_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("uniform_restore_vanilla_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
 
+        let packed_file_name_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("packed_file_name_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let packed_file_name_line_edit: QPtr<QLineEdit> = tool.get_ref_main_widget().find_child("packed_file_name_line_edit").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+
         // Button Box.
         let button_box: QPtr<QDialogButtonBox> = tool.get_ref_main_widget().find_child("button_box").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
 
@@ -203,6 +211,8 @@ impl ToolFactionPainter {
             uniform_colour_tertiary,
             uniform_restore_initial_values_button,
             uniform_restore_vanilla_values_button,
+            packed_file_name_label,
+            packed_file_name_line_edit,
             button_box,
         });
 
@@ -545,6 +555,8 @@ impl ToolFactionPainter {
 
         self.uniform_restore_initial_values_button.set_text(&qtr("restore_initial_values"));
         self.uniform_restore_vanilla_values_button.set_text(&qtr("restore_vanilla_values"));
+
+        self.packed_file_name_label.set_text(&qtr("packed_file_name"));
     }
 
     /// This function gets the data needed for the tool from the factions table.
@@ -866,7 +878,7 @@ impl ToolFactionPainter {
                     }).collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;
-                let path = vec!["db".to_owned(), "faction_banners_tables".to_owned(), "test".to_owned()];
+                let path = vec!["db".to_owned(), "faction_banners_tables".to_owned(), self.get_file_name()];
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
             } else { Err(ErrorKind::Generic.into()) }
         } else { Err(ErrorKind::Generic.into()) }
@@ -915,9 +927,19 @@ impl ToolFactionPainter {
                     }).collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;
-                let path = vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned(), "test".to_owned()];
+                let path = vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned(), self.get_file_name()];
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
             } else { Err(ErrorKind::Generic.into()) }
         } else { Err(ErrorKind::Generic.into()) }
+    }
+
+    /// This function returns the file name this tool uses for the PackedFiles, when a PackedFile has no specific name.
+    unsafe fn get_file_name(&self) -> String {
+        let packed_file_name = self.packed_file_name_line_edit.text();
+        if !packed_file_name.is_empty() {
+            packed_file_name.to_std_string()
+        } else {
+            DEFAULT_FILENAME.to_owned()
+        }
     }
 }
