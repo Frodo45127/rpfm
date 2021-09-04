@@ -40,8 +40,10 @@ use rpfm_lib::SCHEMA;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
-use crate::pack_tree::{BuildData, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 
@@ -122,11 +124,18 @@ impl Tool {
     }
 
     /// This function saves the tools data to the PackFile, in a common way across all tools, and triggers the relevant UI updates.
-    pub unsafe fn save(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_files: &[PackedFile]) -> Result<()> {
+    pub unsafe fn save(
+        &self,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        packed_files: &[PackedFile]
+    ) -> Result<()> {
 
         // First, check if we actually have an open PackFile. If we don't have one, we need to generate it and promp a save.
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() == 0 {
-            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(BuildData::new()), DataSource::PackFile);
+            AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         }
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
