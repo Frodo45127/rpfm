@@ -34,12 +34,12 @@ use std::rc::Rc;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::common::*;
-use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
+use rpfm_lib::settings::get_config_path;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -55,8 +55,9 @@ use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
+use crate::tools::faction_painter::ToolFactionPainter;
 use crate::ui::GameSelectedIcons;
-use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
+use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
@@ -125,11 +126,9 @@ pub struct AppUISlots {
     pub special_stuff_rescue_packfile: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
-    // `Templates` menu slots.
+    // `Tools` menu slots.
     //-----------------------------------------------//
-    pub templates_open_custom_templates_folder: QBox<SlotNoArgs>,
-    pub templates_open_official_templates_folder: QBox<SlotNoArgs>,
-    pub templates_save_packfile_to_template: QBox<SlotNoArgs>,
+    pub tools_faction_painter: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -140,7 +139,6 @@ pub struct AppUISlots {
     pub about_patreon_link: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
-    pub about_check_templates_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -196,9 +194,8 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
-            diagnostics_ui,
-            dependencies_ui => move || {
-                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+            diagnostics_ui => move || {
+                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
 
@@ -211,54 +208,7 @@ impl AppUISlots {
 
                 // Check first if there has been changes in the PackFile.
                 if AppUI::are_you_sure(&app_ui, false) {
-
-                    // Tell the Background Thread to create a new PackFile.
-                    CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
-
-                    // Reset the autosave timer.
-                    let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
-                    if timer > 0 {
-                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                        app_ui.timer_backup_autosave.start_0a();
-                    }
-
-                    // Disable the main window, so the user can't interrupt the process or iterfere with it.
-                    app_ui.main_window.set_enabled(false);
-
-                    // Close any open PackedFile and clear the global search pannel.
-                    let _ = AppUI::purge_them_all(&app_ui,  &pack_file_contents_ui, false);
-                    GlobalSearchUI::clear(&global_search_ui);
-                    diagnostics_ui.get_ref_diagnostics_table_model().clear();
-
-                    // New PackFiles are always of Mod type.
-                    app_ui.change_packfile_type_mod.set_checked(true);
-
-                    // By default, the four bitmask should be false.
-                    app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
-                    app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
-                    app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
-                    app_ui.change_packfile_type_header_is_extended.set_checked(false);
-
-                    // We also disable compression by default.
-                    app_ui.change_packfile_type_data_is_compressed.set_checked(false);
-
-                    // Update the TreeView.
-                    let mut build_data = BuildData::new();
-                    build_data.editable = true;
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-
-                    // Re-enable the Main Window.
-                    app_ui.main_window.set_enabled(true);
-
-                    // Enable the actions available for the PackFile from the `MenuBar`.
-                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), true);
-
-                    // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                    UI_STATE.set_operational_mode(&app_ui, None);
-                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-                    // Force a dependency rebuild.
-                    CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(false));
+                    AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
                 }
             }
         ));
@@ -1175,39 +1125,22 @@ impl AppUISlots {
         ));
 
         //-----------------------------------------------//
-        // `Templates` menu logic.
+        // `Tools` menu logic.
         //-----------------------------------------------//
 
-        let templates_open_custom_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
-                match get_custom_template_definitions_path() {
-                    Ok(path) => if open::that(&path).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    },
-                    Err(error) => show_dialog(&app_ui.main_window, error, false),
-                }
-            }
-        ));
-
-        let templates_open_official_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
-                match get_template_definitions_path() {
-                    Ok(path) => if open::that(&path).is_err() {
-                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                    },
-                    Err(error) => show_dialog(&app_ui.main_window, error, false),
-                }
-            }
-        ));
-
-        let templates_save_packfile_to_template = SlotNoArgs::new(&app_ui.main_window, clone!(
+        let tools_faction_painter = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
-            pack_file_contents_ui => move || {
-                if let Err(error) = AppUI::save_to_template(&app_ui, &pack_file_contents_ui) {
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                app_ui.main_window.set_enabled(false);
+                if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
+                app_ui.main_window.set_enabled(true);
             }
         ));
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -1304,13 +1237,6 @@ impl AppUISlots {
         let about_check_schema_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 AppUI::check_schema_updates(&app_ui, true);
-            }
-        ));
-
-        // What happens when we trigger the "Update Templates" action.
-        let about_check_templates_updates = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
-                AppUI::check_template_updates(&app_ui, true);
             }
         ));
 
@@ -1646,11 +1572,9 @@ impl AppUISlots {
             special_stuff_rescue_packfile,
 
             //-----------------------------------------------//
-            // `Templates` menu slots.
+            // `Tools` menu slots.
             //-----------------------------------------------//
-            templates_open_custom_templates_folder,
-            templates_open_official_templates_folder,
-            templates_save_packfile_to_template,
+            tools_faction_painter,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.
@@ -1661,7 +1585,6 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
-            about_check_templates_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.
@@ -1698,9 +1621,8 @@ impl AppUITempSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
-        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+        AppUI::build_open_from_submenus(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
+        AppUI::build_open_mymod_submenus(app_ui, pack_file_contents_ui, diagnostics_ui, global_search_ui);
     }
 }

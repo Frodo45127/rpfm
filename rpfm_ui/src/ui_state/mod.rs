@@ -25,10 +25,8 @@ use rpfm_lib::global_search::GlobalSearch;
 use crate::app_ui::AppUI;
 use crate::packedfile_views::PackedFileView;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use self::op_mode::OperationalMode;
 use self::shortcuts::Shortcuts;
 
-pub mod op_mode;
 pub mod shortcuts;
 
 //-------------------------------------------------------------------------------//
@@ -58,6 +56,17 @@ pub struct UIState {
 
     /// This stores the current `Diagnostics`.
     diagnostics: Arc<RwLock<Diagnostics>>,
+}
+
+/// This enum represent the current ***Operational Mode*** for RPFM.
+#[derive(Debug, Clone)]
+pub enum OperationalMode {
+
+    /// MyMod mode enabled. It contains the game folder name (warhammer_2) and the name of the MyMod PackFile.
+    MyMod(String, String),
+
+    /// Normal mode enabled.
+    Normal,
 }
 
 //-------------------------------------------------------------------------------//
@@ -92,7 +101,7 @@ impl UIState {
     /// This function sets the flag that stores if the open PackFile has been modified or not.
     pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         self.is_modified.store(is_modified, Ordering::SeqCst);
-        AppUI::update_window_title(&app_ui, &pack_file_contents_ui);
+        AppUI::update_window_title(app_ui, pack_file_contents_ui);
     }
 
     /// This function returns the current Shortcuts.
@@ -134,12 +143,40 @@ impl UIState {
 
     /// This function returns a reference to the current `Operational Mode`.
     pub fn get_operational_mode(&self) -> OperationalMode {
-        self.operational_mode.read().unwrap().get_ref_operational_mode().clone()
+        self.operational_mode.read().unwrap().clone()
     }
 
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
     pub fn set_operational_mode(&self, app_ui: &Rc<AppUI>, mymod_path: Option<&PathBuf>) {
-        self.operational_mode.write().unwrap().set_operational_mode(app_ui, mymod_path);
+        match mymod_path {
+
+            // If we received a MyMod path, we enable the MyMod mode with that path.
+            Some(path) => {
+
+                // Get the `folder_name` and the `mod_name` of our "MyMod".
+                let mut path = path.clone();
+                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                path.pop();
+                let game_folder_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+
+                // Set the current mode to `MyMod`.
+                *self.operational_mode.write().unwrap() = OperationalMode::MyMod(game_folder_name, mod_name);
+
+                // Enable all the "MyMod" related actions.
+                unsafe { app_ui.mymod_delete_selected.set_enabled(true); }
+                unsafe { app_ui.mymod_import.set_enabled(true); }
+                unsafe { app_ui.mymod_export.set_enabled(true); }
+            }
+
+            // If `None` has been provided, we disable the MyMod mode.
+            None => {
+                *self.operational_mode.write().unwrap() = OperationalMode::Normal;
+
+                unsafe { app_ui.mymod_delete_selected.set_enabled(false); }
+                unsafe { app_ui.mymod_import.set_enabled(false); }
+                unsafe { app_ui.mymod_export.set_enabled(false); }
+            }
+        }
     }
 
     /// This function returns the current global search info.

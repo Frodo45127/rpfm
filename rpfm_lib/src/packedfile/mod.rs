@@ -125,7 +125,7 @@ impl DecodedPackedFile {
                 match schema.deref() {
                     Some(schema) => {
                         let data = raw_packed_file.get_data_and_keep_it()?;
-                        let packed_file = AnimFragment::read(&data, &schema, false)?;
+                        let packed_file = AnimFragment::read(&data, schema, false)?;
                         Ok(DecodedPackedFile::AnimFragment(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -143,7 +143,7 @@ impl DecodedPackedFile {
                 match schema.deref() {
                     Some(schema) => {
                         let data = raw_packed_file.get_data_and_keep_it()?;
-                        let packed_file = AnimTable::read(&data, &schema, false)?;
+                        let packed_file = AnimTable::read(&data, schema, false)?;
                         Ok(DecodedPackedFile::AnimTable(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -168,7 +168,7 @@ impl DecodedPackedFile {
                     Some(schema) => {
                         let data = raw_packed_file.get_data_and_keep_it()?;
                         let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                        let packed_file = DB::read(&data, &name, &schema, false)?;
+                        let packed_file = DB::read(&data, name, schema, false)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -186,7 +186,7 @@ impl DecodedPackedFile {
                 match schema.deref() {
                     Some(schema) => {
                         let data = raw_packed_file.get_data_and_keep_it()?;
-                        let packed_file = Loc::read(&data, &schema, false)?;
+                        let packed_file = Loc::read(&data, schema, false)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -198,7 +198,7 @@ impl DecodedPackedFile {
                 match schema.deref() {
                     Some(schema) => {
                         let data = raw_packed_file.get_data_and_keep_it()?;
-                        let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                        let packed_file = MatchedCombat::read(&data, schema, false)?;
                         Ok(DecodedPackedFile::MatchedCombat(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -248,7 +248,7 @@ impl DecodedPackedFile {
 
             PackedFileType::AnimFragment => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
-                let packed_file = AnimFragment::read(&data, &schema, false)?;
+                let packed_file = AnimFragment::read(&data, schema, false)?;
                 Ok(DecodedPackedFile::AnimFragment(packed_file))
             }
 
@@ -256,7 +256,7 @@ impl DecodedPackedFile {
 
             PackedFileType::AnimTable => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
-                let packed_file = AnimTable::read(&data, &schema, false)?;
+                let packed_file = AnimTable::read(&data, schema, false)?;
                 Ok(DecodedPackedFile::AnimTable(packed_file))
             }
 
@@ -266,7 +266,7 @@ impl DecodedPackedFile {
             PackedFileType::DB => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
                 let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                let packed_file = DB::read(&data, &name, &schema, false)?;
+                let packed_file = DB::read(&data, name, schema, false)?;
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
@@ -274,13 +274,13 @@ impl DecodedPackedFile {
 
             PackedFileType::Loc => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
-                let packed_file = Loc::read(&data, &schema, false)?;
+                let packed_file = Loc::read(&data, schema, false)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
             PackedFileType::MatchedCombat => {
                 let data = raw_packed_file.get_data_and_keep_it()?;
-                let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                let packed_file = MatchedCombat::read(&data, schema, false)?;
                 Ok(DecodedPackedFile::MatchedCombat(packed_file))
             }
 
@@ -446,7 +446,7 @@ impl PackedFileType {
                 return Self::UnitVariant
             }
 
-            if esf::EXTENSIONS.iter().find(|x| packedfile_name.ends_with(**x)).is_some() && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
+            if esf::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(*x)) && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
                 return Self::ESF;
             }
 
@@ -542,7 +542,7 @@ impl PackedFileType {
             return Self::UnitVariant
         }
 
-        if esf::EXTENSIONS.iter().find(|x| path.ends_with(**x)).is_some() && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
+        if esf::EXTENSIONS.iter().any(|x| path.ends_with(*x)) && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
             return Self::ESF;
         }
 

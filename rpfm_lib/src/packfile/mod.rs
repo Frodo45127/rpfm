@@ -942,6 +942,11 @@ impl PackFile {
         self.packed_files.par_iter_mut().filter(|x| paths.contains(&x.get_path())).collect()
     }
 
+    /// This function returns a copy of all the `PackedFiles` in the provided paths, in a case insensitive manner.
+    pub fn get_packed_files_by_paths_unicased(&self, paths: Vec<UniCase<String>>) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&UniCase::new(x.get_path().join("/")))).cloned().collect()
+    }
+
     /// This function returns a copy of all the `PackedFiles` starting with the provided path.
     pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
         self.packed_files.par_iter().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).cloned().collect()
@@ -955,6 +960,18 @@ impl PackFile {
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
+    pub fn get_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<PackedFile> {
+        let path_provided_len = path.chars().count();
+        self.packed_files.par_iter().filter(|x| {
+            if !path.is_empty() {
+                let path_str = x.get_path().join("/");
+                let path_len = path_str.chars().count();
+                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+            } else { false }
+        }).cloned().collect()
     }
 
     /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
@@ -1129,6 +1146,54 @@ impl PackFile {
         self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(From::from)
     }
 
+    /// This function returns a copy of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
+    pub fn get_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<PackedFile> {
+
+        // Keep the PathTypes added so we can return them to the UI easely.
+        let path_types = PathType::dedup(path_types);
+
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            matches!(item, PathType::PackFile)
+        });
+
+        let we_have_folder = path_types.par_iter().any(|item| {
+            matches!(item, PathType::Folder(_))
+        });
+
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            self.get_packed_files_all()
+        }
+
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            self.get_packed_files_by_paths_unicased(paths_files)
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(UniCase::new(path.join("/")))  } else { None }
+            }).collect::<Vec<UniCase<String>>>();
+            let mut packed_files = self.get_packed_files_by_paths_unicased(paths_files);
+
+            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
+                if let PathType::Folder(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
+            }).map(|path| self.get_packed_files_by_path_start_unicased(path))
+            .flatten()
+            .collect::<Vec<PackedFile>>());
+            packed_files
+        }
+    }
+
+    /// This function returns a copy of all the PackedFiles in the provided PathTypes.
     pub fn get_packed_files_by_path_type(&mut self, path_types: &[PathType]) -> Vec<PackedFile> {
 
         // Keep the PathTypes added so we can return them to the UI easely.
@@ -1497,7 +1562,7 @@ impl PackFile {
 
         // If we have a mix of files and folders... then we get the paths according to the type.
         let mut paths: Vec<Vec<String>> = path_types.par_iter()
-            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(&path)) } else { None })
+            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(path)) } else { None })
             .flatten()
             .collect::<Vec<Vec<String>>>();
 
@@ -1669,7 +1734,7 @@ impl PackFile {
         // Decode the files and put them in their respective list.
         for path in paths {
             if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(path) {
-                match packed_file.decode_return_ref_no_locks(&schema)? {
+                match packed_file.decode_return_ref_no_locks(schema)? {
                     DecodedPackedFile::DB(table) => db_files.push(table.clone()),
                     DecodedPackedFile::Loc(table) => loc_files.push(table.clone()),
                     _ => return Err(ErrorKind::InvalidFilesForMerging.into())
@@ -1944,7 +2009,7 @@ impl PackFile {
                         match table_type {
                             TSV_NAME_LOC => {
                                 let definition = schema.get_ref_versioned_file_loc()?.get_version(table_version)?;
-                                if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type) {
+                                if let Ok(table) = Loc::import_tsv(definition, path, table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -1974,8 +2039,8 @@ impl PackFile {
                                 else { error_files.push(path.to_string_lossy().to_string()); }
                             }
                             _ => {
-                                let definition = schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?;
-                                if let Ok(table) = DB::import_tsv(&definition, &path, &table_type) {
+                                let definition = schema.get_ref_versioned_file_db(table_type)?.get_version(table_version)?;
+                                if let Ok(table) = DB::import_tsv(definition, path, table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -2095,7 +2160,7 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, &TSV_NAME_LOC) {
+                                match data.export_tsv(&export_path, TSV_NAME_LOC) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
@@ -2244,7 +2309,7 @@ impl PackFile {
             let mut mod_files = vec![];
             let mut movie_files = vec![];
             for path in packs_paths {
-                match Self::read(&path, use_lazy_loading) {
+                match Self::read(path, use_lazy_loading) {
                     Ok(mut pack) => match pack.get_pfh_file_type() {
                         PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
                         PFHFileType::Release => release_files.append(&mut pack.packed_files),
@@ -2568,17 +2633,17 @@ impl PackFile {
             }
 
             if *should_be_compressed && !*is_compressed {
-                *data = compress_data(&data)?;
+                *data = compress_data(data)?;
                 *is_compressed = true;
             }
             else if !*should_be_compressed && *is_compressed {
-                *data = decompress_data(&data)?;
+                *data = decompress_data(data)?;
                 *is_compressed = false;
             }
 
             // Encryption is not yet supported. Unencrypt everything.
             if is_encrypted.is_some() {
-                *data = decrypt_packed_file(&data);
+                *data = decrypt_packed_file(data);
                 *is_encrypted = None;
                 *should_be_encrypted = None;
             }
@@ -2587,7 +2652,7 @@ impl PackFile {
         // Save notes, if needed.
         if let Some(note) = &self.notes {
             let mut data = vec![];
-            data.encode_string_u8(&note);
+            data.encode_string_u8(note);
             let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
             let packed_file = PackedFile::new_from_raw(&raw_data);
             self.packed_files.push(packed_file);
@@ -2595,7 +2660,7 @@ impl PackFile {
 
         // Saving PackFile settings.
         let mut data = vec![];
-        data.write_all(&to_string_pretty(&self.settings)?.as_bytes())?;
+        data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
         let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
         let packed_file = PackedFile::new_from_raw(&raw_data);
         self.packed_files.push(packed_file);
@@ -2644,7 +2709,7 @@ impl PackFile {
 
         // Write the entire header.
         let mut header = vec![];
-        header.encode_string_u8(&self.pfh_version.get_value());
+        header.encode_string_u8(self.pfh_version.get_value());
         header.encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value());
         header.encode_integer_u32(self.pack_files.len() as u32);
         header.encode_integer_u32(pack_file_index.len() as u32);

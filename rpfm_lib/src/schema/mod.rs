@@ -84,7 +84,7 @@ use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
 use crate::SUPPORTED_GAMES;
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;
@@ -526,7 +526,7 @@ impl Schema {
                     match b {
                         VersionedFile::AnimFragment(_) => Ordering::Greater,
                         VersionedFile::AnimTable(_) => Ordering::Greater,
-                        VersionedFile::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
+                        VersionedFile::DB(table_name_b, _) => table_name_a.cmp(table_name_b),
                         _ => Ordering::Less,
                     }
                 }
@@ -562,7 +562,7 @@ impl Schema {
     /// For compatibility purpouses.
     pub fn export_to_json() -> Result<()> {
         for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
-            let schema = Schema::load(&schema_file)?;
+            let schema = Schema::load(schema_file)?;
 
             let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
             file_path.push(schema_file);

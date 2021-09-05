@@ -29,15 +29,15 @@ pub fn getter_clone(input: TokenStream) -> TokenStream {
 
             let field_types : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ty.clone()).collect();
+                .map(|x| x.ty.clone()).collect();
 
             let field_names : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ident.clone().unwrap()).collect();
+                .map(|x| x.ident.clone().unwrap()).collect();
 
             let function_names = field_names
                 .iter()
-                .map(|ref x| Ident::new(format!("get_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("get_{}", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 
@@ -69,15 +69,15 @@ pub fn getter_ref(input: TokenStream) -> TokenStream {
 
             let field_types : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ty.clone()).collect();
+                .map(|x| x.ty.clone()).collect();
 
             let field_names : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ident.clone().unwrap()).collect();
+                .map(|x| x.ident.clone().unwrap()).collect();
 
             let function_names = field_names
                 .iter()
-                .map(|ref x| Ident::new(format!("get_ref_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("get_ref_{}", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 
@@ -109,15 +109,15 @@ pub fn getter_ref_mut(input: TokenStream) -> TokenStream {
 
             let field_types : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ty.clone()).collect();
+                .map(|x| x.ty.clone()).collect();
 
             let field_names : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ident.clone().unwrap()).collect();
+                .map(|x| x.ident.clone().unwrap()).collect();
 
             let function_names = field_names
                 .iter()
-                .map(|ref x| Ident::new(format!("get_ref_mut_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("get_ref_mut_{}", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 
@@ -149,15 +149,15 @@ pub fn setter(input: TokenStream) -> TokenStream {
 
             let field_types : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ty.clone()).collect();
+                .map(|x| x.ty.clone()).collect();
 
             let field_names : Vec<_> = s.fields
                 .iter()
-                .map(|ref x| x.ident.clone().unwrap()).collect();
+                .map(|x| x.ident.clone().unwrap()).collect();
 
             let function_names = field_names
                 .iter()
-                .map(|ref x| Ident::new(format!("set_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("set_{}", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 

@@ -48,7 +48,7 @@ use std::thread;
 
 use rpfm_error::ctd::CrashReport;
 
-use rpfm_lib::config::{init_config_path, get_config_path};
+use rpfm_lib::settings::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -107,7 +107,7 @@ mod packfile_contents_ui;
 mod packedfile_views;
 mod shortcuts_ui;
 mod settings_ui;
-mod template_ui;
+mod tools;
 mod ui;
 mod ui_state;
 mod utils;

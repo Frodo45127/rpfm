@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>785</width>
+    <height>533</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="2" colspan="2">
+    <widget class="QWidget" name="details_widget" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,10,10">
+      <item>
+       <widget class="QWidget" name="faction_info_widget" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="faction_icon_label">
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignLeft">
+          <widget class="QLabel" name="faction_name_label">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="banner_groupbox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="title">
+         <string>Banners</string>
+        </property>
+        <layout class="QFormLayout" name="formLayout">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <property name="labelAlignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="banner_colour_primary_label">
+           <property name="text">
+            <string>Primary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="KColorCombo" name="banner_colour_primary"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="banner_colour_secondary_label">
+           <property name="text">
+            <string>Secondary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="banner_colour_tertiary_label">
+           <property name="text">
+            <string>Tertiary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="KColorCombo" name="banner_colour_secondary"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="KColorCombo" name="banner_colour_tertiary"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QPushButton" name="banner_restore_initial_values_button">
+           <property name="text">
+            <string>Restore Initial Values</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QPushButton" name="banner_restore_vanilla_values_button">
+           <property name="text">
+            <string>Restore Vanilla Values</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="uniform_groupbox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="title">
+         <string>Uniforms</string>
+        </property>
+        <layout class="QFormLayout" name="formLayout_2">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <property name="labelAlignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="uniform_colour_primary_label">
+           <property name="text">
+            <string>Primary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="KColorCombo" name="uniform_colour_primary"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="uniform_colour_secondary_label">
+           <property name="text">
+            <string>Secondary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="KColorCombo" name="uniform_colour_secondary"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="uniform_colour_tertiary_label">
+           <property name="text">
+            <string>Tertiary</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="KColorCombo" name="uniform_colour_tertiary"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QPushButton" name="uniform_restore_initial_values_button">
+           <property name="text">
+            <string>Restore Initial Values</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QPushButton" name="uniform_restore_vanilla_values_button">
+           <property name="text">
+            <string>Restore Vanilla Values</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="2" colspan="2">
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QFormLayout" name="formLayout_3">
+      <item row="0" column="0">
+       <widget class="QLabel" name="packed_file_name_label">
+        <property name="text">
+         <string>File name:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="packed_file_name_line_edit"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="3">
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" rowspan="3" colspan="2">
+    <widget class="QListView" name="faction_list_view"/>
+   </item>
+   <item row="3" column="1">
+    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>KColorCombo</class>
+   <extends>QComboBox</extends>
+   <header>kcolorcombo.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>button_box</sender>
+   <signal>accepted()</signal>
+   <receiver>Dialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>button_box</sender>
+   <signal>rejected()</signal>
+   <receiver>Dialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

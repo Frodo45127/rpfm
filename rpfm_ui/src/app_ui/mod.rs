@@ -52,19 +52,6 @@ pub mod shortcuts;
 pub mod slots;
 pub mod tips;
 
-// Display name, adapted to support Pnemonics.
-const GAME_SELECTED_TROY: &str = "Troy";
-const GAME_SELECTED_THREE_KINGDOMS: &str = "Three Kingdoms";
-const GAME_SELECTED_WARHAMMER_2: &str = "Warhammer 2";
-const GAME_SELECTED_WARHAMMER: &str = "Warhammer";
-const GAME_SELECTED_THRONES_OF_BRITANNIA: &str = "Thrones of Britannia";
-const GAME_SELECTED_ATTILA: &str = "Attila";
-const GAME_SELECTED_ROME_2: &str = "Rome 2";
-const GAME_SELECTED_SHOGUN_2: &str = "Shogun 2";
-const GAME_SELECTED_NAPOLEON: &str = "Napoleon";
-const GAME_SELECTED_EMPIRE: &str = "Empire";
-const GAME_SELECTED_ARENA: &str = "Arena";
-
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -91,7 +78,7 @@ pub struct AppUI {
     pub menu_bar_view: QPtr<QMenu>,
     pub menu_bar_game_selected: QPtr<QMenu>,
     pub menu_bar_special_stuff: QPtr<QMenu>,
-    pub menu_bar_templates: QPtr<QMenu>,
+    pub menu_bar_tools: QPtr<QMenu>,
     pub menu_bar_about: QPtr<QMenu>,
     pub menu_bar_debug: QPtr<QMenu>,
 
@@ -233,13 +220,9 @@ pub struct AppUI {
     pub special_stuff_rescue_packfile: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
-    // `Templates` menu.
+    // `Tools` menu.
     //-------------------------------------------------------------------------------//
-    pub templates_open_custom_templates_folder: QPtr<QAction>,
-    pub templates_open_official_templates_folder: QPtr<QAction>,
-    pub templates_save_packfile_to_template: QPtr<QAction>,
-    pub templates_load_custom_template_to_packfile: QPtr<QMenu>,
-    pub templates_load_official_template_to_packfile: QPtr<QMenu>,
+    pub tools_faction_painter: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `About` menu.
@@ -250,7 +233,6 @@ pub struct AppUI {
     pub about_patreon_link: QPtr<QAction>,
     pub about_check_updates: QPtr<QAction>,
     pub about_check_schema_updates: QPtr<QAction>,
-    pub about_check_template_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -349,7 +331,7 @@ impl AppUI {
         let menu_bar_view = menu_bar.add_menu_q_string(&qtr("menu_bar_view"));
         let menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
         let menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
-        let menu_bar_templates = menu_bar.add_menu_q_string(&qtr("menu_bar_templates"));
+        let menu_bar_tools = menu_bar.add_menu_q_string(&qtr("menu_bar_tools"));
         let menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
         // This menu is hidden unless you enable it.
@@ -448,16 +430,16 @@ impl AppUI {
 
         menu_bar_mymod.add_separator();
 
-        let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
 
         menu_bar_mymod.insert_separator(&mymod_new);
 
@@ -503,17 +485,17 @@ impl AppUI {
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_assembly_kit_folder"));
         let game_selected_open_config_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_config_folder"));
 
-        let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
-        let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ARENA));
+        let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
+        let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ARENA));
 
         game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name()))).as_ref());
         game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name()))).as_ref());
@@ -560,16 +542,16 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Special Stuff` menu with submenus.
-        let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
-        let menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
+        let menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THREE_KINGDOMS));
+        let menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_2));
+        let menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER));
+        let menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
+        let menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
+        let menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
+        let menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
+        let menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
         let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.
@@ -599,20 +581,11 @@ impl AppUI {
         menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
         //-----------------------------------------------//
-        // `Templates` Menu.
+        // `Tools` Menu.
         //-----------------------------------------------//
 
-        // Populate the `Game Selected` menu.
-        let templates_open_custom_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_custom_templates_folder"));
-        let templates_open_official_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_official_templates_folder"));
-        let templates_save_packfile_to_template = menu_bar_templates.add_action_q_string(&qtr("templates_save_packfile_to_template"));
-        let templates_load_custom_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_custom_template_to_packfile"));
-        let templates_load_official_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_official_template_to_packfile"));
-
-        menu_bar_templates.insert_separator(&templates_save_packfile_to_template);
-
-        // Disable all the Contextual Menu actions by default.
-        templates_save_packfile_to_template.set_enabled(false);
+        // Populate the `Tools` menu.
+        let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
 
         //-----------------------------------------------//
         // `About` Menu.
@@ -625,7 +598,6 @@ impl AppUI {
         let about_patreon_link = menu_bar_about.add_action_q_string(&qtr("about_patreon_link"));
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
-        let about_check_template_updates = menu_bar_about.add_action_q_string(&qtr("about_check_template_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -659,7 +631,7 @@ impl AppUI {
             menu_bar_view,
             menu_bar_game_selected,
             menu_bar_special_stuff,
-            menu_bar_templates,
+            menu_bar_tools,
             menu_bar_about,
             menu_bar_debug,
 
@@ -803,13 +775,9 @@ impl AppUI {
             special_stuff_rescue_packfile,
 
             //-------------------------------------------------------------------------------//
-            // "Templates" menu.
+            // "Tools" menu.
             //-------------------------------------------------------------------------------//
-            templates_open_custom_templates_folder,
-            templates_open_official_templates_folder,
-            templates_save_packfile_to_template,
-            templates_load_custom_template_to_packfile,
-            templates_load_official_template_to_packfile,
+            tools_faction_painter,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -820,7 +788,6 @@ impl AppUI {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
-            about_check_template_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.

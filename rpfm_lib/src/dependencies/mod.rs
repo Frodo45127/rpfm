@@ -31,7 +31,6 @@ use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::*;
-use crate::config::get_config_path;
 use crate::DB;
 use crate::GAME_SELECTED;
 use crate::games::VanillaDBTableNameLogic;
@@ -42,6 +41,7 @@ use crate::packfile::packedfile::CachedPackedFile;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::DependencyData;
 use crate::SCHEMA;
+use crate::settings::get_config_path;
 
 const BINARY_EXTENSION: &str = "pak2";
 const DEPENDENCIES_FOLDER: &str = "dependencies";
@@ -262,7 +262,7 @@ impl Dependencies {
         // This one can fail, leaving the dependencies with only game data.
         // This is needed to support table creation on Empire and Napoleon.
         if let Some(path) = asskit_path {
-            let _ = self.generate_asskit_only_db_tables(&path, version);
+            let _ = self.generate_asskit_only_db_tables(path, version);
         }
 
         Ok(())
@@ -279,7 +279,7 @@ impl Dependencies {
         raw_db_path: &Path,
         version: i16,
     ) -> Result<()> {
-        let (raw_tables, _) = RawTable::read_all(&raw_db_path, version, true, self)?;
+        let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, self)?;
         self.asskit_only_db_tables = raw_tables.par_iter().map(From::from).collect::<Vec<DB>>();
 
         Ok(())
@@ -365,6 +365,8 @@ impl Dependencies {
     }
 
     /// This function checks if the current Game Selected has the vanilla data loaded in the dependencies.
+    ///
+    /// TODO: rework this to use the build date, so it's more accurate.
     pub fn game_has_vanilla_data_loaded(&self) -> bool {
         !self.vanilla_packed_files_cache.read().unwrap().is_empty()
     }
@@ -468,7 +470,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         );
 
@@ -481,7 +483,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)| {
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         });
 
@@ -560,7 +562,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         );
 
@@ -573,7 +575,7 @@ impl Dependencies {
                         .partition_map(|(path, cached_packed_file)| {
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
-                                Err(_) => Either::Right(path.split("/").map(|x| x.to_owned()).collect::<Vec<String>>()),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
                             }
                         });
 
@@ -667,8 +669,8 @@ impl From<&Dependencies> for DependenciesInfo {
 
                 PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
             }).collect(),
-            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
-            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(|cached_packed_file| PackedFileInfo::from(cached_packed_file)).collect(),
+            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(PackedFileInfo::from).collect(),
+            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(PackedFileInfo::from).collect(),
         }
     }
 }

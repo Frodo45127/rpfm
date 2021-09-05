@@ -37,7 +37,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 					Some(mut values) => {
                         let destination_path = values.next().unwrap();
                         let packed_file_paths = values.collect::<Vec<&str>>();
-                        packfile::add_files(&config, packfile_path, &packed_file_paths, destination_path)
+                        packfile::add_files(config, packfile_path, &packed_file_paths, destination_path)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
@@ -48,7 +48,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 					Some(mut values) => {
                         let destination_path = values.next().unwrap();
                         let folder_paths = values.collect::<Vec<&str>>();
-                        packfile::add_folders(&config, packfile_path, &folder_paths, destination_path)
+                        packfile::add_folders(config, packfile_path, &folder_paths, destination_path)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
@@ -58,7 +58,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 				match matches.values_of("delete-files") {
 					Some(values) => {
                         let packed_file_paths = values.collect::<Vec<&str>>();
-                        packfile::delete_files(&config, packfile_path, &packed_file_paths)
+                        packfile::delete_files(config, packfile_path, &packed_file_paths)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
@@ -68,7 +68,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 				match matches.values_of("delete-folders") {
 					Some(values) => {
                         let folder_paths = values.collect::<Vec<&str>>();
-                        packfile::delete_folders(&config, packfile_path, &folder_paths)
+                        packfile::delete_folders(config, packfile_path, &folder_paths)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
@@ -79,7 +79,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                     Some(mut values) => {
                         let destination_path = values.next().unwrap();
                         let packed_file_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
-                        packfile::extract_files(&config, packfile_path, &packed_file_paths, destination_path)
+                        packfile::extract_files(config, packfile_path, &packed_file_paths, destination_path)
                     },
                     None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
                 }
@@ -90,14 +90,14 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                     Some(mut values) => {
                         let destination_path = values.next().unwrap();
                         let folder_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
-                        packfile::extract_folders(&config, packfile_path, &folder_paths, destination_path)
+                        packfile::extract_folders(config, packfile_path, &folder_paths, destination_path)
                     },
                     None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
                 }
             }
 
-			else if matches.is_present("list") { packfile::list_packfile_contents(&config, packfile_path) }
-            else if matches.is_present("new-packfile") { packfile::new_packfile(&config, packfile_path)}
+			else if matches.is_present("list") { packfile::list_packfile_contents(config, packfile_path) }
+            else if matches.is_present("new-packfile") { packfile::new_packfile(config, packfile_path)}
 
 			else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
         },
@@ -111,7 +111,7 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
 		match matches.values_of("import") {
 			Some(values) => {
                 let packed_file_paths = values.collect::<Vec<&str>>();
-                table::import_tsv(&config, &packed_file_paths)
+                table::import_tsv(config, &packed_file_paths)
             },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 		}
@@ -121,7 +121,7 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
 		match matches.values_of("export") {
 			Some(values) => {
                 let packed_file_paths = values.collect::<Vec<&str>>();
-                table::export_tsv(&config, &packed_file_paths)
+                table::export_tsv(config, &packed_file_paths)
             },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 		}
@@ -148,7 +148,7 @@ pub fn command_diagnostic(config: &Config, matches: &ArgMatches, asskit_db_path:
         match matches.values_of("check") {
             Some(values) => {
                 let pack_file_paths = values.collect::<Vec<&str>>();
-                diagnostic::check(&config, &pack_file_paths, asskit_db_path)
+                diagnostic::check(config, &pack_file_paths, asskit_db_path)
             },
             None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
         }

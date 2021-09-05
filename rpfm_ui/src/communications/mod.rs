@@ -16,7 +16,7 @@ use qt_core::QEventLoop;
 
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -38,7 +38,6 @@ use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
-use rpfm_lib::template::Template;
 use rpfm_lib::updater::APIResponse;
 
 use crate::app_ui::NewPackedFile;
@@ -182,9 +181,6 @@ pub enum Command {
     /// This command is used when we want to know if there is a Dependency Database loaded in memory.
     IsThereADependencyDatabase,
 
-    /// This command is used when we want to know if there is a Schema loaded in memory.
-    IsThereASchema,
-
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///
     /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
@@ -272,6 +268,9 @@ pub enum Command {
     /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
     GetPackedFile(Vec<String>),
 
+    /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
+    GetPackedFilesFromAllSources(Vec<PathType>),
+
     /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetCaVp8Format((Vec<String>, SupportedFormats)),
 
@@ -296,20 +295,6 @@ pub enum Command {
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
 
-    /// This command is used to load a template into the currently open PackFile.
-    /// The data it contains is:
-    /// - Template.
-    /// - Options list.
-    /// - Params list.
-    /// - Is custom?
-    ApplyTemplate(Template, Vec<(String, bool)>, Vec<(String, String)>, bool),
-
-    /// This command is used to save a PackFile into a template.
-    SaveTemplate(Template),
-
-    /// This command is used to update the templates.
-    UpdateTemplates,
-
     /// This command is used to update the program to the last version available, if possible.
     UpdateMainProgram,
 
@@ -322,17 +307,11 @@ pub enum Command {
     /// This command is used to trigger a partial diagnostics check over the open PackFile.
     DiagnosticsUpdate((Diagnostics, Vec<PathType>)),
 
-    /// This command is used to check for template updates.
-    CheckTemplateUpdates,
-
     /// This command is used to get the settings of the currently open PackFile. True if the message is for the autosave.
     GetPackFileSettings(bool),
 
     /// This command is used to set the settings of the currently open PackFile.
     SetPackFileSettings(PackFileSettings),
-
-    /// This command is used to get the definitions of all the tables in the PackFile.
-    GetDefinitionList,
 
     /// This command is used to trigger the debug missing table definition's code.
     GetMissingDefinitions,
@@ -363,6 +342,9 @@ pub enum Command {
 
     // This command is used to import files from the dependencies into out PackFile.
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
+
+    /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
+    SavePackedFilesToPackFileAndClean(Vec<PackedFile>)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -490,9 +472,6 @@ pub enum Response {
     /// Response to return `PackFileSettings`.
     PackFileSettings(PackFileSettings),
 
-    /// Response to return `Vec<(String, Definition)>`.
-    VecStringDefinition(Vec<(String, Definition)>),
-
     /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
     VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),
 
@@ -509,7 +488,10 @@ pub enum Response {
     VecU8(Vec<u8>),
 
     /// Response to return `DependenciesInfo`.
-    DependenciesInfo(DependenciesInfo)
+    DependenciesInfo(DependenciesInfo),
+
+    /// Response to return `HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>`.
+    HashMapDataSourceBTreeMapVecStringPackedFile(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>),
 }
 
 #[allow(dead_code)]

@@ -175,15 +175,15 @@ impl PackedFileESFView {
             _path: packed_file_view.get_path_raw()
         });
 
-        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data.clone()));
+        view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(data));
 
         let slots = PackedFileESFViewSlots::new(
             &view,
-            &app_ui,
-            &global_search_ui,
-            &pack_file_contents_ui,
-            &diagnostics_ui,
-            &dependencies_ui,
+            app_ui,
+            global_search_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
+            dependencies_ui,
         );
 
         connections::set_connections(&view, &slots);

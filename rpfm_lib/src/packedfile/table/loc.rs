@@ -101,6 +101,11 @@ impl Loc {
         self.table.get_ref_table_data()
     }
 
+    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
+        self.table.get_column_position_by_name(column_name)
+    }
+
     /// This function returns the amount of entries in this Loc Table.
     pub fn get_entry_count(&self) -> usize {
         self.table.get_entry_count()
@@ -134,8 +139,8 @@ impl Loc {
 
         // Then try to decode all the entries.
         let mut index = HEADER_SIZE as usize;
-        let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+        let mut table = Table::new(definition);
+        table.decode(packed_file_data, entry_count, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }

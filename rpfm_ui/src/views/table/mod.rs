@@ -431,7 +431,7 @@ impl TableView {
 
         let fields = get_fields_sorted(&table_definition);
         for column in &fields {
-            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
+            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(column.get_name())));
         }
         search_case_sensitive_button.set_checkable(true);
 
@@ -500,7 +500,7 @@ impl TableView {
         let mut sidebar_hide_checkboxes = vec![];
         let mut sidebar_freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
-            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(&column.get_name())), &sidebar_widget);
+            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(column.get_name())), &sidebar_widget);
             let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             freeze_unfreeze_checkbox.set_enabled(false);
@@ -589,7 +589,7 @@ impl TableView {
             table_uuid,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
-            data_source: data_source.clone(),
+            data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
 
@@ -678,8 +678,8 @@ impl TableView {
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         load_data(
-            &table_view_primary,
-            &table_view_frozen,
+            table_view_primary,
+            table_view_frozen,
             &self.get_ref_table_definition(),
             &self.dependency_data,
             &data,
@@ -691,7 +691,7 @@ impl TableView {
         self.start_delayed_updates_timer();
 
         // Reset the undo model and the undo/redo history.
-        update_undo_model(&model, &undo_model);
+        update_undo_model(&model, undo_model);
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
@@ -701,8 +701,8 @@ impl TableView {
 
         // Rebuild the column's stuff.
         build_columns(
-            &table_view_primary,
-            Some(&table_view_frozen),
+            table_view_primary,
+            Some(table_view_frozen),
             &self.get_ref_table_definition(),
             table_name.as_ref()
         );
@@ -713,7 +713,7 @@ impl TableView {
             let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
             filter.filter_column_selector.clear();
             for column in self.table_definition.read().unwrap().get_fields_processed() {
-                let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
+                let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
                 filter.filter_column_selector.add_item_q_string(&name);
             }
         }
@@ -722,7 +722,7 @@ impl TableView {
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
         for column in self.table_definition.read().unwrap().get_fields_processed() {
-            let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
+            let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
             search_column_selector.add_item_q_string(&name);
         }
 
@@ -974,10 +974,7 @@ impl TableView {
 
     /// This function returns the path of the PackedFile corresponding to this table, if exists.
     pub fn get_packed_file_path(&self) -> Option<Vec<String>> {
-        match self.packed_file_path {
-            Some(ref path) => Some(path.read().unwrap().clone()),
-            None => None,
-        }
+        self.packed_file_path.as_ref().map(|path| path.read().unwrap().clone())
     }
 
     /// This function returns a copy of the datasource of this table.
@@ -1489,7 +1486,7 @@ impl TableSearch {
             for (model_index, replaced_text) in &positions_and_texts {
                 let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
                 match parent.get_ref_table_definition().get_fields_processed()[item.column() as usize].get_ref_field_type() {
-                    FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
+                    FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
                     FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
@@ -1561,7 +1558,7 @@ impl FilterView {
 
             let fields = get_fields_sorted(&view.get_ref_table_definition());
             for field in &fields {
-                let name = clean_column_names(&field.get_name());
+                let name = clean_column_names(field.get_name());
                 filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
             }
 
@@ -1603,7 +1600,7 @@ impl FilterView {
             filter_remove,
         });
 
-        let slots = FilterViewSlots::new(&filter, &view);
+        let slots = FilterViewSlots::new(&filter, view);
 
         connections::set_connections_filter(&filter, &slots);
 

@@ -116,8 +116,8 @@ impl AnimTable {
         let definition = definition?;
 
         // Then try to decode all the entries.
-        let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, entry_count as u32, &mut index, return_incomplete)?;
+        let mut table = Table::new(definition);
+        table.decode(packed_file_data, entry_count as u32, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }

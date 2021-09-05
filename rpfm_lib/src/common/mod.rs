@@ -27,9 +27,8 @@ use std::fs::{File, read_dir};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::template;
 use crate::schema;
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::games::supported_games::KEY_TROY;
 use crate::GAME_SELECTED;
 
@@ -145,74 +144,6 @@ pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<
     });
 
     Ok(files)
-}
-
-/// This function gets the `/templates/definitions` path of the game selected, if they exists, and if it's custom or not.
-#[allow(dead_code)]
-pub fn get_game_selected_template_definitions_paths() -> Option<Vec<(bool, PathBuf)>> {
-    let definitions_path = get_template_definitions_path().ok()?;
-
-    let mut paths = vec![];
-    for path in get_files_from_subdir(&definitions_path, false).ok()?.iter() {
-        match path.extension() {
-            Some(extension) => if extension == "json" { paths.push((false, path.to_path_buf())); }
-            None => continue,
-        }
-    }
-
-    if let Ok(definitions_path) = get_custom_template_definitions_path() {
-        if let Ok(json_paths) = get_files_from_subdir(&definitions_path, false) {
-            for path in &json_paths {
-                match path.extension() {
-                    Some(extension) => if extension == "json" { paths.push((true, path.to_path_buf())); }
-                    None => continue,
-                }
-            }
-        }
-    }
-    Some(paths)
-}
-
-/// This function gets the `/templates/assets` path of the game selected, if they exists.
-#[allow(dead_code)]
-pub fn get_game_selected_template_assets_paths() -> Option<Vec<PathBuf>> {
-    let assets_path = get_template_assets_path().ok()?;
-
-    let mut paths = vec![];
-    for path in get_files_from_subdir(&assets_path, true).ok()?.iter() {
-        paths.push(path.to_path_buf());
-    }
-    Some(paths)
-}
-
-/// This function returns the template assets path.
-#[allow(dead_code)]
-pub fn get_template_base_path() -> Result<PathBuf> {
-    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER))
-}
-
-/// This function returns the template definition path.
-#[allow(dead_code)]
-pub fn get_template_definitions_path() -> Result<PathBuf> {
-    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::DEFINITIONS_FOLDER))
-}
-
-/// This function returns the template assets path.
-#[allow(dead_code)]
-pub fn get_template_assets_path() -> Result<PathBuf> {
-    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::ASSETS_FOLDER))
-}
-
-/// This function returns the custom template definition path.
-#[allow(dead_code)]
-pub fn get_custom_template_definitions_path() -> Result<PathBuf> {
-    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::DEFINITIONS_FOLDER))
-}
-
-/// This function returns the custom template assets path.
-#[allow(dead_code)]
-pub fn get_custom_template_assets_path() -> Result<PathBuf> {
-    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + &GAME_SELECTED.read().unwrap().get_game_key_name() + "/" + template::ASSETS_FOLDER))
 }
 
 /// This function returns the schema path.

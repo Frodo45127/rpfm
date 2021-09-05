@@ -96,7 +96,7 @@ impl PackedFileExternalView {
             &packed_file_external_view,
             app_ui,
             pack_file_contents_ui,
-            &packed_file_path
+            packed_file_path
         );
 
         connections::set_connections(&packed_file_external_view, &packed_file_external_view_slots);

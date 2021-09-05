@@ -67,7 +67,7 @@ use std::io::{BufReader, Write};
 
 use rpfm_error::Result;
 
-use crate::config::get_config_path;
+use crate::settings::get_config_path;
 use crate::schema::SCHEMA_FOLDER;
 use crate::SUPPORTED_GAMES;
 
@@ -201,7 +201,7 @@ impl SchemaV1 {
             match a {
                 VersionedFileV1::DB(table_name_a, _) => {
                     match b {
-                        VersionedFileV1::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
+                        VersionedFileV1::DB(table_name_b, _) => table_name_a.cmp(table_name_b),
                         _ => Ordering::Less,
                     }
                 }
@@ -224,11 +224,11 @@ impl SchemaV1 {
 
     pub fn update() {
         println!("Importing schemas from V1 to V2");
-        let mut legacy_schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), Self::load(&y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
+        let mut legacy_schemas = SUPPORTED_GAMES.get_games().iter().map(|y| (y.get_game_key_name(), Self::load(y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
         println!("Amount of SchemasV1: {:?}", legacy_schemas.len());
         legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
             if let Some(file_name) = SUPPORTED_GAMES.get_games().iter().filter_map(|y| if &y.get_game_key_name() == game { Some(y.get_schema_name()) } else { None }).find(|_| true) {
-                if legacy_schema.save(&file_name).is_ok() {
+                if legacy_schema.save(file_name).is_ok() {
                     println!("SchemaV1 for game {} updated to SchemaV2.", game);
                 }
             }

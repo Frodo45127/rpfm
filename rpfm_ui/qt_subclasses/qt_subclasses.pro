@@ -6,6 +6,7 @@
 
 QT       += widgets
 QT       += KTextEditor
+QT       += KWidgetsAddons
 
 TARGET = qt_subclasses
 TEMPLATE = lib
@@ -29,6 +30,7 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 
 SOURCES += \
     src/extended_q_styled_item_delegate.cpp \
+    src/kcolor_combo.cpp \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
@@ -63,7 +65,8 @@ HEADERS += \
     include/packed_file_model.h \
     include/resizable_label.h \
     include/q_main_window_custom.h \
-    include/spoiler.h
+    include/spoiler.h \
+    include/kcolor_combo.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

@@ -33,9 +33,8 @@ use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 use rpfm_lib::common::*;
-use rpfm_lib::config::init_config_path;
+use rpfm_lib::settings::{init_config_path, Settings, MYMOD_BASE_PATH, ZIP_PATH};
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;

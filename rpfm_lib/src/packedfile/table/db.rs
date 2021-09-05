@@ -105,7 +105,7 @@ impl DB {
             name: name.to_owned(),
             mysterious_byte: true,
             uuid: if let Some(uuid) = uuid { uuid.to_owned() } else { Uuid::new_v4().to_string() },
-            table: Table::new(&definition),
+            table: Table::new(definition),
         }
     }
 
@@ -154,6 +154,11 @@ impl DB {
         self.table.get_ref_table_data()
     }
 
+    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
+        self.table.get_column_position_by_name(column_name)
+    }
+
     /// This function returns the amount of entries in this DB Table.
     pub fn get_entry_count(&self) -> usize {
         self.table.get_entry_count()
@@ -182,10 +187,10 @@ impl DB {
     ) -> Result<Self> {
 
         // Get the header of the `DB`.
-        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(&packed_file_data)?;
+        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
 
         // Try to get the table_definition for this table, if exists.
-        let versioned_file = schema.get_ref_versioned_file_db(&name);
+        let versioned_file = schema.get_ref_versioned_file_db(name);
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
@@ -193,7 +198,7 @@ impl DB {
             let definitions = versioned_file?.get_version_alternatives();
             let table = definitions.iter().find_map(|definition| {
                 let mut table = Table::new(definition);
-                if table.decode(&packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
+                if table.decode(packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
                     Some(table)
                 } else {
                     None
@@ -213,7 +218,7 @@ impl DB {
 
             // Then try to decode all the entries.
             let mut table = Table::new(definition?);
-            table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+            table.decode(packed_file_data, entry_count, &mut index, return_incomplete)?;
             table
         };
 
@@ -238,14 +243,14 @@ impl DB {
     ) -> Result<Self> {
 
         // Get the header of the `DB`.
-        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(&packed_file_data)?;
+        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
 
         // Then try to decode all the entries.
         let mut definition = Definition::new(version);
         *definition.get_ref_mut_fields() = fields.to_vec();
 
         let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
+        table.decode(packed_file_data, entry_count, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
@@ -605,19 +610,19 @@ impl DB {
                                 let mut references = DependencyData::default();
 
                                 let fake_found = if asskit_dependencies.is_empty() {
-                                    Self::get_dependency_data_from_asskit_only_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &dependencies.get_ref_asskit_only_db_tables())
-                                } else { Self::get_dependency_data_from_asskit_only_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &asskit_dependencies) };
+                                    Self::get_dependency_data_from_asskit_only_tables(&mut references, (ref_table, ref_column, &lookup_data), dependencies.get_ref_asskit_only_db_tables())
+                                } else { Self::get_dependency_data_from_asskit_only_tables(&mut references, (ref_table, ref_column, &lookup_data), asskit_dependencies) };
 
                                 let real_found = if vanilla_dependencies.is_empty() {
-                                    Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true))
-                                } else { Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (&ref_table, &ref_column, &lookup_data), &vanilla_dependencies) };
+                                    Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, &lookup_data), &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true))
+                                } else { Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, &lookup_data), vanilla_dependencies) };
 
                                 if fake_found && !real_found {
                                     references.referenced_table_is_ak_only = true;
                                 }
 
                                 if let Some(ref schema) = *schema {
-                                    if let Ok(ref_definition) = schema.get_ref_last_definition_db(ref_table, &dependencies) {
+                                    if let Ok(ref_definition) = schema.get_ref_last_definition_db(ref_table, dependencies) {
                                         if ref_definition.get_localised_fields().iter().any(|x| x.get_name() == ref_column) {
                                             references.referenced_column_is_localised = true;
                                         }
@@ -649,7 +654,7 @@ impl DB {
                     let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = DependencyData::default();
 
-                    let _local_found = Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
+                    let _local_found = Self::get_dependency_data_from_packfile(&mut references, (ref_table, ref_column, &lookup_data), pack_file, files_to_ignore);
 
                     Some((column as i32, references))
                 } else { None }
@@ -822,7 +827,7 @@ impl DB {
         for path in source_paths {
             let mut destination = path.clone();
             destination.set_extension("");
-            Table::import_tsv_to_binary_file(&schema, &path, &destination)?;
+            Table::import_tsv_to_binary_file(schema, path, &destination)?;
         }
 
         Ok(())
@@ -836,7 +841,7 @@ impl DB {
         for path in source_paths {
             let mut destination = path.clone();
             destination.set_extension("tsv");
-            Table::export_tsv_from_binary_file(&schema, &path, &destination)?;
+            Table::export_tsv_from_binary_file(schema, path, &destination)?;
         }
 
         Ok(())

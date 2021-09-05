@@ -195,7 +195,7 @@ impl Diagnostics {
                         for (path_to_ignore, fields, diags_to_ignore) in files_to_ignore {
 
                             // If the rule doesn't affect this PackedFile, ignore it.
-                            if !path_to_ignore.is_empty() && packed_file.get_path().starts_with(&path_to_ignore) {
+                            if !path_to_ignore.is_empty() && packed_file.get_path().starts_with(path_to_ignore) {
 
                                 // If we don't have either fields or diags specified, we ignore the entire file.
                                 if fields.is_empty() && diags_to_ignore.is_empty() {
@@ -225,8 +225,8 @@ impl Diagnostics {
                     }
 
                     let diagnostic = match packed_file.get_packed_file_type(false) {
-                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(&schema) {
-                            Self::check_anim_fragment(&decoded, packed_file.get_path(), &dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
+                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                            Self::check_anim_fragment(&decoded, packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
                         } else { None }
                         PackedFileType::DB => {
 
@@ -236,18 +236,18 @@ impl Diagnostics {
                             if dependency_data_for_table.is_empty() {
                                 if let DecodedPackedFile::DB(table) = decoded_packed_file {
                                     dependency_data_for_table = DB::get_dependency_data(
-                                        &pack_file,
+                                        pack_file,
                                         table.get_ref_table_name(),
                                         table.get_ref_definition(),
                                         &vanilla_dependencies,
                                         asskit_dependencies,
-                                        &dependencies,
+                                        dependencies,
                                         &[],
                                     );
                                 }
                             }
 
-                            Self::check_db(packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev, &local_packed_file_path_list, &local_folder_path_list, &dependency_data_for_table)
+                            Self::check_db(packed_file.get_ref_decoded(), packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev, &local_packed_file_path_list, &local_folder_path_list, &dependency_data_for_table)
                         },
                         PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev),
                         _ => None,
@@ -381,7 +381,7 @@ impl Diagnostics {
 
             // Before anything else, check if the table is outdated.
             if !Self::ignore_diagnostic(None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                if table.is_outdated(&dependencies) {
+                if table.is_outdated(dependencies) {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         cells_affected: vec![],
                         message: "Possibly outdated table.".to_owned(),
@@ -392,7 +392,7 @@ impl Diagnostics {
             }
 
             // Check if the table name has a number at the end, which causes very annoying bugs.
-            if let Some(ref name) = path.last() {
+            if let Some(name) = path.last() {
                 if !Self::ignore_diagnostic(None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if name.ends_with('0') ||
                         name.ends_with('1') ||
@@ -439,7 +439,7 @@ impl Diagnostics {
                         }
 
                         VanillaDBTableNameLogic::DefaultName(ref default_name) => {
-                            if *name == default_name {
+                            if name == default_name {
                                 diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                     cells_affected: vec![],
                                     message: "Table is datacoring.".to_owned(),
@@ -1150,7 +1150,7 @@ impl Diagnostics {
                         for (path_to_ignore, fields, diags_to_ignore) in files_to_ignore {
 
                             // If the rule doesn't affect this PackedFile, ignore it.
-                            if !path_to_ignore.is_empty() && packed_file.get_path().starts_with(&path_to_ignore) {
+                            if !path_to_ignore.is_empty() && packed_file.get_path().starts_with(path_to_ignore) {
 
                                 // If we don't have either fields or diags specified, we ignore the entire file.
                                 if fields.is_empty() && diags_to_ignore.is_empty() {
@@ -1186,8 +1186,8 @@ impl Diagnostics {
                     }
 
                     let diagnostic = match packed_file.get_packed_file_type(false) {
-                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(&schema) {
-                                Self::check_anim_fragment(&decoded, packed_file.get_path(), &dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
+                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                Self::check_anim_fragment(&decoded, packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
                             } else { None }
                         PackedFileType::DB => {
 
@@ -1197,18 +1197,18 @@ impl Diagnostics {
                             if dependency_data_for_table.is_empty() {
                                 if let DecodedPackedFile::DB(table) = decoded_packed_file {
                                     dependency_data_for_table = DB::get_dependency_data(
-                                        &pack_file,
+                                        pack_file,
                                         table.get_ref_table_name(),
                                         table.get_ref_definition(),
                                         &vanilla_dependencies,
                                         asskit_dependencies,
-                                        &dependencies,
+                                        dependencies,
                                         &[],
                                     );
                                 }
                             }
 
-                            Self::check_db(packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev, &local_packed_file_path_list, &local_folder_path_list, &dependency_data_for_table)
+                            Self::check_db(packed_file.get_ref_decoded(), packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev, &local_packed_file_path_list, &local_folder_path_list, &dependency_data_for_table)
                         },
                         PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev),
                         _ => None,

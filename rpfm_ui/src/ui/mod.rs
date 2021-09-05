@@ -127,7 +127,7 @@ impl UI {
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
         let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
@@ -324,9 +324,6 @@ impl UI {
 
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
-
-        // If we have it enabled in the prefs, check if there are templates updates.
-        if SETTINGS.read().unwrap().settings_bool["check_template_updates_on_start"] { AppUI::check_template_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {

@@ -517,7 +517,7 @@ impl PackedFileDecoderViewSlots {
                             // If it worked, update the decoder view.
                             view.table_model.clear();
                             *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
-                            let _ = view.update_view(&field_list, true, &mut mutable_data.index.lock().unwrap());
+                            let _ = view.update_view(field_list, true, &mut mutable_data.index.lock().unwrap());
                             let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
                         }
 

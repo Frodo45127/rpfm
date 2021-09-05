@@ -121,13 +121,9 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_rescue_packfile.triggered().connect(&slots.special_stuff_rescue_packfile);
 
     //-----------------------------------------------//
-    // `Templates` menu connections.
+    // `Tools` menu connections.
     //-----------------------------------------------//
-    app_ui.menu_bar_templates.about_to_show().connect(&slots.packfile_open_menu);
-
-    app_ui.templates_open_custom_templates_folder.triggered().connect(&slots.templates_open_custom_templates_folder);
-    app_ui.templates_open_official_templates_folder.triggered().connect(&slots.templates_open_official_templates_folder);
-    app_ui.templates_save_packfile_to_template.triggered().connect(&slots.templates_save_packfile_to_template);
+    app_ui.tools_faction_painter.triggered().connect(&slots.tools_faction_painter);
 
     //-----------------------------------------------//
     // `About` menu connections.
@@ -138,7 +134,6 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.about_patreon_link.triggered().connect(&slots.about_patreon_link);
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
-    app_ui.about_check_template_updates.triggered().connect(&slots.about_check_templates_updates);
 
     //-----------------------------------------------//
     // `Debug` menu connections.

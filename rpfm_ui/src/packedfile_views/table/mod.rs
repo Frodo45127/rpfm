@@ -90,7 +90,7 @@ impl PackedFileTableView {
         };
 
         let table_view = TableView::new_view(
-            &packed_file_view.get_mut_widget(),
+            packed_file_view.get_mut_widget(),
             app_ui,
             global_search_ui,
             pack_file_contents_ui,

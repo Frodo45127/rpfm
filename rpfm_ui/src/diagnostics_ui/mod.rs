@@ -447,7 +447,6 @@ impl DiagnosticsUI {
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
         app_ui.menu_bar_packfile.set_enabled(false);
-        app_ui.menu_bar_templates.set_enabled(false);
 
         CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
         diagnostics_ui.diagnostics_table_model.clear();
@@ -458,7 +457,6 @@ impl DiagnosticsUI {
         UI_STATE.set_diagnostics(&diagnostics);
 
         app_ui.menu_bar_packfile.set_enabled(true);
-        app_ui.menu_bar_templates.set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
@@ -786,7 +784,7 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.
@@ -1095,13 +1093,13 @@ impl DiagnosticsUI {
                         for column in 0..table_model.column_count_0a() {
                             let item = table_model.item_2a(row, column);
 
-                            if item.data_1a(ITEM_HAS_ERROR).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_ERROR).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
                             }
-                            if item.data_1a(ITEM_HAS_WARNING).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_WARNING).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
                             }
-                            if item.data_1a(ITEM_HAS_INFO).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_INFO).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
                             }
                         }
@@ -1118,13 +1116,13 @@ impl DiagnosticsUI {
                         for column in 0..table_model.column_count_0a() {
                             let item = table_model.item_2a(row, column);
 
-                            if item.data_1a(ITEM_HAS_ERROR).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_ERROR).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
                             }
-                            if item.data_1a(ITEM_HAS_WARNING).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_WARNING).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
                             }
-                            if item.data_1a(ITEM_HAS_INFO).to_bool() == true {
+                            if item.data_1a(ITEM_HAS_INFO).to_bool() {
                                 item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
                             }
                         }
@@ -1403,7 +1401,7 @@ impl DiagnosticsUI {
         let tool_tip = match report_type {
             ConfigDiagnosticReportType::DependenciesCacheNotGenerated => qtr("dependencies_cache_not_generated_explanation"),
             ConfigDiagnosticReportType::DependenciesCacheOutdated => qtr("dependencies_cache_outdated_explanation"),
-            ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error) => qtre("dependencies_cache_could_not_be_loaded_explanation", &[&error]),
+            ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(error) => qtre("dependencies_cache_could_not_be_loaded_explanation", &[error]),
             ConfigDiagnosticReportType::IncorrectGamePath => qtr("incorrect_game_path_explanation"),
         };
 
