@@ -169,6 +169,7 @@ impl ToolFactionPainter {
 
         let packed_file_name_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("packed_file_name_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.get_ref_main_widget().find_child("packed_file_name_line_edit").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
 
         // Button Box.
         let button_box: QPtr<QDialogButtonBox> = tool.get_ref_main_widget().find_child("button_box").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
