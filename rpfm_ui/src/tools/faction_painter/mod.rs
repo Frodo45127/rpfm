@@ -65,7 +65,7 @@ mod connections;
 mod slots;
 
 /// Tool's ui template path.
-const VIEW: &'static str = "rpfm_ui/ui_templates/tool_faction_color_editor.ui";
+const VIEW: &str = "rpfm_ui/ui_templates/tool_faction_color_editor.ui";
 
 /// Role that stores the data corresponding to the faction of each item.
 const FACTION_DATA: i32 = 60;
@@ -287,7 +287,7 @@ impl ToolFactionPainter {
         // These flag paths are already pre-processed to contain their full icon path, and a common slash format.
         let paths_to_use = processed_data.values()
             .map(|x| x.get("flags_path").unwrap()
-                .split("/")
+                .split('/')
                 .map(|x| x.to_owned())
                 .collect::<Vec<String>>()
             )
@@ -566,47 +566,45 @@ impl ToolFactionPainter {
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "factions_tables" {
 
-                if let Ok(decoded) = packed_file.decode_return_ref() {
-                    if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
 
-                        // We need multiple column's data for this to work.
-                        let key_column = table.get_column_position_by_name("key")?;
-                        let name_column = table.get_column_position_by_name("screen_name")?;
-                        let flag_path_column = table.get_column_position_by_name("flags_path")?;
+                    // We need multiple column's data for this to work.
+                    let key_column = table.get_column_position_by_name("key")?;
+                    let name_column = table.get_column_position_by_name("screen_name")?;
+                    let flag_path_column = table.get_column_position_by_name("flags_path")?;
 
-                        for row in table.get_ref_table_data() {
-                            let mut data = BTreeMap::new();
+                    for row in table.get_ref_table_data() {
+                        let mut data = BTreeMap::new();
 
-                            match Tool::get_row_by_column_index(row, name_column)? {
-                                DecodedData::StringU8(ref value) |
-                                DecodedData::StringU16(ref value) |
-                                DecodedData::OptionalStringU8(ref value) |
-                                DecodedData::OptionalStringU16(ref value) => {
-                                    data.insert("screen_name".to_owned(), value.to_owned());
-                                }
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        match Tool::get_row_by_column_index(row, name_column)? {
+                            DecodedData::StringU8(ref value) |
+                            DecodedData::StringU16(ref value) |
+                            DecodedData::OptionalStringU8(ref value) |
+                            DecodedData::OptionalStringU16(ref value) => {
+                                data.insert("screen_name".to_owned(), value.to_owned());
                             }
+                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        }
 
-                            match Tool::get_row_by_column_index(row, flag_path_column)? {
-                                DecodedData::StringU8(ref value) |
-                                DecodedData::StringU16(ref value) |
-                                DecodedData::OptionalStringU8(ref value) |
-                                DecodedData::OptionalStringU16(ref value) => {
-                                    data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
-                                }
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        match Tool::get_row_by_column_index(row, flag_path_column)? {
+                            DecodedData::StringU8(ref value) |
+                            DecodedData::StringU16(ref value) |
+                            DecodedData::OptionalStringU8(ref value) |
+                            DecodedData::OptionalStringU16(ref value) => {
+                                data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
                             }
+                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        }
 
-                            match Tool::get_row_by_column_index(row, key_column)? {
-                                DecodedData::StringU8(ref key) |
-                                DecodedData::StringU16(ref key) |
-                                DecodedData::OptionalStringU8(ref key) |
-                                DecodedData::OptionalStringU16(ref key) => {
-                                    data.insert("key".to_owned(), key.to_owned());
-                                    processed_data.insert(key.to_owned(), data);
-                                }
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        match Tool::get_row_by_column_index(row, key_column)? {
+                            DecodedData::StringU8(ref key) |
+                            DecodedData::StringU16(ref key) |
+                            DecodedData::OptionalStringU8(ref key) |
+                            DecodedData::OptionalStringU16(ref key) => {
+                                data.insert("key".to_owned(), key.to_owned());
+                                processed_data.insert(key.to_owned(), data);
                             }
+                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                         }
                     }
                 }
@@ -621,100 +619,98 @@ impl ToolFactionPainter {
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_banners_tables" {
 
-                if let Ok(decoded) = packed_file.decode_return_ref() {
-                    if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
 
-                        // We need multiple column's data for this to work.
-                        let key_column = table.get_column_position_by_name("key")?;
+                    // We need multiple column's data for this to work.
+                    let key_column = table.get_column_position_by_name("key")?;
 
-                        let primary_colour_r_column = table.get_column_position_by_name("primary_red")?;
-                        let primary_colour_g_column = table.get_column_position_by_name("primary_green")?;
-                        let primary_colour_b_column = table.get_column_position_by_name("primary_blue")?;
+                    let primary_colour_r_column = table.get_column_position_by_name("primary_red")?;
+                    let primary_colour_g_column = table.get_column_position_by_name("primary_green")?;
+                    let primary_colour_b_column = table.get_column_position_by_name("primary_blue")?;
 
-                        let secondary_colour_r_column = table.get_column_position_by_name("secondary_red")?;
-                        let secondary_colour_g_column = table.get_column_position_by_name("secondary_green")?;
-                        let secondary_colour_b_column = table.get_column_position_by_name("secondary_blue")?;
+                    let secondary_colour_r_column = table.get_column_position_by_name("secondary_red")?;
+                    let secondary_colour_g_column = table.get_column_position_by_name("secondary_green")?;
+                    let secondary_colour_b_column = table.get_column_position_by_name("secondary_blue")?;
 
-                        let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_red")?;
-                        let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_green")?;
-                        let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_blue")?;
+                    let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_red")?;
+                    let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_green")?;
+                    let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_blue")?;
 
-                        for row in table.get_ref_table_data() {
-                            let key = match Tool::get_row_by_column_index(row, key_column)? {
-                                DecodedData::StringU8(ref value) |
-                                DecodedData::StringU16(ref value) |
-                                DecodedData::OptionalStringU8(ref value) |
-                                DecodedData::OptionalStringU16(ref value) => value,
+                    for row in table.get_ref_table_data() {
+                        let key = match Tool::get_row_by_column_index(row, key_column)? {
+                            DecodedData::StringU8(ref value) |
+                            DecodedData::StringU16(ref value) |
+                            DecodedData::OptionalStringU8(ref value) |
+                            DecodedData::OptionalStringU16(ref value) => value,
+                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        };
+
+                        if let Some(faction_data) = processed_data.get_mut(key) {
+                            let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
                                 _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
-                            if let Some(faction_data) = processed_data.get_mut(key) {
-                                let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
 
-                                let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
 
-                                let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
+                            let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
+                            let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
 
-                                let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
-                                let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
-                                let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+                            // If we're processing the game files, set the vanilla values.
+                            if let DataSource::GameFiles = data_source {
+                                faction_data.insert("banner_vanilla_primary".to_owned(), primary.to_owned());
+                                faction_data.insert("banner_vanilla_secondary".to_owned(), secondary.to_owned());
+                                faction_data.insert("banner_vanilla_tertiary".to_owned(), tertiary.to_owned());
+                            }
 
-                                // If we're processing the game files, set the vanilla values.
-                                if let DataSource::GameFiles = data_source {
-                                    faction_data.insert("banner_vanilla_primary".to_owned(), primary.to_owned());
-                                    faction_data.insert("banner_vanilla_secondary".to_owned(), secondary.to_owned());
-                                    faction_data.insert("banner_vanilla_tertiary".to_owned(), tertiary.to_owned());
-                                }
+                            // Set the initial values. The last value inputted is the initial one due to how we load the data.
+                            faction_data.insert("banner_initial_primary".to_owned(), primary.to_owned());
+                            faction_data.insert("banner_initial_secondary".to_owned(), secondary.to_owned());
+                            faction_data.insert("banner_initial_tertiary".to_owned(), tertiary.to_owned());
+                            faction_data.insert("banner_primary".to_owned(), primary);
+                            faction_data.insert("banner_secondary".to_owned(), secondary);
+                            faction_data.insert("banner_tertiary".to_owned(), tertiary);
 
-                                // Set the initial values. The last value inputted is the initial one due to how we load the data.
-                                faction_data.insert("banner_initial_primary".to_owned(), primary.to_owned());
-                                faction_data.insert("banner_initial_secondary".to_owned(), secondary.to_owned());
-                                faction_data.insert("banner_initial_tertiary".to_owned(), tertiary.to_owned());
-                                faction_data.insert("banner_primary".to_owned(), primary);
-                                faction_data.insert("banner_secondary".to_owned(), secondary);
-                                faction_data.insert("banner_tertiary".to_owned(), tertiary);
+                            // Also save the full row, so we can easely edit it and put it into a file later on.
+                            faction_data.insert("banner_row".to_owned(), serde_json::to_string(row)?);
 
-                                // Also save the full row, so we can easely edit it and put it into a file later on.
-                                faction_data.insert("banner_row".to_owned(), serde_json::to_string(row)?);
-
-                                // Store the definition, so we can re-use it later to recreate the table.
-                                if faction_data.get("banner_definition").is_none() {
-                                    let definition = serde_json::to_string(table.get_ref_definition())?;
-                                    faction_data.insert("banner_definition".to_owned(), definition);
-                                }
+                            // Store the definition, so we can re-use it later to recreate the table.
+                            if faction_data.get("banner_definition").is_none() {
+                                let definition = serde_json::to_string(table.get_ref_definition())?;
+                                faction_data.insert("banner_definition".to_owned(), definition);
                             }
                         }
                     }
@@ -731,100 +727,98 @@ impl ToolFactionPainter {
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_uniform_colours_tables" {
 
-                if let Ok(decoded) = packed_file.decode_return_ref() {
-                    if let DecodedPackedFile::DB(table) = decoded {
+                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
 
-                        // We need multiple column's data for this to work.
-                        let key_column = table.get_column_position_by_name("faction_name")?;
+                    // We need multiple column's data for this to work.
+                    let key_column = table.get_column_position_by_name("faction_name")?;
 
-                        let primary_colour_r_column = table.get_column_position_by_name("primary_colour_r")?;
-                        let primary_colour_g_column = table.get_column_position_by_name("primary_colour_g")?;
-                        let primary_colour_b_column = table.get_column_position_by_name("primary_colour_b")?;
+                    let primary_colour_r_column = table.get_column_position_by_name("primary_colour_r")?;
+                    let primary_colour_g_column = table.get_column_position_by_name("primary_colour_g")?;
+                    let primary_colour_b_column = table.get_column_position_by_name("primary_colour_b")?;
 
-                        let secondary_colour_r_column = table.get_column_position_by_name("secondary_colour_r")?;
-                        let secondary_colour_g_column = table.get_column_position_by_name("secondary_colour_g")?;
-                        let secondary_colour_b_column = table.get_column_position_by_name("secondary_colour_b")?;
+                    let secondary_colour_r_column = table.get_column_position_by_name("secondary_colour_r")?;
+                    let secondary_colour_g_column = table.get_column_position_by_name("secondary_colour_g")?;
+                    let secondary_colour_b_column = table.get_column_position_by_name("secondary_colour_b")?;
 
-                        let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_colour_r")?;
-                        let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_colour_g")?;
-                        let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_colour_b")?;
+                    let tertiary_colour_r_column = table.get_column_position_by_name("tertiary_colour_r")?;
+                    let tertiary_colour_g_column = table.get_column_position_by_name("tertiary_colour_g")?;
+                    let tertiary_colour_b_column = table.get_column_position_by_name("tertiary_colour_b")?;
 
-                        for row in table.get_ref_table_data() {
-                            let key = match Tool::get_row_by_column_index(row, key_column)? {
-                                DecodedData::StringU8(ref value) |
-                                DecodedData::StringU16(ref value) |
-                                DecodedData::OptionalStringU8(ref value) |
-                                DecodedData::OptionalStringU16(ref value) => value,
+                    for row in table.get_ref_table_data() {
+                        let key = match Tool::get_row_by_column_index(row, key_column)? {
+                            DecodedData::StringU8(ref value) |
+                            DecodedData::StringU16(ref value) |
+                            DecodedData::OptionalStringU8(ref value) |
+                            DecodedData::OptionalStringU16(ref value) => value,
+                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                        };
+
+                        if let Some(faction_data) = processed_data.get_mut(key) {
+                            let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
                                 _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
-                            if let Some(faction_data) = processed_data.get_mut(key) {
-                                let primary_r = match Tool::get_row_by_column_index(row, primary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let primary_g = match Tool::get_row_by_column_index(row, primary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let primary_b = match Tool::get_row_by_column_index(row, primary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
 
-                                let secondary_r = match Tool::get_row_by_column_index(row, secondary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let secondary_g = match Tool::get_row_by_column_index(row, secondary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let secondary_b = match Tool::get_row_by_column_index(row, secondary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
+                            let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
+                                DecodedData::I32(ref value) => value,
+                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            };
 
-                                let tertiary_r = match Tool::get_row_by_column_index(row, tertiary_colour_r_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let tertiary_g = match Tool::get_row_by_column_index(row, tertiary_colour_g_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
-                                let tertiary_b = match Tool::get_row_by_column_index(row, tertiary_colour_b_column)? {
-                                    DecodedData::I32(ref value) => value,
-                                    _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
-                                };
+                            let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
+                            let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
+                            let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
 
-                                let primary = format!("{},{},{}", primary_r, primary_g, primary_b);
-                                let secondary = format!("{},{},{}", secondary_r, secondary_g, secondary_b);
-                                let tertiary = format!("{},{},{}", tertiary_r, tertiary_g, tertiary_b);
+                            // If we're processing the game files, set the vanilla values.
+                            if let DataSource::GameFiles = data_source {
+                                faction_data.insert("uniform_vanilla_primary".to_owned(), primary.to_owned());
+                                faction_data.insert("uniform_vanilla_secondary".to_owned(), secondary.to_owned());
+                                faction_data.insert("uniform_vanilla_tertiary".to_owned(), tertiary.to_owned());
+                            }
 
-                                // If we're processing the game files, set the vanilla values.
-                                if let DataSource::GameFiles = data_source {
-                                    faction_data.insert("uniform_vanilla_primary".to_owned(), primary.to_owned());
-                                    faction_data.insert("uniform_vanilla_secondary".to_owned(), secondary.to_owned());
-                                    faction_data.insert("uniform_vanilla_tertiary".to_owned(), tertiary.to_owned());
-                                }
+                            // Set the initial values. The last value inputted is the initial one due to how we load the data.
+                            faction_data.insert("uniform_initial_primary".to_owned(), primary.to_owned());
+                            faction_data.insert("uniform_initial_secondary".to_owned(), secondary.to_owned());
+                            faction_data.insert("uniform_initial_tertiary".to_owned(), tertiary.to_owned());
+                            faction_data.insert("uniform_primary".to_owned(), primary);
+                            faction_data.insert("uniform_secondary".to_owned(), secondary);
+                            faction_data.insert("uniform_tertiary".to_owned(), tertiary);
 
-                                // Set the initial values. The last value inputted is the initial one due to how we load the data.
-                                faction_data.insert("uniform_initial_primary".to_owned(), primary.to_owned());
-                                faction_data.insert("uniform_initial_secondary".to_owned(), secondary.to_owned());
-                                faction_data.insert("uniform_initial_tertiary".to_owned(), tertiary.to_owned());
-                                faction_data.insert("uniform_primary".to_owned(), primary);
-                                faction_data.insert("uniform_secondary".to_owned(), secondary);
-                                faction_data.insert("uniform_tertiary".to_owned(), tertiary);
+                            // Also save the full row, so we can easely edit it and put it into a file later on.
+                            faction_data.insert("uniform_row".to_owned(), serde_json::to_string(row)?);
 
-                                // Also save the full row, so we can easely edit it and put it into a file later on.
-                                faction_data.insert("uniform_row".to_owned(), serde_json::to_string(row)?);
-
-                                // Store the definition, so we can re-use it later to recreate the table.
-                                if faction_data.get("uniform_definition").is_none() {
-                                    let definition = serde_json::to_string(table.get_ref_definition())?;
-                                    faction_data.insert("uniform_definition".to_owned(), definition);
-                                }
+                            // Store the definition, so we can re-use it later to recreate the table.
+                            if faction_data.get("uniform_definition").is_none() {
+                                let definition = serde_json::to_string(table.get_ref_definition())?;
+                                faction_data.insert("uniform_definition".to_owned(), definition);
                             }
                         }
                     }
@@ -856,11 +850,11 @@ impl ToolFactionPainter {
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
                         let row = row_data.get("banner_row")?;
-                        let mut row: Vec<DecodedData> = serde_json::from_str(&row).ok()?;
+                        let mut row: Vec<DecodedData> = serde_json::from_str(row).ok()?;
 
-                        let primary = row_data.get("banner_primary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let secondary = row_data.get("banner_secondary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let tertiary = row_data.get("banner_tertiary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let primary = row_data.get("banner_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let secondary = row_data.get("banner_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let tertiary = row_data.get("banner_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
                         row[primary_colour_r_column] = DecodedData::I32(primary[0]);
                         row[primary_colour_g_column] = DecodedData::I32(primary[1]);
@@ -905,11 +899,11 @@ impl ToolFactionPainter {
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
                         let row = row_data.get("uniform_row")?;
-                        let mut row: Vec<DecodedData> = serde_json::from_str(&row).ok()?;
+                        let mut row: Vec<DecodedData> = serde_json::from_str(row).ok()?;
 
-                        let primary = row_data.get("uniform_primary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let secondary = row_data.get("uniform_secondary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let tertiary = row_data.get("uniform_tertiary")?.split(",").map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let primary = row_data.get("uniform_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let secondary = row_data.get("uniform_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        let tertiary = row_data.get("uniform_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
                         row[primary_colour_r_column] = DecodedData::I32(primary[0]);
                         row[primary_colour_g_column] = DecodedData::I32(primary[1]);

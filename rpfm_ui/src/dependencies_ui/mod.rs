@@ -235,7 +235,7 @@ impl DependenciesUI {
                 let failed_paths = added_paths.iter().filter_map(|path| {
                     if let PathType::File(ref path) = path {
                         if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                            if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                            if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                                 Some(path.to_vec())
                             } else { None }
                         } else { None }
@@ -243,7 +243,7 @@ impl DependenciesUI {
                 }).collect::<Vec<Vec<String>>>();
 
                 for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 

@@ -57,7 +57,7 @@ use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::tools::faction_painter::ToolFactionPainter;
 use crate::ui::GameSelectedIcons;
-use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
+use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
@@ -1622,7 +1622,7 @@ impl AppUITempSlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
-        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
-        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+        AppUI::build_open_from_submenus(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
+        AppUI::build_open_mymod_submenus(app_ui, pack_file_contents_ui, diagnostics_ui, global_search_ui);
     }
 }

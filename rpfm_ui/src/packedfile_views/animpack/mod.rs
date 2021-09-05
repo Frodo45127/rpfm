@@ -261,7 +261,7 @@ impl PackedFileAnimPackView {
         else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_treeview_filter_safe(&tree_model_filter, &pattern.as_ptr());
+        trigger_treeview_filter_safe(tree_model_filter, &pattern.as_ptr());
 
         // Expand all the matches, if the option for it is enabled.
         if filter_autoexpand_matches_button.is_checked() {

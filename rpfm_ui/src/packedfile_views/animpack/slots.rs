@@ -139,7 +139,7 @@ impl PackedFileAnimPackViewSlots {
                                 for path_ok in &paths_ok {
                                     if let TreePathType::File(path) = path_ok {
                                         if path == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
-                                            let _ = packed_file_view.reload(&path, &pack_file_contents_ui);
+                                            let _ = packed_file_view.reload(path, &pack_file_contents_ui);
                                         }
                                     }
                                 }

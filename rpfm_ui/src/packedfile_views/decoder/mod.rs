@@ -829,7 +829,7 @@ impl PackedFileDecoderView {
             // Otherswise, we add each field we got as a row to the table.
             else {
                 for field in field_list {
-                    self.add_field_to_view(&field, &mut index, is_initial_load, None);
+                    self.add_field_to_view(field, &mut index, is_initial_load, None);
                 }
                 configure_table_view(&self.table_view);
             }
@@ -1087,7 +1087,7 @@ impl PackedFileDecoderView {
                         }
                     };
 
-                    self.add_field_to_view(&field, &mut index, is_initial_load, Some(parent));
+                    self.add_field_to_view(field, &mut index, is_initial_load, Some(parent));
                 }
             }
         }
@@ -1488,7 +1488,7 @@ impl PackedFileDecoderView {
         let raw_db_path = GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path()?;
 
         let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;
-        let raw_definition = RawDefinition::read(&raw_definition_paths.iter().find(|x| {
+        let raw_definition = RawDefinition::read(raw_definition_paths.iter().find(|x| {
             format!("{}_tables", x.file_stem().unwrap().to_str().unwrap().split_at(5).1) == self.packed_file_path[1]
         }).unwrap(), raw_db_version).unwrap();
 
@@ -1603,7 +1603,7 @@ impl PackedFileDecoderView {
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
         Ok(definitions_possible.par_iter().filter_map(|x| {
             let field_list = x.iter().map(|x| { let mut field = Field::default(); field.set_field_type(x.clone()); field }).collect::<Vec<Field>>();
-            if let Ok(table) = DB::read_with_fields(packed_file_data, &path, &field_list, false) {
+            if let Ok(table) = DB::read_with_fields(packed_file_data, path, &field_list, false) {
                 if !table.get_ref_table_data().is_empty() {
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];

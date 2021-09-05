@@ -49,7 +49,7 @@ use crate::packedfile_views::DataSource;
 use crate::QString;
 use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
-use crate::ui_state::op_mode::OperationalMode;
+use crate::ui_state::OperationalMode;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -483,7 +483,7 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                                    for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true)); }
                                     paths_packedfile
                                 };
 
@@ -510,7 +510,7 @@ impl PackFileContentsSlots {
 
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                            for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                            for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true)); }
 
                             app_ui.main_window.set_enabled(false);
                             PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
@@ -562,7 +562,7 @@ impl PackFileContentsSlots {
 
                                 // Get the Paths of the files inside the folders we want to add.
                                 let mut paths: Vec<PathBuf> = vec![];
-                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path, true).unwrap()); }
+                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(path, true).unwrap()); }
 
                                 // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
                                 if paths[0].starts_with(&assets_folder) {
@@ -645,7 +645,7 @@ impl PackFileContentsSlots {
                     }
 
                     app_ui.main_window.set_enabled(false);
-                    let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str.to_owned()];
+                    let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str];
                     AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(fake_path), false, false, DataSource::ExternalFile);
                     app_ui.main_window.set_enabled(true);
                 }
@@ -673,7 +673,7 @@ impl PackFileContentsSlots {
                             // Remove all the deleted PackedFiles from the cache.
                             for item in &items {
                                 match item {
-                                    TreePathType::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false); },
+                                    TreePathType::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
                                     TreePathType::Folder(path) => {
                                         let mut paths_to_remove = vec![];
                                         {
@@ -740,7 +740,7 @@ impl PackFileContentsSlots {
                         match item_type {
                             TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
                                 let original_name = path.last().unwrap();
-                                let new_name = rewrite_sequence.to_owned().replace("{x}", &original_name);
+                                let new_name = rewrite_sequence.to_owned().replace("{x}", original_name);
                                 renaming_data_background.push((From::from(&item_type), new_name));
                             },
 
@@ -1026,7 +1026,7 @@ impl PackFileContentsSlots {
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
-                                selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &x, DataSource::PackFile, false); });
+                                selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove), DataSource::PackFile);
                             }
 
@@ -1117,7 +1117,7 @@ impl PackFileContentsSlots {
 
                                 // Get the list of paths to add, removing those we "replaced".
                                 let mut paths_to_add = paths.1.to_vec();
-                                paths_to_add.retain(|x| !paths.0.contains(&x));
+                                paths_to_add.retain(|x| !paths.0.contains(x));
                                 let paths_to_add2 = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                                 // Update the TreeView.

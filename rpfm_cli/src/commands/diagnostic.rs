@@ -46,10 +46,10 @@ pub fn check(
     match &config.game_selected {
         Some(game_selected) => {
             *SCHEMA.write().unwrap() = Some(Schema::load(game_selected.get_schema_name())?);
-            let asskit_path = asskit_path.map(|x| PathBuf::from(x));
+            let asskit_path = asskit_path.map(PathBuf::from);
 
             // Load the PackFiles to check to memory.
-            let pack_file_paths = pack_files.iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+            let pack_file_paths = pack_files.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
             let mut pack_file = PackFile::open_packfiles(&pack_file_paths, true, false, false)?;
 
             // Force decoding of table/locs, so they're in memory for the diagnostics to work.
@@ -60,7 +60,7 @@ pub fn check(
                 });
             }
 
-            if let Err(_) = dependencies.rebuild(&[], false) {
+            if dependencies.rebuild(&[], false).is_err() {
                 if config.verbosity_level > 0 {
                     info!("Dependencies rebuild failed. Regenerating...");
                 }

@@ -237,9 +237,9 @@ pub fn background_loop() {
 
                 // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUIILD IT AFTERWARDS.
                 pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-                *SCHEMA.write().unwrap() = Schema::load(&GAME_SELECTED.read().unwrap().get_schema_name()).ok();
+                *SCHEMA.write().unwrap() = Schema::load(GAME_SELECTED.read().unwrap().get_schema_name()).ok();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
+                    pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(schema); });
                 }
 
                 // Send a response, so we can unlock the UI.
@@ -426,7 +426,7 @@ pub fn background_loop() {
                 match pack_files_decoded_extra.get(&pack_file_path) {
 
                     // Try to add the PackedFile to the main PackFile.
-                    Some(pack_file) => match pack_file_decoded.add_from_packfile(&pack_file, &paths, true) {
+                    Some(pack_file) => match pack_file_decoded.add_from_packfile(pack_file, &paths, true) {
                         Ok(paths) => {
                             CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.to_vec()));
 
@@ -469,7 +469,7 @@ pub fn background_loop() {
             // In case we want to move stuff from an Animpack to our PackFile...
             Command::AddPackedFilesFromAnimpack((anim_pack_path, paths)) => {
                 let packed_files_to_add = match pack_file_decoded.get_ref_packed_file_by_path(&anim_pack_path) {
-                    Some(ref packed_file) => {
+                    Some(packed_file) => {
                         let packed_file_decoded = packed_file.get_ref_decoded();
                         match packed_file_decoded {
                             DecodedPackedFile::AnimPack(anim_pack) => anim_pack.get_anim_packed_as_packed_files(&paths),
@@ -714,7 +714,7 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     if let PathType::File(path) = path_type {
                         if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                            match packed_file.decode_return_ref_mut_no_locks(&schema) {
+                            match packed_file.decode_return_ref_mut_no_locks(schema) {
                                 Ok(packed_file_decoded) => match packed_file_decoded.update_table(&dependencies) {
                                     Ok(data) => {
 
@@ -765,7 +765,7 @@ pub fn background_loop() {
                         &table_name,
                         &definition,
                         &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true),
-                        &dependencies.get_ref_asskit_only_db_tables(),
+                        dependencies.get_ref_asskit_only_db_tables(),
                         &dependencies,
                         &files_to_ignore,
                     )
@@ -820,7 +820,7 @@ pub fn background_loop() {
                             Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
-                        DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, &TSV_NAME_LOC) {
+                        DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, TSV_NAME_LOC) {
                             Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
@@ -843,7 +843,7 @@ pub fn background_loop() {
                             Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
-                        DecodedPackedFile::Loc(data) => match Loc::import_tsv(&data.get_definition(), &external_path, &TSV_NAME_LOC) {
+                        DecodedPackedFile::Loc(data) => match Loc::import_tsv(&data.get_definition(), &external_path, TSV_NAME_LOC) {
                             Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
@@ -911,7 +911,7 @@ pub fn background_loop() {
                                     Ok(data) => {
                                         if let DecodedPackedFile::Loc(data) = data {
                                             temporal_file_path.set_extension("tsv");
-                                            match data.export_tsv(&temporal_file_path, &TSV_NAME_LOC) {
+                                            match data.export_tsv(&temporal_file_path, TSV_NAME_LOC) {
                                                 Ok(_) => {
                                                     that_in_background(&temporal_file_path);
                                                     CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
@@ -973,7 +973,7 @@ pub fn background_loop() {
                                             }
                                         }
                                         else if let DecodedPackedFile::Loc(ref mut data) = data {
-                                            match Loc::import_tsv(&data.get_definition(), &external_path, &TSV_NAME_LOC) {
+                                            match Loc::import_tsv(&data.get_definition(), &external_path, TSV_NAME_LOC) {
                                                 Ok(new_data) => {
                                                     *data = new_data;
                                                     match packed_file.encode_and_clean_cache() {
@@ -1022,9 +1022,9 @@ pub fn background_loop() {
 
                         // Encode the decoded tables with the old schema, then re-decode them with the new one.
                         pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-                        *SCHEMA.write().unwrap() = Schema::load(&GAME_SELECTED.read().unwrap().get_schema_name()).ok();
+                        *SCHEMA.write().unwrap() = Schema::load(GAME_SELECTED.read().unwrap().get_schema_name()).ok();
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                            pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
+                            pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(schema); });
                         }
 
                         // Then rebuild the dependencies stuff.
@@ -1189,7 +1189,7 @@ pub fn background_loop() {
                 if !found {
                     let tables = dependencies.get_ref_asskit_only_db_tables();
                     for table in tables {
-                        if table.get_ref_table_name() == &table_folder[1] {
+                        if table.get_ref_table_name() == table_folder[1] {
                             if let Some((column_index, row_index)) = table.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
                                 let path = vec![table_folder[0].to_owned(), table_folder[1].to_owned(), "ak_data".to_owned()];
                                 CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index));

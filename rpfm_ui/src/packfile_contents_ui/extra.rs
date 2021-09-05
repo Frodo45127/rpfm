@@ -49,7 +49,7 @@ use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::{create_grid_layout, show_dialog};
-use crate::ui_state::op_mode::OperationalMode;
+use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
@@ -89,7 +89,7 @@ impl PackFileContentsUI {
                 }).collect::<Vec<Vec<String>>>();
 
                 for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 
@@ -138,7 +138,7 @@ impl PackFileContentsUI {
                 }).collect::<Vec<Vec<String>>>();
 
                 for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 
@@ -303,7 +303,7 @@ impl PackFileContentsUI {
         let items_to_extract = match paths_to_extract {
             Some(paths) => paths,
             None => {
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
                 selected_items.iter().map(From::from).collect::<Vec<PathType>>()
             }
         };
@@ -349,7 +349,7 @@ impl PackFileContentsUI {
         if let Err(error) = UI_STATE.get_open_packedfiles()
             .iter()
             .filter(|x| x.get_data_source() == DataSource::PackFile)
-            .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
+            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
             show_dialog(&app_ui.main_window, error, false);
         }
 

@@ -161,7 +161,7 @@ impl PackedFileUnitVariantView {
 */
         // For now just build a debug view.
         let debug_view = DebugView::new_view(
-            &packed_file_view.get_mut_widget(),
+            packed_file_view.get_mut_widget(),
             data,
             packed_file_view.get_path_raw(),
         )?;

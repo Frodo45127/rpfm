@@ -306,7 +306,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         },
 
         FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
-            let table = serde_json::to_string(&Table::new(&definition)).unwrap();
+            let table = serde_json::to_string(&Table::new(definition)).unwrap();
             let item = QStandardItem::new();
 
             item.set_text(&qtr("packedfile_editable_sequence"));
@@ -400,14 +400,14 @@ pub unsafe fn load_data(
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
-        let qlist = get_new_row(&definition);
+        let qlist = get_new_row(definition);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
     }
 
     setup_item_delegates(
         table_view_primary,
-        &table_view_frozen,
+        table_view_frozen,
         definition,
         &dependency_data.read().unwrap(),
         timer
@@ -485,7 +485,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalStringU8(ref data) |
         DecodedData::OptionalStringU16(ref data) => {
             let item = QStandardItem::from_q_string(&QString::from_std_str(data));
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
@@ -527,7 +527,7 @@ pub unsafe fn build_columns(
 
     for (index, field) in definition.get_fields_processed().iter().enumerate() {
 
-        let name = clean_column_names(&field.get_name());
+        let name = clean_column_names(field.get_name());
         let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -572,7 +572,7 @@ pub unsafe fn build_columns(
                 let visual_index = header_primary.visual_index(*logical_index as i32);
                 header_primary.move_section(visual_index as i32, new_pos as i32);
 
-                if let Some(ref table_view_frozen) = table_view_frozen {
+                if let Some(table_view_frozen) = table_view_frozen {
                     let header_frozen = table_view_frozen.horizontal_header();
                     header_frozen.move_section(visual_index as i32, new_pos as i32);
                 }
@@ -586,7 +586,7 @@ pub unsafe fn build_columns(
         for (position, column) in keys.iter().enumerate() {
             header_primary.move_section(*column as i32, position as i32);
 
-            if let Some(ref table_view_frozen) = table_view_frozen {
+            if let Some(table_view_frozen) = table_view_frozen {
                 let header_frozen = table_view_frozen.horizontal_header();
                 header_frozen.move_section(*column as i32, position as i32);
             }

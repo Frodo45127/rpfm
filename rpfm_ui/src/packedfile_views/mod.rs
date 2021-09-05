@@ -286,7 +286,7 @@ impl PackedFileView {
                                         // If this crashes, it's a bug somewhere else.
                                         let table_name = view.get_ref_table().get_ref_table_name().as_ref().unwrap();
                                         let table_uuid = view.get_ref_table().get_ref_table_uuid().as_ref().map(|x| &**x);
-                                        let mut table = DB::new(&table_name, table_uuid, &view.get_ref_table().get_ref_table_definition());
+                                        let mut table = DB::new(table_name, table_uuid, &view.get_ref_table().get_ref_table_definition());
                                         table.set_table_data(new_table.get_ref_table_data())?;
                                         DecodedPackedFile::DB(table)
                                     }
@@ -334,7 +334,7 @@ impl PackedFileView {
                                 if let View::Text(view) = view {
                                     let mut text = Text::default();
                                     let widget = view.get_mut_editor();
-                                    let string = get_text_safe(&widget).to_std_string();
+                                    let string = get_text_safe(widget).to_std_string();
                                     text.set_contents(&string);
                                     DecodedPackedFile::Text(text)
                                 } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
@@ -598,21 +598,18 @@ impl PackedFileView {
     pub unsafe fn clean(&self) {
         if let DataSource::PackFile = self.get_data_source() {
             if !self.get_is_read_only() {
-                match self.get_view() {
-                    ViewType::Internal(view) => {
-                        match self.packed_file_type {
-                            PackedFileType::AnimTable |
-                            PackedFileType::DB |
-                            PackedFileType::Loc |
-                            PackedFileType::MatchedCombat => if let View::Table(view) = view {
-                                view.get_ref_table().clear_markings();
-                            } else if let View::AnimFragment(view) = view {
-                                view.get_ref_table_view_2().clear_markings();
-                            }
-                            _ => {},
+                if let ViewType::Internal(view) = self.get_view() {
+                    match self.packed_file_type {
+                        PackedFileType::AnimTable |
+                        PackedFileType::DB |
+                        PackedFileType::Loc |
+                        PackedFileType::MatchedCombat => if let View::Table(view) = view {
+                            view.get_ref_table().clear_markings();
+                        } else if let View::AnimFragment(view) = view {
+                            view.get_ref_table_view_2().clear_markings();
                         }
+                        _ => {},
                     }
-                    _ => {}
                 }
             }
         }

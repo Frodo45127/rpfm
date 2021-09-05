@@ -122,7 +122,7 @@ impl Locale {
         let mut _errors = vec![];
         match LOCALE.get().get_message(key) {
             Some(message) => match message.value() {
-                Some(pattern) => LOCALE.get().format_pattern(&pattern, None, &mut _errors).to_string(),
+                Some(pattern) => LOCALE.get().format_pattern(pattern, None, &mut _errors).to_string(),
                 None => Self::tr_fallback(key),
             },
             None => Self::tr_fallback(key),
@@ -134,7 +134,7 @@ impl Locale {
         let mut _errors = vec![];
         match LOCALE_FALLBACK.get().get_message(key) {
             Some(message) => match message.value() {
-                Some(pattern) => LOCALE_FALLBACK.get().format_pattern(&pattern, None, &mut _errors).to_string(),
+                Some(pattern) => LOCALE_FALLBACK.get().format_pattern(pattern, None, &mut _errors).to_string(),
                 None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
             },
             None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),

@@ -143,10 +143,8 @@ impl TableViewSlots {
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
-                        } else {
-                            if let Some(path) = view.get_packed_file_path() {
-                                paths_to_check.push(path.to_vec());
-                            }
+                        } else if let Some(path) = view.get_packed_file_path() {
+                            paths_to_check.push(path.to_vec());
                         }
                     }
 
@@ -199,8 +197,7 @@ impl TableViewSlots {
                     // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
                     if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
                         item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
-                        let mut edition = Vec::with_capacity(1);
-                        edition.push(((item.row(), item.column()), atomic_from_ptr((&*item_old).clone())));
+                        let edition = vec![((item.row(), item.column()), atomic_from_ptr((&*item_old).clone()))];
                         let operation = TableOperations::Editing(edition);
                         view.history_undo.write().unwrap().push(operation);
                         view.history_redo.write().unwrap().clear();

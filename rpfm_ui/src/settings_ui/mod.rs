@@ -221,7 +221,7 @@ impl SettingsUI {
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<Settings> {
         let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
-        let slots = SettingsUISlots::new(&settings_ui, &app_ui);
+        let slots = SettingsUISlots::new(&settings_ui, app_ui);
 
         connections::set_connections(&settings_ui, &slots);
         tips::set_tips(&settings_ui);
@@ -842,7 +842,7 @@ impl SettingsUI {
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
             if let Some(ref path_data) = settings.paths[key] {
-                if let Some(ref spoiler) = self.paths_spoilers.get(key) {
+                if let Some(spoiler) = self.paths_spoilers.get(key) {
                     path.set_text(&QString::from_std_str(&path_data.to_string_lossy()));
                     toggle_animated_safe(&spoiler.as_ptr());
                 }

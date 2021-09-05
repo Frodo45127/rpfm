@@ -84,7 +84,7 @@ impl Tool {
         // - Dependencies cache generated and up-to-date.
         //
         // These requeriments are common for all tools, so they're checked here.
-        if tool_supported_games.iter().all(|x| *x != &GAME_SELECTED.read().unwrap().get_game_key_name()) {
+        if tool_supported_games.iter().all(|x| *x != GAME_SELECTED.read().unwrap().get_game_key_name()) {
             return Err(ErrorKind::GameSelectedNotSupportedForTool.into());
         }
 
@@ -108,7 +108,7 @@ impl Tool {
         let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
 
         // Dedup the paths.
-        let used_paths = PathType::dedup(&paths);
+        let used_paths = PathType::dedup(paths);
 
         // Then, build the tool.
         Ok(Self{
@@ -135,7 +135,7 @@ impl Tool {
 
         // First, check if we actually have an open PackFile. If we don't have one, we need to generate it and promp a save.
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() == 0 {
-            AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            AppUI::new_packfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
         }
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
@@ -153,7 +153,7 @@ impl Tool {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add), DataSource::PackFile);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete), DataSource::PackFile);
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
             Response::Error(error) => return Err(error),
@@ -181,21 +181,21 @@ impl Tool {
             match path_type {
                 PathType::File(ref path) => {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
                 PathType::Folder(ref path) => {
                     for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
                 PathType::PackFile => {
                     for packed_file_view in &mut *UI_STATE.set_open_packedfiles() {
-                        if packed_file_view.reload(&packed_file_view.get_path(), &pack_file_contents_ui).is_err() {
+                        if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(packed_file_view.get_path().to_vec());
                         }
                     }
@@ -205,7 +205,7 @@ impl Tool {
         }
 
         for path in &paths_to_purge {
-            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
+            let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
         }
     }
 

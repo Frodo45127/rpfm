@@ -143,7 +143,7 @@ impl AppUI {
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(app_ui, &pack_file_contents_ui)?;
+            packed_file_view.save(app_ui, pack_file_contents_ui)?;
         }
         Ok(())
     }
@@ -158,7 +158,7 @@ impl AppUI {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                packed_file_view.save(app_ui, &pack_file_contents_ui)?;
+                packed_file_view.save(app_ui, pack_file_contents_ui)?;
             }
             let widget = packed_file_view.get_mut_widget();
             let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -204,7 +204,7 @@ impl AppUI {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    did_it_worked = packed_file_view.save(app_ui, &pack_file_contents_ui);
+                    did_it_worked = packed_file_view.save(app_ui, pack_file_contents_ui);
                 }
                 let widget = packed_file_view.get_mut_widget();
                 let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -335,7 +335,7 @@ impl AppUI {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                 // Close the Global Search stuff and reset the filter's history.
-                GlobalSearchUI::clear(&global_search_ui);
+                GlobalSearchUI::clear(global_search_ui);
 
                 // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
                 if !game_folder.is_empty() && pack_file_paths.len() == 1 {
@@ -364,7 +364,7 @@ impl AppUI {
                 else {
 
                     // Reset the operational mode.
-                    UI_STATE.set_operational_mode(&app_ui, None);
+                    UI_STATE.set_operational_mode(app_ui, None);
 
                     // Depending on the Id, choose one game or another.
                     let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
@@ -572,7 +572,7 @@ impl AppUI {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
-        if &game_selected == KEY_ARENA {
+        if game_selected == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
             app_ui.packfile_new_packfile.set_enabled(false);
@@ -1220,11 +1220,7 @@ impl AppUI {
         // - Local PackedFile && the treeview not being locked.
         // - Remote PackedFile.
         let should_be_opened = if let DataSource::PackFile = data_source {
-            if !UI_STATE.get_packfile_contents_read_only() {
-                true
-            } else {
-                false
-            }
+            !UI_STATE.get_packfile_contents_read_only()
         } else {
             true
         };
@@ -1295,7 +1291,7 @@ impl AppUI {
 
                 // If we have a PackedFile open, but we want to open it as a external file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path && x.get_data_source() == data_source) {
-                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                    if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
@@ -1303,7 +1299,7 @@ impl AppUI {
                 let mut tab = PackedFileView::default();
                 tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.get_mut_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-                tab.set_path(&path);
+                tab.set_path(path);
 
                 if let DataSource::PackFile = data_source {
                     tab.set_is_read_only(false);
@@ -1319,7 +1315,7 @@ impl AppUI {
                     let icon = icon_type.get_icon_from_path();
 
                     // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
-                    let packed_file_type = get_packed_file_type(&path);
+                    let packed_file_type = get_packed_file_type(path);
 
                     match packed_file_type {
 
@@ -1592,7 +1588,7 @@ impl AppUI {
                         PackedFileType::PackFile => {
                             let path_str = &tab.get_path()[1..].join("/");
                             let path = PathBuf::from(path_str.to_owned());
-                            match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, path) {
+                            match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, path) {
                                 Ok(_) => {
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
                                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
@@ -1696,7 +1692,7 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
                 tab.set_path(path);
 
-                match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, &app_ui) {
+                match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, app_ui) {
                     Ok(_) => {
 
                         // Add the decoder to the 'Currently open' list and make it visible.
@@ -1925,7 +1921,7 @@ impl AppUI {
                                     Response::Success => {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]), DataSource::PackFile);
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]), DataSource::PackFile);
-                                        UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
+                                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                     }
 
                                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -2033,7 +2029,7 @@ impl AppUI {
                     Response::Success => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]), DataSource::PackFile);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]), DataSource::PackFile);
-                        UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2115,7 +2111,7 @@ impl AppUI {
                     // Add every table to the dropdown if exists in the dependency database.
                     schema.get_ref_versioned_file_db_all().iter()
                         .filter_map(|x| if let VersionedFile::DB(name, _) = x { Some(name) } else { None })
-                        .filter(|x| tables.contains(&x))
+                        .filter(|x| tables.contains(x))
                         .for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
                     table_filter.set_source_model(&table_model);
                     table_dropdown.set_model(&table_filter);
@@ -2257,7 +2253,7 @@ impl AppUI {
 
                 // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
-                if *path == &[RESERVED_NAME_NOTES.to_owned()] {
+                if *path == [RESERVED_NAME_NOTES.to_owned()] {
                     names.insert("Notes".to_owned(), 1);
                 } else if let Some(name) = path.last() {
                     match names.get_mut(name) {
@@ -2270,7 +2266,7 @@ impl AppUI {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = packed_file_view.get_mut_widget();
-            let widget_name = if *packed_file_view.get_ref_path() == &[RESERVED_NAME_NOTES.to_owned()] {
+            let widget_name = if *packed_file_view.get_ref_path() == [RESERVED_NAME_NOTES.to_owned()] {
                 "Notes".to_owned()
             } else if let Some(widget_name) = packed_file_view.get_ref_path().last() {
                 widget_name.to_owned()
@@ -2347,10 +2343,10 @@ impl AppUI {
         indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::ExternalFile, false); });
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, x, DataSource::ExternalFile, false); });
 
         // And this is for cleaning decoders.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, DataSource::PackFile, false); });
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, x, DataSource::PackFile, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);
@@ -2397,13 +2393,13 @@ impl AppUI {
 
             // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
             if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
-                UI_STATE.set_operational_mode(&app_ui, None);
+                UI_STATE.set_operational_mode(app_ui, None);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
             // Change the GameSelected Icon. Disabled until we find better icons.
-            GameSelectedIcons::set_game_selected_icon(&app_ui);
+            GameSelectedIcons::set_game_selected_icon(app_ui);
         }
 
         // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
@@ -2415,7 +2411,7 @@ impl AppUI {
                 .collect();
 
             for (data_source, path) in paths_to_close {
-                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, data_source, true) {
+                if let Err(error) = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, &path, data_source, true) {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
             }
@@ -2446,9 +2442,9 @@ impl AppUI {
         }
 
         // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
-        AppUI::enable_packfile_actions(&app_ui, &pack_path, false);
+        AppUI::enable_packfile_actions(app_ui, &pack_path, false);
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
-            AppUI::enable_packfile_actions(&app_ui, &pack_path, true);
+            AppUI::enable_packfile_actions(app_ui, &pack_path, true);
         }
         CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
     }
@@ -2478,8 +2474,8 @@ impl AppUI {
         }
 
         // Close any open PackedFile and clear the global search pannel.
-        let _ = AppUI::purge_them_all(&app_ui,  &pack_file_contents_ui, false);
-        GlobalSearchUI::clear(&global_search_ui);
+        let _ = AppUI::purge_them_all(app_ui,  pack_file_contents_ui, false);
+        GlobalSearchUI::clear(global_search_ui);
         diagnostics_ui.get_ref_diagnostics_table_model().clear();
 
         // New PackFiles are always of Mod type.
@@ -2500,11 +2496,11 @@ impl AppUI {
         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
         // Enable the actions available for the PackFile from the `MenuBar`.
-        AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), true);
+        AppUI::enable_packfile_actions(app_ui, &PathBuf::new(), true);
 
         // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-        UI_STATE.set_operational_mode(&app_ui, None);
-        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+        UI_STATE.set_operational_mode(app_ui, None);
+        UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
         CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(false));

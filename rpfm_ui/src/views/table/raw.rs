@@ -518,7 +518,7 @@ impl TableView {
         rows_selected.dedup();
 
         if rows.len() == 1 && rows[0].len() == 1 {
-            self.paste_one_for_all(&rows[0][0], &indexes_sorted, app_ui, pack_file_contents_ui);
+            self.paste_one_for_all(rows[0][0], &indexes_sorted, app_ui, pack_file_contents_ui);
         }
 
         else if rows.len() == 1 && same_amount_of_cells_selected_per_row && rows_selected.len() > 1 {
@@ -546,10 +546,7 @@ impl TableView {
             if index.column() == -1 {
                 None
             } else {
-                match text.get(index.column() as usize) {
-                    Some(text) => Some((self.table_filter.map_to_source(*index), *text)),
-                    None => None
-                }
+                text.get(index.column() as usize).map(|text| (self.table_filter.map_to_source(*index), *text))
             }
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
@@ -676,7 +673,7 @@ impl TableView {
 
                     self.undo_lock.store(true, Ordering::SeqCst);
                     for (index, ((row, column), item)) in editions.iter().enumerate() {
-                        let item = &*ptr_from_atomic(&item);
+                        let item = &*ptr_from_atomic(item);
                         model.set_item_3a(*row, *column, item.clone());
 
                         // If we are going to process the last one, unlock the save.
@@ -1375,7 +1372,7 @@ impl TableView {
         blocker_undo.unblock();
 
         let deleted_rows = if !rows_to_delete.is_empty() {
-            super::utils::delete_rows(&self.get_mut_ptr_table_model(), &rows_to_delete)
+            super::utils::delete_rows(&self.get_mut_ptr_table_model(), rows_to_delete)
         } else { vec![] };
 
         // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
@@ -1432,8 +1429,7 @@ impl TableView {
         // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
         if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
             item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
-            let mut edition = Vec::with_capacity(1);
-            edition.push(((item.row(), item.column()), atomic_from_ptr((&*item_old).clone())));
+            let edition = vec![((item.row(), item.column()), atomic_from_ptr((&*item_old).clone()))];
             let operation = TableOperations::Editing(edition);
             self.history_undo.write().unwrap().push(operation);
 
@@ -1446,7 +1442,7 @@ impl TableView {
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         self.context_menu_update();
         if let Some(ref packed_file_path) = self.packed_file_path {
-            TableSearch::update_search(&self);
+            TableSearch::update_search(self);
             set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
         }
 
@@ -1512,7 +1508,7 @@ impl TableView {
                             if let Some(results) = Table::get_tables_and_columns_referencing_our_own(
                                 &schema,
                                 cascade_editions.get_ref_edited_table_name(),
-                                &field.get_name(),
+                                field.get_name(),
                                 cascade_editions.get_ref_edited_table_definition()
                             ){
                                 cascade_editions.get_ref_mut_referenced_tables().insert(column as u32, results);
@@ -1530,7 +1526,7 @@ impl TableView {
                     if folder.to_lowercase() == "db" {
                         if let Some(table_name) = packed_file_view.get_path().get(1) {
                             if cascade_editions.get_ref_referenced_tables().values().any(|x| x.0.contains_key(table_name)) {
-                                let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                                let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                             }
                         }
                     }
@@ -1540,7 +1536,7 @@ impl TableView {
                 else if cascade_editions.get_ref_referenced_tables().values().any(|x| x.1) {
                     if let Some(file) = packed_file_view.get_path().last() {
                         if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
-                            let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                            let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                         }
                     }
                 }
@@ -1563,7 +1559,7 @@ impl TableView {
                     edited_paths.iter().for_each(|path| {
                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
                         }
                     });
@@ -1674,7 +1670,7 @@ impl TableView {
                         if folder.to_lowercase() == "db" {
                             if let Some(table_name) = packed_file_view.get_path().get(1) {
                                 if &ref_table == table_name {
-                                    let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                                    let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                                 }
                             }
                         }
@@ -1682,7 +1678,7 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                CENTRAL_COMMAND.send_message_qt(Command::GoToDefinition(ref_table.to_owned(), ref_column.to_owned(), ref_data));
+                CENTRAL_COMMAND.send_message_qt(Command::GoToDefinition(ref_table, ref_column, ref_data));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
 
@@ -1698,7 +1694,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1752,7 +1748,7 @@ impl TableView {
                 // Save the currently open locs, to ensure the backend has the most up-to-date data.
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
                     if let PackedFileType::Loc = packed_file_view.get_packed_file_type() {
-                        let _ = packed_file_view.save(&app_ui, &pack_file_contents_ui);
+                        let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                     }
                 });
 
@@ -1785,7 +1781,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1825,11 +1821,11 @@ impl TableView {
             for column in 0..table_model.column_count_0a() {
                 let item = table_model.item_2a(row, column);
 
-                if item.data_1a(ITEM_IS_ADDED).to_bool() == true {
+                if item.data_1a(ITEM_IS_ADDED).to_bool() {
                     item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_ADDED);
                 }
 
-                if item.data_1a(ITEM_IS_MODIFIED).to_bool() == true {
+                if item.data_1a(ITEM_IS_MODIFIED).to_bool() {
                     item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_MODIFIED);
                 }
             }

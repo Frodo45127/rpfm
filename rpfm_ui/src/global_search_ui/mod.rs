@@ -482,10 +482,10 @@ impl GlobalSearchUI {
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
         let (global_search, packed_files_info) = CENTRAL_COMMAND.recv_message_global_search_update_to_qt_try();
 
-        Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
-        Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
-        Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
-        Self::load_schema_matches_to_ui(&model_schema, &tree_view_schema, &global_search.matches_schema);
+        Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
+        Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
+        Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
+        Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
         UI_STATE.set_global_search(&global_search);
         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
     }
@@ -572,7 +572,7 @@ impl GlobalSearchUI {
     ) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
-        if let Err(error) = AppUI::back_to_back_end_all(&app_ui, pack_file_contents_ui) {
+        if let Err(error) = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui) {
             return show_dialog(&app_ui.main_window, error, false);
         }
 
@@ -620,7 +620,7 @@ impl GlobalSearchUI {
 
                 for path in packed_files_info.iter().map(|x| &x.path) {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
-                        if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
+                        if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
                             show_dialog(&app_ui.main_window, error, false);
                         }
                     }
@@ -721,7 +721,7 @@ impl GlobalSearchUI {
             },
         };
 
-        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(path.to_vec()), false, false, data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), false, false, data_source);
 
         // If it's a table, focus on the matched cell.
         if is_match {
