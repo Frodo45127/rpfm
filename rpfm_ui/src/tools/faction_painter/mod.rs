@@ -74,7 +74,16 @@ const FACTION_DATA: i32 = 60;
 const FACTION_ICON: i32 = 61;
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 1] = ["warhammer_2"];
+const TOOL_SUPPORTED_GAMES: [&str; 8] = [
+    "troy",
+    "three_kingdoms",
+    "warhammer_2",
+    "warhammer",
+    "thrones_of_britannia",
+    "attila",
+    "rome_2",
+    "shogun_2",
+];
 
 /// Default name for files saved with this tool.
 const DEFAULT_FILENAME: &str = "faction_painter_edited";
