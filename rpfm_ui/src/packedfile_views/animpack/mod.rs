@@ -124,12 +124,7 @@ impl PackedFileAnimPackView {
         pack_tree_view.set_uniform_row_heights(true);
         pack_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         pack_tree_view.set_expands_on_double_click(false);
-        pack_tree_view.header().set_stretch_last_section(false);
-
-        pack_tree_view.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
-        pack_tree_view.header().set_section_resize_mode_2a(1, ResizeMode::Interactive);
-        pack_tree_view.header().set_minimum_section_size(4);
-        pack_tree_view.header().resize_section(1, 4);
+        pack_tree_view.header().set_stretch_last_section(true);
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let pack_filter_line_edit = QLineEdit::from_q_widget(packed_file_view.get_mut_widget());
