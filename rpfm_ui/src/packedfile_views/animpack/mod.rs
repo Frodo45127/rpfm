@@ -13,7 +13,6 @@ Module with all the code for managing the view for AnimPack PackedFiles.
 !*/
 
 use qt_widgets::q_abstract_item_view::SelectionMode;
-use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QTreeView;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
