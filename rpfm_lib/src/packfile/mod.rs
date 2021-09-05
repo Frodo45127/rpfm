@@ -1798,7 +1798,12 @@ impl PackFile {
     /// - Empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - Empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - XML files in map folders.
-    pub fn optimize(&mut self, dependencies: &Dependencies) -> Vec<Vec<String>> {
+    pub fn optimize(&mut self, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
+
+        // We can only optimize if we have vanilla data available.
+        if !dependencies.game_has_vanilla_data_loaded() {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
 
         // List of PackedFiles to delete.
         let mut files_to_delete: Vec<Vec<String>> = vec![];
@@ -1862,7 +1867,7 @@ impl PackFile {
         files_to_delete.iter().for_each(|x| self.remove_packed_file_by_path(x));
 
         // Return the deleted files, so the caller can know what got removed.
-        files_to_delete
+        Ok(files_to_delete)
     }
 
     /// This function is used to patch Warhammer Siege map packs so their AI actually works.

@@ -280,7 +280,10 @@ pub fn background_loop() {
 
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecVecString(pack_file_decoded.optimize(&dependencies)));
+                match pack_file_decoded.optimize(&dependencies) {
+                    Ok(paths_to_delete) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(paths_to_delete)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
             }
 
             // In case we want to Patch the SiegeAI of a PackFile...
@@ -1365,8 +1368,10 @@ pub fn background_loop() {
                 added_paths.dedup();
 
                 // Then, optimize the PackFile. This should remove any non-edited rows/files.
-                let paths_to_delete = pack_file_decoded.optimize(&dependencies);
-                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((added_paths, paths_to_delete)));
+                match pack_file_decoded.optimize(&dependencies) {
+                    Ok(paths_to_delete) => CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((added_paths, paths_to_delete))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
             },
 
             // These two belong to the network thread, not to this one!!!!
