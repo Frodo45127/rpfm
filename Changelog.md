@@ -14,12 +14,20 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented Dependencies view.
 - Implemented `Import from dependencies`.
 - Implemented Global Search support for dependencies.
+- Implemented `Tools` menu.
+- Implemented `Faction Painter` tool.
 
 ### Changed
 - Rigidmodel error messages should now be more specific.
 - RigidModel View updated to 0.8.2.
 - TSVs to be imported no longer require to have all the columns of a table.
 - When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
+- Updated dependencies.
+- Many Clippy-suggested corrections.
+- When using `Generate Ids`, now the value of the first cell is used as default value.
+
+### Removed
+- Removed `Templates` feature
 
 ### Fixed
 - Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
@@ -31,6 +39,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed missing shortcuts in the view submenu.
 - Fixed dependencies going away immediatly after generating them.
 - Fixed `Some("","")` references being incorrectly imported from the Assembly Kit.
+- Fixed (hopefully) a very rare CTD on start.
 
 ## [2.5.4]
 ### Added
