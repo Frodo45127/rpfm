@@ -255,11 +255,10 @@ impl Loc {
 
     /// This function imports a TSV file into a decoded table.
     pub fn import_tsv(
-        definition: &Definition,
+        schema: &Schema,
         path: &Path,
-        name: &str,
     ) -> Result<Self> {
-        let table = Table::import_tsv(definition, path, name)?;
+        let table = Table::import_tsv(schema, path)?;
         Ok(Loc::from(table))
     }
 

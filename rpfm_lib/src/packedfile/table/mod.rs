@@ -21,7 +21,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::{fmt, fmt::Display};
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
@@ -860,9 +860,8 @@ impl Table {
 
     /// This function imports a TSV file into a decoded table.
     fn import_tsv(
-        definition: &Definition,
+        schema: &Schema,
         path: &Path,
-        name: &str,
     ) -> Result<Self> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
@@ -870,9 +869,19 @@ impl Table {
         let mut reader = ReaderBuilder::new()
             .delimiter(b'\t')
             .quoting(false)
-            .has_headers(false)
+            .has_headers(true)
             .flexible(true)
             .from_path(&path)?;
+
+        // If we succesfully load the TSV file into a reader, check the first line to ensure it's a valid TSV file.
+        let headers = reader.headers()?;
+
+        let table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
+        let table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
+
+        // Get his definition depending on his first line's contents.
+        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
+        else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
 
         // If we succesfully load the TSV file into a reader, check the first two lines to ensure
         // it's a valid TSV for our specific table.
@@ -882,21 +891,14 @@ impl Table {
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
-                // The first line should contain the "table_folder_name"/"Loc PackedFile/PackFile List", and the version (1 for Locs).
-                // If it doesn't match with the name we provided, return an error.
-                if row == 0 {
-                    if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable.into()); }
-                    let _ = record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))?;
-                }
-
                 // The second line contains the column headers. Get them, so we can map the fields to columns on the tables.
-                else if row == 1 {
+                if row == 0 {
                     field_order = record.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
                 }
 
                 // Then read the rest of the rows as a normal TSV.
                 else {
-                    let mut entry = Self::get_new_row(definition);
+                    let mut entry = Self::get_new_row(&definition);
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.
@@ -933,8 +935,8 @@ impl Table {
         }
 
         // If we reached this point without errors, we replace the old data with the new one and return success.
-        let mut table = Table::new(definition);
-        table.entries = entries;
+        let mut table = Table::new(&definition);
+        table.set_table_data(&entries)?;
         Ok(table)
     }
 
@@ -950,18 +952,15 @@ impl Table {
         let mut reader = ReaderBuilder::new()
             .delimiter(b'\t')
             .quoting(false)
-            .has_headers(false)
+            .has_headers(true)
             .flexible(true)
             .from_path(&source_path)?;
 
         // If we succesfully load the TSV file into a reader, check the first line to ensure it's a valid TSV file.
-        let table_type;
-        let table_version;
-        {
-            let headers = reader.headers()?;
-            table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
-            table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
-        }
+        let headers = reader.headers()?;
+
+        let table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
+        let table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
 
         // Get his definition depending on his first line's contents.
         let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
@@ -974,11 +973,8 @@ impl Table {
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
-                // The second line contains the column headers. Is just to help people in other programs, not needed to be check.
-                if row == 0 { continue }
-
                 // The second line contains the column headers. Get them, so we can map the fields to columns on the tables.
-                else if row == 1 {
+                if row == 0 {
                     field_order = record.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
                 }
 

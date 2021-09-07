@@ -705,7 +705,7 @@ impl PackFileContentsSlots {
         let contextual_menu_extract = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None)
+                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, false);
             }
         ));
 

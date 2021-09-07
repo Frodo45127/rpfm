@@ -150,6 +150,16 @@ impl PackFileContentsUI {
         app_ui.main_window.set_enabled(true);
     }
 
+
+    /// This function is used to perform MyḾod exports.
+    pub unsafe fn export_mymod(
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<Self>,
+        paths_to_extract: Option<Vec<PathType>>
+    ) {
+        Self::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
+    }
+
     /// Function to filter the PackFile Contents TreeView.
     pub unsafe fn filter_files(pack_file_contents_ui: &Rc<Self>) {
 
@@ -296,14 +306,15 @@ impl PackFileContentsUI {
     pub unsafe fn extract_packed_files(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
-        paths_to_extract: Option<Vec<PathType>>
+        paths_to_extract: Option<Vec<PathType>>,
+        extract_tables_as_tsv: bool,
     ) {
 
         // Get the currently selected paths (and visible) paths, or the ones received from the function.
         let items_to_extract = match paths_to_extract {
             Some(paths) => paths,
             None => {
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                 selected_items.iter().map(From::from).collect::<Vec<PathType>>()
             }
         };
@@ -345,16 +356,15 @@ impl PackFileContentsUI {
         };
 
         // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
-        // TODO: Make this more... optimal.
         if let Err(error) = UI_STATE.get_open_packedfiles()
             .iter()
             .filter(|x| x.get_data_source() == DataSource::PackFile)
-            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
+            .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
             show_dialog(&app_ui.main_window, error, false);
         }
 
         else {
-            CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(items_to_extract, extraction_path));
+            CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
             app_ui.main_window.set_enabled(false);
             let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {

@@ -466,10 +466,7 @@ impl PackedFile {
     }
 
     /// This function extracts the provided PackedFile into the provided path.
-    pub fn extract_packed_file(&mut self, destination_path: &Path) -> Result<()> {
-
-        // Save it, in case it's cached.
-        self.encode_no_load()?;
+    pub fn extract_packed_file(&mut self, destination_path: &Path, extract_table_as_tsv: bool) -> Result<()> {
 
         // We get his internal path without his name.
         let mut internal_path = self.get_path().to_vec();
@@ -480,9 +477,46 @@ impl PackedFile {
         let mut current_path = destination_path.to_path_buf().join(internal_path.iter().collect::<PathBuf>());
         DirBuilder::new().recursive(true).create(&current_path)?;
 
-        // Finish the path and try to save the file to disk.
         current_path.push(&file_name);
-        let mut file = BufWriter::new(File::create(&current_path)?);
+
+        // If we want to extract tables as TSV, isolate tables and extract them.
+        if extract_table_as_tsv {
+
+            match self.get_packed_file_type(false) {
+                PackedFileType::DB |
+                PackedFileType::Loc => {
+                    match self.get_ref_decoded() {
+                        DecodedPackedFile::DB(table) => {
+                            current_path.set_extension("tsv");
+                            table.export_tsv(&current_path, table.get_ref_table_name())
+                        },
+                        DecodedPackedFile::Loc(table) => {
+                            current_path.set_extension("tsv");
+                            table.export_tsv(&current_path, TSV_NAME_LOC)
+                        },
+
+                        _ => self.encode_and_save_to_disk(&current_path),
+                    }
+                }
+
+                _ => self.encode_and_save_to_disk(&current_path),
+            }
+        }
+
+        // If not, just extract it.
+        else {
+            self.encode_and_save_to_disk(&current_path)
+        }
+    }
+
+    /// This function saves the latest data of a PackedFile to disk.
+    fn encode_and_save_to_disk(&mut self, path: &Path) -> Result<()> {
+
+        // Save it, in case it's cached.
+        self.encode_no_load()?;
+
+        // Try to save the file to disk.
+        let mut file = BufWriter::new(File::create(&path)?);
         if file.write_all(&self.get_raw_data()?).is_err() {
             return Err(ErrorKind::ExtractError(self.get_path().to_vec()).into());
         }

@@ -1316,30 +1316,14 @@ impl PackFile {
     /// This function extracts, if exists, a `PackedFile` with the provided path from the `PackFile`.
     ///
     /// The destination path is always `destination_path/packfile_name/path_to_packedfile/packed_file`.
-    pub fn extract_packed_file_by_path(&mut self, path: &[String], destination_path: &Path) -> Result<()> {
+    pub fn extract_packed_file_by_path(
+        &mut self,
+        path: &[String],
+        destination_path: &Path,
+        extract_table_as_tsv: bool
+    ) -> Result<()> {
         match self.get_ref_mut_packed_file_by_path(path) {
-            Some(ref mut packed_file) => {
-
-                // Save it, in case it's cached.
-                packed_file.encode_no_load()?;
-
-                // We get his internal path without his name.
-                let mut internal_path = packed_file.get_path().to_vec();
-                let file_name = internal_path.pop().unwrap();
-
-                // Then, we join his internal path with his destination path, so we have his almost-full path (his final path without his name).
-                // This way we can create the entire folder structure up to the file itself.
-                let mut current_path = destination_path.to_path_buf().join(internal_path.iter().collect::<PathBuf>());
-                DirBuilder::new().recursive(true).create(&current_path)?;
-
-                // Finish the path and try to save the file to disk.
-                current_path.push(&file_name);
-                let mut file = BufWriter::new(File::create(&current_path)?);
-                if file.write_all(&packed_file.get_raw_data()?).is_err() {
-                    return Err(ErrorKind::ExtractError(path.to_vec()).into());
-                }
-                Ok(())
-            }
+            Some(ref mut packed_file) => packed_file.extract_packed_file(destination_path, extract_table_as_tsv),
             None => Err(ErrorKind::PackedFileNotFound.into())
         }
     }
@@ -1352,6 +1336,7 @@ impl PackFile {
         &mut self,
         item_types: &[PathType],
         extracted_path: &Path,
+        extract_table_as_tsv: bool
     ) -> Result<u32> {
 
         // These variables are here to keep track of what we have extracted and what files failed.
@@ -1385,7 +1370,7 @@ impl PackFile {
 
                         // For individual `PackedFiles`, we extract them one by one.
                         PathType::File(path) => {
-                            match self.extract_packed_file_by_path(path, extracted_path) {
+                            match self.extract_packed_file_by_path(path, extracted_path, extract_table_as_tsv) {
                                 Ok(_) => files_extracted += 1,
                                 Err(_) => error_files.push(format!("{:?}", path)),
                             }
@@ -1393,7 +1378,7 @@ impl PackFile {
 
                         PathType::Folder(path) => {
                             for packed_file in self.get_ref_mut_packed_files_by_path_start(path) {
-                                match packed_file.extract_packed_file(extracted_path) {
+                                match packed_file.extract_packed_file(extracted_path, extract_table_as_tsv) {
                                     Ok(_) => files_extracted += 1,
                                     Err(_) => error_files.push(format!("{:?}", path)),
                                 }
@@ -1413,7 +1398,7 @@ impl PackFile {
                 files_extracted = packed_files.len() as u32;
 
                 error_files = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    if packed_file.extract_packed_file(extracted_path).is_err() {
+                    if packed_file.extract_packed_file(extracted_path, extract_table_as_tsv).is_err() {
                         Some(format!("{:?}", packed_file.get_path()))
                     } else { None }
                 }).collect();
@@ -1999,22 +1984,14 @@ impl PackFile {
                     let tsv_info = line.split('\t').collect::<Vec<&str>>();
                     if tsv_info.len() == 2 {
 
-                        // Get the type and the version of the table.
+                        // Get the type of the table.
                         let table_type = tsv_info[0];
-                        let table_version = match tsv_info[1].parse::<i32>() {
-                            Ok(version) => version,
-                            Err(_) => {
-                                error_files.push(path.to_string_lossy().to_string());
-                                continue
-                            }
-                        };
 
                         // Get the definition, depending on the table type and version.
                         // If the name is not specific for a type of file, we trat it as a DB Table.
                         match table_type {
                             TSV_NAME_LOC => {
-                                let definition = schema.get_ref_versioned_file_loc()?.get_version(table_version)?;
-                                if let Ok(table) = Loc::import_tsv(definition, path, table_type) {
+                                if let Ok(table) = Loc::import_tsv(schema, path) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -2044,8 +2021,7 @@ impl PackFile {
                                 else { error_files.push(path.to_string_lossy().to_string()); }
                             }
                             _ => {
-                                let definition = schema.get_ref_versioned_file_db(table_type)?.get_version(table_version)?;
-                                if let Ok(table) = DB::import_tsv(definition, path, table_type) {
+                                if let Ok(table) = DB::import_tsv(schema, path) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {

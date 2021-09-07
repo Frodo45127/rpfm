@@ -800,13 +800,11 @@ impl DB {
 
     /// This function imports a TSV file into a decoded table.
     pub fn import_tsv(
-        definition: &Definition,
+        schema: &Schema,
         path: &Path,
-        name: &str,
     ) -> Result<Self> {
-        let table = Table::import_tsv(definition, path, name)?;
-        let mut db = DB::from(table);
-        db.name = name.to_owned();
+        let table = Table::import_tsv(schema, path)?;
+        let db = DB::from(table);
         Ok(db)
     }
 

@@ -212,8 +212,8 @@ pub enum Command {
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),
 
-    /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path.
-    ExtractPackedFiles(Vec<PathType>, PathBuf),
+    /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
+    ExtractPackedFiles(Vec<PathType>, PathBuf, bool),
 
     /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
     RenamePackedFiles(Vec<(PathType, String)>),

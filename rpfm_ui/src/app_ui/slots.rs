@@ -33,7 +33,7 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 
-use rpfm_lib::common::*;
+use rpfm_lib::common::get_files_from_subdir;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
@@ -842,7 +842,7 @@ impl AppUISlots {
         let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
+            PackFileContentsUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
         }));
 
         //-----------------------------------------------//

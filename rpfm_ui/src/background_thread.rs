@@ -650,8 +650,8 @@ pub fn background_loop() {
             }
 
             // In case we want to extract PackedFiles from a PackFile...
-            Command::ExtractPackedFiles(item_types, path) => {
-                match pack_file_decoded.extract_packed_files_by_type(&item_types, &path) {
+            Command::ExtractPackedFiles(item_types, path, extract_tables_to_tsv) => {
+                match pack_file_decoded.extract_packed_files_by_type(&item_types, &path, extract_tables_to_tsv) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(tre("files_extracted_success", &[&result.to_string()]))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -840,24 +840,24 @@ pub fn background_loop() {
 
             // In case we want to import a TSV as a PackedFile...
             Command::ImportTSV((internal_path, external_path)) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
-                    Some(packed_file) => match packed_file.get_decoded() {
-                        DecodedPackedFile::DB(data) => match DB::import_tsv(&data.get_definition(), &external_path, &internal_path[1]) {
-                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        },
-                        DecodedPackedFile::Loc(data) => match Loc::import_tsv(&data.get_definition(), &external_path, TSV_NAME_LOC) {
-                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        },
-                        /*
-                        DecodedPackedFile::DependencyPackFileList(data) => match data.export_tsv(&[external_path]) {
-                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        },*/
-                        _ => unimplemented!()
+                match *SCHEMA.read().unwrap() {
+                    Some(ref schema) => {
+                        match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
+                            Some(packed_file) => match packed_file.get_packed_file_type(false) {
+                                PackedFileType::DB => match DB::import_tsv(&schema, &external_path) {
+                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
+                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                },
+                                PackedFileType::Loc => match Loc::import_tsv(&schema, &external_path) {
+                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
+                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                },
+                                _ => unimplemented!()
+                            }
+                            None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                        }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())),
                 }
             }
 
@@ -961,37 +961,42 @@ pub fn background_loop() {
 
                             // Tables we extract them as TSV.
                             PackedFileType::DB | PackedFileType::Loc => {
-                                match packed_file.decode_return_ref_mut() {
-                                    Ok(data) => {
-                                        if let DecodedPackedFile::DB(ref mut data) = data {
-                                            match DB::import_tsv(&data.get_definition(), &external_path, &path[1]) {
-                                                Ok(new_data) => {
-                                                    *data = new_data;
-                                                    match packed_file.encode_and_clean_cache() {
-                                                        Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
-                                                        Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                match *SCHEMA.read().unwrap() {
+                                    Some(ref schema) => {
+                                        match packed_file.decode_return_ref_mut() {
+                                            Ok(data) => {
+                                                match data {
+                                                    DecodedPackedFile::DB(ref mut data) => {
+                                                        match DB::import_tsv(&schema, &external_path) {
+                                                            Ok(new_data) => {
+                                                                *data = new_data;
+                                                                match packed_file.encode_and_clean_cache() {
+                                                                    Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
+                                                                    Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                                }
+                                                            }
+                                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                        }
                                                     }
-                                                }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
-                                            }
-                                        }
-                                        else if let DecodedPackedFile::Loc(ref mut data) = data {
-                                            match Loc::import_tsv(&data.get_definition(), &external_path, TSV_NAME_LOC) {
-                                                Ok(new_data) => {
-                                                    *data = new_data;
-                                                    match packed_file.encode_and_clean_cache() {
-                                                        Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
-                                                        Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                    DecodedPackedFile::Loc(ref mut data) => {
+                                                        match Loc::import_tsv(&schema, &external_path) {
+                                                            Ok(new_data) => {
+                                                                *data = new_data;
+                                                                match packed_file.encode_and_clean_cache() {
+                                                                    Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
+                                                                    Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                                }
+                                                            }
+                                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                        }
                                                     }
+                                                    _ => unimplemented!(),
                                                 }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
-                                            }
+                                            },
+                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                         }
-                                        else {
-                                            unimplemented!()
-                                        }
-                                    },
-                                    Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                    }
+                                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())),
                                 }
                             },
 
