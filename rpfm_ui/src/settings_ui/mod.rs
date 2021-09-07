@@ -44,6 +44,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_error::Result;
+
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
@@ -55,7 +57,7 @@ use crate::ffi::*;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
 use crate::SETTINGS;
-use crate::utils::create_grid_layout;
+use crate::utils::{create_grid_layout, show_dialog};
 use self::slots::SettingsUISlots;
 
 mod connections;
@@ -225,7 +227,12 @@ impl SettingsUI {
 
         connections::set_connections(&settings_ui, &slots);
         tips::set_tips(&settings_ui);
-        settings_ui.load(&SETTINGS.read().unwrap());
+
+        // If load fails due to missing locale folder, show the error and cancel the settings edition.
+        if let Err(error) = settings_ui.load(&SETTINGS.read().unwrap()) {
+            show_dialog(&app_ui.main_window, error, false);
+            return None;
+        }
 
         if settings_ui.dialog.exec() == 1 { Some(settings_ui.save()) }
         else { None }
@@ -833,7 +840,7 @@ impl SettingsUI {
     }
 
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
-    pub unsafe fn load(&self, settings: &Settings) {
+    pub unsafe fn load(&self, settings: &Settings) -> Result<()> {
 
         // Load the MyMod and 7Zip paths, if exists.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[MYMOD_BASE_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
@@ -864,7 +871,7 @@ impl SettingsUI {
         }
 
         let language_selected = settings.settings_string["language"].split('_').collect::<Vec<&str>>()[0];
-        for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
+        for (index, (language,_)) in Locale::get_available_locales()?.iter().enumerate() {
             if *language == language_selected {
                 self.general_language_combobox.set_current_index(index as i32);
                 break;
@@ -952,6 +959,8 @@ impl SettingsUI {
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
+
+        Ok(())
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.

@@ -95,14 +95,17 @@ impl SettingsUISlots {
             app_ui,
             ui => move || {
 
+                // Restore RPFM settings.
+                if let Err(error) = ui.load(&Settings::new()) {
+                    return show_dialog(&ui.dialog, error, false);
+                }
+
                 // Restore layout settings.
                 let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
                 app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
                 app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
 
-                // Restore RPFM settings.
-                ui.load(&Settings::new());
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
             }
         ));
