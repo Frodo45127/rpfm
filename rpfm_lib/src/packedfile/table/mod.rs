@@ -1048,6 +1048,11 @@ impl Table {
         table_name: &str,
     ) -> Result<()> {
 
+        // Make sure the folder actually exists.
+        let mut folder_path = path.to_path_buf();
+        folder_path.pop();
+        DirBuilder::new().recursive(true).create(&folder_path)?;
+
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
         let mut writer = WriterBuilder::new()
@@ -1055,7 +1060,7 @@ impl Table {
             .quote_style(QuoteStyle::Never)
             .has_headers(false)
             .flexible(true)
-            .from_writer(vec![]);
+            .from_path(path)?;
 
         let fields_sorted = self.definition.get_fields_sorted();
         let sorted_indexes = fields_sorted.iter()
@@ -1072,11 +1077,7 @@ impl Table {
             writer.serialize(&sorted_entry)?;
         }
 
-        // Then, we try to write it on disk. If there is an error, report it.
-        let mut file = File::create(&path)?;
-        file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes())?;
-
-        Ok(())
+        writer.flush().map_err(From::from)
     }
 
     /// This function exports the provided file to a TSV file..
