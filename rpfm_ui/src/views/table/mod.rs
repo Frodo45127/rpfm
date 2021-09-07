@@ -429,7 +429,7 @@ impl TableView {
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
 
-        let fields = get_fields_sorted(&table_definition);
+        let fields = table_definition.get_fields_sorted();
         for column in &fields {
             search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(column.get_name())));
         }
@@ -1556,7 +1556,7 @@ impl FilterView {
             filter_column_selector.set_model(&filter_column_list);
             filter_match_group_selector.set_model(&filter_match_group_list);
 
-            let fields = get_fields_sorted(&view.get_ref_table_definition());
+            let fields = view.get_ref_table_definition().get_fields_sorted();
             for field in &fields {
                 let name = clean_column_names(field.get_name());
                 filter_column_selector.add_item_q_string(&QString::from_std_str(&name));

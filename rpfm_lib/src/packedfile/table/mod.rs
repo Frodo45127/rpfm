@@ -1057,12 +1057,20 @@ impl Table {
             .flexible(true)
             .from_writer(vec![]);
 
+        let fields_sorted = self.definition.get_fields_sorted();
+        let sorted_indexes = fields_sorted.iter()
+            .map(|field_sorted| self.definition.get_fields_processed().iter().position(|field| field == field_sorted).unwrap())
+            .collect::<Vec<usize>>();
+
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((table_name, self.definition.get_version()))?;
-        writer.serialize(self.definition.get_fields_processed().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
-        for entry in &self.entries { writer.serialize(&entry)?; }
+        for entry in &self.entries {
+            let sorted_entry = sorted_indexes.iter().map(|index| &entry[*index]).collect::<Vec<&DecodedData>>();
+            writer.serialize(&sorted_entry)?;
+        }
 
         // Then, we try to write it on disk. If there is an error, report it.
         let mut file = File::create(&path)?;
@@ -1105,12 +1113,21 @@ impl Table {
         let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(version)?.clone() }
         else { schema.get_ref_versioned_file_db(table_type)?.get_version(version)?.clone() };
 
+        let fields_sorted = definition.get_fields_sorted();
+        let sorted_indexes = fields_sorted.iter()
+            .map(|field_sorted| definition.get_fields_processed().iter().position(|field| field == field_sorted).unwrap())
+            .collect::<Vec<usize>>();
+
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((&table_type, version))?;
-        writer.serialize(definition.get_fields_processed().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
-        for entry in entries { writer.serialize(&entry)?; }
+        for entry in entries {
+            let sorted_entry = sorted_indexes.iter().map(|index| &entry[*index]).collect::<Vec<&DecodedData>>();
+            writer.serialize(&sorted_entry)?;
+        }
+
         writer.flush().map_err(From::from)
     }
 

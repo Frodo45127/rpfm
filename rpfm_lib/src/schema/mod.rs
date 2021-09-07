@@ -83,8 +83,9 @@ use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
-use crate::SUPPORTED_GAMES;
 use crate::settings::get_config_path;
+use crate::SETTINGS;
+use crate::SUPPORTED_GAMES;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;
@@ -940,6 +941,22 @@ impl Definition {
         else {field_processed.get_name().to_owned() };
 
         fields.iter().find(|x| x.get_name() == name).unwrap().clone()
+    }
+
+    /// This function returns the field list of a definition, properly sorted.
+    pub fn get_fields_sorted(&self) -> Vec<Field> {
+        let mut fields = self.get_fields_processed().to_vec();
+        fields.sort_by(|a, b| {
+            if SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] {
+                if a.get_is_key() && b.get_is_key() { Ordering::Equal }
+                else if a.get_is_key() && !b.get_is_key() { Ordering::Less }
+                else if !a.get_is_key() && b.get_is_key() { Ordering::Greater }
+                else { Ordering::Equal }
+            }
+            else if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
+            else { a.get_ca_order().cmp(&b.get_ca_order()) }
+        });
+        fields
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
