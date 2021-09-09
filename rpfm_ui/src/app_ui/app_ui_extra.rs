@@ -51,7 +51,7 @@ use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
+use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -77,6 +77,7 @@ use crate::QT_ORG;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
+use crate::ui_state::OperationalMode;
 use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button};
 
 #[cfg(feature = "support_rigidmodel")]
@@ -2509,5 +2510,76 @@ impl AppUI {
         if !window_was_disabled {
             app_ui.main_window.set_enabled(true);
         }
+    }
+
+    /// This function is used to perform MyḾod imports.
+    pub unsafe fn import_mymod(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+    ) {
+        app_ui.main_window.set_enabled(false);
+
+        match UI_STATE.get_operational_mode() {
+
+            // If we have a "MyMod" selected...
+            OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+
+                    // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
+                    let mut mod_name = mod_name.to_owned();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+                    mod_name.pop();
+
+                    let mut assets_folder = mymods_base_path.to_path_buf();
+                    assets_folder.push(&game_folder_name);
+                    assets_folder.push(&mod_name);
+
+                    // Get the Paths of the files inside the folders we want to add.
+                    let paths: Vec<PathBuf> = get_files_from_subdir(&assets_folder, true).unwrap();
+
+                    // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
+                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                    for path in &paths {
+                        let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                    }
+
+                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(false));
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let settings = match response {
+                        Response::PackFileSettings(settings) => settings,
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    };
+
+                    let files_to_ignore = settings.settings_text.get("import_files_to_ignore").map(|files_to_ignore| {
+                        if files_to_ignore.is_empty() { vec![] } else {
+                            files_to_ignore.split('\n')
+                                .map(|x| assets_folder.to_path_buf().join(x))
+                                .collect::<Vec<PathBuf>>()
+                        }
+                    });
+
+                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore, true);
+                }
+
+                // If there is no MyMod path configured, report it.
+                else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
+            }
+            OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAMyMod, false),
+        }
+
+        app_ui.main_window.set_enabled(true);
+    }
+
+    /// This function is used to perform MyḾod exports.
+    pub unsafe fn export_mymod(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        paths_to_extract: Option<Vec<PathType>>
+    ) {
+        PackFileContentsUI::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
     }
 }

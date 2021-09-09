@@ -488,7 +488,7 @@ impl PackFileContentsSlots {
                                 };
 
                                 app_ui.main_window.set_enabled(false);
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, true);
                                 app_ui.main_window.set_enabled(true);
                             }
                         }
@@ -513,7 +513,7 @@ impl PackFileContentsSlots {
                             for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true)); }
 
                             app_ui.main_window.set_enabled(false);
-                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, false);
                             app_ui.main_window.set_enabled(true);
                         }
                     }
@@ -571,7 +571,7 @@ impl PackFileContentsSlots {
                                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
                                         paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
                                     }
-                                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, true);
                                 }
 
                                 // Otherwise, they are added like normal files.
@@ -579,7 +579,7 @@ impl PackFileContentsSlots {
                                     let ui_base_path: Vec<String> = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection()[0].to_vec();
 
                                     app_ui.main_window.set_enabled(false);
-                                    PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
+                                    PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None, true);
                                     app_ui.main_window.set_enabled(true);
                                 }
                             }
@@ -604,7 +604,7 @@ impl PackFileContentsSlots {
                             let ui_base_path: Vec<String> = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection()[0].to_vec();
 
                             app_ui.main_window.set_enabled(false);
-                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None);
+                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[ui_base_path], None, false);
                             app_ui.main_window.set_enabled(true);
                         }
                     }

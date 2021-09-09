@@ -696,10 +696,68 @@ impl PackFile {
     pub fn add_from_file(
         &mut self,
         path_as_file: &Path,
-        path_as_packed_file: Vec<String>,
+        mut path_as_packed_file: Vec<String>,
         overwrite: bool,
+        import_tables_from_tsv: bool,
     ) -> Result<Vec<String>> {
-        let raw_data = RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?;
+        let raw_data = if import_tables_from_tsv {
+
+            // If it's a tsv, try to import it as a table. If it fails... import it as a normal file.
+            if let Some(extension) = path_as_file.extension() {
+                if extension == "tsv" {
+                    match &*SCHEMA.read().unwrap() {
+                        Some(schema) => {
+
+                            // Get the file type/table name.
+                            let mut file = BufReader::new(File::open(path_as_file)?);
+                            let mut first_row = String::new();
+                            file.read_line(&mut first_row)?;
+
+                            let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
+                            match first_row_splitted.get(0) {
+                                Some(table_type) => {
+
+                                    // Act depending on the type.
+                                    if table_type == &TSV_NAME_LOC {
+                                        let table = Loc::import_tsv(schema, path_as_file)?;
+                                        let raw_data = table.save()?;
+                                        let mut packed_file_name = path_as_packed_file.last().unwrap().to_string();
+                                        let packed_file_name_len = packed_file_name.chars().count();
+                                        if packed_file_name_len >= 4 {
+                                            packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
+                                        }
+                                        *path_as_packed_file.last_mut().unwrap() = packed_file_name.to_owned();
+                                        RawPackedFile::read_from_vec(path_as_packed_file, packed_file_name, 0, false, raw_data)
+                                    } else {
+                                        let table = DB::import_tsv(schema, path_as_file)?;
+                                        let raw_data = table.save()?;
+                                        let mut packed_file_name = path_as_packed_file.last().unwrap().to_string();
+                                        let packed_file_name_len = packed_file_name.chars().count();
+                                        if packed_file_name_len >= 4 {
+                                            packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
+                                        }
+                                        *path_as_packed_file.last_mut().unwrap() = packed_file_name.to_owned();
+                                        RawPackedFile::read_from_vec(path_as_packed_file, packed_file_name, 0, false, raw_data)
+                                    }
+                                }
+                                None => RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?,
+                            }
+
+                        }
+                        None => return Err(ErrorKind::SchemaNotFound.into())
+                    }
+                } else {
+                    RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
+                }
+            }
+
+            // If it's a normal file, import it as a normal file.
+            else {
+                RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
+            }
+        } else {
+            RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
+        };
         let packed_file = PackedFile::new_from_raw(&raw_data);
         self.add_packed_file(&packed_file, overwrite)
     }
@@ -731,6 +789,7 @@ impl PackFile {
         paths_as_folder_and_destination: &[(PathBuf, Vec<String>)],
         paths_to_ignore: &Option<Vec<PathBuf>>,
         overwrite: bool,
+        import_tables_from_tsv: bool,
     ) -> Result<Vec<Vec<String>>> {
 
         let mut packed_files_to_add = vec![];
@@ -740,9 +799,27 @@ impl PackFile {
                     for file_path in &file_paths {
 
                         if let Some(paths_to_ignore) = paths_to_ignore {
-
                             if paths_to_ignore.iter().any(|x| file_path.starts_with(x)) {
                                 continue;
+                            }
+                        }
+
+                        // If we're going to import TSV, make sure to remove any collision between binary and TSV.
+                        if import_tables_from_tsv {
+                            if let Some(extension) = file_path.extension() {
+                                if extension != "tsv" {
+                                    let mut path = file_path.to_path_buf();
+                                    path.set_extension("tsv");
+                                    if file_paths.par_iter().any(|source| source == &path) {
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                let mut path = file_path.to_path_buf();
+                                path.set_extension("tsv");
+                                if file_paths.par_iter().any(|source| source == &path) {
+                                    continue;
+                                }
                             }
                         }
 
@@ -757,7 +834,65 @@ impl PackFile {
                             .collect::<Vec<String>>();
                         let mut new_path = base_path.to_vec();
                         new_path.extend_from_slice(&new_path_filtered);
-                        let raw_data = RawPackedFile::read_from_path(file_path, new_path)?;
+
+                        let raw_data = if import_tables_from_tsv {
+
+                            // If it's a tsv, try to import it as a table. If it fails... import it as a normal file.
+                            if let Some(extension) = file_path.extension() {
+                                if extension == "tsv" {
+                                    match &*SCHEMA.read().unwrap() {
+                                        Some(schema) => {
+
+                                            // Get the file type/table name.
+                                            let mut file = BufReader::new(File::open(file_path)?);
+                                            let mut first_row = String::new();
+                                            file.read_line(&mut first_row)?;
+
+                                            let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
+                                            match first_row_splitted.get(0) {
+                                                Some(table_type) => {
+
+                                                    // Act depending on the type.
+                                                    if table_type == &TSV_NAME_LOC {
+                                                        let table = Loc::import_tsv(schema, file_path)?;
+                                                        let raw_data = table.save()?;
+                                                        let mut packed_file_name = new_path.last().unwrap().to_string();
+                                                        let packed_file_name_len = packed_file_name.chars().count();
+                                                        if packed_file_name_len >= 4 {
+                                                            packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
+                                                        }
+                                                        *new_path.last_mut().unwrap() = packed_file_name.to_owned();
+                                                        RawPackedFile::read_from_vec(new_path, packed_file_name, 0, false, raw_data)
+                                                    } else {
+                                                        let table = DB::import_tsv(schema, file_path)?;
+                                                        let raw_data = table.save()?;
+                                                        let mut packed_file_name = new_path.last().unwrap().to_string();
+                                                        let packed_file_name_len = packed_file_name.chars().count();
+                                                        if packed_file_name_len >= 4 {
+                                                            packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
+                                                        }
+                                                        *new_path.last_mut().unwrap() = packed_file_name.to_owned();
+                                                        RawPackedFile::read_from_vec(new_path, packed_file_name, 0, false, raw_data)
+                                                    }
+                                                }
+                                                None => RawPackedFile::read_from_path(file_path, new_path)?,
+                                            }
+                                        }
+                                        None => return Err(ErrorKind::SchemaNotFound.into())
+                                    }
+                                } else {
+                                    RawPackedFile::read_from_path(file_path, new_path)?
+                                }
+                            }
+
+                            // If it's a normal file, import it as a normal file.
+                            else {
+                                RawPackedFile::read_from_path(file_path, new_path)?
+                            }
+                        } else {
+                                RawPackedFile::read_from_path(file_path, new_path)?
+                        };
+
                         let packed_file = PackedFile::new_from_raw(&raw_data);
                         packed_files_to_add.push(packed_file);
                     }

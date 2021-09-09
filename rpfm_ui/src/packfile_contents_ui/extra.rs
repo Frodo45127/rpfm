@@ -65,11 +65,15 @@ impl PackFileContentsUI {
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>],
-        paths_to_ignore: Option<Vec<PathBuf>>
+        paths_to_ignore: Option<Vec<PathBuf>>,
+        import_tables_from_tsv: bool
     ) {
-        app_ui.main_window.set_enabled(false);
+        let window_was_disabled = !app_ui.main_window.is_enabled();
+        if !window_was_disabled {
+            app_ui.main_window.set_enabled(false);
+        }
 
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore)));
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
         let response1 = CENTRAL_COMMAND.recv_message_qt();
         let response2 = CENTRAL_COMMAND.recv_message_qt();
         match response1 {
@@ -104,7 +108,9 @@ impl PackFileContentsUI {
         }
 
         // Re-enable the Main Window.
-        app_ui.main_window.set_enabled(true);
+        if !window_was_disabled {
+            app_ui.main_window.set_enabled(true);
+        }
     }
 
     /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
@@ -113,11 +119,12 @@ impl PackFileContentsUI {
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>],
-        paths_to_ignore: Option<Vec<PathBuf>>
+        paths_to_ignore: Option<Vec<PathBuf>>,
+        import_tables_from_tsv: bool
     ) {
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore));
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
             Response::VecPathType(paths_packedfile) => {
@@ -148,16 +155,6 @@ impl PackFileContentsUI {
 
         // Re-enable the Main Window.
         app_ui.main_window.set_enabled(true);
-    }
-
-
-    /// This function is used to perform MyḾod exports.
-    pub unsafe fn export_mymod(
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<Self>,
-        paths_to_extract: Option<Vec<PathType>>
-    ) {
-        Self::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
     }
 
     /// Function to filter the PackFile Contents TreeView.

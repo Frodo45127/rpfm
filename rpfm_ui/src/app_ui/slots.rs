@@ -33,7 +33,6 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 
-use rpfm_lib::common::get_files_from_subdir;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
@@ -785,64 +784,13 @@ impl AppUISlots {
         let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            match UI_STATE.get_operational_mode() {
-
-                // If we have a "MyMod" selected...
-                OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                    if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
-
-                        // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
-                        let mut mod_name = mod_name.to_owned();
-                        mod_name.pop();
-                        mod_name.pop();
-                        mod_name.pop();
-                        mod_name.pop();
-                        mod_name.pop();
-
-                        let mut assets_folder = mymods_base_path.to_path_buf();
-                        assets_folder.push(&game_folder_name);
-                        assets_folder.push(&mod_name);
-
-                        // Get the Paths of the files inside the folders we want to add.
-                        let paths: Vec<PathBuf> = get_files_from_subdir(&assets_folder, true).unwrap();
-
-                        // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                        for path in &paths {
-                            let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                            paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
-                        }
-
-                        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(false));
-                        let response = CENTRAL_COMMAND.recv_message_qt();
-                        let settings = match response {
-                            Response::PackFileSettings(settings) => settings,
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        };
-
-                        let files_to_ignore = settings.settings_text.get("import_files_to_ignore").map(|files_to_ignore| {
-                            if files_to_ignore.is_empty() { vec![] } else {
-                                files_to_ignore.split('\n')
-                                    .map(|x| assets_folder.to_path_buf().join(x))
-                                    .collect::<Vec<PathBuf>>()
-                            }
-                        });
-
-                        PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
-
-                    }
-
-                    // If there is no MyMod path configured, report it.
-                    else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
-                }
-                OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAMyMod, false),
-            };
+            AppUI::import_mymod(&app_ui, &pack_file_contents_ui);
         }));
 
         let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            PackFileContentsUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
+            AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
         }));
 
         //-----------------------------------------------//

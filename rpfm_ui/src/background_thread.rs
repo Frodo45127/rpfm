@@ -364,10 +364,34 @@ pub fn background_loop() {
             }
 
             // When we want to add one or more PackedFiles to our PackFile.
-            Command::AddPackedFiles((source_paths, destination_paths, paths_to_ignore)) => {
+            Command::AddPackedFiles(source_paths, destination_paths, paths_to_ignore, import_tables_from_tsv) => {
                 let mut added_paths = vec![];
                 let mut it_broke = None;
-                for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
+
+                // If we're going to import TSV, make sure to remove any collision between binary and TSV.
+                let paths = if import_tables_from_tsv {
+                    source_paths.iter().zip(destination_paths.iter())
+                        .filter(|(source, _)| {
+                            if let Some(extension) = source.extension() {
+                                if extension == "tsv" {
+                                    true
+                                } else {
+                                    let mut path = source.to_path_buf();
+                                    path.set_extension("tsv");
+                                    source_paths.par_iter().all(|source| source != &path)
+                                }
+                            } else {
+                                let mut path = source.to_path_buf();
+                                path.set_extension("tsv");
+                                source_paths.par_iter().all(|source| source != &path)
+                            }
+                        })
+                        .collect::<Vec<(&PathBuf, &Vec<String>)>>()
+                } else {
+                    source_paths.iter().zip(destination_paths.iter()).collect::<Vec<(&PathBuf, &Vec<String>)>>()
+                };
+
+                for (source_path, destination_path) in paths {
 
                     // Skip ignored paths.
                     if let Some(ref paths_to_ignore) = paths_to_ignore {
@@ -376,7 +400,7 @@ pub fn background_loop() {
                         }
                     }
 
-                    match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
+                    match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true, import_tables_from_tsv) {
                         Ok(path) => added_paths.push(PathType::File(path.to_vec())),
                         Err(error) => it_broke = Some(error),
                     }
@@ -402,8 +426,8 @@ pub fn background_loop() {
             }
 
             // In case we want to add one or more entire folders to our PackFile...
-            Command::AddPackedFilesFromFolder(paths, paths_to_ignore) => {
-                match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true) {
+            Command::AddPackedFilesFromFolder(paths, paths_to_ignore, import_tables_from_tsv) => {
+                match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true, import_tables_from_tsv) {
                     Ok(paths) => {
                         CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
 
