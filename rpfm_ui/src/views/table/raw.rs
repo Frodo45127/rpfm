@@ -275,7 +275,6 @@ impl TableView {
     pub unsafe fn rewrite_selection(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         if let Some((is_math_operation, value)) = self.create_rewrite_selection_dialog() {
             let horizontal_header = self.table_view_primary.horizontal_header();
-            let vertical_header = self.table_view_primary.vertical_header();
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
@@ -285,13 +284,27 @@ impl TableView {
             let mut real_cells = vec![];
             let mut values = vec![];
 
+            let mut row = 0;
+            let mut prev_row = None;
             for index in &indexes_sorted {
                 if index.is_valid() {
+
+                    // Row depends on the selection. If none, it's the first row.
+                    if prev_row.is_none() {
+                        prev_row = Some(index.row());
+                    }
+
+                    // If row changed, + 1.
+                    if let Some(ref mut prev_row) = prev_row {
+                        if *prev_row != index.row() {
+                            *prev_row = index.row();
+                            row += 1;
+                        }
+                    }
 
                     // Get the column of that cell, the row, the current value, and the new value.
                     let item = self.table_model.item_from_index(&self.table_filter.map_to_source(*index));
                     let column = horizontal_header.visual_index(index.column());
-                    let row = vertical_header.visual_index(index.row());
                     let current_value = item.text().to_std_string();
                     let new_value = value.replace("{x}", &current_value)
                         .replace("{y}", &column.to_string())
