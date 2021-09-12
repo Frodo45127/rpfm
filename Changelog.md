@@ -21,10 +21,13 @@ If you're looking for the changes included in the latest beta (against the lates
 - Rigidmodel error messages should now be more specific.
 - RigidModel View updated to 0.8.2.
 - TSVs to be imported no longer require to have all the columns of a table.
+- TSVs to be exported now export using the column order you see in the UI.
 - When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
 - Updated dependencies.
 - Many Clippy-suggested corrections.
 - When using `Generate Ids`, now the value of the first cell is used as default value.
+- Import/Export MyMods now import/export tables as TSV if they can.
+- `Rewrite Selection` {z} replacer now use the row number relative to the selection, not to the table itself.
 
 ### Removed
 - Removed `Templates` feature
@@ -39,7 +42,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed missing shortcuts in the view submenu.
 - Fixed dependencies going away immediatly after generating them.
 - Fixed `Some("","")` references being incorrectly imported from the Assembly Kit.
-- Fixed (hopefully) a very rare CTD on start.
+- Fixed error when exporting a TSV if its parent folder doesn't exist.
+- Fixed CTD when hitting `Replace` on the Global Search.
+- Fixed CTD when trying to load RPFM without the `Locale` folder.
 
 ## [2.5.4]
 ### Added
