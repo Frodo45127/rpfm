@@ -726,7 +726,7 @@ impl PackFile {
                                         if packed_file_name_len >= 4 {
                                             packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
                                         }
-                                        *path_as_packed_file.last_mut().unwrap() = packed_file_name.to_owned();
+                                        *path_as_packed_file.last_mut().unwrap() = packed_file_name.to_owned() + ".loc";
                                         RawPackedFile::read_from_vec(path_as_packed_file, packed_file_name, 0, false, raw_data)
                                     } else {
                                         let table = DB::import_tsv(schema, path_as_file)?;
@@ -861,7 +861,7 @@ impl PackFile {
                                                         if packed_file_name_len >= 4 {
                                                             packed_file_name.drain(packed_file_name_len - 4..packed_file_name_len);
                                                         }
-                                                        *new_path.last_mut().unwrap() = packed_file_name.to_owned();
+                                                        *new_path.last_mut().unwrap() = packed_file_name.to_owned() + ".loc";
                                                         RawPackedFile::read_from_vec(new_path, packed_file_name, 0, false, raw_data)
                                                     } else {
                                                         let table = DB::import_tsv(schema, file_path)?;
