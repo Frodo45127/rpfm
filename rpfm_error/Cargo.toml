@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_error"
-version = "2.5.103"
+version = "2.5.104"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Shared error module for RPFM."
 edition = "2018"
