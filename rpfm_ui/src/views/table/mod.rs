@@ -279,8 +279,11 @@ impl TableView {
 
         let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
-                let schema = SCHEMA.read().unwrap();
-                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), None, None, PackedFileType::DependencyPackFilesList)
+                if let Some(schema) = &*SCHEMA.read().unwrap() {
+                    (schema.get_ref_versioned_file_dep_manager()?.get_version_list()[0].clone(), None, None, PackedFileType::DependencyPackFilesList)
+                } else {
+                    return Err(ErrorKind::SchemaNotFound.into());
+                }
             },
             TableType::DB(ref table) => (table.get_definition(), Some(table.get_table_name()), Some(table.get_uuid()), PackedFileType::DB),
             TableType::Loc(ref table) => (table.get_definition(), None, None, PackedFileType::Loc),
