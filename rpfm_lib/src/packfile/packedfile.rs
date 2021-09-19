@@ -488,11 +488,11 @@ impl PackedFile {
                     match self.get_ref_decoded() {
                         DecodedPackedFile::DB(table) => {
                             current_path.set_extension("tsv");
-                            table.export_tsv(&current_path, table.get_ref_table_name())
+                            table.export_tsv(&current_path, table.get_ref_table_name(), self.get_path())
                         },
                         DecodedPackedFile::Loc(table) => {
                             current_path.set_extension("tsv");
-                            table.export_tsv(&current_path, TSV_NAME_LOC)
+                            table.export_tsv(&current_path, TSV_NAME_LOC, self.get_path())
                         },
 
                         _ => self.encode_and_save_to_disk(&current_path),

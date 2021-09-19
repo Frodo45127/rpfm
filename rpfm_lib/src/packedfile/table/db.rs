@@ -802,10 +802,10 @@ impl DB {
     pub fn import_tsv(
         schema: &Schema,
         path: &Path,
-    ) -> Result<Self> {
-        let table = Table::import_tsv(schema, path)?;
+    ) -> Result<(Self, Option<Vec<String>>)> {
+        let (table, file_path) = Table::import_tsv(schema, path)?;
         let db = DB::from(table);
-        Ok(db)
+        Ok((db, file_path))
     }
 
     /// This function exports the provided data to a TSV file.
@@ -813,8 +813,9 @@ impl DB {
         &self,
         path: &Path,
         table_name: &str,
+        file_path: &[String],
     ) -> Result<()> {
-        self.table.export_tsv(path, table_name)
+        self.table.export_tsv(path, table_name, file_path)
     }
 
     /// This function imports a TSV file into a binary file on disk.

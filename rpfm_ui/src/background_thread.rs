@@ -843,11 +843,11 @@ pub fn background_loop() {
             Command::ExportTSV((internal_path, external_path)) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
                     Some(packed_file) => match packed_file.get_decoded() {
-                        DecodedPackedFile::DB(data) => match data.export_tsv(&external_path, &internal_path[1]) {
+                        DecodedPackedFile::DB(data) => match data.export_tsv(&external_path, &internal_path[1], &packed_file.get_path()) {
                             Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
-                        DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, TSV_NAME_LOC) {
+                        DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, TSV_NAME_LOC, &packed_file.get_path()) {
                             Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                             Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         },
@@ -869,11 +869,11 @@ pub fn background_loop() {
                         match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
                             Some(packed_file) => match packed_file.get_packed_file_type(false) {
                                 PackedFileType::DB => match DB::import_tsv(&schema, &external_path) {
-                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
+                                    Ok((data, _)) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
                                     Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 },
                                 PackedFileType::Loc => match Loc::import_tsv(&schema, &external_path) {
-                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
+                                    Ok((data, _)) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
                                     Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 },
                                 _ => unimplemented!()
@@ -920,7 +920,7 @@ pub fn background_loop() {
                                     Ok(data) => {
                                         if let DecodedPackedFile::DB(data) = data {
                                             temporal_file_path.set_extension("tsv");
-                                            match data.export_tsv(&temporal_file_path, &path[1]) {
+                                            match data.export_tsv(&temporal_file_path, &path[1], &packed_file.get_path()) {
                                                 Ok(_) => {
                                                     that_in_background(&temporal_file_path);
                                                     CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
@@ -938,7 +938,7 @@ pub fn background_loop() {
                                     Ok(data) => {
                                         if let DecodedPackedFile::Loc(data) = data {
                                             temporal_file_path.set_extension("tsv");
-                                            match data.export_tsv(&temporal_file_path, TSV_NAME_LOC) {
+                                            match data.export_tsv(&temporal_file_path, TSV_NAME_LOC, &packed_file.get_path()) {
                                                 Ok(_) => {
                                                     that_in_background(&temporal_file_path);
                                                     CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
@@ -992,7 +992,7 @@ pub fn background_loop() {
                                                 match data {
                                                     DecodedPackedFile::DB(ref mut data) => {
                                                         match DB::import_tsv(&schema, &external_path) {
-                                                            Ok(new_data) => {
+                                                            Ok((new_data, _)) => {
                                                                 *data = new_data;
                                                                 match packed_file.encode_and_clean_cache() {
                                                                     Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
@@ -1004,7 +1004,7 @@ pub fn background_loop() {
                                                     }
                                                     DecodedPackedFile::Loc(ref mut data) => {
                                                         match Loc::import_tsv(&schema, &external_path) {
-                                                            Ok(new_data) => {
+                                                            Ok((new_data, _)) => {
                                                                 *data = new_data;
                                                                 match packed_file.encode_and_clean_cache() {
                                                                     Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),

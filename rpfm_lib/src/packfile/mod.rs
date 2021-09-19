@@ -716,10 +716,14 @@ impl PackFile {
                             let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
                             match first_row_splitted.get(0) {
                                 Some(table_type) => {
+                                    let mut table_type = table_type.to_string();
+                                    if table_type.starts_with("#") {
+                                        table_type.remove(0);
+                                    }
 
                                     // Act depending on the type.
-                                    if table_type == &TSV_NAME_LOC {
-                                        let table = Loc::import_tsv(schema, path_as_file)?;
+                                    if &table_type == TSV_NAME_LOC {
+                                        let (table, _) = Loc::import_tsv(schema, path_as_file)?;
                                         let raw_data = table.save()?;
                                         let mut packed_file_name = path_as_packed_file.last().unwrap().to_string();
                                         let packed_file_name_len = packed_file_name.chars().count();
@@ -729,7 +733,7 @@ impl PackFile {
                                         *path_as_packed_file.last_mut().unwrap() = packed_file_name.to_owned() + ".loc";
                                         RawPackedFile::read_from_vec(path_as_packed_file, packed_file_name, 0, false, raw_data)
                                     } else {
-                                        let table = DB::import_tsv(schema, path_as_file)?;
+                                        let (table, _) = DB::import_tsv(schema, path_as_file)?;
                                         let raw_data = table.save()?;
                                         let mut packed_file_name = path_as_packed_file.last().unwrap().to_string();
                                         let packed_file_name_len = packed_file_name.chars().count();
@@ -851,10 +855,14 @@ impl PackFile {
                                             let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
                                             match first_row_splitted.get(0) {
                                                 Some(table_type) => {
+                                                    let mut table_type = table_type.to_string();
+                                                    if table_type.starts_with("#") {
+                                                        table_type.remove(0);
+                                                    }
 
                                                     // Act depending on the type.
-                                                    if table_type == &TSV_NAME_LOC {
-                                                        let table = Loc::import_tsv(schema, file_path)?;
+                                                    if &table_type == TSV_NAME_LOC {
+                                                        let (table, _) = Loc::import_tsv(schema, file_path)?;
                                                         let raw_data = table.save()?;
                                                         let mut packed_file_name = new_path.last().unwrap().to_string();
                                                         let packed_file_name_len = packed_file_name.chars().count();
@@ -864,7 +872,7 @@ impl PackFile {
                                                         *new_path.last_mut().unwrap() = packed_file_name.to_owned() + ".loc";
                                                         RawPackedFile::read_from_vec(new_path, packed_file_name, 0, false, raw_data)
                                                     } else {
-                                                        let table = DB::import_tsv(schema, file_path)?;
+                                                        let (table, _) = DB::import_tsv(schema, file_path)?;
                                                         let raw_data = table.save()?;
                                                         let mut packed_file_name = new_path.last().unwrap().to_string();
                                                         let packed_file_name_len = packed_file_name.chars().count();
@@ -2115,26 +2123,32 @@ impl PackFile {
                 if let Some(line) = tsv.lines().next() {
 
                     // Split the first line by \t so we can get the info of the table.
-                    // We expect to have 2 items here. If we have more or less, stop.
+                    // We expect to have 2 or 3 items here. If we have more or less, stop.
                     let tsv_info = line.split('\t').collect::<Vec<&str>>();
-                    if tsv_info.len() == 2 {
+                    if tsv_info.len() == 2 || tsv_info.len() == 3 {
 
                         // Get the type of the table.
-                        let table_type = tsv_info[0];
+                        let mut table_type = tsv_info[0].to_owned();
+                        if table_type.starts_with("#") {
+                            table_type.remove(0);
+                        }
 
                         // Get the definition, depending on the table type and version.
                         // If the name is not specific for a type of file, we trat it as a DB Table.
-                        match table_type {
+                        match &*table_type {
                             TSV_NAME_LOC => {
-                                if let Ok(table) = Loc::import_tsv(schema, path) {
+                                if let Ok((table, file_path)) = Loc::import_tsv(schema, path) {
 
                                     // Depending on the name received, call it one thing or another.
-                                    let name = match name {
-                                        Some(ref name) => name.to_string(),
-                                        None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                    let mut path = match name {
+                                        Some(ref name) => vec!["text".to_owned(), "db".to_owned(), if name.ends_with(".loc") { name.to_string() } else { format!("{}.loc", name) }],
+                                        None => match file_path {
+                                            Some(file_path) => file_path,
+                                            None => vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", path.file_stem().unwrap().to_str().unwrap())],
+                                        },
                                     };
 
-                                    let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
+                                    let name = path.last().unwrap().to_owned();
 
                                     // If that path already exists in the list of new PackedFiles to add, change it using the index.
                                     if !overwrite {
@@ -2156,15 +2170,18 @@ impl PackFile {
                                 else { error_files.push(path.to_string_lossy().to_string()); }
                             }
                             _ => {
-                                if let Ok(table) = DB::import_tsv(schema, path) {
+                                if let Ok((table, file_name)) = DB::import_tsv(schema, path) {
 
                                     // Depending on the name received, call it one thing or another.
-                                    let name = match name {
-                                        Some(ref name) => name.to_string(),
-                                        None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                    let mut path = match name {
+                                        Some(ref name) => vec!["db".to_owned(), table_type.to_owned(), name.to_owned()],
+                                        None => match file_name {
+                                            Some(name) => name,
+                                            None => vec!["db".to_owned(), table_type.to_owned(), path.file_stem().unwrap().to_str().unwrap().to_string()],
+                                        },
                                     };
 
-                                    let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
+                                    let name = path.last().unwrap().to_owned();
 
                                     // If that path already exists in the list of new PackedFiles to add, change it using the index.
                                     if !overwrite {
@@ -2256,7 +2273,7 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, &path[1]) {
+                                match data.export_tsv(&export_path, &path[1], &path) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
@@ -2276,11 +2293,10 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, TSV_NAME_LOC) {
+                                match data.export_tsv(&export_path, TSV_NAME_LOC, &path) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
-
                             }
 
                             // Ignore any other PackedFiles.

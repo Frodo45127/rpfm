@@ -862,7 +862,7 @@ impl Table {
     fn import_tsv(
         schema: &Schema,
         path: &Path,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Option<Vec<String>>)> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
@@ -876,8 +876,15 @@ impl Table {
         // If we succesfully load the TSV file into a reader, check the first line to ensure it's a valid TSV file.
         let headers = reader.headers()?;
 
-        let table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
+        let table_type = if let Some(table_type) = headers.get(0) {
+            let mut table_type = table_type.to_owned();
+            if table_type.starts_with("#") {
+                table_type.remove(0);
+            }
+            table_type
+        } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
         let table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
+        let file_path = headers.get(2).map(|x| x.split('/').map(|x| x.to_string()).collect::<Vec<String>>());
 
         // Get his definition depending on his first line's contents.
         let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
@@ -937,7 +944,7 @@ impl Table {
         // If we reached this point without errors, we replace the old data with the new one and return success.
         let mut table = Table::new(&definition);
         table.set_table_data(&entries)?;
-        Ok(table)
+        Ok((table, file_path))
     }
 
     /// This function imports a TSV file into a new Table File.
@@ -959,7 +966,13 @@ impl Table {
         // If we succesfully load the TSV file into a reader, check the first line to ensure it's a valid TSV file.
         let headers = reader.headers()?;
 
-        let table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
+        let table_type = if let Some(table_type) = headers.get(0) {
+            let mut table_type = table_type.to_owned();
+            if table_type.starts_with("#") {
+                table_type.remove(0);
+            }
+            table_type
+        } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
         let table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
 
         // Get his definition depending on his first line's contents.
@@ -1042,6 +1055,7 @@ impl Table {
         &self,
         path: &Path,
         table_name: &str,
+        file_path: &[String],
     ) -> Result<()> {
 
         // Make sure the folder actually exists.
@@ -1064,7 +1078,7 @@ impl Table {
             .collect::<Vec<usize>>();
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        writer.serialize((table_name, self.definition.get_version()))?;
+        writer.serialize(("#".to_owned() + table_name, self.definition.get_version(), file_path.join("/")))?;
         writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
@@ -1116,7 +1130,7 @@ impl Table {
             .collect::<Vec<usize>>();
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        writer.serialize((&table_type, version))?;
+        writer.serialize(("#".to_owned() + &table_type, version))?;
         writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.

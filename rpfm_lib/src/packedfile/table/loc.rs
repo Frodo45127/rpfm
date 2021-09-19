@@ -257,9 +257,10 @@ impl Loc {
     pub fn import_tsv(
         schema: &Schema,
         path: &Path,
-    ) -> Result<Self> {
-        let table = Table::import_tsv(schema, path)?;
-        Ok(Loc::from(table))
+    ) -> Result<(Self, Option<Vec<String>>)> {
+        let (table, file_path) = Table::import_tsv(schema, path)?;
+        let loc = Loc::from(table);
+        Ok((loc, file_path))
     }
 
     /// This function exports the provided data to a TSV file.
@@ -267,8 +268,9 @@ impl Loc {
         &self,
         path: &Path,
         table_name: &str,
+        file_path: &[String],
     ) -> Result<()> {
-        self.table.export_tsv(path, table_name)
+        self.table.export_tsv(path, table_name, file_path)
     }
 }
 
