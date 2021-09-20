@@ -17,6 +17,7 @@ use qt_core::QEventLoop;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::Debug;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -61,7 +62,6 @@ pub struct CentralCommand {
     sender_rust: Sender<Response>,
     sender_qt_to_network: Sender<Command>,
     sender_network_to_qt: Sender<Response>,
-    sender_notification_to_qt: Sender<Notification>,
     sender_diagnostics_to_qt: Sender<Diagnostics>,
     sender_diagnostics_update_to_qt: Sender<(Diagnostics, Vec<PackedFileInfo>)>,
     sender_global_search_update_to_qt: Sender<(GlobalSearch, Vec<PackedFileInfo>)>,
@@ -73,7 +73,6 @@ pub struct CentralCommand {
     receiver_rust: Receiver<Command>,
     receiver_qt_to_network: Receiver<Command>,
     receiver_network_to_qt: Receiver<Response>,
-    receiver_notification_to_qt: Receiver<Notification>,
     receiver_diagnostics_to_qt: Receiver<Diagnostics>,
     receiver_diagnostics_update_to_qt: Receiver<(Diagnostics, Vec<PackedFileInfo>)>,
     receiver_global_search_update_to_qt: Receiver<(GlobalSearch, Vec<PackedFileInfo>)>,
@@ -512,7 +511,6 @@ impl Default for CentralCommand {
         let response_channel = unbounded();
         let network_command_channel = unbounded();
         let network_response_channel = unbounded();
-        let notification_response_channel = unbounded();
         let diagnostics_response_channel = unbounded();
         let diagnostics_update_response_channel = unbounded();
         let global_search_update_response_channel = unbounded();
@@ -524,7 +522,6 @@ impl Default for CentralCommand {
             sender_rust: response_channel.0,
             sender_qt_to_network: network_command_channel.0,
             sender_network_to_qt: network_response_channel.0,
-            sender_notification_to_qt: notification_response_channel.0,
             sender_diagnostics_to_qt: diagnostics_response_channel.0,
             sender_diagnostics_update_to_qt: diagnostics_update_response_channel.0,
             sender_global_search_update_to_qt: global_search_update_response_channel.0,
@@ -535,7 +532,6 @@ impl Default for CentralCommand {
             receiver_rust: command_channel.1,
             receiver_qt_to_network: network_command_channel.1,
             receiver_network_to_qt: network_response_channel.1,
-            receiver_notification_to_qt: notification_response_channel.1,
             receiver_diagnostics_to_qt: diagnostics_response_channel.1,
             receiver_diagnostics_update_to_qt: diagnostics_update_response_channel.1,
             receiver_global_search_update_to_qt: global_search_update_response_channel.1,
@@ -550,111 +546,95 @@ impl Default for CentralCommand {
 impl CentralCommand {
 
     /// This function serves to send message from the main thread to the background thread.
-    #[allow(dead_code)]
     pub fn send_message_qt(&self, data: Command) {
-        if self.sender_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_qt, data)
     }
 
     /// This function serves to send message from the background thread to the main thread.
-    #[allow(dead_code)]
     pub fn send_message_rust(&self, data: Response) {
-        if self.sender_rust.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_rust, data)
     }
 
     /// This function serves to send message from the main thread to the network thread.
-    #[allow(dead_code)]
     pub fn send_message_qt_to_network(&self, data: Command) {
-        if self.sender_qt_to_network.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_qt_to_network, data)
     }
 
     /// This function serves to send message from the main thread to the network thread.
-    #[allow(dead_code)]
     pub fn send_message_network_to_qt(&self, data: Response) {
-        if self.sender_network_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
-    }
-
-    /// This function serves to send message from the background thread to the main thread.
-    #[allow(dead_code)]
-    pub fn send_message_notification_to_qt(&self, data: Notification) {
-        if self.sender_notification_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_network_to_qt, data)
     }
 
     /// This function serves to send diagnostics message from the background thread to the main thread.
-    #[allow(dead_code)]
     pub fn send_message_diagnostics_to_qt(&self, data: Diagnostics) {
-        if self.sender_diagnostics_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_diagnostics_to_qt, data)
     }
 
     /// This function serves to send diagnostics message from the background thread to the main thread.
-    #[allow(dead_code)]
     pub fn send_message_diagnostics_update_to_qt(&self, data: (Diagnostics, Vec<PackedFileInfo>)) {
-        if self.sender_diagnostics_update_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_diagnostics_update_to_qt, data)
     }
 
     /// This function serves to send a global search message from the background thread to the main thread.
-    #[allow(dead_code)]
     pub fn send_message_global_search_update_to_qt(&self, data: (GlobalSearch, Vec<PackedFileInfo>)) {
-        if self.sender_global_search_update_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_global_search_update_to_qt, data)
     }
 
     /// This function serves to send dependencies messages from the background thread to the main thread.
-    #[allow(dead_code)]
     pub fn send_message_dependencies_info_to_qt(&self, data: DependenciesInfo) {
-        if self.sender_dependencies_info_to_qt.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_dependencies_info_to_qt, data)
     }
 
     /// This function serves to send message from the background thread to the main thread when a PackedFile is saved.
-    #[allow(dead_code)]
     pub fn send_message_save_packedfile(&self, data: Response) {
-        if self.sender_save_packedfile.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
-        }
+        Self::send_message(&self.sender_save_packedfile, data)
     }
 
     /// This function serves to send message from the background thread to the main thread when an automatic PackFile save is triggered.
-    #[allow(dead_code)]
     pub fn send_message_save_packfile(&self, data: Response) {
-        if self.sender_save_packfile.send(data).is_err() {
-            panic!("{}", THREADS_SENDER_ERROR);
+        Self::send_message(&self.sender_save_packfile, data)
+    }
+
+    /// Generic function to send a message, or crash in a controlled way in case of failure.
+    fn send_message<T: Send + Sync + Debug>(sender: &Sender<T>, data: T) {
+        if let Err(error) = sender.send(data) {
+            panic!("{}: {}", THREADS_SENDER_ERROR, error);
+        }
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function does only try once, and it locks the thread. Use it only in small stuff.
+    pub fn recv_message_qt(&self) -> Response {
+        Self::recv_message(&self.receiver_qt)
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function does only try once, and it locks the thread. Use it only in small stuff.
+    fn recv_message<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
+        let response = receiver.recv();
+        match response {
+            Ok(data) => data,
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 
     /// This functions serves to receive messages from the main thread into the background thread.
-    #[allow(dead_code)]
     pub fn recv_message_rust(&self) -> Command {
-        match self.receiver_rust.recv() {
-            Ok(data) => data,
-
-            // If we hit an error here, it means the main thread is dead. So... report it and exit.
-            Err(_) => {
-                println!("Main UI Thread dead. Exiting...");
-                exit(0);
-            }
-        }
+        Self::recv_message_exit_on_fail(&self.receiver_rust)
     }
 
     /// This functions serves to receive messages from the main thread into the network thread.
-    #[allow(dead_code)]
     pub fn recv_message_qt_to_network(&self) -> Command {
-        match self.receiver_qt_to_network.recv() {
+        Self::recv_message_exit_on_fail(&self.receiver_qt_to_network)
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function does only try once, and it locks the thread. Use it only in small stuff.
+    fn recv_message_exit_on_fail<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
+        match receiver.recv() {
             Ok(data) => data,
 
             // If we hit an error here, it means the main thread is dead. So... report it and exit.
@@ -667,195 +647,69 @@ impl CentralCommand {
 
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
-    /// This function does only try once, and it locks the thread. Use it only in small stuff.
-    #[allow(dead_code)]
-    pub fn recv_message_qt(&self) -> Response {
-        let response = self.receiver_qt.recv();
-        match response {
-            Ok(data) => data,
-            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-        }
-    }
-
-    /// This functions serves to receive messages from the network thread into the main thread.
-    ///
-    /// This function does only try once, and it locks the thread. Use it only in small stuff.
-    #[allow(dead_code)]
-    pub fn recv_message_network_to_qt(&self) -> Response {
-        let response = self.receiver_network_to_qt.recv() ;
-        match response {
-            Ok(data) => data,
-            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-        }
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_diagnostics_to_qt_try(&self) -> Diagnostics {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_diagnostics_to_qt.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_diagnostics_to_qt)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_diagnostics_update_to_qt_try(&self) -> (Diagnostics, Vec<PackedFileInfo>) {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_diagnostics_update_to_qt.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_diagnostics_update_to_qt)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_global_search_update_to_qt_try(&self) -> (GlobalSearch, Vec<PackedFileInfo>) {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_global_search_update_to_qt.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_global_search_update_to_qt)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
-    pub fn recv_message_notification_to_qt_try(&self) -> Response {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_notification_to_qt.try_recv();
-            match response {
-                Ok(data) => match data{
-                    Notification::Done => return Response::Success,
-                    Notification::Error(error) => return Response::Error(error),
-                }
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_qt_try(&self) -> Response {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_qt.try_recv() ;
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
-            }
-            unsafe { event_loop.process_events_0a() };
-        }
+        Self::recv_message_try(&self.receiver_qt)
     }
 
     /// This functions serves to receive messages from the network thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_network_to_qt_try(&self) -> Response {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_network_to_qt.try_recv() ;
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_network_to_qt)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_dependencies_info_to_qt_try(&self) -> DependenciesInfo {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_dependencies_info_to_qt.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_dependencies_info_to_qt)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread when a PackedFile is saved.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_save_packedfile_try(&self) -> Response {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_save_packedfile.try_recv() ;
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
-            }
-            unsafe { event_loop.process_events_0a(); }
-        }
+        Self::recv_message_try(&self.receiver_save_packedfile)
     }
 
     /// This functions serves to receive messages from the background thread into the main thread when a PackFile is automatically saved.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    #[allow(dead_code)]
     pub fn recv_message_save_packfile_try(&self) -> Response {
+        Self::recv_message_try(&self.receiver_save_packfile)
+    }
+
+    /// This functions serves to receive messages from the background thread into the main thread when a PackFile is automatically saved.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    fn recv_message_try<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
         let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_save_packfile.try_recv() ;
+            let response = receiver.try_recv();
             match response {
                 Ok(data) => return data,
                 Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
