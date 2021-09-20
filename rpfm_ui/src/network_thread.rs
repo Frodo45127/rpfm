@@ -14,6 +14,8 @@ Module with the network loop.
 Basically, this does the network checks of the program.
 !*/
 
+use log::info;
+
 use rpfm_lib::schema::Schema;
 use rpfm_lib::updater;
 
@@ -28,6 +30,7 @@ pub fn network_loop() {
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
+    info!("Network Thread looping around...");
     loop {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,

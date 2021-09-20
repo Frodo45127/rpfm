@@ -14,6 +14,7 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use log::info;
 use open::that_in_background;
 use rayon::prelude::*;
 use uuid::Uuid;
@@ -73,6 +74,7 @@ pub fn background_loop() {
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
+    info!("Background Thread looping around...");
     loop {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,

@@ -7,13 +7,9 @@ edition = "2018"
 
 [dependencies]
 # Dependencies directly used by this module.
-backtrace = "^0.3"
-directories = "^3.0"
-os_info = "^3.0"
 serde = "^1.0"
 serde_derive = "^1.0"
 toml = "^0.5"
-uuid = { version = "^0.8", features = ["v4"] }
 
 # Dependencies with From<X> implementations for their errors in this module.
 bincode = "^1.1"
@@ -24,10 +20,11 @@ ron = "^0.6"
 fluent = "^0.16"
 fluent-bundle = "^0.15"
 fluent-syntax = "^0.11"
-log = "^0.4"
 git2 = "^0.13"
 self_update = "^0.27"
-sentry = "^0.23"
+
+# Logging support.
+log = { version = "^0.4", features = ["std"] }
 
 # Config dependencies.
 lazy_static = "^1.2"

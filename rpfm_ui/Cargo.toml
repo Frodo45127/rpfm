@@ -62,9 +62,9 @@ crossbeam = "^0.8"
 rayon = "^1.3"
 
 # Logging support.
-log = "^0.4"
+log = { version = "^0.4", features = ["std"] }
 simplelog = "^0.10"
-sentry = "^0.23"
+sentry = { version = "^0.23", features = ["log"] }
 
 # Better iterator support.
 itertools = "^0.10"

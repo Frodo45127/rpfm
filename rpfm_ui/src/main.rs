@@ -39,16 +39,14 @@ use qt_core::QString;
 
 use lazy_static::lazy_static;
 use log::info;
-use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use sentry::ClientInitGuard;
 
-use std::fs::File;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicPtr;
+use std::sync::{Arc, RwLock, atomic::AtomicPtr};
 use std::thread;
 
-use rpfm_error::ctd::CrashReport;
-
-use rpfm_lib::settings::{init_config_path, get_config_path};
+use rpfm_lib::logger::Logger;
+use rpfm_lib::settings::init_config_path;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -269,6 +267,9 @@ lazy_static! {
 
     /// Monospace font, just in case we need it.
     static ref FONT_MONOSPACE: AtomicPtr<QFont> = unsafe { atomic_from_cpp_box(QFontDatabase::system_font(SystemFont::FixedFont)) };
+
+    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -281,27 +282,25 @@ const QT_PROGRAM: &str = "rpfm";
 /// Main function.
 fn main() {
 
-    // Log the crashes so the user can send them himself.
-    if CrashReport::init().is_err() {
-        let _ = CombinedLogger::init(
-            vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-                WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
-            ]
-        );
-        info!("Starting...");
-        println!("Failed to initialize logging code.");
+    // Access the guard to make sure it gets initialized.
+    if SENTRY_GUARD.read().unwrap().is_enabled() {
+        info!("Sentry Logging support enabled. Starting...");
+    } else {
+        info!("Sentry Logging support disabled. Starting...");
     }
 
     // If the config folder doesn't exist, and we failed to initialize it, force a crash.
     // If this fails, half the program will be broken in one way or another, so better safe than sorry.
-    if let Err(error) = init_config_path() { panic!("{}", error); }
+    if let Err(error) = init_config_path() {
+        panic!("{}", error);
+    }
 
     //---------------------------------------------------------------------------------------//
     // Preparing the Program...
     //---------------------------------------------------------------------------------------//
 
     // Create the background and network threads, where all the magic will happen.
+    info!("Initializing threads...");
     let bac_handle = thread::spawn(|| { background_thread::background_loop(); });
     let net_handle = thread::spawn(|| { network_thread::network_loop(); });
 
@@ -321,5 +320,4 @@ fn main() {
 
         exit_code
     })
-
 }

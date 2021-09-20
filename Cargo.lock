@@ -806,12 +806,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "half"
-version = "1.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62aca2aba2d62b4a7f5b33f3712cb1b0692779a56fb510499d5c0aa594daeaf3"
-
-[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1917,32 +1911,28 @@ dependencies = [
 name = "rpfm_error"
 version = "2.5.104"
 dependencies = [
- "backtrace",
  "bincode",
  "csv",
- "directories",
  "fluent",
  "fluent-bundle",
  "fluent-syntax",
  "git2",
  "lazy_static",
  "log",
- "os_info",
  "ron",
  "self_update",
- "sentry",
  "serde",
  "serde-xml-rs",
  "serde_derive",
  "serde_json",
  "toml 0.5.8",
- "uuid",
 ]
 
 [[package]]
 name = "rpfm_lib"
 version = "2.5.104"
 dependencies = [
+ "backtrace",
  "bincode",
  "bitflags",
  "byteorder",
@@ -1955,10 +1945,11 @@ dependencies = [
  "float_eq",
  "fraction",
  "git2",
- "half",
  "indexmap",
  "itertools 0.10.1",
  "lazy_static",
+ "log",
+ "os_info",
  "pelite",
  "rayon",
  "regex",
@@ -1967,11 +1958,14 @@ dependencies = [
  "rpfm_error",
  "rpfm_macros",
  "self_update",
+ "sentry",
  "serde",
  "serde-xml-rs",
  "serde_derive",
  "serde_json",
+ "simplelog",
  "tempfile",
+ "toml 0.5.8",
  "unicase",
  "uuid",
  "xz2",
@@ -2182,6 +2176,7 @@ dependencies = [
  "sentry-backtrace",
  "sentry-contexts",
  "sentry-core",
+ "sentry-log",
  "sentry-panic",
  "tokio",
 ]
@@ -2225,6 +2220,16 @@ dependencies = [
  "sentry-types",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "sentry-log"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66da5759b0704a2fb0d420863b0795ea3429739e188ff67fff82bb13dcd3cc50"
+dependencies = [
+ "log",
+ "sentry-core",
 ]
 
 [[package]]

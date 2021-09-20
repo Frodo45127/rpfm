@@ -36,6 +36,7 @@ pub mod dependencies;
 pub mod diagnostics;
 pub mod games;
 pub mod global_search;
+pub mod logger;
 pub mod packedfile;
 pub mod packfile;
 pub mod schema;

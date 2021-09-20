@@ -45,7 +45,6 @@ use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use rpfm_error::SENTRY_GUARD;
 use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
 
 use crate::ASSETS_PATH;
@@ -59,6 +58,7 @@ use crate::MEDIUM_DARKER_GREY;
 use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
+use crate::SENTRY_GUARD;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
@@ -207,7 +207,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     main_grid.add_widget_5a(&accept_button, 6, 1, 1, 1);
 
     let send_table_slot = SlotNoArgs::new(&dialog, move || {
-        if let Some(ref guard) = *SENTRY_GUARD.read().unwrap() {
+        if SENTRY_GUARD.read().unwrap().is_enabled() {
             let mut event = Event::new();
             event.level = Level::Info;
             event.message = Some(format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap().get_display_name(), table_name));
@@ -220,7 +220,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
             };
 
             envelope.add_item(EnvelopeItem::Attachment(attatchment));
-            guard.send_envelope(envelope);
+            SENTRY_GUARD.read().unwrap().send_envelope(envelope);
         }
     });
 
