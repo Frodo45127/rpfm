@@ -14,13 +14,14 @@ Module with the network loop.
 Basically, this does the network checks of the program.
 !*/
 
+use crossbeam::channel::Sender;
 use log::info;
 
 use rpfm_lib::schema::Schema;
 use rpfm_lib::updater;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 
 /// This is the network loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -35,7 +36,7 @@ pub fn network_loop() {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        let response = CENTRAL_COMMAND.recv_message_qt_to_network();
+        let (sender, response): (Sender<Response>, Command) = CENTRAL_COMMAND.recv_network();
         match response {
 
             // Command to close the thread.
@@ -44,16 +45,16 @@ pub fn network_loop() {
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
                 match updater::check_updates_rpfm() {
-                    Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponse(response)),
-                    Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
+                    Ok(response) => CentralCommand::send_back(&sender, Response::APIResponse(response)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
                 match Schema::check_update() {
-                    Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponseSchema(response)),
-                    Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
+                    Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseSchema(response)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 

@@ -41,7 +41,7 @@ use rpfm_lib::packfile::PathType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
@@ -221,9 +221,9 @@ impl DependenciesUI {
     pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<PathType>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         app_ui.main_window.set_enabled(false);
-        CENTRAL_COMMAND.send_message_qt(Command::ImportDependenciesToOpenPackFile(paths_by_source));
-        let response1 = CENTRAL_COMMAND.recv_message_qt();
-        let response2 = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::ImportDependenciesToOpenPackFile(paths_by_source));
+        let response1 = CentralCommand::recv(&receiver);
+        let response2 = CentralCommand::recv(&receiver);
         match response1 {
             Response::VecPathType(added_paths) => {
                 let paths = added_paths.iter().map(From::from).collect::<Vec<TreePathType>>();

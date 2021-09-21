@@ -38,7 +38,7 @@ use rpfm_lib::settings::{init_config_path, Settings, MYMOD_BASE_PATH, ZIP_PATH};
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;
 use crate::locale::tr;
 use crate::QT_PROGRAM;
@@ -154,8 +154,8 @@ impl SettingsUISlots {
 
             // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
             if let Some(shortcuts) = ShortcutsUI::new(&ui.dialog) {
-                CENTRAL_COMMAND.send_message_qt(Command::SetShortcuts(shortcuts.clone()));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::SetShortcuts(shortcuts.clone()));
+                let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => UI_STATE.set_shortcuts(&shortcuts),
                     Response::Error(error) => show_dialog(&ui.dialog, error, false),

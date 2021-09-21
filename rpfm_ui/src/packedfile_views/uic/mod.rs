@@ -66,8 +66,8 @@ impl PackedFileUICView {
         _pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<Option<PackedFileInfo>> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path()));
+        let response = CentralCommand::recv(&receiver);
         let (data, packed_file_info) = match response {
             Response::UICPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),

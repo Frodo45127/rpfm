@@ -14,6 +14,7 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use crossbeam::channel::Sender;
 use log::info;
 use open::that_in_background;
 use rayon::prelude::*;
@@ -47,7 +48,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::{tr, tre};
 use crate::packedfile_views::DataSource;
 use crate::RPFM_PATH;
@@ -79,7 +80,7 @@ pub fn background_loop() {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        let response = CENTRAL_COMMAND.recv_message_rust();
+        let (sender, response): (Sender<Response>, Command) = CENTRAL_COMMAND.recv_background();
         match response {
 
             // Command to close the thread.
@@ -115,22 +116,22 @@ pub fn background_loop() {
                             });
                         }
 
-                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
+                        CentralCommand::send_back(&sender, Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
             Command::OpenPackFileExtra(path) => {
                 match pack_files_decoded_extra.get(&path) {
-                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(pack_file))),
+                    Some(pack_file) => CentralCommand::send_back(&sender, Response::PackFileInfo(PackFileInfo::from(pack_file))),
                     None => match PackFile::open_packfiles(&[path.to_path_buf()], true, false, true) {
                          Ok(pack_file) => {
-                            CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file)));
+                            CentralCommand::send_back(&sender, Response::PackFileInfo(PackFileInfo::from(&pack_file)));
                             pack_files_decoded_extra.insert(path.to_path_buf(), pack_file);
                         }
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
                 }
             }
@@ -140,25 +141,25 @@ pub fn background_loop() {
                 match PackFile::open_all_ca_packfiles() {
                     Ok(pack_file) => {
                         pack_file_decoded = pack_file;
-                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
+                        CentralCommand::send_back(&sender, Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
                 match pack_file_decoded.save(None) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
+                    Ok(_) => CentralCommand::send_back(&sender, Response::PackFileInfo(From::from(&pack_file_decoded))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
                 }
             }
 
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
                 match pack_file_decoded.save(Some(path.to_path_buf())) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
+                    Ok(_) => CentralCommand::send_back(&sender, Response::PackFileInfo(From::from(&pack_file_decoded))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
                 }
             }
 
@@ -166,8 +167,8 @@ pub fn background_loop() {
             Command::CleanAndSavePackFileAs(path) => {
                 pack_file_decoded.clean_packfile();
                 match pack_file_decoded.save(Some(path.to_path_buf())) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
+                    Ok(_) => CentralCommand::send_back(&sender, Response::PackFileInfo(From::from(&pack_file_decoded))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
                 }
             }
 
@@ -175,16 +176,16 @@ pub fn background_loop() {
             Command::SetSettings(settings) => {
                 *SETTINGS.write().unwrap() = settings;
                 match SETTINGS.read().unwrap().save() {
-                    Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(()) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to change the current shortcuts...
             Command::SetShortcuts(shortcuts) => {
                 match shortcuts.save() {
-                    Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(()) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -192,7 +193,7 @@ pub fn background_loop() {
             Command::GetPackFileDataForTreeView => {
 
                 // Get the name and the PackedFile list, and send it.
-                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                CentralCommand::send_back(&sender, Response::PackFileInfoVecPackedFileInfo((
                     From::from(&pack_file_decoded),
                     pack_file_decoded.get_packed_files_all_info(),
 
@@ -204,24 +205,24 @@ pub fn background_loop() {
 
                 // Get the name and the PackedFile list, and serialize it.
                 match pack_files_decoded_extra.get(&path) {
-                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                    Some(pack_file) => CentralCommand::send_back(&sender, Response::PackFileInfoVecPackedFileInfo((
                         From::from(pack_file),
                         pack_file.get_packed_files_all_info(),
                     ))),
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(path).into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::CannotFindExtraPackFile(path).into())),
                 }
             }
 
             // In case we want to get the info of one PackedFile from the TreeView.
             Command::GetPackedFileInfo(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::OptionPackedFileInfo(
+                CentralCommand::send_back(&sender, Response::OptionPackedFileInfo(
                     pack_file_decoded.get_packed_file_info_by_path(&path)
                 ));
             }
 
             // In case we want to get the info of more than one PackedFiles from the TreeView.
             Command::GetPackedFilesInfo(paths) => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecOptionPackedFileInfo(
+                CentralCommand::send_back(&sender, Response::VecOptionPackedFileInfo(
                     paths.iter().map(|x| pack_file_decoded.get_packed_file_info_by_path(x)).collect()
                 ));
             }
@@ -230,7 +231,7 @@ pub fn background_loop() {
             Command::GlobalSearch(mut global_search) => {
                 global_search.search(&mut pack_file_decoded, &dependencies);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_global_search_update_to_qt((global_search, packed_files_info));
+                CentralCommand::send_back(&sender, Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
             }
 
             // In case we want to change the current `Game Selected`...
@@ -245,7 +246,7 @@ pub fn background_loop() {
                 }
 
                 // Send a response, so we can unlock the UI.
-                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                CentralCommand::send_back(&sender, Response::Success);
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
@@ -264,35 +265,35 @@ pub fn background_loop() {
                         Ok(_) => {
                             let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
                             let dependencies_info = DependenciesInfo::from(&dependencies);
-                            CENTRAL_COMMAND.send_message_rust(Response::DependenciesInfo(dependencies_info));
+                            CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                         },
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     },
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit(path) => {
                 match update_schema_from_raw_files(path, &dependencies) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
                 match pack_file_decoded.optimize(&dependencies) {
-                    Ok(paths_to_delete) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(paths_to_delete)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecVecString(paths_to_delete)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to Patch the SiegeAI of a PackFile...
             Command::PatchSiegeAI => {
                 match pack_file_decoded.patch_siege_ai() {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::StringVecVecString(result)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error))
+                    Ok(result) => CentralCommand::send_back(&sender, Response::StringVecVecString(result)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error))
                 }
             }
 
@@ -306,16 +307,16 @@ pub fn background_loop() {
             Command::ChangeDataIsCompressed(state) => pack_file_decoded.toggle_compression(state),
 
             // In case we want to get the path of the currently open `PackFile`.
-            Command::GetPackFilePath => CENTRAL_COMMAND.send_message_rust(Response::PathBuf(pack_file_decoded.get_file_path().to_path_buf())),
+            Command::GetPackFilePath => CentralCommand::send_back(&sender, Response::PathBuf(pack_file_decoded.get_file_path().to_path_buf())),
 
             // In case we want to get the Dependency PackFiles of our PackFile...
-            Command::GetDependencyPackFilesList => CENTRAL_COMMAND.send_message_rust(Response::VecString(pack_file_decoded.get_packfiles_list().to_vec())),
+            Command::GetDependencyPackFilesList => CentralCommand::send_back(&sender, Response::VecString(pack_file_decoded.get_packfiles_list().to_vec())),
 
             // In case we want to set the Dependency PackFiles of our PackFile...
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(dependencies.game_has_vanilla_data_loaded())),
+            Command::IsThereADependencyDatabase => CentralCommand::send_back(&sender, Response::Bool(dependencies.game_has_vanilla_data_loaded())),
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
@@ -331,13 +332,13 @@ pub fn background_loop() {
                                     match versioned_file.get_version(version) {
                                         Ok(definition) =>  DecodedPackedFile::DB(DB::new(&table, None, definition)),
                                         Err(error) => {
-                                            CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                            CentralCommand::send_back(&sender, Response::Error(error));
                                             continue;
                                         }
                                     }
                                 }
                                 Err(error) => {
-                                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                    CentralCommand::send_back(&sender, Response::Error(error));
                                     continue;
                                 }
                             }
@@ -346,7 +347,7 @@ pub fn background_loop() {
                             match schema.get_ref_last_definition_loc() {
                                 Ok(definition) => DecodedPackedFile::Loc(Loc::new(definition)),
                                 Err(error) => {
-                                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                    CentralCommand::send_back(&sender, Response::Error(error));
                                     continue;
                                 }
                             }
@@ -359,10 +360,10 @@ pub fn background_loop() {
                     };
                     let packed_file = PackedFile::new_from_decoded(&decoded, &path);
                     match pack_file_decoded.add_packed_file(&packed_file, false) {
-                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
-                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
             // When we want to add one or more PackedFiles to our PackFile.
@@ -408,11 +409,11 @@ pub fn background_loop() {
                     }
                 }
                 if let Some(error) = it_broke {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.to_vec()));
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                    CentralCommand::send_back(&sender, Response::VecPathType(added_paths.to_vec()));
+                    CentralCommand::send_back(&sender, Response::Error(error));
                 } else {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.to_vec()));
-                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                    CentralCommand::send_back(&sender, Response::VecPathType(added_paths.to_vec()));
+                    CentralCommand::send_back(&sender, Response::Success);
                 }
 
                 // Force decoding of table/locs, so they're in memory for the diagnostics to work.
@@ -431,7 +432,7 @@ pub fn background_loop() {
             Command::AddPackedFilesFromFolder(paths, paths_to_ignore, import_tables_from_tsv) => {
                 match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true, import_tables_from_tsv) {
                     Ok(paths) => {
-                        CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                        CentralCommand::send_back(&sender, Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
 
                         // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -444,7 +445,7 @@ pub fn background_loop() {
                             });
                         }
                     }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
 
             }
@@ -457,7 +458,7 @@ pub fn background_loop() {
                     // Try to add the PackedFile to the main PackFile.
                     Some(pack_file) => match pack_file_decoded.add_from_packfile(pack_file, &paths, true) {
                         Ok(paths) => {
-                            CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.to_vec()));
+                            CentralCommand::send_back(&sender, Response::VecPathType(paths.to_vec()));
 
                             // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                             if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -470,10 +471,10 @@ pub fn background_loop() {
                                 });
                             }
                         }
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
 
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(pack_file_path).into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::CannotFindExtraPackFile(pack_file_path).into())),
                 }
             }
 
@@ -485,13 +486,13 @@ pub fn background_loop() {
                         let packed_file_decoded = packed_file.get_ref_mut_decoded();
                         match packed_file_decoded {
                             DecodedPackedFile::AnimPack(anim_pack) => match anim_pack.add_packed_files(&packed_files_to_add) {
-                                Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
-                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                Ok(paths) => CentralCommand::send_back(&sender, Response::VecPathType(paths)),
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                             }
-                            _ => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
+                            _ => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
@@ -503,21 +504,21 @@ pub fn background_loop() {
                         match packed_file_decoded {
                             DecodedPackedFile::AnimPack(anim_pack) => anim_pack.get_anim_packed_as_packed_files(&paths),
                             _ => {
-                                CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into()));
+                                CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into()));
                                 continue;
                             }
                         }
                     }
                     None => {
-                        CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into()));
+                        CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into()));
                         continue;
                     },
                 };
 
                 let packed_files_to_add = packed_files_to_add.iter().collect::<Vec<&PackedFile>>();
                 match pack_file_decoded.add_packed_files(&packed_files_to_add, true, true) {
-                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -529,12 +530,12 @@ pub fn background_loop() {
                         match packed_file_decoded {
                             DecodedPackedFile::AnimPack(anim_pack) => {
                                 anim_pack.remove_packed_file_by_path_types(&paths);
-                                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                                CentralCommand::send_back(&sender, Response::Success);
                             }
-                            _ => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
+                            _ => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
@@ -548,9 +549,9 @@ pub fn background_loop() {
                             match pack_file_decoded.get_notes() {
                                 Some(notes) => {
                                     note.set_contents(notes);
-                                    CENTRAL_COMMAND.send_message_rust(Response::Text(note));
+                                    CentralCommand::send_back(&sender, Response::Text(note));
                                 }
-                                None => CENTRAL_COMMAND.send_message_rust(Response::Text(note)),
+                                None => CentralCommand::send_back(&sender, Response::Text(note)),
                             }
                         }
 
@@ -562,27 +563,27 @@ pub fn background_loop() {
                                     match packed_file.decode_return_ref() {
                                         Ok(packed_file_data) => {
                                             match packed_file_data {
-                                                DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&**packed_file)))),
-                                                DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::UIC(uic) => CENTRAL_COMMAND.send_message_rust(Response::UICPackedFileInfo((uic.clone(), From::from(&**packed_file)))),
-                                                DecodedPackedFile::UnitVariant(_) => CENTRAL_COMMAND.send_message_rust(Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&**packed_file)))),
-                                                _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
+                                                DecodedPackedFile::AnimFragment(data) => CentralCommand::send_back(&sender, Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::AnimPack(data) => CentralCommand::send_back(&sender, Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&**packed_file)))),
+                                                DecodedPackedFile::AnimTable(data) => CentralCommand::send_back(&sender, Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::CaVp8(data) => CentralCommand::send_back(&sender, Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::ESF(data) => CentralCommand::send_back(&sender, Response::ESFPackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::DB(table) => CentralCommand::send_back(&sender, Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::Image(image) => CentralCommand::send_back(&sender, Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::Loc(table) => CentralCommand::send_back(&sender, Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::MatchedCombat(data) => CentralCommand::send_back(&sender, Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::RigidModel(rigid_model) => CentralCommand::send_back(&sender, Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::Text(text) => CentralCommand::send_back(&sender, Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::UIC(uic) => CentralCommand::send_back(&sender, Response::UICPackedFileInfo((uic.clone(), From::from(&**packed_file)))),
+                                                DecodedPackedFile::UnitVariant(_) => CentralCommand::send_back(&sender, Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&**packed_file)))),
+                                                _ => CentralCommand::send_back(&sender, Response::Unknown),
 
                                             }
                                         }
-                                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                     }
                                 }
-                                None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                                None => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                             }
                         }
                     }
@@ -593,27 +594,27 @@ pub fn background_loop() {
                                 match packed_file.decode_return_ref() {
                                     Ok(packed_file_data) => {
                                         match packed_file_data {
-                                            DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
-                                            DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::UIC(uic) => CENTRAL_COMMAND.send_message_rust(Response::UICPackedFileInfo((uic.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::UnitVariant(_) => CENTRAL_COMMAND.send_message_rust(Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&packed_file)))),
-                                            _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
+                                            DecodedPackedFile::AnimFragment(data) => CentralCommand::send_back(&sender, Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::AnimPack(data) => CentralCommand::send_back(&sender, Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
+                                            DecodedPackedFile::AnimTable(data) => CentralCommand::send_back(&sender, Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::CaVp8(data) => CentralCommand::send_back(&sender, Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::ESF(data) => CentralCommand::send_back(&sender, Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::DB(table) => CentralCommand::send_back(&sender, Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Image(image) => CentralCommand::send_back(&sender, Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Loc(table) => CentralCommand::send_back(&sender, Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::MatchedCombat(data) => CentralCommand::send_back(&sender, Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::RigidModel(rigid_model) => CentralCommand::send_back(&sender, Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Text(text) => CentralCommand::send_back(&sender, Response::TextPackedFileInfo((text.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::UIC(uic) => CentralCommand::send_back(&sender, Response::UICPackedFileInfo((uic.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::UnitVariant(_) => CentralCommand::send_back(&sender, Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&packed_file)))),
+                                            _ => CentralCommand::send_back(&sender, Response::Unknown),
 
                                         }
                                     }
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
                             }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     }
                     DataSource::GameFiles => {
@@ -622,33 +623,33 @@ pub fn background_loop() {
                                 match packed_file.decode_return_ref() {
                                     Ok(packed_file_data) => {
                                         match packed_file_data {
-                                            DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
-                                            DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::ESF(data) => CENTRAL_COMMAND.send_message_rust(Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::UIC(uic) => CENTRAL_COMMAND.send_message_rust(Response::UICPackedFileInfo((uic.clone(), From::from(&packed_file)))),
-                                            DecodedPackedFile::UnitVariant(_) => CENTRAL_COMMAND.send_message_rust(Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&packed_file)))),
-                                            _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
+                                            DecodedPackedFile::AnimFragment(data) => CentralCommand::send_back(&sender, Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::AnimPack(data) => CentralCommand::send_back(&sender, Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&packed_file)))),
+                                            DecodedPackedFile::AnimTable(data) => CentralCommand::send_back(&sender, Response::AnimTablePackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::CaVp8(data) => CentralCommand::send_back(&sender, Response::CaVp8PackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::ESF(data) => CentralCommand::send_back(&sender, Response::ESFPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::DB(table) => CentralCommand::send_back(&sender, Response::DBPackedFileInfo((table.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Image(image) => CentralCommand::send_back(&sender, Response::ImagePackedFileInfo((image.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Loc(table) => CentralCommand::send_back(&sender, Response::LocPackedFileInfo((table.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::MatchedCombat(data) => CentralCommand::send_back(&sender, Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::RigidModel(rigid_model) => CentralCommand::send_back(&sender, Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::Text(text) => CentralCommand::send_back(&sender, Response::TextPackedFileInfo((text.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::UIC(uic) => CentralCommand::send_back(&sender, Response::UICPackedFileInfo((uic.clone(), From::from(&packed_file)))),
+                                            DecodedPackedFile::UnitVariant(_) => CentralCommand::send_back(&sender, Response::DecodedPackedFilePackedFileInfo((packed_file_data.clone(), From::from(&packed_file)))),
+                                            _ => CentralCommand::send_back(&sender, Response::Unknown),
 
                                         }
                                     }
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
                             }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     }
                     DataSource::AssKitFiles => {
                         match dependencies.get_packedfile_from_asskit_files(&path) {
-                            Ok(db) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((db, PackedFileInfo::default()))),
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Ok(db) => CentralCommand::send_back(&sender, Response::DBPackedFileInfo((db, PackedFileInfo::default()))),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     }
 
@@ -667,74 +668,74 @@ pub fn background_loop() {
                 else if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     *packed_file.get_ref_mut_decoded() = decoded_packed_file;
                 }
-                CENTRAL_COMMAND.send_message_save_packedfile(Response::Success);
+                CentralCommand::send_back(&sender, Response::Success);
             }
 
             // In case we want to delete PackedFiles from a PackFile...
             Command::DeletePackedFiles(item_types) => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecPathType(pack_file_decoded.remove_packed_files_by_type(&item_types)));
+                CentralCommand::send_back(&sender, Response::VecPathType(pack_file_decoded.remove_packed_files_by_type(&item_types)));
             }
 
             // In case we want to extract PackedFiles from a PackFile...
             Command::ExtractPackedFiles(item_types, path, extract_tables_to_tsv) => {
                 match pack_file_decoded.extract_packed_files_by_type(&item_types, &path, extract_tables_to_tsv) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(tre("files_extracted_success", &[&result.to_string()]))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(result) => CentralCommand::send_back(&sender, Response::String(tre("files_extracted_success", &[&result.to_string()]))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to rename one or more PackedFiles...
             Command::RenamePackedFiles(renaming_data) => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeVecString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
+                CentralCommand::send_back(&sender, Response::VecPathTypeVecString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
             }
 
             // In case we want to Mass-Import TSV Files...
             Command::MassImportTSV(paths, name) => {
                 match pack_file_decoded.mass_import_tsv(&paths, name, true) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString(result)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(result) => CentralCommand::send_back(&sender, Response::VecVecStringVecVecString(result)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to Mass-Export TSV Files...
             Command::MassExportTSV(path_types, path) => {
                 match pack_file_decoded.mass_export_tsv(&path_types, &path) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(result)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(result) => CentralCommand::send_back(&sender, Response::String(result)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path)));
+                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.folder_exists(&path)));
             }
 
             // In case we want to know if PackedFile exists, knowing his path...
             Command::PackedFileExists(path) => {
-                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path)));
+                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.packedfile_exists(&path)));
             }
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
                 let tables = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true).iter().map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
-                CENTRAL_COMMAND.send_message_rust(Response::VecString(tables));
+                CentralCommand::send_back(&sender, Response::VecString(tables));
             }
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.get_version())),
-                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                     }
-                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
             Command::MergeTables(paths, name, delete_source_files) => {
                 match pack_file_decoded.merge_tables(&paths, &name, delete_source_files) {
-                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::VecString(data)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(data) => CentralCommand::send_back(&sender, Response::VecString(data)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -749,29 +750,29 @@ pub fn background_loop() {
 
                                         // Save it to binary, so the decoder will load the proper data if we open it with it.
                                         let _ = packed_file.encode_no_load();
-                                        CENTRAL_COMMAND.send_message_rust(Response::I32I32(data))
+                                        CentralCommand::send_back(&sender, Response::I32I32(data))
                                     },
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
-                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                             }
-                        } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
-                    } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
-                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
+                        } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())); }
+                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
             // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceMatches(mut global_search, matches) => {
                 let _ = global_search.replace_matches(&mut pack_file_decoded, &matches);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+                CentralCommand::send_back(&sender, Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
             }
 
             // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceAll(mut global_search) => {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+                CentralCommand::send_back(&sender, Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
             }
 
             // In case we want to get the reference data for a definition...
@@ -800,11 +801,11 @@ pub fn background_loop() {
                     )
                 };
 
-                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32DependencyData(dependency_data));
+                CentralCommand::send_back(&sender, Response::BTreeMapI32DependencyData(dependency_data));
             }
 
             // In case we want to return an entire PackedFile to the UI.
-            Command::GetPackedFile(path) => CENTRAL_COMMAND.send_message_rust(Response::OptionPackedFile(pack_file_decoded.get_packed_file_by_path(&path))),
+            Command::GetPackedFile(path) => CentralCommand::send_back(&sender, Response::OptionPackedFile(pack_file_decoded.get_packed_file_by_path(&path))),
 
             // In case we want to change the format of a ca_vp8 video...
             Command::SetCaVp8Format((path, format)) => {
@@ -817,10 +818,10 @@ pub fn background_loop() {
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                    None => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             },
 
@@ -829,9 +830,9 @@ pub fn background_loop() {
                 match schema.save(GAME_SELECTED.read().unwrap().get_schema_name()) {
                     Ok(_) => {
                         *SCHEMA.write().unwrap() = Some(schema);
-                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                        CentralCommand::send_back(&sender, Response::Success);
                     },
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -846,21 +847,21 @@ pub fn background_loop() {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
                     Some(packed_file) => match packed_file.get_decoded() {
                         DecodedPackedFile::DB(data) => match data.export_tsv(&external_path, &internal_path[1], &packed_file.get_path()) {
-                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                         },
                         DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, TSV_NAME_LOC, &packed_file.get_path()) {
-                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                         },
                         /*
                         DecodedPackedFile::DependencyPackFileList(data) => match data.export_tsv(&[external_path]) {
-                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                         },*/
                         _ => unimplemented!()
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
@@ -871,19 +872,19 @@ pub fn background_loop() {
                         match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
                             Some(packed_file) => match packed_file.get_packed_file_type(false) {
                                 PackedFileType::DB => match DB::import_tsv(&schema, &external_path) {
-                                    Ok((data, _)) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
-                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Ok((data, _)) => CentralCommand::send_back(&sender, Response::TableType(TableType::DB(data))),
+                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                 },
                                 PackedFileType::Loc => match Loc::import_tsv(&schema, &external_path) {
-                                    Ok((data, _)) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
-                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Ok((data, _)) => CentralCommand::send_back(&sender, Response::TableType(TableType::Loc(data))),
+                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                 },
                                 _ => unimplemented!()
                             }
-                            None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                            None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
                 }
             }
 
@@ -895,14 +896,14 @@ pub fn background_loop() {
                     let mut temp_path = pack_file_decoded.get_file_path().to_path_buf();
                     temp_path.pop();
                     if open::that(&temp_path).is_err() {
-                        CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackFileIsNotAFile.into()));
+                        CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackFileIsNotAFile.into()));
                     }
                     else {
-                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                        CentralCommand::send_back(&sender, Response::Success);
                     }
                 }
                 else {
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackFileIsNotAFile.into()));
+                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackFileIsNotAFile.into()));
                 }
             },
 
@@ -925,13 +926,13 @@ pub fn background_loop() {
                                             match data.export_tsv(&temporal_file_path, &path[1], &packed_file.get_path()) {
                                                 Ok(_) => {
                                                     that_in_background(&temporal_file_path);
-                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
                                                 }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                             }
                                         }
                                     },
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
                             },
 
@@ -943,13 +944,13 @@ pub fn background_loop() {
                                             match data.export_tsv(&temporal_file_path, TSV_NAME_LOC, &packed_file.get_path()) {
                                                 Ok(_) => {
                                                     that_in_background(&temporal_file_path);
-                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
                                                 }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                             }
                                         }
                                     },
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
                             },
 
@@ -961,21 +962,21 @@ pub fn background_loop() {
                                             Ok(mut file) => {
                                                 if file.write_all(&data).is_ok() {
                                                     that_in_background(&temporal_file_path);
-                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
                                                 }
                                                 else {
-                                                    CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
+                                                    CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
                                                 }
                                             }
-                                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
+                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
                                         }
                                     }
-                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                 }
                             }
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
@@ -997,11 +998,11 @@ pub fn background_loop() {
                                                             Ok((new_data, _)) => {
                                                                 *data = new_data;
                                                                 match packed_file.encode_and_clean_cache() {
-                                                                    Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
-                                                                    Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                                                 }
                                                             }
-                                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                                         }
                                                     }
                                                     DecodedPackedFile::Loc(ref mut data) => {
@@ -1009,20 +1010,20 @@ pub fn background_loop() {
                                                             Ok((new_data, _)) => {
                                                                 *data = new_data;
                                                                 match packed_file.encode_and_clean_cache() {
-                                                                    Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
-                                                                    Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                                                                 }
                                                             }
-                                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                                         }
                                                     }
                                                     _ => unimplemented!(),
                                                 }
                                             },
-                                            Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
+                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
                                         }
                                     }
-                                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())),
+                                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
                                 }
                             },
 
@@ -1033,17 +1034,17 @@ pub fn background_loop() {
                                         match file.read_to_end(&mut data) {
                                             Ok(_) => {
                                                 packed_file.set_raw_data(&data);
-                                                CENTRAL_COMMAND.send_message_save_packedfile(Response::Success);
+                                                CentralCommand::send_back(&sender, Response::Success);
                                             }
-                                            Err(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::IOGeneric.into())),
+                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOGeneric.into())),
                                         }
                                     }
-                                    Err(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::IOGeneric.into())),
+                                    Err(_) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOGeneric.into())),
                                 }
                             }
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
@@ -1064,25 +1065,25 @@ pub fn background_loop() {
                         // Then rebuild the dependencies stuff.
                         if dependencies.game_has_dependencies_generated() {
                             match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
-                                Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaUpdateRebuildError(error.to_string()).into())),
+                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaUpdateRebuildError(error.to_string()).into())),
                             }
                         }
 
                         // Otherwise, just report the schema update success, and don't leave the ui waiting eternally again...
                         else {
-                            CENTRAL_COMMAND.send_message_rust(Response::Success);
+                            CentralCommand::send_back(&sender, Response::Success);
                         }
                     },
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
             // When we want to update our program...
             Command::UpdateMainProgram => {
                 match rpfm_lib::updater::update_main_program() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -1105,7 +1106,7 @@ pub fn background_loop() {
                         pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
                         diag.check(&pack_file_decoded, &dependencies);
                     }
-                    CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
+                    CentralCommand::send_back(&sender, Response::Diagnostics(diag));
                 }));
             }
 
@@ -1113,15 +1114,15 @@ pub fn background_loop() {
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
                 diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
                 let packed_files_info = diagnostics.get_update_paths_packed_file_info(&pack_file_decoded, &path_types);
-                CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
+                CentralCommand::send_back(&sender, Response::DiagnosticsVecPackedFileInfo(diagnostics, packed_files_info));
             }
 
             // In case we want to get the open PackFile's Settings...
             Command::GetPackFileSettings(is_autosave) => {
                 if is_autosave {
-                    CENTRAL_COMMAND.send_message_save_packfile(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+                    CentralCommand::send_back(&sender, Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
                 } else {
-                    CENTRAL_COMMAND.send_message_rust(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+                    CentralCommand::send_back(&sender, Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
                 }
             }
 
@@ -1166,14 +1167,14 @@ pub fn background_loop() {
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
                 let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), rebuild_only_current_mod_dependencies);
                 let dependencies_info = DependenciesInfo::from(&dependencies);
-                CENTRAL_COMMAND.send_message_dependencies_info_to_qt(dependencies_info);
+                CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
             },
 
             Command::CascadeEdition(editions) => {
                 let edited_paths = DB::cascade_edition(&editions, &mut pack_file_decoded);
                 let edited_paths_2 = edited_paths.iter().map(|x| &**x).collect::<Vec<&[String]>>();
                 let packed_files_info = pack_file_decoded.get_ref_packed_files_by_paths(edited_paths_2).iter().map(|x| PackedFileInfo::from(*x)).collect::<Vec<PackedFileInfo>>();
-                CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info));
+                CentralCommand::send_back(&sender, Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info));
             }
 
             Command::GoToDefinition(ref_table, ref_column, ref_data) => {
@@ -1183,7 +1184,7 @@ pub fn background_loop() {
                 for packed_file in &packed_files {
                     if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
                         if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
-                            CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::PackFile, packed_file.get_path().to_vec(), column_index, row_index));
+                            CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::PackFile, packed_file.get_path().to_vec(), column_index, row_index));
                             found = true;
                             break;
                         }
@@ -1196,7 +1197,7 @@ pub fn background_loop() {
                         if packed_file.get_path().starts_with(&table_folder) {
                             if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
                                 if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
-                                    CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
                                     found = true;
                                     break;
                                 }
@@ -1211,7 +1212,7 @@ pub fn background_loop() {
                         if packed_file.get_path().starts_with(&table_folder) {
                             if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
                                 if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
-                                    CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
                                     found = true;
                                     break;
                                 }
@@ -1226,7 +1227,7 @@ pub fn background_loop() {
                         if table.get_ref_table_name() == table_folder[1] {
                             if let Some((column_index, row_index)) = table.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
                                 let path = vec![table_folder[0].to_owned(), table_folder[1].to_owned(), "ak_data".to_owned()];
-                                CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index));
+                                CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index));
                                 found = true;
                                 break;
                             }
@@ -1235,7 +1236,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GenericHTMLError(tr("source_data_for_field_not_found")).into()));
+                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::GenericHTMLError(tr("source_data_for_field_not_found")).into()));
                 }
             },
 
@@ -1245,7 +1246,7 @@ pub fn background_loop() {
                 for packed_file in &packed_files {
                     if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
                         if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
-                            CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::PackFile, packed_file.get_path().to_vec(), column_index, row_index));
+                            CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::PackFile, packed_file.get_path().to_vec(), column_index, row_index));
                             found = true;
                             break;
                         }
@@ -1257,7 +1258,7 @@ pub fn background_loop() {
                     for packed_file in &packed_files {
                         if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
                             if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
-                                CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
                                 found = true;
                                 break;
                             }
@@ -1270,7 +1271,7 @@ pub fn background_loop() {
                     for packed_file in &packed_files {
                         if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
                             if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
-                                CENTRAL_COMMAND.send_message_rust(Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
                                 found = true;
                                 break;
                             }
@@ -1279,25 +1280,25 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::GenericHTMLError(tr("loc_key_not_found")).into()));
+                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::GenericHTMLError(tr("loc_key_not_found")).into()));
                 }
             },
 
-            Command::GetSourceDataFromLocKey(loc_key) => CENTRAL_COMMAND.send_message_rust(Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
+            Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
             Command::GetPackedFileType(path) => {
                 let packed_file = RawPackedFile::read_from_vec(path, String::new(), 0, false, vec![]);
-                CENTRAL_COMMAND.send_message_rust(Response::PackedFileType(PackedFileType::get_packed_file_type(&packed_file, false)));
+                CentralCommand::send_back(&sender, Response::PackedFileType(PackedFileType::get_packed_file_type(&packed_file, false)));
             }
-            Command::GetPackFileName => CENTRAL_COMMAND.send_message_rust(Response::String(pack_file_decoded.get_file_name())),
+            Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.get_file_name())),
             Command::GetPackedFileRawData(path) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(ref mut packed_file) => {
                         match packed_file.get_ref_raw().get_raw_data() {
-                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::VecU8(data.clone())),
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.clone())),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                    None => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             },
 
@@ -1333,11 +1334,11 @@ pub fn background_loop() {
                 }
 
                 if !error_paths.is_empty() {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
-                    CENTRAL_COMMAND.send_message_rust(Response::VecVecString(error_paths));
+                    CentralCommand::send_back(&sender, Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CentralCommand::send_back(&sender, Response::VecVecString(error_paths));
                 } else {
-                    CENTRAL_COMMAND.send_message_rust(Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
-                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                    CentralCommand::send_back(&sender, Response::VecPathType(added_paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                    CentralCommand::send_back(&sender, Response::Success);
                 }
             },
 
@@ -1380,7 +1381,7 @@ pub fn background_loop() {
                 packed_files.insert(DataSource::PackFile, packed_files_packfile);
 
                 // Return the full list of PackedFiles requested, splited by source.
-                CENTRAL_COMMAND.send_message_rust(Response::HashMapDataSourceBTreeMapVecStringPackedFile(packed_files));
+                CentralCommand::send_back(&sender, Response::HashMapDataSourceBTreeMapVecStringPackedFile(packed_files));
             },
 
             // TODO: This has to be case insensitive.
@@ -1400,8 +1401,8 @@ pub fn background_loop() {
 
                 // Then, optimize the PackFile. This should remove any non-edited rows/files.
                 match pack_file_decoded.optimize(&dependencies) {
-                    Ok(paths_to_delete) => CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString((added_paths, paths_to_delete))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecVecStringVecVecString((added_paths, paths_to_delete))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             },
 

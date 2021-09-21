@@ -47,7 +47,7 @@ use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -923,14 +923,14 @@ impl PackTree for QBox<QTreeView> {
                             data
                         }
                         else if let Some(ref path) = build_data.path {
-                            CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
-                            let response = CENTRAL_COMMAND.recv_message_qt();
+                            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
+                            let response = CentralCommand::recv(&receiver);
                             if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
                             else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
                         }
                         else {
-                            CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
-                            let response = CENTRAL_COMMAND.recv_message_qt();
+                            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
+                            let response = CentralCommand::recv(&receiver);
                             if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
                             else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
                         };
@@ -1225,8 +1225,8 @@ impl PackTree for QBox<QTreeView> {
                     }
                 }
 
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesInfo(item_paths));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
+                let response = CentralCommand::recv(&receiver);
                 let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                 for (item_type, packed_file_info) in item_types.iter().zip(packed_files_info.iter()) {
 
@@ -1571,8 +1571,8 @@ impl PackTree for QBox<QTreeView> {
 
                             // If its a file, we get his new info and put it in a tooltip.
                             if let TreePathType::File(_) = path_type {
-                                CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileInfo(path.to_vec()));
+                                let response = CentralCommand::recv(&receiver);
                                 let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if let Some(info) = packed_file_info {
                                     let tooltip = new_packed_file_tooltip(&info);
@@ -1622,8 +1622,8 @@ impl PackTree for QBox<QTreeView> {
 
                 // First, get the `PackedFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
                 let new_paths = path_types.iter().map(|(_, y)| y.to_vec()).collect::<Vec<Vec<String>>>();
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesInfo(new_paths));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(new_paths));
+                let response = CentralCommand::recv(&receiver);
                 let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                 for ((path_type, new_path), packed_file_info) in path_types.iter().zip(packed_files_info.iter())  {
@@ -1658,8 +1658,8 @@ impl PackTree for QBox<QTreeView> {
 
                                 // If its a file, we get his new info and put it in a tooltip.
                                 if let TreePathType::File(_) = item_type {
-                                    CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                                    let response = CENTRAL_COMMAND.recv_message_qt();
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileInfo(path.to_vec()));
+                                    let response = CentralCommand::recv(&receiver);
                                     let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);

@@ -50,7 +50,7 @@ use rpfm_lib::settings::init_config_path;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
-use crate::communications::{CentralCommand, Command};
+use crate::communications::{CentralCommand, Command, Response};
 use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::ui::GameSelectedIcons;
@@ -257,7 +257,7 @@ lazy_static! {
     };
 
     /// Global variable to hold the sender/receivers used to comunicate between threads.
-    static ref CENTRAL_COMMAND: CentralCommand = CentralCommand::default();
+    static ref CENTRAL_COMMAND: CentralCommand<Response> = CentralCommand::default();
 
     /// Global variable to hold certain info about the current state of the UI.
     static ref UI_STATE: UIState = UIState::default();
@@ -312,8 +312,8 @@ fn main() {
         let exit_code = unsafe { QApplication::exec() };
 
         // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
-        CENTRAL_COMMAND.send_message_qt(Command::Exit);
-        CENTRAL_COMMAND.send_message_qt_to_network(Command::Exit);
+        CENTRAL_COMMAND.send_background(Command::Exit);
+        CENTRAL_COMMAND.send_network(Command::Exit);
 
         let _ = bac_handle.join();
         let _ = net_handle.join();

@@ -19,7 +19,6 @@ use crossbeam::channel::{Receiver, Sender, unbounded};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::path::PathBuf;
-use std::process::exit;
 
 use rpfm_error::Error;
 
@@ -57,28 +56,12 @@ pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Se
 /// This struct contains the senders and receivers necessary to communicate both, backend and frontend threads.
 ///
 /// You can use them by using the send/recv functions implemented for it.
-pub struct CentralCommand {
-    sender_qt: Sender<Command>,
-    sender_rust: Sender<Response>,
-    sender_qt_to_network: Sender<Command>,
-    sender_network_to_qt: Sender<Response>,
-    sender_diagnostics_to_qt: Sender<Diagnostics>,
-    sender_diagnostics_update_to_qt: Sender<(Diagnostics, Vec<PackedFileInfo>)>,
-    sender_global_search_update_to_qt: Sender<(GlobalSearch, Vec<PackedFileInfo>)>,
-    sender_dependencies_info_to_qt: Sender<DependenciesInfo>,
-    sender_save_packfile: Sender<Response>,
-    sender_save_packedfile: Sender<Response>,
+pub struct CentralCommand<T: Send + Sync + Debug> {
+    sender_background: Sender<(Sender<T>, Command)>,
+    sender_network:  Sender<(Sender<T>, Command)>,
 
-    receiver_qt: Receiver<Response>,
-    receiver_rust: Receiver<Command>,
-    receiver_qt_to_network: Receiver<Command>,
-    receiver_network_to_qt: Receiver<Response>,
-    receiver_diagnostics_to_qt: Receiver<Diagnostics>,
-    receiver_diagnostics_update_to_qt: Receiver<(Diagnostics, Vec<PackedFileInfo>)>,
-    receiver_global_search_update_to_qt: Receiver<(GlobalSearch, Vec<PackedFileInfo>)>,
-    receiver_dependencies_info_to_qt: Receiver<DependenciesInfo>,
-    receiver_save_packfile: Receiver<Response>,
-    receiver_save_packedfile: Receiver<Response>,
+    receiver_background: Receiver<(Sender<T>, Command)>,
+    receiver_network:  Receiver<(Sender<T>, Command)>,
 }
 
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
@@ -491,13 +474,8 @@ pub enum Response {
 
     /// Response to return `HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceBTreeMapVecStringPackedFile(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>),
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub enum Notification {
-    Error(Error),
-    Done,
+    Diagnostics(Diagnostics),
+    DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -505,114 +483,81 @@ pub enum Notification {
 //-------------------------------------------------------------------------------//
 
 /// Default implementation of `CentralCommand`.
-impl Default for CentralCommand {
+impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
     fn default() -> Self {
-        let command_channel = unbounded();
-        let response_channel = unbounded();
-        let network_command_channel = unbounded();
-        let network_response_channel = unbounded();
-        let diagnostics_response_channel = unbounded();
-        let diagnostics_update_response_channel = unbounded();
-        let global_search_update_response_channel = unbounded();
-        let dependencies_info_channel = unbounded();
-        let save_packedfile_response_channel = unbounded();
-        let save_packfile_response_channel = unbounded();
+        let (sender_background, receiver_background) = unbounded();
+        let (sender_network, receiver_network) = unbounded();
         Self {
-            sender_qt: command_channel.0,
-            sender_rust: response_channel.0,
-            sender_qt_to_network: network_command_channel.0,
-            sender_network_to_qt: network_response_channel.0,
-            sender_diagnostics_to_qt: diagnostics_response_channel.0,
-            sender_diagnostics_update_to_qt: diagnostics_update_response_channel.0,
-            sender_global_search_update_to_qt: global_search_update_response_channel.0,
-            sender_dependencies_info_to_qt: dependencies_info_channel.0,
-            sender_save_packfile: save_packfile_response_channel.0,
-            sender_save_packedfile: save_packedfile_response_channel.0,
-            receiver_qt: response_channel.1,
-            receiver_rust: command_channel.1,
-            receiver_qt_to_network: network_command_channel.1,
-            receiver_network_to_qt: network_response_channel.1,
-            receiver_diagnostics_to_qt: diagnostics_response_channel.1,
-            receiver_diagnostics_update_to_qt: diagnostics_update_response_channel.1,
-            receiver_global_search_update_to_qt: global_search_update_response_channel.1,
-            receiver_dependencies_info_to_qt: dependencies_info_channel.1,
-            receiver_save_packfile: save_packfile_response_channel.1,
-            receiver_save_packedfile: save_packedfile_response_channel.1,
+            sender_background,
+            sender_network,
+            receiver_background,
+            receiver_network,
         }
     }
 }
 
 /// Implementation of `CentralCommand`.
-impl CentralCommand {
+impl<T: Send + Sync + Debug> CentralCommand<T> {
 
-    /// This function serves to send message from the main thread to the background thread.
-    pub fn send_message_qt(&self, data: Command) {
-        Self::send_message(&self.sender_qt, data)
+    /// This function serves as a generic way for commands to be sent to the backend.
+    ///
+    /// It returns the receiver which will receive the answers for the command, if any.
+    fn send<S: Send + Sync + Debug>(sender: &Sender<(Sender<T>, S)>, data: S) -> Receiver<T> {
+        let (sender_back, receiver_back) = unbounded();
+        if let Err(error) = sender.send((sender_back, data)) {
+            panic!("{}: {}", THREADS_SENDER_ERROR, error);
+        }
+
+        receiver_back
     }
 
-    /// This function serves to send message from the background thread to the main thread.
-    pub fn send_message_rust(&self, data: Response) {
-        Self::send_message(&self.sender_rust, data)
+    /// This function serves to send a message from the main thread to the background thread.
+    ///
+    /// It returns the receiver which will receive the answers for the command, if any.
+    pub fn send_background(&self, data: Command) -> Receiver<T> {
+        Self::send(&self.sender_background, data)
     }
 
-    /// This function serves to send message from the main thread to the network thread.
-    pub fn send_message_qt_to_network(&self, data: Command) {
-        Self::send_message(&self.sender_qt_to_network, data)
+    /// This function serves to send a message from the main thread to the network thread.
+    ///
+    /// It returns the receiver which will receive the answers for the command, if any.
+    pub fn send_network(&self, data: Command) -> Receiver<T> {
+        Self::send(&self.sender_network, data)
     }
 
-    /// This function serves to send message from the main thread to the network thread.
-    pub fn send_message_network_to_qt(&self, data: Response) {
-        Self::send_message(&self.sender_network_to_qt, data)
-    }
-
-    /// This function serves to send diagnostics message from the background thread to the main thread.
-    pub fn send_message_diagnostics_to_qt(&self, data: Diagnostics) {
-        Self::send_message(&self.sender_diagnostics_to_qt, data)
-    }
-
-    /// This function serves to send diagnostics message from the background thread to the main thread.
-    pub fn send_message_diagnostics_update_to_qt(&self, data: (Diagnostics, Vec<PackedFileInfo>)) {
-        Self::send_message(&self.sender_diagnostics_update_to_qt, data)
-    }
-
-    /// This function serves to send a global search message from the background thread to the main thread.
-    pub fn send_message_global_search_update_to_qt(&self, data: (GlobalSearch, Vec<PackedFileInfo>)) {
-        Self::send_message(&self.sender_global_search_update_to_qt, data)
-    }
-
-    /// This function serves to send dependencies messages from the background thread to the main thread.
-    pub fn send_message_dependencies_info_to_qt(&self, data: DependenciesInfo) {
-        Self::send_message(&self.sender_dependencies_info_to_qt, data)
-    }
-
-    /// This function serves to send message from the background thread to the main thread when a PackedFile is saved.
-    pub fn send_message_save_packedfile(&self, data: Response) {
-        Self::send_message(&self.sender_save_packedfile, data)
-    }
-
-    /// This function serves to send message from the background thread to the main thread when an automatic PackFile save is triggered.
-    pub fn send_message_save_packfile(&self, data: Response) {
-        Self::send_message(&self.sender_save_packfile, data)
-    }
-
-    /// Generic function to send a message, or crash in a controlled way in case of failure.
-    fn send_message<T: Send + Sync + Debug>(sender: &Sender<T>, data: T) {
+    /// This function serves to send a message back through a generated channel.
+    pub fn send_back(sender: &Sender<T>, data: T) {
         if let Err(error) = sender.send(data) {
             panic!("{}: {}", THREADS_SENDER_ERROR, error);
         }
     }
 
-    /// This functions serves to receive messages from the background thread into the main thread.
+    /// This functions serves to receive messages on the background thread.
     ///
-    /// This function does only try once, and it locks the thread. Use it only in small stuff.
-    pub fn recv_message_qt(&self) -> Response {
-        Self::recv_message(&self.receiver_qt)
+    /// This function does only try once, and it locks the thread. Panics if the response fails.
+    pub fn recv_background(&self) -> (Sender<T>, Command) {
+        let response = self.receiver_background.recv();
+        match response {
+            Ok(data) => data,
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+        }
     }
 
-    /// This functions serves to receive messages from the background thread into the main thread.
+    /// This functions serves to receive messages on the network thread.
     ///
-    /// This function does only try once, and it locks the thread. Use it only in small stuff.
-    fn recv_message<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
+    /// This function does only try once, and it locks the thread. Panics if the response fails.
+    pub fn recv_network(&self) -> (Sender<T>, Command) {
+        let response = self.receiver_network.recv();
+        match response {
+            Ok(data) => data,
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+        }
+    }
+
+    /// This functions serves to receive messages from a generated channel.
+    ///
+    /// This function does only try once, and it locks the thread. Panics if the response fails.
+    pub fn recv(receiver: &Receiver<T>) -> T {
         let response = receiver.recv();
         match response {
             Ok(data) => data,
@@ -620,91 +565,12 @@ impl CentralCommand {
         }
     }
 
-    /// This functions serves to receive messages from the main thread into the background thread.
-    pub fn recv_message_rust(&self) -> Command {
-        Self::recv_message_exit_on_fail(&self.receiver_rust)
-    }
-
-    /// This functions serves to receive messages from the main thread into the network thread.
-    pub fn recv_message_qt_to_network(&self) -> Command {
-        Self::recv_message_exit_on_fail(&self.receiver_qt_to_network)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
-    /// This function does only try once, and it locks the thread. Use it only in small stuff.
-    fn recv_message_exit_on_fail<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
-        match receiver.recv() {
-            Ok(data) => data,
-
-            // If we hit an error here, it means the main thread is dead. So... report it and exit.
-            Err(_) => {
-                println!("Main UI Thread dead. Exiting...");
-                exit(0);
-            }
-        }
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
+    /// This functions serves to receive messages from a generated channel.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_diagnostics_to_qt_try(&self) -> Diagnostics {
-        Self::recv_message_try(&self.receiver_diagnostics_to_qt)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
     ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_diagnostics_update_to_qt_try(&self) -> (Diagnostics, Vec<PackedFileInfo>) {
-        Self::recv_message_try(&self.receiver_diagnostics_update_to_qt)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_global_search_update_to_qt_try(&self) -> (GlobalSearch, Vec<PackedFileInfo>) {
-        Self::recv_message_try(&self.receiver_global_search_update_to_qt)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_qt_try(&self) -> Response {
-        Self::recv_message_try(&self.receiver_qt)
-    }
-
-    /// This functions serves to receive messages from the network thread into the main thread.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_network_to_qt_try(&self) -> Response {
-        Self::recv_message_try(&self.receiver_network_to_qt)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_dependencies_info_to_qt_try(&self) -> DependenciesInfo {
-        Self::recv_message_try(&self.receiver_dependencies_info_to_qt)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread when a PackedFile is saved.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_save_packedfile_try(&self) -> Response {
-        Self::recv_message_try(&self.receiver_save_packedfile)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread when a PackFile is automatically saved.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    pub fn recv_message_save_packfile_try(&self) -> Response {
-        Self::recv_message_try(&self.receiver_save_packfile)
-    }
-
-    /// This functions serves to receive messages from the background thread into the main thread when a PackFile is automatically saved.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
-    fn recv_message_try<T: Send + Sync + Debug>(receiver: &Receiver<T>) -> T {
+    /// NOTE: Beware of other events triggering when this keeps the UI enabled. It can lead to crashes.
+    pub fn recv_try(receiver: &Receiver<T>) -> T {
         let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
@@ -712,7 +578,9 @@ impl CentralCommand {
             let response = receiver.try_recv();
             match response {
                 Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+                Err(error) => if error.is_disconnected() {
+                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                }
             }
             unsafe { event_loop.process_events_0a(); }
         }

@@ -43,7 +43,7 @@ use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -283,8 +283,8 @@ impl AppUISlots {
                 }
 
                 // Get the current path of the PackFile.
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+                let response = CentralCommand::recv(&receiver);
                 let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
                 let mut pack_image_path = pack_path.clone();
                 pack_image_path.set_extension("png");
@@ -342,8 +342,8 @@ impl AppUISlots {
             app_ui => move |_| {
 
                 // Get the current path of the PackFile.
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+                let response = CentralCommand::recv(&receiver);
                 let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
                 // Ensure it's a file and it's not in data before proceeding.
@@ -411,8 +411,8 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
-                CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::LoadAllCAPackFiles);
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
 
                     // If it's success....
@@ -489,7 +489,7 @@ impl AppUISlots {
                 };
 
                 // Send the type to the Background Thread, and update the UI.
-                CENTRAL_COMMAND.send_message_qt(Command::SetPackFileType(packfile_type));
+                let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileType(packfile_type));
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -499,7 +499,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_index_includes_timestamp.is_checked();
-                CENTRAL_COMMAND.send_message_qt(Command::ChangeIndexIncludesTimestamp(state));
+                let _ = CENTRAL_COMMAND.send_background(Command::ChangeIndexIncludesTimestamp(state));
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -509,7 +509,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_data_is_compressed.is_checked();
-                CENTRAL_COMMAND.send_message_qt(Command::ChangeDataIsCompressed(state));
+                let _ = CENTRAL_COMMAND.send_background(Command::ChangeDataIsCompressed(state));
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -526,8 +526,8 @@ impl AppUISlots {
                 if let Some(settings) = SettingsUI::new(&app_ui) {
 
                     // If we returned new settings, save them and wait for confirmation.
-                    CENTRAL_COMMAND.send_message_qt(Command::SetSettings(settings.clone()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::SetSettings(settings.clone()));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
 
                         // If it worked, do some checks to ensure the UI keeps his consistency.
@@ -656,9 +656,9 @@ impl AppUISlots {
                         app_ui.timer_backup_autosave.start_0a();
                     }
 
-                    CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
-                    CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.clone()));
-                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
+                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_path.clone()));
+                    let response = CentralCommand::recv_try(&receiver);
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
 
@@ -770,7 +770,7 @@ impl AppUISlots {
                     // If we deleted the "MyMod", we allow chaos to form below.
                     if mod_deleted {
                         UI_STATE.set_operational_mode(&app_ui, None);
-                        CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
+                        let _ = CENTRAL_COMMAND.send_background(Command::ResetPackFile);
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -919,8 +919,8 @@ impl AppUISlots {
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
 
-                    CENTRAL_COMMAND.send_message_qt(Command::GenerateDependenciesCache(asskit_path, version));
-                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache(asskit_path, version));
+                    let response = CentralCommand::recv_try(&receiver);
                     match response {
                         Response::DependenciesInfo(response) => {
                             let mut parent_build_data = BuildData::new();
@@ -964,8 +964,8 @@ impl AppUISlots {
 
                     GlobalSearchUI::clear(&global_search_ui);
 
-                    CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
-                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
+                    let response = CentralCommand::recv_try(&receiver);
                     match response {
                         Response::VecVecString(response) => {
                             let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
@@ -998,8 +998,8 @@ impl AppUISlots {
 
                 GlobalSearchUI::clear(&global_search_ui);
 
-                CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::PatchSiegeAI);
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
                     Response::StringVecVecString(response) => {
                         let message = response.0;
@@ -1044,8 +1044,8 @@ impl AppUISlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                        CENTRAL_COMMAND.send_message_qt(Command::CleanAndSavePackFileAs(path));
-                        let response = CENTRAL_COMMAND.recv_message_qt_try();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::CleanAndSavePackFileAs(path));
+                        let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::PackFileInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
@@ -1218,8 +1218,8 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
-                CENTRAL_COMMAND.send_message_qt(Command::UpdateCurrentSchemaFromAssKit(path));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit(path));
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
                     Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1298,8 +1298,8 @@ impl AppUISlots {
         // Autosave slot.
         let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(true));
-                let response = CENTRAL_COMMAND.recv_message_save_packfile_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(true));
+                let response = CentralCommand::recv_try(&receiver);
                 let settings = match response {
                     Response::PackFileSettings(settings) => settings,
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -1307,7 +1307,7 @@ impl AppUISlots {
 
                 if let Some(disable_autosaves) = settings.settings_bool.get("disable_autosaves") {
                     if !disable_autosaves {
-                        CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
+                        let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
                         log_to_status_bar(&tr("autosaving"));
                         //app_ui.main_window.set_enabled(false);
                         //let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();

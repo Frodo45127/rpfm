@@ -411,8 +411,8 @@ impl TableViewSlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
-                        CENTRAL_COMMAND.send_message_qt(Command::ImportTSV((packed_file_path.read().unwrap().to_vec(), path)));
-                        let response = CENTRAL_COMMAND.recv_message_qt_try();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                        let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::TableType(data) => {
                                 let old_data = view.get_copy_of_table();
@@ -490,8 +490,8 @@ impl TableViewSlots {
                                 }
                             }
 
-                            CENTRAL_COMMAND.send_message_qt(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
-                            let response = CENTRAL_COMMAND.recv_message_qt_try();
+                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                            let response = CentralCommand::recv_try(&receiver);
                             match response {
                                 Response::Success => return,
                                 Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),

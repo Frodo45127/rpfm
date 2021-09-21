@@ -31,7 +31,7 @@ use rpfm_lib::packedfile::text::Text;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -317,7 +317,7 @@ impl PackedFileView {
                             // These ones are a bit special. We just need to send back the current format of the video.
                             PackedFileType::CaVp8 => {
                                 if let View::CaVp8(view) = view {
-                                    CENTRAL_COMMAND.send_message_qt(Command::SetCaVp8Format((self.get_path(), view.get_current_format())));
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetCaVp8Format((self.get_path(), view.get_current_format())));
                                     return Ok(())
                                 } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                             },
@@ -350,7 +350,7 @@ impl PackedFileView {
                                 }
 
                                 // Save the new list and return Ok.
-                                CENTRAL_COMMAND.send_message_qt(Command::SetDependencyPackFilesList(entries));
+                                let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
 
                                 // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
@@ -361,7 +361,7 @@ impl PackedFileView {
 
                             PackedFileType::PackFileSettings => {
                                 if let View::PackFileSettings(view) = view {
-                                    CENTRAL_COMMAND.send_message_qt(Command::SetPackFileSettings(view.save_view()));
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileSettings(view.save_view()));
                                     return Ok(())
                                 } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                             },
@@ -389,8 +389,8 @@ impl PackedFileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(self.get_path(), data));
-                        let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(self.get_path(), data));
+                        let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::Success => {
                                 Ok(())
@@ -401,8 +401,8 @@ impl PackedFileView {
                         }
                     },
                     ViewType::External(view) => {
-                        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((self.get_path(), view.get_external_path())));
-                        let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromExternalView((self.get_path(), view.get_external_path())));
+                        let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::Success => {},
                             Response::Error(error) => show_dialog(&pack_file_contents_ui.packfile_contents_tree_view, error, false),
@@ -431,8 +431,8 @@ impl PackedFileView {
             match self.get_ref_mut_view() {
                 ViewType::Internal(view) => {
 
-                    CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec(), data_source));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_vec(), data_source));
+                    let response = CentralCommand::recv(&receiver);
 
                     match response {
 

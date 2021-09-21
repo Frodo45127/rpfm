@@ -49,7 +49,7 @@ use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
 
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::{new_text_editor_safe, set_text_safe};
 use crate::locale::{qtr, qtre};
 use crate::ORANGE;
@@ -265,8 +265,8 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
 
 /// Util function to get the PackedFileType of a PackedFile in a reliable way.
 pub fn get_packed_file_type(path: &[String]) -> PackedFileType {
-    CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileType(path.to_vec()));
-    let response = CENTRAL_COMMAND.recv_message_qt();
+    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileType(path.to_vec()));
+    let response = CentralCommand::recv(&receiver);
     match response {
         Response::PackedFileType(packed_file_type) => packed_file_type,
         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

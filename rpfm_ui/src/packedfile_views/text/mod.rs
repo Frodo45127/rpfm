@@ -71,8 +71,8 @@ impl PackedFileTextView {
     ) -> Result<Option<PackedFileInfo>> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
+        let response = CentralCommand::recv(&receiver);
         let (text, packed_file_info) = match response {
             Response::TextPackedFileInfo((text, packed_file_info)) => (text, Some(packed_file_info)),
 

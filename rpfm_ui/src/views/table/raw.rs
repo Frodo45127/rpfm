@@ -1556,8 +1556,8 @@ impl TableView {
             });
 
             // Then ask the backend to do the heavy work.
-            CENTRAL_COMMAND.send_message_qt(Command::CascadeEdition(cascade_editions));
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let receiver = CENTRAL_COMMAND.send_background(Command::CascadeEdition(cascade_editions));
+            let response = CentralCommand::recv(&receiver);
             match response {
                 Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info) => {
 
@@ -1665,8 +1665,8 @@ impl TableView {
                 PackedFileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    CENTRAL_COMMAND.send_message_qt(Command::GetSourceDataFromLocKey(key));
-                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
+                    let response = CentralCommand::recv_try(&receiver);
                     match response {
                         Response::OptionStringStringString(response) => response,
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -1691,8 +1691,8 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                CENTRAL_COMMAND.send_message_qt(Command::GoToDefinition(ref_table, ref_column, ref_data));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GoToDefinition(ref_table, ref_column, ref_data));
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
@@ -1778,8 +1778,8 @@ impl TableView {
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
 
                 // Then ask the backend to do the heavy work.
-                CENTRAL_COMMAND.send_message_qt(Command::GoToLoc(loc_key));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.

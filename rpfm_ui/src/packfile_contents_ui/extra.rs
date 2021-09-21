@@ -42,7 +42,7 @@ use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter_safe;
 use crate::locale::{qtr, qtre};
 use crate::packedfile_views::DataSource;
@@ -73,9 +73,9 @@ impl PackFileContentsUI {
             app_ui.main_window.set_enabled(false);
         }
 
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
-        let response1 = CENTRAL_COMMAND.recv_message_qt();
-        let response2 = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
+        let response1 = CentralCommand::recv(&receiver);
+        let response2 = CentralCommand::recv(&receiver);
         match response1 {
             Response::VecPathType(paths) => {
                 let paths = paths.iter().map(From::from).collect::<Vec<TreePathType>>();
@@ -124,8 +124,8 @@ impl PackFileContentsUI {
     ) {
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
-        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
+        let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecPathType(paths_packedfile) => {
                 let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
@@ -361,9 +361,9 @@ impl PackFileContentsUI {
         }
 
         else {
-            CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
+            let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
             app_ui.main_window.set_enabled(false);
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::String(result) => show_dialog(&app_ui.main_window, result, true),
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),

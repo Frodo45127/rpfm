@@ -57,7 +57,7 @@ use rpfm_lib::SETTINGS;
 use rpfm_macros::{GetRef, GetRefMut, Set};
 
 use crate::AppUI;
-use crate::communications::Command;
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
@@ -448,13 +448,18 @@ impl DiagnosticsUI {
     pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
         app_ui.menu_bar_packfile.set_enabled(false);
 
-        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
         diagnostics_ui.diagnostics_table_model.clear();
-        let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
-        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-        Self::filter(app_ui, diagnostics_ui);
-        Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
-        UI_STATE.set_diagnostics(&diagnostics);
+        let response = CentralCommand::recv_try(&receiver);
+        match response {
+            Response::Diagnostics(diagnostics) => {
+                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
+                Self::filter(app_ui, diagnostics_ui);
+                Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+                UI_STATE.set_diagnostics(&diagnostics);
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        }
 
         app_ui.menu_bar_packfile.set_enabled(true);
     }
@@ -462,16 +467,20 @@ impl DiagnosticsUI {
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
     pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
         let diagnostics = UI_STATE.get_diagnostics();
-        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
-        let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate((diagnostics, paths)));
+        let response = CentralCommand::recv_try(&receiver);
+        match response {
+            Response::DiagnosticsVecPackedFileInfo(diagnostics, packed_files_info) => {
+                diagnostics_ui.diagnostics_table_model.clear();
+                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
-        diagnostics_ui.diagnostics_table_model.clear();
-        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
-
-        Self::filter(app_ui, diagnostics_ui);
-        Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
-        UI_STATE.set_diagnostics(&diagnostics);
+                Self::filter(app_ui, diagnostics_ui);
+                Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+                UI_STATE.set_diagnostics(&diagnostics);
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        }
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.

@@ -73,8 +73,8 @@ impl PackFileExtraViewSlots {
 
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.main_window.set_enabled(false);
-                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile(((&pack_file_view.pack_file_path.read().unwrap()).to_path_buf(), item_types)));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFile(((&pack_file_view.pack_file_path.read().unwrap()).to_path_buf(), item_types)));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecPathType(paths_ok) => {
 

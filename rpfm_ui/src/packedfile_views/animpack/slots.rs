@@ -84,8 +84,8 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.main_window.set_enabled(false);
-                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFileToAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFileToAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecPathType(paths_ok) => {
 
@@ -123,8 +123,8 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.main_window.set_enabled(false);
-                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecPathType(paths_ok) => {
 
@@ -170,8 +170,8 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = tree_item_types.iter().map(From::from).collect();
 
                     // Ask the backend to delete them.
-                    CENTRAL_COMMAND.send_message_qt(Command::DeleteFromAnimpack((view.path.read().unwrap().to_vec(), item_types)));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DeleteFromAnimpack((view.path.read().unwrap().to_vec(), item_types)));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
 

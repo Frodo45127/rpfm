@@ -692,7 +692,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
-    CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
+    let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
 
     let reference_data = definition.get_reference_data();
     let mut dependency_data_visual = BTreeMap::new();
@@ -734,7 +734,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         dependency_data_visual.insert(index, dependency_data_visual_column);
     }
 
-    let mut response = CENTRAL_COMMAND.recv_message_qt();
+    let mut response = CentralCommand::recv(&receiver);
     match response {
         Response::BTreeMapI32DependencyData(ref mut dependency_data) => {
             for index in reference_data.keys() {

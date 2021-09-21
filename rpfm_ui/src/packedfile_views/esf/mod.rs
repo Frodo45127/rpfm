@@ -101,8 +101,8 @@ impl PackedFileESFView {
         dependencies_ui: &Rc<DependenciesUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
+        let response = CentralCommand::recv(&receiver);
         let (data, packed_file_info) = match response {
             Response::ESFPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),

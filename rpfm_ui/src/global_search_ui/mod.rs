@@ -53,7 +53,7 @@ use rpfm_lib::global_search::{GlobalSearch, MatchHolder, SearchSource, schema::S
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response};
+use crate::communications::{CentralCommand, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
@@ -461,7 +461,7 @@ impl GlobalSearchUI {
             global_search.search_on_schema = global_search_ui.global_search_search_on_schemas_checkbox.is_checked();
         }
 
-        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearch(global_search));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearch(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
         let tree_view_db = &global_search_ui.global_search_matches_db_tree_view;
@@ -480,14 +480,17 @@ impl GlobalSearchUI {
         model_schema.clear();
 
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-        let (global_search, packed_files_info) = CENTRAL_COMMAND.recv_message_global_search_update_to_qt_try();
-
-        Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
-        Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
-        Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
-        Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
-        UI_STATE.set_global_search(&global_search);
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+        match CentralCommand::recv(&receiver) {
+            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
+                Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
+                Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
+                Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
+                Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
+                UI_STATE.set_global_search(&global_search);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+            },
+            _ => unimplemented!()
+        }
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
@@ -530,14 +533,14 @@ impl GlobalSearchUI {
         }
 
         let matches = Self::get_matches_from_selection(global_search_ui);
-        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
 
         // While we wait for an answer, we need to clear the current results panels.
         global_search_ui.global_search_matches_db_tree_model.clear();
         global_search_ui.global_search_matches_loc_tree_model.clear();
         global_search_ui.global_search_matches_text_tree_model.clear();
 
-        match CENTRAL_COMMAND.recv_message_qt() {
+        match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);
@@ -602,7 +605,7 @@ impl GlobalSearchUI {
             global_search.search_on_schema = global_search_ui.global_search_search_on_schemas_checkbox.is_checked();
         }
 
-        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchReplaceAll(global_search));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceAll(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
         let model_db = &global_search_ui.global_search_matches_db_tree_model;
@@ -613,7 +616,7 @@ impl GlobalSearchUI {
         model_loc.clear();
         model_text.clear();
 
-        match CENTRAL_COMMAND.recv_message_qt() {
+        match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);

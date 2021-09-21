@@ -62,7 +62,7 @@ use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -269,7 +269,7 @@ impl AppUI {
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         app_ui.main_window.set_enabled(false);
-        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
@@ -301,7 +301,7 @@ impl AppUI {
         }
 
         // Check what response we got.
-        let response = CENTRAL_COMMAND.recv_message_qt_try();
+        let response = CentralCommand::recv_try(&receiver);
         match response {
 
             // If it's success....
@@ -485,8 +485,8 @@ impl AppUI {
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+        let response = CentralCommand::recv(&receiver);
         let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
         if !path.is_file() || save_as {
 
@@ -517,8 +517,8 @@ impl AppUI {
             if file_dialog.exec() == 1 {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(path));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(path));
+                let response = CentralCommand::recv_try(&receiver);
                 match response {
                     Response::PackFileInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -538,8 +538,8 @@ impl AppUI {
         }
 
         else {
-            CENTRAL_COMMAND.send_message_qt(Command::SavePackFile);
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFile);
+            let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::PackFileInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -1038,7 +1038,7 @@ impl AppUI {
     ///
     /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
     pub unsafe fn check_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckUpdates);
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckUpdates);
 
         let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
             q_message_box::Icon::Information,
@@ -1057,7 +1057,7 @@ impl AppUI {
             dialog.show();
         }
 
-        let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+        let response = CentralCommand::recv_try(&receiver);
         let message = match response {
             Response::APIResponse(response) => {
                 match response {
@@ -1097,14 +1097,14 @@ impl AppUI {
 
         dialog.set_text(&message);
         if dialog.exec() == 0 {
-            CENTRAL_COMMAND.send_message_qt(Command::UpdateMainProgram);
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMainProgram);
 
             dialog.show();
             dialog.set_text(&qtr("update_in_prog"));
             update_button.set_enabled(false);
             close_button.set_enabled(false);
 
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::Success => {
                     let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
@@ -1132,7 +1132,7 @@ impl AppUI {
     ///
     /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
     pub unsafe fn check_schema_updates(app_ui: &Rc<Self>, use_dialog: bool) {
-        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckSchemaUpdates);
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckSchemaUpdates);
 
         // Create the dialog to show the response and configure it.
         let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
@@ -1153,7 +1153,7 @@ impl AppUI {
         }
 
         // When we get a response, act depending on the kind of response we got.
-        let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+        let response_thread = CentralCommand::recv_try(&receiver);
         let message = match response_thread {
             Response::APIResponseSchema(ref response) => {
                 match response {
@@ -1182,14 +1182,14 @@ impl AppUI {
         // If we hit "Update", try to update the schemas.
         dialog.set_text(&message);
         if dialog.exec() == 0 {
-            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateSchemas);
 
             dialog.show();
             dialog.set_text(&qtr("update_in_prog"));
             update_button.set_enabled(false);
             close_button.set_enabled(false);
 
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::Success => {
                     dialog.set_text(&qtr("schema_update_success"));
@@ -1434,8 +1434,8 @@ impl AppUI {
                                 Err(error) => {
 
                                     // Try to get the data of the table to send it for decoding.
-                                    CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileRawData(path.to_vec()));
-                                    let response = CENTRAL_COMMAND.recv_message_qt();
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_vec()));
+                                    let response = CentralCommand::recv(&receiver);
                                     let data = match response {
                                         Response::VecU8(data) => data,
                                         Response::Error(_) => return show_dialog(&app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
@@ -1835,8 +1835,8 @@ impl AppUI {
                 return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
             }
 
-            CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+            let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false); },
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -1910,14 +1910,14 @@ impl AppUI {
                             if !complete_path.is_empty() {
 
                                 // Check if the PackedFile already exists, and report it if so.
-                                CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(complete_path.to_vec()));
-                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_vec()));
+                                let response = CentralCommand::recv(&receiver);
                                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                                 // Get the response, just in case it failed.
-                                CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
-                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
+                                let response = CentralCommand::recv(&receiver);
                                 match response {
                                     Response::Success => {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]), DataSource::PackFile);
@@ -1967,8 +1967,8 @@ impl AppUI {
                     let new_path = vec!["db".to_owned(), path[1].to_owned(), name];
                     let table = &path[1];
 
-                    CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let response = CentralCommand::recv(&receiver);
                     let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
@@ -2018,14 +2018,14 @@ impl AppUI {
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
-                CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_vec()));
+                let response = CentralCommand::recv(&receiver);
                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                 if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                 // Create the PackFile.
-                CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
+                let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]), DataSource::PackFile);
@@ -2088,8 +2088,8 @@ impl AppUI {
         let table_filter = QSortFilterProxyModel::new_1a(&dialog);
         let table_model = QStandardItemModel::new_1a(&dialog);
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
 
@@ -2103,8 +2103,8 @@ impl AppUI {
 
         // If it's a DB Table, add its widgets, and populate the table list.
         if let PackedFileType::DB = packed_file_type {
-            CENTRAL_COMMAND.send_message_qt(Command::GetTableListFromDependencyPackFile);
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
+            let response = CentralCommand::recv(&receiver);
             let tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
             match *SCHEMA.read().unwrap() {
                 Some(ref schema) => {
@@ -2150,8 +2150,8 @@ impl AppUI {
                 PackedFileType::AnimPack => Some(Ok(NewPackedFile::AnimPack(packed_file_name))),
                 PackedFileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
-                    CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let response = CentralCommand::recv(&receiver);
                     let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return Some(Err(error)),
@@ -2184,8 +2184,8 @@ impl AppUI {
         let name_line_edit = QLineEdit::new();
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
 
@@ -2213,8 +2213,8 @@ impl AppUI {
         let main_grid = create_grid_layout(dialog.static_upcast());
         let name_line_edit = QLineEdit::new();
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileName);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileName);
+        let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") { packfile_name[0..packfile_name.chars().count() - 5].to_owned() } else { packfile_name };
 
@@ -2332,7 +2332,7 @@ impl AppUI {
                 if !path.is_empty() {
                     if path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
                         purge_on_delete.push(path.to_vec());
-                        CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
+                        let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
                     }
                     else if path.last().unwrap().ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_vec());
@@ -2361,8 +2361,8 @@ impl AppUI {
     ) {
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+        let response = CentralCommand::recv(&receiver);
         let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
         // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
@@ -2385,8 +2385,8 @@ impl AppUI {
 
             // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
             // We have to wait because we need the GameSelected update before updating the menus.
-            CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected));
+            let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2413,27 +2413,32 @@ impl AppUI {
 
             for (data_source, path) in paths_to_close {
                 if let Err(error) = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, &path, data_source, true) {
-                    return show_dialog(&app_ui.main_window, error, false);
+                    show_dialog(&app_ui.main_window, error, false);
                 }
             }
 
             // Request a rebuild. If thee game changed, do a full rebuild. If not, only rebuild the parent's data.
-            CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(!game_changed));
-            let response = CENTRAL_COMMAND.recv_message_dependencies_info_to_qt_try();
+            let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(!game_changed));
+            let response = CentralCommand::recv_try(&receiver);
+            match response {
+                Response::DependenciesInfo(response) => {
+                    let mut parent_build_data = BuildData::new();
+                    parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+                    dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
 
-            let mut parent_build_data = BuildData::new();
-            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
-            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+                    if game_changed {
+                        let mut game_build_data = BuildData::new();
+                        game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
 
-            if game_changed {
-                let mut game_build_data = BuildData::new();
-                game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+                        let mut asskit_build_data = BuildData::new();
+                        asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
 
-                let mut asskit_build_data = BuildData::new();
-                asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
-
-                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+                        dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                        dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+                    }
+                }
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
 
@@ -2447,7 +2452,7 @@ impl AppUI {
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
             AppUI::enable_packfile_actions(app_ui, &pack_path, true);
         }
-        CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
+        let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
     }
 
     /// This function creates a new PackFile and setups the UI for it.
@@ -2459,7 +2464,7 @@ impl AppUI {
     ) {
 
         // Tell the Background Thread to create a new PackFile.
-        CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
+        let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
 
         // Reset the autosave timer.
         let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
@@ -2504,7 +2509,7 @@ impl AppUI {
         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
-        CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies(false));
+        let _ = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(false));
 
         // Re-enable the Main Window.
         if !window_was_disabled {
@@ -2547,8 +2552,8 @@ impl AppUI {
                         paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
                     }
 
-                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(false));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(false));
+                    let response = CentralCommand::recv(&receiver);
                     let settings = match response {
                         Response::PackFileSettings(settings) => settings,
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

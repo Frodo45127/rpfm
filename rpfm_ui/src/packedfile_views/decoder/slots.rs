@@ -41,7 +41,7 @@ use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
@@ -635,9 +635,9 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                CENTRAL_COMMAND.send_message_qt(Command::CleanCache(packed_files_to_save));
-                CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema));
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let _ = CENTRAL_COMMAND.send_background(Command::CleanCache(packed_files_to_save));
+                let receiver = CENTRAL_COMMAND.send_background(Command::SaveSchema(schema));
+                let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
                     Response::Error(error) => show_dialog(&view.table_view, error, false),

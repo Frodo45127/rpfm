@@ -40,7 +40,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tre};
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
@@ -414,8 +414,8 @@ impl PackFileContentsSlots {
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
-                CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+                let response = CentralCommand::recv(&receiver);
                 let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -632,8 +632,8 @@ impl PackFileContentsSlots {
                     let path = PathBuf::from(path_str.to_owned());
 
                     // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
-                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::PackFileInfoVecPackedFileInfo((pack_file_info, _)) => {
                             if pack_file_info.file_path == path {
@@ -661,8 +661,8 @@ impl PackFileContentsSlots {
                     let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                     let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
 
-                    CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecPathType(deleted_items) => {
                             let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
@@ -750,8 +750,8 @@ impl PackFileContentsSlots {
                     }
 
                     // Send the renaming data to the Background Thread, wait for a response.
-                    CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background.to_vec()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecPathTypeVecString(renamed_items) => {
                             let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, Vec<String>)>>();
@@ -869,8 +869,8 @@ impl PackFileContentsSlots {
                         complete_path.append(&mut (new_folder_name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
 
                         // Check if the folder exists.
-                        CENTRAL_COMMAND.send_message_qt(Command::FolderExists(complete_path.to_vec()));
-                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(complete_path.to_vec()));
+                        let response = CentralCommand::recv(&receiver);
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                         // If the folder already exists, return an error.
@@ -910,8 +910,8 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Open Containing Folder" Action.
         let contextual_menu_open_containing_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui => move |_| {
-            CENTRAL_COMMAND.send_message_qt(Command::OpenContainingFolder);
-            let response = CENTRAL_COMMAND.recv_message_qt();
+            let receiver = CENTRAL_COMMAND.send_background(Command::OpenContainingFolder);
+            let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1018,8 +1018,8 @@ impl PackFileContentsSlots {
                         }
                     }
 
-                    CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecString(path_to_add) => {
 
@@ -1066,8 +1066,8 @@ impl PackFileContentsSlots {
                     }
 
                     let path_type: PathType = From::from(item_type);
-                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(path_type));
+                    let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::I32I32((old_version, new_version)) => {
                             let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
@@ -1108,8 +1108,8 @@ impl PackFileContentsSlots {
                     // Otherwise, try to import all of them and report the result.
                     else {
                         app_ui.main_window.set_enabled(false);
-                        CENTRAL_COMMAND.send_message_qt(Command::MassImportTSV(data.0, data.1));
-                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::MassImportTSV(data.0, data.1));
+                        let response = CentralCommand::recv(&receiver);
                         match response {
 
                             // If it's success....
@@ -1155,8 +1155,8 @@ impl PackFileContentsSlots {
                         app_ui.main_window.set_enabled(false);
                         let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                         let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
-                        CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
-                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        let receiver = CENTRAL_COMMAND.send_background(Command::MassExportTSV(selected_items, export_path));
+                        let response = CentralCommand::recv(&receiver);
                         match response {
                             Response::String(response) => show_dialog(&app_ui.main_window, response, true),
                             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),

@@ -18,7 +18,7 @@ use qt_core::SlotNoArgs;
 use std::sync::Arc;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::tr;
 use crate::utils::{show_dialog, log_to_status_bar};
 use crate::views::debug::DebugView;
@@ -49,8 +49,8 @@ impl DebugViewSlots {
             view => move || {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
-                    CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
-                    let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
+                    let response = CentralCommand::recv_try(&receiver);
                     match response {
                         Response::Success => log_to_status_bar(&tr("debug_view_save_success")),
                         Response::Error(error) => show_dialog(&view.editor, error, false),

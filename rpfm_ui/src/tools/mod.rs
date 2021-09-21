@@ -39,7 +39,7 @@ use rpfm_lib::SCHEMA;
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
@@ -92,8 +92,8 @@ impl Tool {
             return Err(ErrorKind::SchemaNotFound.into());
         }
 
-        CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+        let response = CentralCommand::recv(&receiver);
         match response {
             Response::Bool(it_is) => if !it_is { return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into()); },
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -140,8 +140,8 @@ impl Tool {
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
-        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFilesToPackFileAndClean(packed_files.to_vec()));
+        let response = CentralCommand::recv(&receiver);
         match response {
             Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)) => {
 

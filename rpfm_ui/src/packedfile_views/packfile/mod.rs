@@ -88,8 +88,8 @@ impl PackFileExtraView {
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
-        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path.clone()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFileExtra(pack_file_path.clone()));
+        let response = CentralCommand::recv(&receiver);
         match response {
             Response::PackFileInfo(_) => {},
             Response::Error(error) => return Err(error),

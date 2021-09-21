@@ -75,8 +75,8 @@ impl PackFileSettingsView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackFileSettings(false));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(false));
+        let response = CentralCommand::recv(&receiver);
         let settings = match response {
             Response::PackFileSettings(settings) => settings,
             Response::Error(error) => return Err(error),

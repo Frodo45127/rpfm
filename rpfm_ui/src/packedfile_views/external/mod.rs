@@ -66,8 +66,8 @@ impl PackedFileExternalView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<()> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::OpenPackedFileInExternalProgram(packed_file_path.borrow().to_vec()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(packed_file_path.borrow().to_vec()));
+        let response = CentralCommand::recv(&receiver);
         let external_path = match response {
             Response::PathBuf(external_path) => external_path,
             Response::Error(error) => return Err(error),

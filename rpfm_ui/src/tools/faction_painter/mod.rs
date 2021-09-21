@@ -54,7 +54,7 @@ use rpfm_lib::packedfile::table::{db::DB, DecodedData};
 use rpfm_macros::*;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::locale::qtr;
 use self::slots::ToolFactionPainterSlots;
@@ -256,8 +256,8 @@ impl ToolFactionPainter {
         ];
 
         // Note: this data is HashMap<DataSource, BTreeMap<Path, PackedFile>>.
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesFromAllSources(paths_to_use));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
+        let response = CentralCommand::recv(&receiver);
         let mut data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
         let mut processed_data = BTreeMap::new();
@@ -306,8 +306,8 @@ impl ToolFactionPainter {
             .filter_map(|x| if !x.is_empty() { Some(PathType::File(x.to_vec())) } else { None })
             .collect::<Vec<PathType>>();
 
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesFromAllSources(paths_to_use));
-        let response = CENTRAL_COMMAND.recv_message_qt();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
+        let response = CentralCommand::recv(&receiver);
         let images_data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
         // Prepare the image paths in unicased format, so we can get them despite what weird casing the paths have.
