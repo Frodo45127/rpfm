@@ -587,9 +587,7 @@ impl AppUISlots {
         let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
-                if open::that(&path).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                };
+                open::that_in_background(&path);
             }
             else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
         }));
