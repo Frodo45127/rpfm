@@ -2119,8 +2119,10 @@ impl PackFile {
                 let mut tsv = String::new();
                 BufReader::new(File::open(&path)?).read_to_string(&mut tsv)?;
 
-                // We get his first line, if it has it. Otherwise, we return an error in this file.
-                if let Some(line) = tsv.lines().next() {
+                // We get his second line, if it has it. Otherwise, we return an error in this file.
+                let mut iter = tsv.lines();
+                iter.next();
+                if let Some(line) = iter.next() {
 
                     // Split the first line by \t so we can get the info of the table.
                     // We expect to have 2 or 3 items here. If we have more or less, stop.
