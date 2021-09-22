@@ -748,9 +748,33 @@ impl PackFile {
                                 }
                                 None => RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?,
                             }
-
                         }
                         None => return Err(ErrorKind::SchemaNotFound.into())
+                    }
+                } else if extension == "json" || extension == "md" {
+                    if let Some(file_name) = path_as_file.file_name() {
+                        let settings_name = RESERVED_NAME_SETTINGS.to_owned() + ".json";
+                        let notes_name = RESERVED_NAME_NOTES.to_owned() + ".md";
+                        let file_name = file_name.to_string_lossy().to_string();
+                        if file_name == settings_name {
+                            let mut file = BufReader::new(File::open(path_as_file)?);
+                            let mut data = vec![];
+                            file.read_to_end(&mut data)?;
+                            let settings = PackFileSettings::load(&data)?;
+                            self.set_settings(&settings);
+                            return Ok(vec![]);
+                        } else if file_name == notes_name {
+                            let mut file = BufReader::new(File::open(path_as_file)?);
+                            let mut data = String::new();
+                            file.read_to_string(&mut data)?;
+                            self.set_notes(&Some(data));
+                            return Ok(vec![]);
+                        }
+                        else {
+                            RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
+                        }
+                    } else {
+                        RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
                     }
                 } else {
                     RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?
@@ -891,6 +915,31 @@ impl PackFile {
                                             }
                                         }
                                         None => return Err(ErrorKind::SchemaNotFound.into())
+                                    }
+                                } else if extension == "json" || extension == "md" {
+                                    if let Some(file_name) = file_path.file_name() {
+                                        let settings_name = RESERVED_NAME_SETTINGS.to_owned() + ".json";
+                                        let notes_name = RESERVED_NAME_NOTES.to_owned() + ".md";
+                                        let file_name = file_name.to_string_lossy().to_string();
+                                        if file_name == settings_name {
+                                            let mut file = BufReader::new(File::open(file_path)?);
+                                            let mut data = vec![];
+                                            file.read_to_end(&mut data)?;
+                                            let settings = PackFileSettings::load(&data)?;
+                                            self.set_settings(&settings);
+                                            return Ok(vec![]);
+                                        } else if file_name == notes_name {
+                                            let mut file = BufReader::new(File::open(file_path)?);
+                                            let mut data = String::new();
+                                            file.read_to_string(&mut data)?;
+                                            self.set_notes(&Some(data));
+                                            return Ok(vec![]);
+                                        }
+                                        else {
+                                            RawPackedFile::read_from_path(file_path, new_path)?
+                                        }
+                                    } else {
+                                        RawPackedFile::read_from_path(file_path, new_path)?
                                     }
                                 } else {
                                     RawPackedFile::read_from_path(file_path, new_path)?
@@ -1550,6 +1599,27 @@ impl PackFile {
                     } else { None }
                 }).collect();
                 files_extracted -= error_files.len() as u32;
+
+                // If we're extracting everything as TSV, it's a mymod export. Also extract notes and settings.
+                if extract_table_as_tsv {
+
+                    if let Some(note) = &self.notes {
+                        let mut data = vec![];
+                        data.encode_string_u8(note);
+                        let path = extracted_path.join(RESERVED_NAME_NOTES.to_owned() + ".md");
+                        let mut file = BufWriter::new(File::create(path)?);
+                        file.write_all(&data)?;
+                        file.flush()?;
+                    }
+
+                    // Saving PackFile settings.
+                    let mut data = vec![];
+                    data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
+                    let path = extracted_path.join(RESERVED_NAME_SETTINGS.to_owned() + ".json");
+                    let mut file = BufWriter::new(File::create(path)?);
+                    file.write_all(&data)?;
+                    file.flush()?;
+                }
             },
 
             // No paths selected, none selected, invalid path selected, or invalid value.

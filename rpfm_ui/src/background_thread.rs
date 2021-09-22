@@ -404,7 +404,7 @@ pub fn background_loop() {
                     }
 
                     match pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true, import_tables_from_tsv) {
-                        Ok(path) => added_paths.push(PathType::File(path.to_vec())),
+                        Ok(path) => if !path.is_empty() { added_paths.push(PathType::File(path.to_vec())) },
                         Err(error) => it_broke = Some(error),
                     }
                 }
@@ -432,7 +432,7 @@ pub fn background_loop() {
             Command::AddPackedFilesFromFolder(paths, paths_to_ignore, import_tables_from_tsv) => {
                 match pack_file_decoded.add_from_folders(&paths, &paths_to_ignore, true, import_tables_from_tsv) {
                     Ok(paths) => {
-                        CentralCommand::send_back(&sender, Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect()));
+                        CentralCommand::send_back(&sender, Response::VecPathType(paths.iter().filter(|x| !x.is_empty()).map(|x| PathType::File(x.to_vec())).collect()));
 
                         // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
