@@ -711,9 +711,11 @@ impl PackFile {
                             // Get the file type/table name.
                             let mut file = BufReader::new(File::open(path_as_file)?);
                             let mut first_row = String::new();
+                            let mut second_row = String::new();
                             file.read_line(&mut first_row)?;
+                            file.read_line(&mut second_row)?;
 
-                            let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
+                            let first_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
                             match first_row_splitted.get(0) {
                                 Some(table_type) => {
                                     let mut table_type = table_type.to_string();
@@ -850,9 +852,11 @@ impl PackFile {
                                             // Get the file type/table name.
                                             let mut file = BufReader::new(File::open(file_path)?);
                                             let mut first_row = String::new();
+                                            let mut second_row = String::new();
                                             file.read_line(&mut first_row)?;
+                                            file.read_line(&mut second_row)?;
 
-                                            let first_row_splitted = first_row.split('\t').collect::<Vec<&str>>();
+                                            let first_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
                                             match first_row_splitted.get(0) {
                                                 Some(table_type) => {
                                                     let mut table_type = table_type.to_string();
