@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Small crate to put the macros used in RPFM.
+Small crate to put the procedural macros used in RPFM.
 !*/
 
 #![crate_type = "proc-macro"]
@@ -19,6 +19,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{Data, DeriveInput, Ident, parse_macro_input};
 
+/// Macro to generate automatic clone getters for a Struct.
 #[proc_macro_derive(GetClone)]
 pub fn getter_clone(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
@@ -58,7 +59,7 @@ pub fn getter_clone(input: TokenStream) -> TokenStream {
     }
 }
 
-
+/// Macro to generate automatic reference getters for a Struct.
 #[proc_macro_derive(GetRef)]
 pub fn getter_ref(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
@@ -98,7 +99,7 @@ pub fn getter_ref(input: TokenStream) -> TokenStream {
     }
 }
 
-
+/// Macro to generate automatic mutable reference getters for a Struct.
 #[proc_macro_derive(GetRefMut)]
 pub fn getter_ref_mut(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
@@ -138,7 +139,7 @@ pub fn getter_ref_mut(input: TokenStream) -> TokenStream {
     }
 }
 
-
+/// Macro to generate automatic setters for a Struct.
 #[proc_macro_derive(Set)]
 pub fn setter(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
