@@ -9,42 +9,50 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [Unreleased]
 ### Added
 - Implemented warning when trying to rename a DB folder.
-- Implemented `Only For The Brave` alert.
-- Implemented CCD(CEO)/ESF/SAVE editor.
-- Implemented Dependencies view.
+- Implemented CCD(CEO)/ESF/SAVE editor (very beta for now).
+- Implemented Dependencies View.
+- Implemented Global Search Support for dependencies.
 - Implemented `Import from dependencies`.
-- Implemented Global Search support for dependencies.
 - Implemented `Tools` menu.
 - Implemented `Faction Painter` tool.
+- Implemented `Only For The Brave` alert for specially unstable builds.
 
 ### Changed
+- Updated dependencies.
+- RigidModel View updated to 0.8.2 (includes fixes for issues found in RPFM 2.5.4 regarding broken models).
 - Rigidmodel error messages should now be more specific.
-- RigidModel View updated to 0.8.2.
 - TSVs to be imported no longer require to have all the columns of a table.
 - TSVs to be exported now export using the column order you see in the UI.
-- When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
-- Updated dependencies.
-- Many Clippy-suggested corrections.
-- When using `Generate Ids`, now the value of the first cell is used as default value.
+- TSVs first and second rows have been swapped, to allow programs that expect the first row to be the column headers to actually not complaint and work.
+- TSVs now store on their second row their original path, so it can be restored properly when using `Use original filename` on a MassImport.
 - Import/Export MyMods now import/export tables as TSV if they can.
+- Import/Export MyMods now import/export notes and PackFile settings.
+- When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
+- When using `Generate Ids`, now the value of the first cell is used as default value.
 - `Rewrite Selection` {z} replacer now use the row number relative to the selection, not to the table itself.
+- Reworked internal threads comms to make each action use their own comm channel (should fix multiple CTD).
+- Improved logging logic to... actually work most of the time.
+- Many Clippy-suggested corrections.
 
 ### Removed
-- Removed `Templates` feature
+- Removed `Templates` feature.
 
 ### Fixed
+- Fixed `Open MyMod Folder` hanging the program until you closed the explorer window.
 - Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
-- Fixed rare crash when opening PackFiles with the `Check for missing table definitions` setting set.
-- Fixed very rare bug that caused RPFM to fail on reimport very specific TSV.
+- Fixed very rare bug that caused RPFM to fail on reimport very specific TSV files.
 - Fixed a bug that caused dependencies to not update properly on game selected change.
 - Fixed multiple bugs that caused dependencies to become missing or unloaded from time to time.
-- Fixed a CTD caused by opening a menu when a PackFile is being opened.
-- Fixed missing shortcuts in the view submenu.
 - Fixed dependencies going away immediatly after generating them.
+- Fixed missing shortcuts in the view submenu.
 - Fixed `Some("","")` references being incorrectly imported from the Assembly Kit.
 - Fixed error when exporting a TSV if its parent folder doesn't exist.
-- Fixed CTD when hitting `Replace` on the Global Search.
-- Fixed CTD when trying to load RPFM without the `Locale` folder.
+- Fixed a CTD caused by opening a menu when a PackFile is being opened.
+- Fixed a CTD when opening PackFiles with the `Check for missing table definitions` setting enabled and no writing permissions on RPFM's folder.
+- Fixed a CTD when hitting `Replace` on the Global Search.
+- Fixed a CTD when trying to load RPFM without the `Locale` folder.
+- Fixed a CTD when opening the dependencies manager on certain games.
+- Fixed a CTD when inputting a multibyte character (like a kanji) on the `New PackedFile` dialog.
 
 ## [2.5.4]
 ### Added
