@@ -36,6 +36,7 @@ use qt_core::QVariant;
 use qt_core::WindowState;
 
 use cpp_core::Ptr;
+use log::info;
 
 use std::env::args;
 use std::path::PathBuf;
@@ -164,6 +165,8 @@ impl UI {
         app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
         app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
 
+        info!("Qt-specific settings loaded.");
+
         // Initialize colours.
         let mut sync_needed = false;
 
@@ -246,6 +249,7 @@ impl UI {
         UI_STATE.set_operational_mode(&app_ui, None);
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
+        info!("Setting initial Game Selected...");
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
             KEY_TROY => app_ui.game_selected_troy.set_checked(true),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
@@ -261,6 +265,7 @@ impl UI {
             _ => unimplemented!()
         }
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
+        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
@@ -307,6 +312,7 @@ impl UI {
         if args.len() > 1 && args[1] != "--booted_from_launcher" {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
+                info!("Directly opening PackFile {}.", path.to_string_lossy().to_string());
                 if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
                     show_dialog(&app_ui.main_window, error, false);
                 } else if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
@@ -336,6 +342,7 @@ impl UI {
                         }
                     }
                 }
+                info!("Update folders cleared.");
             }
         }
 
@@ -358,7 +365,7 @@ impl UI {
                 q_settings.set_value(&first_boot_setting, &QVariant::from_bool(true));
             }
         }
-
+        info!("Initialization complete.");
         Self {
             app_ui,
             global_search_ui,
