@@ -2468,7 +2468,8 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>
     ) {
 
         // Tell the Background Thread to create a new PackFile.
@@ -2517,7 +2518,17 @@ impl AppUI {
         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
-        let _ = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(false));
+        let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true));
+        let response = CentralCommand::recv_try(&receiver);
+        match response {
+            Response::DependenciesInfo(response) => {
+                let mut parent_build_data = BuildData::new();
+                parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+                dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+            }
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        }
 
         // Re-enable the Main Window.
         if !window_was_disabled {

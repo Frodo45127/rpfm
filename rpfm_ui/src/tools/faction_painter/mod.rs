@@ -139,7 +139,8 @@ impl ToolFactionPainter {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) -> Result<()> {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
@@ -240,7 +241,7 @@ impl ToolFactionPainter {
 
         // If we hit ok, save the data back to the PackFile.
         if view.tool.get_ref_dialog().exec() == 1 {
-            view.save_data(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui)?;
+            view.save_data(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui)?;
         }
 
         // If nothing failed, it means we have successfully saved the data back to disk, or canceled.
@@ -372,7 +373,8 @@ impl ToolFactionPainter {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>
     ) -> Result<()> {
 
         // First, save whatever is currently open in the detailed view.
@@ -393,7 +395,7 @@ impl ToolFactionPainter {
         let uniform_packed_file = self.save_faction_uniform_data(&data_to_save)?;
 
         // Once we got the PackedFiles to save properly edited, call the generic tool `save` function to save them to a PackFile.
-        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, &[banner_packed_file, uniform_packed_file])
+        self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, &[banner_packed_file, uniform_packed_file])
     }
 
     /// This function loads the data of a faction into the detailed view.

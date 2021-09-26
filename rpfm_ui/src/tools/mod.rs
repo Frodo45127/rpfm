@@ -40,6 +40,7 @@ use rpfm_lib::SCHEMA;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
@@ -130,12 +131,13 @@ impl Tool {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         packed_files: &[PackedFile]
     ) -> Result<()> {
 
         // First, check if we actually have an open PackFile. If we don't have one, we need to generate it and promp a save.
         if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() == 0 {
-            AppUI::new_packfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
+            AppUI::new_packfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
         }
 
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
