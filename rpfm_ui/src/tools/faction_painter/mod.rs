@@ -134,7 +134,9 @@ pub struct ToolFactionPainter {
 /// Implementation of `ToolFactionPainter`.
 impl ToolFactionPainter {
 
-    /// This function creates the tool's dialog. NOTE: This can fail at runtime if any of the expected widgets is not in the UI's XML.
+    /// This function creates the tool's dialog.
+    ///
+    /// NOTE: This can fail at runtime if any of the expected widgets is not in the UI's XML.
     pub unsafe fn new(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -150,41 +152,41 @@ impl ToolFactionPainter {
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
         // ListView.
-        let faction_list_view: QPtr<QListView> = tool.get_ref_main_widget().find_child("faction_list_view").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let faction_list_filter_line_edit: QPtr<QLineEdit> = tool.get_ref_main_widget().find_child("faction_list_filter_line_edit").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let faction_list_view: QPtr<QListView> = tool.find_widget("faction_list_view")?;
+        let faction_list_filter_line_edit: QPtr<QLineEdit> = tool.find_widget("faction_list_filter_line_edit")?;
 
         // Details view.
-        let faction_icon_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("faction_icon_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let faction_name_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("faction_name_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let faction_icon_label: QPtr<QLabel> = tool.find_widget("faction_icon_label")?;
+        let faction_name_label: QPtr<QLabel> = tool.find_widget("faction_name_label")?;
 
         // Banner GroupBox.
-        let banner_groupbox: QPtr<QGroupBox> = tool.get_ref_main_widget().find_child("banner_groupbox").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_primary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("banner_colour_primary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_secondary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("banner_colour_secondary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_tertiary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("banner_colour_tertiary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_primary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("banner_colour_primary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_secondary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("banner_colour_secondary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_colour_tertiary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("banner_colour_tertiary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_restore_initial_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("banner_restore_initial_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let banner_restore_vanilla_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("banner_restore_vanilla_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let banner_groupbox: QPtr<QGroupBox> = tool.find_widget("banner_groupbox")?;
+        let banner_colour_primary_label: QPtr<QLabel> = tool.find_widget("banner_colour_primary_label")?;
+        let banner_colour_secondary_label: QPtr<QLabel> = tool.find_widget("banner_colour_secondary_label")?;
+        let banner_colour_tertiary_label: QPtr<QLabel> = tool.find_widget("banner_colour_tertiary_label")?;
+        let banner_colour_primary: QPtr<QComboBox> = tool.find_widget("banner_colour_primary")?;
+        let banner_colour_secondary: QPtr<QComboBox> = tool.find_widget("banner_colour_secondary")?;
+        let banner_colour_tertiary: QPtr<QComboBox> = tool.find_widget("banner_colour_tertiary")?;
+        let banner_restore_initial_values_button: QPtr<QPushButton> = tool.find_widget("banner_restore_initial_values_button")?;
+        let banner_restore_vanilla_values_button: QPtr<QPushButton> = tool.find_widget("banner_restore_vanilla_values_button")?;
 
         // Uniform GroupBox.
-        let uniform_groupbox: QPtr<QGroupBox> = tool.get_ref_main_widget().find_child("uniform_groupbox").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_primary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("uniform_colour_primary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_secondary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("uniform_colour_secondary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_tertiary_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("uniform_colour_tertiary_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_primary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("uniform_colour_primary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_secondary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("uniform_colour_secondary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_colour_tertiary: QPtr<QComboBox> = tool.get_ref_main_widget().find_child("uniform_colour_tertiary").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_restore_initial_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("uniform_restore_initial_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let uniform_restore_vanilla_values_button: QPtr<QPushButton> = tool.get_ref_main_widget().find_child("uniform_restore_vanilla_values_button").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let uniform_groupbox: QPtr<QGroupBox> = tool.find_widget("uniform_groupbox")?;
+        let uniform_colour_primary_label: QPtr<QLabel> = tool.find_widget("uniform_colour_primary_label")?;
+        let uniform_colour_secondary_label: QPtr<QLabel> = tool.find_widget("uniform_colour_secondary_label")?;
+        let uniform_colour_tertiary_label: QPtr<QLabel> = tool.find_widget("uniform_colour_tertiary_label")?;
+        let uniform_colour_primary: QPtr<QComboBox> = tool.find_widget("uniform_colour_primary")?;
+        let uniform_colour_secondary: QPtr<QComboBox> = tool.find_widget("uniform_colour_secondary")?;
+        let uniform_colour_tertiary: QPtr<QComboBox> = tool.find_widget("uniform_colour_tertiary")?;
+        let uniform_restore_initial_values_button: QPtr<QPushButton> = tool.find_widget("uniform_restore_initial_values_button")?;
+        let uniform_restore_vanilla_values_button: QPtr<QPushButton> = tool.find_widget("uniform_restore_vanilla_values_button")?;
 
-        let packed_file_name_label: QPtr<QLabel> = tool.get_ref_main_widget().find_child("packed_file_name_label").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
-        let packed_file_name_line_edit: QPtr<QLineEdit> = tool.get_ref_main_widget().find_child("packed_file_name_line_edit").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
+        let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
         packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
 
         // Button Box.
-        let button_box: QPtr<QDialogButtonBox> = tool.get_ref_main_widget().find_child("button_box").map_err(|_| ErrorKind::TemplateUIWidgetNotFound)?;
+        let button_box: QPtr<QDialogButtonBox> = tool.find_widget("button_box")?;
 
         // Extra stuff.
         let faction_list_filter = QSortFilterProxyModel::new_1a(&faction_list_view);

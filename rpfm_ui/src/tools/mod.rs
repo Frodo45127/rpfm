@@ -17,10 +17,12 @@ This module contains the code to manage the main UI and store all his slots.
 use qt_widgets::{QDialog, QWidget};
 
 use qt_core::QBox;
+use qt_core::QObject;
+use qt_core::QPtr;
 
 use qt_ui_tools::QUiLoader;
 
-use cpp_core::{CastInto, Ptr};
+use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -216,5 +218,11 @@ impl Tool {
     /// It's an utility function for tools.
     pub fn get_row_by_column_index(row: &[DecodedData], index: usize) -> Result<&DecodedData> {
         row.get(index).ok_or_else(|| ErrorKind::ToolTableColumnNotFound.into())
+    }
+
+    /// This function returns the a widget from the view if it exits, and an error if it doesn't.
+    pub unsafe fn find_widget<T: StaticUpcast<QWidget> + cpp_core::StaticUpcast<qt_core::QObject>>(&self, widget_name: &str) -> Result<QPtr<T>>
+        where QObject: DynamicCast<T> {
+        self.get_ref_main_widget().find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
     }
 }

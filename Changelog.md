@@ -25,6 +25,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - TSVs to be exported now export using the column order you see in the UI.
 - TSVs first and second rows have been swapped, to allow programs that expect the first row to be the column headers to actually not complaint and work.
 - TSVs now store on their second row their original path, so it can be restored properly when using `Use original filename` on a MassImport.
+- TSVs second row can now be marked with # so tools using them can be configured to ignore it.
+- TSVs metadata now its contained in the first cell of the second row, splitted by `;`.
 - Import/Export MyMods now import/export tables as TSV if they can.
 - Import/Export MyMods now import/export notes and PackFile settings.
 - When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
