@@ -882,19 +882,35 @@ impl Table {
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
-                // The second line contains the TSV metadata.
+                // The second line contains the TSV metadata. It may have it splitted in three columns, or just one.
                 if row == 0 {
+                    let has_legacy_structure = if let Some(table_type) = record.get(1) { table_type != "" } else { false };
+
+                    // If we have at least 2 fields, use the legacy behavior.
+                    let record_data = if has_legacy_structure {
+                        record.iter().map(|x| x.to_owned()).collect::<Vec<String>>()
+                    }
+
+                    // Otherwise, use the new behavior.
+                    else if let Some(metadata) = record.get(0) {
+                        metadata.split(';').map(|x| x.to_owned()).collect::<Vec<String>>()
+                    }
+
+                    // Otherwise, is an error.
+                    else {
+                        return Err(ErrorKind::ImportTSVWrongTypeTable.into())
+                    };
 
                     // Get the type and version of the table, then the definition.
-                    let table_type = if let Some(table_type) = record.get(0) {
+                    let table_type = if let Some(table_type) = record_data.get(0) {
                         let mut table_type = table_type.to_owned();
                         if table_type.starts_with("#") {
                             table_type.remove(0);
                         }
                         table_type
                     } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
-                    let table_version = if let Some(table_version) = record.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
-                    file_path = record.get(2).map(|x| x.split('/').map(|x| x.to_string()).collect::<Vec<String>>());
+                    let table_version = if let Some(table_version) = record_data.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
+                    file_path = record_data.get(2).map(|x| x.split('/').map(|x| x.to_string()).collect::<Vec<String>>());
 
                     definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
                     else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
@@ -973,15 +989,32 @@ impl Table {
                 // The second line contains the TSV metadata.
                 if row == 0 {
 
+                    let has_legacy_structure = if let Some(table_type) = record.get(1) { table_type != "" } else { false };
+
+                    // If we have at least 2 fields, use the legacy behavior.
+                    let record_data = if has_legacy_structure {
+                        record.iter().map(|x| x.to_owned()).collect::<Vec<String>>()
+                    }
+
+                    // Otherwise, use the new behavior.
+                    else if let Some(metadata) = record.get(0) {
+                        metadata.split(';').map(|x| x.to_owned()).collect::<Vec<String>>()
+                    }
+
+                    // Otherwise, is an error.
+                    else {
+                        return Err(ErrorKind::ImportTSVWrongTypeTable.into())
+                    };
+
                     // Get the type and version of the table, then the definition.
-                    table_type = if let Some(table_type) = record.get(0) {
+                    table_type = if let Some(table_type) = record_data.get(0) {
                         let mut table_type = table_type.to_owned();
                         if table_type.starts_with("#") {
                             table_type.remove(0);
                         }
                         table_type
                     } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
-                    let table_version = if let Some(table_version) = record.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
+                    let table_version = if let Some(table_version) = record_data.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
 
                     definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
                     else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
@@ -1075,8 +1108,9 @@ impl Table {
             .collect::<Vec<usize>>();
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+        let metadata = ("#".to_owned() + table_name + ";" + &self.definition.get_version().to_string() + ";" + &file_path.join("/"), (0..sorted_indexes.len() - 1).map(|_| "".to_owned()).collect::<Vec<String>>());
         writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
-        writer.serialize(("#".to_owned() + table_name, self.definition.get_version(), file_path.join("/")))?;
+        writer.serialize(metadata)?;
 
         // Then we serialize each entry in the DB Table.
         for entry in &self.entries {
@@ -1127,8 +1161,9 @@ impl Table {
             .collect::<Vec<usize>>();
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+        let metadata = ("#".to_owned() + table_type + ";" + &version.to_string(), (0..sorted_indexes.len() - 1).map(|_| "".to_owned()).collect::<Vec<String>>());
         writer.serialize(fields_sorted.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
-        writer.serialize(("#".to_owned() + &table_type, version))?;
+        writer.serialize(metadata)?;
 
         // Then we serialize each entry in the DB Table.
         for entry in entries {

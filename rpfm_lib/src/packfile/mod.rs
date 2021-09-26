@@ -715,10 +715,14 @@ impl PackFile {
                             file.read_line(&mut first_row)?;
                             file.read_line(&mut second_row)?;
 
-                            let first_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
-                            match first_row_splitted.get(0) {
+                            let second_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
+                            match second_row_splitted.get(0) {
                                 Some(table_type) => {
-                                    let mut table_type = table_type.to_string();
+
+                                    // If we have at least 2 fields, use the legacy behavior.
+                                    let has_legacy_structure = if let Some(table_type) = second_row_splitted.get(1) { table_type != &"" } else { false };
+                                    let mut table_type = if has_legacy_structure { table_type.to_string() } else { table_type.split(';').collect::<Vec<&str>>()[0].to_owned() };
+
                                     if table_type.starts_with("#") {
                                         table_type.remove(0);
                                     }
@@ -880,10 +884,14 @@ impl PackFile {
                                             file.read_line(&mut first_row)?;
                                             file.read_line(&mut second_row)?;
 
-                                            let first_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
-                                            match first_row_splitted.get(0) {
+                                            let second_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
+                                            match second_row_splitted.get(0) {
                                                 Some(table_type) => {
-                                                    let mut table_type = table_type.to_string();
+
+                                                    // If we have at least 2 fields, use the legacy behavior.
+                                                    let has_legacy_structure = if let Some(table_type) = second_row_splitted.get(1) { table_type != &"" } else { false };
+                                                    let mut table_type = if has_legacy_structure { table_type.to_string() } else { table_type.split(';').collect::<Vec<&str>>()[0].to_owned() };
+
                                                     if table_type.starts_with("#") {
                                                         table_type.remove(0);
                                                     }
