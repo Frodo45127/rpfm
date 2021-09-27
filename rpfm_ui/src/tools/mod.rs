@@ -50,6 +50,32 @@ use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 
+/// Macro to automatically generate get code from all sources, because it gets big really fast.
+macro_rules! get_data_from_all_sources {
+    ($funtion:ident, $data:ident, $processed_data:ident) => (
+        if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
+            Self::$funtion(data, &mut $processed_data)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::ParentFiles) {
+            Self::$funtion(data, &mut $processed_data)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::PackFile) {
+            Self::$funtion(data, &mut $processed_data)?;
+        }
+    );
+    ($funtion:ident, $data:ident, $processed_data:ident, $use_source:expr) => (
+        if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
+            Self::$funtion(data, &mut $processed_data, DataSource::GameFiles)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::ParentFiles) {
+            Self::$funtion(data, &mut $processed_data, DataSource::ParentFiles)?;
+        }
+        if let Some(data) = $data.get_mut(&DataSource::PackFile) {
+            Self::$funtion(data, &mut $processed_data, DataSource::PackFile)?;
+        }
+    );
+}
+
 pub mod faction_painter;
 
 //-------------------------------------------------------------------------------//

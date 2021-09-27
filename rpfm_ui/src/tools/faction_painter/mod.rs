@@ -265,38 +265,10 @@ impl ToolFactionPainter {
 
         let mut processed_data = BTreeMap::new();
 
-        // First, get the faction's data.
-        if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_data(data, &mut processed_data)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_data(data, &mut processed_data)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_data(data, &mut processed_data)?;
-        }
-
-        // Then, get the banner colours.
-        if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_banner_data(data, &mut processed_data, DataSource::GameFiles)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_banner_data(data, &mut processed_data, DataSource::ParentFiles)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_banner_data(data, &mut processed_data, DataSource::PackFile)?;
-        }
-
-        // Then, get the uniform colours.
-        if let Some(data) = data.get_mut(&DataSource::GameFiles) {
-            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::GameFiles)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::ParentFiles) {
-            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::ParentFiles)?;
-        }
-        if let Some(data) = data.get_mut(&DataSource::PackFile) {
-            Self::get_faction_uniform_data(data, &mut processed_data, DataSource::PackFile)?;
-        }
+        // Get the table's data.
+        get_data_from_all_sources!(get_faction_data, data, processed_data);
+        get_data_from_all_sources!(get_faction_banner_data, data, processed_data, true);
+        get_data_from_all_sources!(get_faction_uniform_data, data, processed_data, true);
 
         // Finally, grab the flag files. For that, get the paths from each faction's data, and request the flag icons.
         // These flag paths are already pre-processed to contain their full icon path, and a common slash format.
