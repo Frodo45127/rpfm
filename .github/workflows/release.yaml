@@ -124,13 +124,11 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SonnetCore.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SonnetUi.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SyntaxHighlighting.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\KF5TextEditor.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5TextWidgets.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5WidgetsAddons.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5WindowSystem.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5XmlGui.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-
-          # Manual copy, because the stupid C++ keeps breaking it while compiling it.
-          cp C:\KF5TextEditor.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\libcrypto*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libEGL.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
