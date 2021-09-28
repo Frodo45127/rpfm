@@ -695,6 +695,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to access a column expecting the wrong type.
     ToolTableColumnNotOfTypeWeExpected,
+
+    /// It says it all.
+    Impossibru,
 }
 
 /// Implementation of `Error`.
@@ -1045,6 +1048,7 @@ impl Display for ErrorKind {
             ErrorKind::ColumnNotFoundInTable(column_name) => write!(f, "<p>The column '{}' is missing from the table we expected to contain it.</p>", column_name),
             ErrorKind::ToolTableColumnNotFound => write!(f, "<p>One of the columns we need is not in the table we're searching for. This means either the tool needs updating, or you have some weird tables there.</p>"),
             ErrorKind::ToolTableColumnNotOfTypeWeExpected => write!(f, "<p>One of the columns we need is not of the type we expected. This means either the tool needs updating, or you have some weird tables there.</p>"),
+            ErrorKind::Impossibru => write!(f, "<p>I am quite interested in knowing how the hell did you managed to trigger this message, because this is a theorically impossible situation. Feel free to tell me (the author of RPFM) about it so I can fix it.</p>"),
         }
     }
 }

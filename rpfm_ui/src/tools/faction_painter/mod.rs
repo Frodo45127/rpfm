@@ -56,7 +56,7 @@ use rpfm_macros::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::locale::qtr;
+use crate::locale::{tr, qtr};
 use self::slots::ToolFactionPainterSlots;
 
 use super::*;
@@ -149,6 +149,7 @@ impl ToolFactionPainter {
         let paths = vec![PathType::Folder(vec!["db".to_owned()])];
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let tool = Tool::new(&app_ui.main_window, &paths, &TOOL_SUPPORTED_GAMES, view)?;
+        tool.set_title(&tr("faction_painter_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
         // ListView.
@@ -862,8 +863,8 @@ impl ToolFactionPainter {
                 table.set_table_data(&table_data)?;
                 let path = vec!["db".to_owned(), "faction_banners_tables".to_owned(), self.get_file_name()];
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
-            } else { Err(ErrorKind::Generic.into()) }
-        } else { Err(ErrorKind::Generic.into()) }
+            } else { Err(ErrorKind::Impossibru.into()) }
+        } else { Err(ErrorKind::Impossibru.into()) }
     }
 
     /// This function takes care of saving the banner's data into a PackedFile.
@@ -911,8 +912,8 @@ impl ToolFactionPainter {
                 table.set_table_data(&table_data)?;
                 let path = vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned(), self.get_file_name()];
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
-            } else { Err(ErrorKind::Generic.into()) }
-        } else { Err(ErrorKind::Generic.into()) }
+            } else { Err(ErrorKind::Impossibru.into()) }
+        } else { Err(ErrorKind::Impossibru.into()) }
     }
 
     /// This function returns the file name this tool uses for the PackedFiles, when a PackedFile has no specific name.

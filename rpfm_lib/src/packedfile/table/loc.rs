@@ -125,6 +125,11 @@ impl Loc {
         self.table.set_table_data(data)
     }
 
+    /// This function returns a valid empty row for this table.
+    pub fn get_new_row(&self) -> Vec<DecodedData> {
+        Table::get_new_row(self.get_ref_definition())
+    }
+
     /// This function creates a new `Loc` from a `Vec<u8>`.
     pub fn read(packed_file_data: &[u8], schema: &Schema, return_incomplete: bool) -> Result<Self> {
 

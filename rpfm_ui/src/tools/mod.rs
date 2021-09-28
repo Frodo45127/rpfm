@@ -19,10 +19,13 @@ use qt_widgets::{QDialog, QWidget};
 use qt_core::QBox;
 use qt_core::QObject;
 use qt_core::QPtr;
+use qt_core::QString;
 
 use qt_ui_tools::QUiLoader;
 
 use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
+
+use rayon::prelude::*;
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -36,8 +39,10 @@ use rpfm_macros::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
-use rpfm_lib::packedfile::table::DecodedData;
+use rpfm_lib::packedfile::DecodedPackedFile;
+use rpfm_lib::packedfile::table::{db::DB, DecodedData};
 use rpfm_lib::SCHEMA;
+use rpfm_lib::schema::FieldType;
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -76,7 +81,18 @@ macro_rules! get_data_from_all_sources {
     );
 }
 
+/// Macro to automatically generate get code from all sources, because it gets big really fast.
+macro_rules! load_field_to_detailed_view_editor {
+    ($tool:ident, $processed_data:ident, $field_editor:ident, $field_name: expr) => (
+        if let Some(data) = $processed_data.get($field_name) {
+            $tool.$field_editor.set_text(&QString::from_std_str(data));
+        }
+    );
+}
+
+
 pub mod faction_painter;
+pub mod unit_editor;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -150,6 +166,11 @@ impl Tool {
     /// This function returns the main widget casted as a QDialog, which should be the type of the widget defined in the UI Template.
     pub unsafe fn get_ref_dialog(&self) -> qt_core::QPtr<QDialog> {
         self.main_widget.static_downcast::<QDialog>()
+    }
+
+    /// This function sets the title of the Tool's window.
+    pub unsafe fn set_title(&self, title: &str) {
+        self.get_ref_dialog().set_window_title(&QString::from_std_str(title));
     }
 
     /// This function saves the tools data to the PackFile, in a common way across all tools, and triggers the relevant UI updates.
@@ -250,5 +271,154 @@ impl Tool {
     pub unsafe fn find_widget<T: StaticUpcast<QWidget> + cpp_core::StaticUpcast<qt_core::QObject>>(&self, widget_name: &str) -> Result<QPtr<T>>
         where QObject: DynamicCast<T> {
         self.get_ref_main_widget().find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
+    }
+
+    /// This function gets the data needed for the tool from a DB table in a generic way.
+    ///
+    /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
+    unsafe fn get_table_data(
+        data: &mut BTreeMap<Vec<String>, PackedFile>,
+        processed_data: &mut BTreeMap<String, BTreeMap<String, String>>,
+        table_name: &str,
+        key_name: &str,
+        linked_table: Option<(String, String)>,
+    ) -> Result<()> {
+
+        // Prepare all the different name variations we need.
+        let table_name_end_underscore = format!("{}_", table_name);
+        let table_name_end_tables = format!("{}_tables", table_name);
+        let definition_key = format!("{}_definition", table_name);
+        let linked_key_name = linked_table.map(|(table, column)| format!("{}_{}", table, column));
+
+        for (path, packed_file) in data.iter_mut() {
+            if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == table_name_end_tables {
+                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
+
+                    // First, get the key column.
+                    let key_column = table.get_column_position_by_name(key_name)?;
+                    let fields = table.get_ref_definition().get_fields_processed();
+
+                    // Depending of if it's a linked table or not, we get it as full new entries, or filling existing entries.
+                    match linked_key_name {
+                        Some(ref linked_key_name) => {
+
+                            // If it's a linked table, we iterate over our current data, and for each of our entries, find the equivalent entry on this table.
+                            // If no link is found, skip the entry.
+                            for values in processed_data.values_mut() {
+                                let linked_key = if let Some(linked_key) = values.get(linked_key_name) { linked_key.to_owned() } else { continue };
+                                let row = table.get_ref_table_data().par_iter().find_first(|row| {
+                                    match Tool::get_row_by_column_index(row, key_column) {
+                                        Ok(data) => match data {
+                                            DecodedData::StringU8(data) |
+                                            DecodedData::StringU16(data) |
+                                            DecodedData::OptionalStringU8(data) |
+                                            DecodedData::OptionalStringU16(data) => data == &linked_key,
+                                            _ => false,
+                                        },
+                                        Err(_) => false,
+                                    }
+                                });
+
+                                // If it has data, remove the referenced linked column value from our data, as we will be using the source one,
+                                // and add the data of the rest of the fields.
+                                if let Some(row) = row {
+                                    values.remove(linked_key_name);
+                                    for (index, cell) in row.iter().enumerate() {
+                                        let cell_data = cell.data_to_string();
+                                        let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name();
+                                        values.insert(cell_name, cell_data);
+                                    }
+                                }
+
+                                // Store the definition, so we can re-use it later to recreate the table.
+                                if values.get(&definition_key).is_none() {
+                                    let definition = serde_json::to_string(table.get_ref_definition())?;
+                                    values.insert(definition_key.to_owned(), definition);
+                                }
+                            }
+                        },
+                        None => {
+
+                            // If it's not a linked table... just add each row to our data.
+                            for row in table.get_ref_table_data() {
+                                let mut data = BTreeMap::new();
+                                let key = Tool::get_row_by_column_index(row, key_column)?.data_to_string();
+
+                                for (index, cell) in row.iter().enumerate() {
+                                    let cell_data = cell.data_to_string();
+                                    let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name();
+                                    data.insert(cell_name, cell_data);
+                                }
+
+                                // Store the definition, so we can re-use it later to recreate the table.
+                                if data.get(&definition_key).is_none() {
+                                    let definition = serde_json::to_string(table.get_ref_definition())?;
+                                    data.insert(definition_key.to_owned(), definition);
+                                }
+
+                                processed_data.insert(key.to_owned(), data);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// This function takes care of saving a DB table in a generic way into a PackedFile.
+    ///
+    /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
+    unsafe fn save_table_data(&self, data: &[BTreeMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
+
+        // Prepare all the different name variations we need.
+        let table_name_end_underscore = format!("{}_", table_name);
+        let table_name_end_tables = format!("{}_tables", table_name);
+        let definition_key = format!("{}_definition", table_name);
+
+        // Get the table definition from its first entry, if there is one.
+        if let Some(first) = data.first() {
+            if let Some(definition) = first.get(&definition_key) {
+                let mut table = DB::new(&table_name_end_tables, None, &serde_json::from_str(definition)?);
+
+                // Generate the table's data from empty rows + our data.
+                let table_fields = table.get_ref_definition().get_fields_processed();
+                let table_data = data.par_iter()
+                    .filter_map(|row_data| {
+                        let mut row = table.get_new_row();
+                        for (index, field) in table_fields.iter().enumerate() {
+
+                            // If the field is a reference to another, try to get the source instead. Only use the current table's value if that fails.
+                            let field_source_table_name = match field.get_is_reference() {
+                                Some((source_table, _)) => source_table.to_owned() + "_",
+                                None => table_name_end_underscore.to_owned(),
+                            };
+
+                            // For each field, check if we have data for it, and replace the "empty" row's data with it. Skip invalid values
+                            if let Some(value) = row_data.get(&format!("{}{}", field_source_table_name, field.get_name())) {
+                                row[index] = match field.get_field_type() {
+                                    FieldType::Boolean => DecodedData::Boolean(value.parse().ok()?),
+                                    FieldType::F32 => DecodedData::F32(value.parse().ok()?),
+                                    FieldType::I16 => DecodedData::I16(value.parse().ok()?),
+                                    FieldType::I32 => DecodedData::I32(value.parse().ok()?),
+                                    FieldType::I64 => DecodedData::I64(value.parse().ok()?),
+                                    FieldType::StringU8 => DecodedData::StringU8(value.parse().ok()?),
+                                    FieldType::StringU16 => DecodedData::StringU16(value.parse().ok()?),
+                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(value.parse().ok()?),
+                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(value.parse().ok()?),
+                                    _ => unimplemented!()
+                                };
+                            }
+                        }
+
+                        Some(row)
+                    }).collect::<Vec<Vec<DecodedData>>>();
+
+                table.set_table_data(&table_data)?;
+                let path = vec!["db".to_owned(), table_name_end_tables.to_owned(), file_name.to_owned()];
+                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
+            } else { Err(ErrorKind::Impossibru.into()) }
+        } else { Err(ErrorKind::Impossibru.into()) }
     }
 }

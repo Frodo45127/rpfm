@@ -223,6 +223,7 @@ pub struct AppUI {
     // `Tools` menu.
     //-------------------------------------------------------------------------------//
     pub tools_faction_painter: QPtr<QAction>,
+    pub tools_unit_editor: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `About` menu.
@@ -586,6 +587,10 @@ impl AppUI {
 
         // Populate the `Tools` menu.
         let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
+        let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
+        if !SETTINGS.read().unwrap().settings_bool["enable_unit_editor"] {
+            tools_unit_editor.set_enabled(false);
+        }
 
         //-----------------------------------------------//
         // `About` Menu.
@@ -778,6 +783,7 @@ impl AppUI {
             // "Tools" menu.
             //-------------------------------------------------------------------------------//
             tools_faction_painter,
+            tools_unit_editor,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.

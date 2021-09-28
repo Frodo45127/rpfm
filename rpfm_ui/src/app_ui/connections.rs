@@ -124,6 +124,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     // `Tools` menu connections.
     //-----------------------------------------------//
     app_ui.tools_faction_painter.triggered().connect(&slots.tools_faction_painter);
+    app_ui.tools_unit_editor.triggered().connect(&slots.tools_unit_editor);
 
     //-----------------------------------------------//
     // `About` menu connections.
