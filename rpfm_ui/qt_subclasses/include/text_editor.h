@@ -13,6 +13,9 @@
 #endif
 #include <QWidget>
 
+// This one is needed for the save fix.
+#include <KActionCollection>
+
 extern "C" QWidget* new_text_editor(QWidget* parent = nullptr);
 
 extern "C" QString* get_text(QWidget* parent = nullptr);

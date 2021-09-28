@@ -8,6 +8,13 @@ extern "C" QWidget* new_text_editor(QWidget* parent) {
 
     // Disable the status bar.
     view->setStatusBarEnabled(false);
+
+    // Remove the save and saveAs actions, as we don't support saving to disk and interfere with RPFM.
+    KActionCollection* actions = view->actionCollection();
+    actions->removeAction(actions->action("file_save"));
+    actions->removeAction(actions->action("file_save_as"));
+
+    // Return the view widget, so we can access it later.
     return dynamic_cast<QWidget*>(view);
 }
 
