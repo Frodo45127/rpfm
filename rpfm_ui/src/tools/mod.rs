@@ -28,7 +28,7 @@ use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 use rayon::prelude::*;
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, BufReader};
 use std::rc::Rc;
@@ -109,7 +109,7 @@ pub struct Tool {
     used_paths: Vec<PathType>,
 
     /// Stored PackedFiles, for quickly pulling data from them if needed.
-    packed_files: Rc<RefCell<HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>>>,
+    packed_files: Rc<RefCell<HashMap<DataSource, HashMap<Vec<String>, PackedFile>>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -277,8 +277,8 @@ impl Tool {
     ///
     /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
     unsafe fn get_table_data(
-        data: &mut BTreeMap<Vec<String>, PackedFile>,
-        processed_data: &mut BTreeMap<String, BTreeMap<String, String>>,
+        data: &mut HashMap<Vec<String>, PackedFile>,
+        processed_data: &mut HashMap<String, HashMap<String, String>>,
         table_name: &str,
         key_name: &str,
         linked_table: Option<(String, String)>,
@@ -319,10 +319,8 @@ impl Tool {
                                     }
                                 });
 
-                                // If it has data, remove the referenced linked column value from our data, as we will be using the source one,
-                                // and add the data of the rest of the fields.
+                                // If it has data, add it of the rest of the fields.
                                 if let Some(row) = row {
-                                    values.remove(linked_key_name);
                                     for (index, cell) in row.iter().enumerate() {
                                         let cell_data = cell.data_to_string();
                                         let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name();
@@ -341,7 +339,7 @@ impl Tool {
 
                             // If it's not a linked table... just add each row to our data.
                             for row in table.get_ref_table_data() {
-                                let mut data = BTreeMap::new();
+                                let mut data = HashMap::new();
                                 let key = Tool::get_row_by_column_index(row, key_column)?.data_to_string();
 
                                 for (index, cell) in row.iter().enumerate() {
@@ -372,7 +370,7 @@ impl Tool {
     /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
     ///
     /// TODO: Make this work for tables that admit multiple rows per relation.
-    unsafe fn save_table_data(&self, data: &[BTreeMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
+    unsafe fn save_table_data(&self, data: &[HashMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
 
         // Prepare all the different name variations we need.
         let table_name_end_underscore = format!("{}_", table_name);
@@ -426,31 +424,35 @@ impl Tool {
 
     /// This function gets the data needed for the tool from the locs in a generic way.
     unsafe fn get_loc_data(
-        data: &mut BTreeMap<Vec<String>, PackedFile>,
-        processed_data: &mut BTreeMap<String, BTreeMap<String, String>>,
+        data: &mut HashMap<Vec<String>, PackedFile>,
+        processed_data: &mut HashMap<String, HashMap<String, String>>,
         loc_keys: &[(&str, &str)],
     ) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 1 && path[0].to_lowercase() == "text" && path.last().unwrap().ends_with(".loc") {
                 if let Ok(DecodedPackedFile::Loc(table)) = packed_file.decode_return_ref() {
+                    let table = table.get_ref_table_data().par_iter()
+                        .filter_map(|row| {
+                            let key = if let DecodedData::StringU16(key) = &row[0] { key.to_owned() } else { None? };
+                            let value = if let DecodedData::StringU16(value) = &row[1] { value.to_owned() } else { None? };
+                            Some((key, value))
+                        }).collect::<HashMap<String, String>>();
 
                     // For each entry on our list, check the provided loc keys we expect.
                     //
                     // TODO: Make this work with multi-key columns.
                     for values in processed_data.values_mut() {
-                        let loc_keys = loc_keys.iter().filter_map(|(table_and_column, key)| Some((*table_and_column, format!("{}_{}", table_and_column, values.get(*key)?)))).collect::<Vec<(&str, String)>>();
-                        let mut loc_data = table.get_ref_table_data()
-                        .par_iter()
-                        .filter_map(|row| {
-                            let key = row[0].data_to_string();
-                            if let Some(partial_key) = loc_keys.iter().find_map(|(partial_key, full_key)| if full_key == &key { Some(partial_key) } else { None } ) {
-                                Some((format!("loc_{}", partial_key), row[1].data_to_string()))
-                            } else {
-                                None
+                        let loc_keys = loc_keys.iter()
+                            .filter_map(|(table_and_column, key)|
+                                Some((*table_and_column, format!("{}_{}", table_and_column, values.get(*key)?)))
+                            ).collect::<Vec<(&str, String)>>();
+
+                        for (partial_key, full_key) in loc_keys {
+                            if let Some(value) = table.get(&full_key) {
+                                values.insert(format!("loc_{}", partial_key), value.to_owned());
                             }
-                        }).collect::<BTreeMap<String, String>>();
-                        values.append(&mut loc_data);
+                        }
                     }
                 }
             }
@@ -462,14 +464,13 @@ impl Tool {
     /// This function takes care of saving all the loc-related data in a generic way into a PackedFile.
     unsafe fn save_loc_data(
         &self,
-        data: &[BTreeMap<String, String>],
+        data: &[HashMap<String, String>],
         file_name: &str,
         loc_keys: &[(&str, &str)]
     ) -> Result<PackedFile> {
         if let Some(schema) = &*SCHEMA.read().unwrap() {
             if let Ok(definition) = schema.get_ref_last_definition_loc() {
                 let mut table = Loc::new(&definition);
-
 
                 // Generate the table's data from empty rows + our data.
                 let table_data = data.par_iter()
@@ -491,8 +492,8 @@ impl Tool {
                                 if let Some(loc_key) = loc_keys.iter().find_map(|(tool_key, loc_key)| if *tool_key == &key { Some(loc_key) } else { None }) {
 
                                     let mut row = table.get_new_row();
-                                    row[0] = DecodedData::StringU8(loc_key.to_owned());
-                                    row[1] = DecodedData::StringU8(value.to_owned());
+                                    row[0] = DecodedData::StringU16(loc_key.to_owned());
+                                    row[1] = DecodedData::StringU16(value.to_owned());
                                     rows.push(row);
                                 }
                             }
@@ -508,5 +509,28 @@ impl Tool {
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::Loc(table), &path))
             } else { Err(ErrorKind::Impossibru.into()) }
         } else { Err(ErrorKind::SchemaNotFound.into()) }
+    }
+
+    /// This function is an utility function to get the most relevant file for a tool from the dependencies.
+    unsafe fn get_most_relevant_file(data: &HashMap<DataSource, HashMap<Vec<String>, PackedFile>>, path: &[String]) -> Option<PackedFile> {
+        if let Some(data) = data.get(&DataSource::PackFile) {
+            if let Some(packed_file) = data.get(path) {
+                return Some(packed_file.to_owned());
+            }
+        }
+
+        if let Some(data) = data.get(&DataSource::ParentFiles) {
+            if let Some(packed_file) = data.get(path) {
+                return Some(packed_file.to_owned());
+            }
+        }
+
+        if let Some(data) = data.get(&DataSource::GameFiles) {
+            if let Some(packed_file) = data.get(path) {
+                return Some(packed_file.to_owned());
+            }
+        }
+
+        None
     }
 }

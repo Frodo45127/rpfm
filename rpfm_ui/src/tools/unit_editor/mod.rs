@@ -21,11 +21,13 @@ use qt_widgets::QListView;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTextEdit;
 
+use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::CaseSensitivity;
 use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
@@ -36,7 +38,10 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
+use itertools::Itertools;
+
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
@@ -68,6 +73,12 @@ const DEFAULT_FILENAME: &str = "unit_edited";
 /// Role that stores the data of the unit represented by each item.
 const UNIT_DATA: i32 = 60;
 
+/// Path where all the unit info pictures (icons are too small) are located.
+const UNIT_INFOPICS_PATH: &str = "ui/units/infopics/";
+
+/// Path where all the unit icon pictures (for backup) are located.
+const UNIT_ICONS_PATH: &str = "ui/units/icons/";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -84,6 +95,9 @@ pub struct ToolUnitEditor {
     unit_list_filter_line_edit: QPtr<QLineEdit>,
 
     detailed_view_tab_widget: QPtr<QTabWidget>,
+    unit_icon_label: QPtr<QLabel>,
+    unit_icon_key_label: QPtr<QLabel>,
+    unit_icon_key_line_edit: QPtr<QLineEdit>,
 
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
@@ -171,6 +185,11 @@ impl ToolUnitEditor {
         let timer_delayed_updates = QTimer::new_1a(tool.get_ref_main_widget());
         timer_delayed_updates.set_single_shot(true);
 
+        // Icon stuff.
+        let unit_icon_label: QPtr<QLabel> = tool.find_widget("unit_icon_label")?;
+        let unit_icon_key_label: QPtr<QLabel> = tool.find_widget("unit_icon_key_label")?;
+        let unit_icon_key_line_edit: QPtr<QLineEdit> = tool.find_widget("unit_icon_key_line_edit")?;
+
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
@@ -236,6 +255,10 @@ impl ToolUnitEditor {
             unit_list_filter_line_edit,
 
             detailed_view_tab_widget,
+            unit_icon_label,
+            unit_icon_key_label,
+            unit_icon_key_line_edit,
+
             packed_file_name_label,
             packed_file_name_line_edit,
             button_box,
@@ -296,12 +319,12 @@ impl ToolUnitEditor {
     /// This function loads the data we need for the faction painter to the view, inside items in the ListView.
     unsafe fn load_data(&self) -> Result<()> {
 
-        // Note: this data is HashMap<DataSource, BTreeMap<Path, PackedFile>>.
+        // Note: this data is HashMap<DataSource, HashMap<Path, PackedFile>>.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let mut data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
-        let mut processed_data = BTreeMap::new();
+        let mut processed_data = HashMap::new();
 
         // Get the table's data.
         get_data_from_all_sources!(get_main_units_data, data, processed_data);
@@ -312,7 +335,7 @@ impl ToolUnitEditor {
         get_data_from_all_sources!(get_loc_data, data, processed_data);
 
         // Once we got everything processed, build the items for the ListView.
-        for (key, data) in &processed_data {
+        for (key, data) in processed_data.iter().sorted_by_key(|x| x.0) {
             let item = QStandardItem::from_q_string(&QString::from_std_str(&key)).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), UNIT_DATA);
 
@@ -338,7 +361,7 @@ impl ToolUnitEditor {
         // First, save whatever is currently open in the detailed view.
         self.unit_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
 
-        // Get each faction's data as a BTreeMap of data/value.
+        // Get each faction's data as a HashMap of data/value.
         let data_to_save = (0..self.unit_list_model.row_count_0a())
             .map(|row| serde_json::from_str(
                 &self.unit_list_model.data_2a(
@@ -346,7 +369,7 @@ impl ToolUnitEditor {
                     UNIT_DATA
                 ).to_string()
             .to_std_string()).unwrap())
-            .collect::<Vec<BTreeMap<String, String>>>();
+            .collect::<Vec<HashMap<String, String>>>();
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
         let land_units_packed_file = self.save_land_units_tables_data(&data_to_save)?;
@@ -377,7 +400,7 @@ impl ToolUnitEditor {
             self.detailed_view_tab_widget.set_enabled(true);
         }
 
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
 
         load_field_to_detailed_view_editor!(self, data, land_units_key_line_edit, "land_units_key");
         load_field_to_detailed_view_editor!(self, data, land_units_ai_usage_group_line_edit, "land_units_ai_usage_group");
@@ -391,13 +414,56 @@ impl ToolUnitEditor {
         load_field_to_detailed_view_editor!(self, data, loc_land_units_onscreen_name_line_edit, "loc_land_units_onscreen_name");
         load_field_to_detailed_view_editor!(self, data, loc_unit_description_historical_text_key_ktexteditor, "loc_unit_description_historical_texts_text");
         load_field_to_detailed_view_editor!(self, data, loc_unit_description_short_texts_text_ktexteditor, "loc_unit_description_short_texts_text");
+
+        // Unit Image Info.
+        load_field_to_detailed_view_editor!(self, data, unit_icon_key_line_edit, "unit_variants_unit_card");
+
+        // The icon needs to be pulled up from the dependencies cache on load.
+        if let Some(unit_card) = data.get("unit_variants_unit_card") {
+            let icon_path_png = format!("{}{}.png", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let icon_path_tga = format!("{}{}.tga", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let icon_path_png_lowres = format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+
+            let icon_paths = vec![
+                PathType::File(icon_path_png.to_vec()),
+                PathType::File(icon_path_tga.to_vec()),
+                PathType::File(icon_path_png_lowres.to_vec()),
+                PathType::File(icon_path_tga_lowres.to_vec()),
+            ];
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths));
+            let response = CentralCommand::recv(&receiver);
+            let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png) {
+                Some(image_file)
+            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga) {
+                Some(image_file)
+            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
+                Some(image_file)
+            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) {
+                Some(image_file)
+            } else {
+                None
+            };
+
+            if let Some(image_file) = image_file {
+                let image_data = image_file.get_raw_data().unwrap();
+                let byte_array = QByteArray::from_slice(&image_data);
+                let image = QPixmap::new();
+                image.load_from_data_q_byte_array(&byte_array);
+                self.unit_icon_label.set_pixmap(&image);
+            }
+        } else {
+            self.unit_icon_label.clear();
+        }
     }
 
     /// This function saves the data of the detailed view to its item in the faction list.
     ///
     /// NOTE: Table column names are put as-is, not through translations.
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
-        let mut data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+        let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
         data.insert("land_units_key".to_owned(), self.land_units_key_line_edit.text().to_std_string());
 
         //-----------------------------------------------------------------------//
@@ -454,32 +520,32 @@ impl ToolUnitEditor {
     }
 
     /// This function gets the data needed for the tool from the land_units table.
-    unsafe fn get_land_units_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_land_units_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "land_units", "key", Some(("main_units".to_owned(), "land_unit".to_owned())))
     }
 
     /// This function gets the data needed for the tool from the main_units table.
-    unsafe fn get_main_units_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_main_units_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "main_units", "unit", None)
     }
 
     /// This function gets the data needed for the tool from the unit_description_historical_text table.
-    unsafe fn get_unit_description_historical_text_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_unit_description_historical_text_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "unit_description_historical_texts", "key", Some(("land_units".to_owned(), "historical_description_text".to_owned())))
     }
 
     /// This function gets the data needed for the tool from the unit_description_short_texts table.
-    unsafe fn get_unit_description_short_texts_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_unit_description_short_texts_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "unit_description_short_texts", "key", Some(("land_units".to_owned(), "short_description_text".to_owned())))
     }
 
     /// This function gets the data needed for the tool from the unit_variants table.
-    unsafe fn get_unit_variants_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_unit_variants_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "unit_variants", "name", Some(("land_units".to_owned(), "key".to_owned())))
     }
 
     /// This function gets the data needed for the tool from the locs available.
-    unsafe fn get_loc_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_loc_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         let loc_keys = vec![
             ("land_units_onscreen_name", "land_units_key"),
             ("unit_description_short_texts_text", "unit_description_short_texts_key"),
@@ -489,32 +555,32 @@ impl ToolUnitEditor {
     }
 
     /// This function takes care of saving the land_units related data into a PackedFile.
-    unsafe fn save_land_units_tables_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_land_units_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "land_units", &self.get_file_name())
     }
 
     /// This function takes care of saving the main_units related data into a PackedFile.
-    unsafe fn save_main_units_tables_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_main_units_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "main_units", &self.get_file_name())
     }
 
     /// This function takes care of saving the unit_description_historical_texts related data into a PackedFile.
-    unsafe fn save_unit_description_historical_texts_tables_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_unit_description_historical_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "unit_description_historical_texts", &self.get_file_name())
     }
 
     /// This function takes care of saving the unit_description_short_texts related data into a PackedFile.
-    unsafe fn save_unit_description_short_texts_tables_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_unit_description_short_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "unit_description_short_texts", &self.get_file_name())
     }
 
     /// This function takes care of saving the unit_variants related data into a PackedFile.
-    unsafe fn save_unit_variants_tables_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_unit_variants_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "unit_variants", &self.get_file_name())
     }
 
     /// This function takes care of saving all the loc-related data into a PackedFile.
-    unsafe fn save_loc_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_loc_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         let loc_keys = vec![
             ("land_units_onscreen_name", "land_units_key"),
             ("unit_description_short_texts_text", "unit_description_short_texts_key"),

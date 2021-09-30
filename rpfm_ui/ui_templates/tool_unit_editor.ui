@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1646</width>
-    <height>907</height>
+    <width>1653</width>
+    <height>969</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -92,53 +92,88 @@
           <attribute name="title">
            <string>Page</string>
           </attribute>
-          <layout class="QFormLayout" name="formLayout">
-           <item row="2" column="0">
-            <widget class="QLabel" name="main_units_unit_label">
-             <property name="text">
-              <string>TextLabel</string>
-             </property>
+          <layout class="QGridLayout" name="gridLayout_16">
+           <item row="2" column="3" rowspan="4" colspan="2">
+            <widget class="QWidget" name="widget_2" native="true">
+             <layout class="QFormLayout" name="formLayout_2">
+              <item row="2" column="0">
+               <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="loc_land_units_onscreen_name_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="main_units_unit_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLineEdit" name="main_units_unit_line_edit"/>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor"/>
+              </item>
+             </layout>
             </widget>
            </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="loc_land_units_onscreen_name_label">
-             <property name="text">
-              <string>TextLabel</string>
-             </property>
+           <item row="2" column="0" rowspan="4" colspan="2">
+            <widget class="QWidget" name="widget" native="true">
+             <layout class="QGridLayout" name="gridLayout_17">
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="unit_icon_key_line_edit">
+                <property name="clearButtonEnabled">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="unit_icon_key_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0" colspan="2">
+               <widget class="QLabel" name="unit_icon_label">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
-           </item>
-           <item row="6" column="0">
-            <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
-             <property name="text">
-              <string>TextLabel</string>
-             </property>
-            </widget>
-           </item>
-           <item row="8" column="0">
-            <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
-             <property name="text">
-              <string>TextLabel</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QLineEdit" name="main_units_unit_line_edit"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="unit_icon_label_2">
-             <property name="text">
-              <string>TextLabel</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="1">
-            <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
-           </item>
-           <item row="8" column="1">
-            <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor"/>
-           </item>
-           <item row="6" column="1">
-            <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor"/>
            </item>
           </layout>
          </widget>
@@ -983,32 +1018,6 @@
           <attribute name="title">
            <string>Tab 2</string>
           </attribute>
-          <widget class="QLabel" name="unit_icon_label">
-           <property name="geometry">
-            <rect>
-             <x>280</x>
-             <y>200</y>
-             <width>49</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>TextLabel</string>
-           </property>
-          </widget>
-          <widget class="QLabel" name="unit_name_label">
-           <property name="geometry">
-            <rect>
-             <x>220</x>
-             <y>300</y>
-             <width>49</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>TextLabel</string>
-           </property>
-          </widget>
          </widget>
         </widget>
        </item>

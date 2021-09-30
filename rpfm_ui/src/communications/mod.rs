@@ -472,8 +472,8 @@ pub enum Response {
     /// Response to return `DependenciesInfo`.
     DependenciesInfo(DependenciesInfo),
 
-    /// Response to return `HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>`.
-    HashMapDataSourceBTreeMapVecStringPackedFile(HashMap<DataSource, BTreeMap<Vec<String>, PackedFile>>),
+    /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
+    HashMapDataSourceHashMapVecStringPackedFile(HashMap<DataSource, HashMap<Vec<String>, PackedFile>>),
     Diagnostics(Diagnostics),
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
 }

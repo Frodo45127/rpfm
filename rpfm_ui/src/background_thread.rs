@@ -1347,7 +1347,7 @@ pub fn background_loop() {
                 let mut packed_files = HashMap::new();
 
                 // Get PackedFiles requested from the Parent Files.
-                let mut packed_files_parent = BTreeMap::new();
+                let mut packed_files_parent = HashMap::new();
                 if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files(&paths) {
                     for packed_file in packed_files_decoded {
                         packed_files_parent.insert(packed_file.get_path().to_vec(), packed_file);
@@ -1356,7 +1356,7 @@ pub fn background_loop() {
                 }
 
                 // Get PackedFiles requested from the Game Files.
-                let mut packed_files_game = BTreeMap::new();
+                let mut packed_files_game = HashMap::new();
                 if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files(&paths) {
                     for packed_file in packed_files_decoded {
                         packed_files_game.insert(packed_file.get_path().to_vec(), packed_file);
@@ -1365,7 +1365,7 @@ pub fn background_loop() {
                 }
 
                 // Get PackedFiles requested from the AssKit Files.
-                //let mut packed_files_asskit = BTreeMap::new();
+                //let mut packed_files_asskit = HashMap::new();
                 //if let Ok((packed_files_decoded, _)) = dependencies.get_packedfile_from_asskit_files(&paths) {
                 //    for packed_file in packed_files_decoded {
                 //        packed_files_asskit.insert(packed_file.get_path().to_vec(), packed_file);
@@ -1374,14 +1374,14 @@ pub fn background_loop() {
                 //}
 
                 // Get PackedFiles requested from the currently open PackFile, if any.
-                let mut packed_files_packfile = BTreeMap::new();
+                let mut packed_files_packfile = HashMap::new();
                 for packed_file in pack_file_decoded.get_packed_files_by_path_type_unicased(&paths) {
                     packed_files_packfile.insert(packed_file.get_path().to_vec(), packed_file );
                 }
                 packed_files.insert(DataSource::PackFile, packed_files_packfile);
 
                 // Return the full list of PackedFiles requested, splited by source.
-                CentralCommand::send_back(&sender, Response::HashMapDataSourceBTreeMapVecStringPackedFile(packed_files));
+                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapVecStringPackedFile(packed_files));
             },
 
             // TODO: This has to be case insensitive.

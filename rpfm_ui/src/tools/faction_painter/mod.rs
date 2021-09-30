@@ -44,7 +44,7 @@ use cpp_core::Ref;
 use rayon::prelude::*;
 use unicase::UniCase;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
@@ -259,12 +259,12 @@ impl ToolFactionPainter {
     /// This function loads the data we need for the faction painter to the view, inside items in the ListView.
     unsafe fn load_data(&self) -> Result<()> {
 
-        // Note: this data is HashMap<DataSource, BTreeMap<Path, PackedFile>>.
+        // Note: this data is HashMap<DataSource, HashMap<Path, PackedFile>>.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let mut data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
-        let mut processed_data = BTreeMap::new();
+        let mut processed_data = HashMap::new();
 
         // Get the table's data.
         get_data_from_all_sources!(get_faction_data, data, processed_data);
@@ -284,7 +284,7 @@ impl ToolFactionPainter {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
         let response = CentralCommand::recv(&receiver);
-        let images_data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
         // Prepare the image paths in unicased format, so we can get them despite what weird casing the paths have.
         let images_paths_unicased = processed_data.iter().map(|(x, y)|
@@ -355,7 +355,7 @@ impl ToolFactionPainter {
         // First, save whatever is currently open in the detailed view.
         self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
 
-        // Get each faction's data as a BTreeMap of data/value.
+        // Get each faction's data as a HashMap of data/value.
         let data_to_save = (0..self.faction_list_model.row_count_0a())
             .map(|row| serde_json::from_str(
                 &self.faction_list_model.data_2a(
@@ -363,7 +363,7 @@ impl ToolFactionPainter {
                     FACTION_DATA
                 ).to_string()
             .to_std_string()).unwrap())
-            .collect::<Vec<BTreeMap<String, String>>>();
+            .collect::<Vec<HashMap<String, String>>>();
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
         let banner_packed_file = self.save_faction_banner_data(&data_to_save)?;
@@ -384,7 +384,7 @@ impl ToolFactionPainter {
             self.uniform_groupbox.set_enabled(true);
         }
 
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
         let screen_name = data.get("screen_name").unwrap();
         self.get_ref_faction_name_label().set_text(&QString::from_std_str(screen_name));
 
@@ -411,7 +411,7 @@ impl ToolFactionPainter {
 
     /// This function saves the data of the detailed view to its item in the faction list.
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
-        let mut data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         let banner_primary = get_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast());
         let banner_secondary = get_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast());
@@ -435,7 +435,7 @@ impl ToolFactionPainter {
     /// This function restores the banner colours to its initial values when we opened the tool.
     pub unsafe fn banner_restore_initial_values(&self) {
         let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_initial_primary") {
             let banner_primary = banner_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
@@ -457,7 +457,7 @@ impl ToolFactionPainter {
     /// in those cases, but we also control it here, just in case.
     pub unsafe fn banner_restore_vanilla_values(&self) {
         let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_vanilla_primary") {
             let banner_primary = banner_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
@@ -476,7 +476,7 @@ impl ToolFactionPainter {
     /// This function restores the uniform colours to its initial values when we opened the tool.
     pub unsafe fn uniform_restore_initial_values(&self) {
         let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_initial_primary") {
             let uniform_primary = uniform_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
@@ -498,7 +498,7 @@ impl ToolFactionPainter {
     /// in those cases, but we also control it here, just in case.
     pub unsafe fn uniform_restore_vanilla_values(&self) {
         let index = self.faction_list_filter.map_to_source(&self.faction_list_view.selection_model().current_index());
-        let data: BTreeMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
+        let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_vanilla_primary") {
             let uniform_primary = uniform_primary.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
@@ -549,7 +549,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the factions table.
-    unsafe fn get_faction_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>) -> Result<()> {
+    unsafe fn get_faction_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
 
         // First, get the keys, names and flags from the factions tables.
         for (path, packed_file) in data.iter_mut() {
@@ -563,7 +563,7 @@ impl ToolFactionPainter {
                     let flag_path_column = table.get_column_position_by_name("flags_path")?;
 
                     for row in table.get_ref_table_data() {
-                        let mut data = BTreeMap::new();
+                        let mut data = HashMap::new();
 
                         match Tool::get_row_by_column_index(row, name_column)? {
                             DecodedData::StringU8(ref value) |
@@ -603,7 +603,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the faction_banners table.
-    unsafe fn get_faction_banner_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>, data_source: DataSource) -> Result<()> {
+    unsafe fn get_faction_banner_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_banners_tables" {
@@ -711,7 +711,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the faction_uniform_colours table.
-    unsafe fn get_faction_uniform_data(data: &mut BTreeMap<Vec<String>, PackedFile>, processed_data: &mut BTreeMap<String, BTreeMap<String, String>>, data_source: DataSource) -> Result<()> {
+    unsafe fn get_faction_uniform_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_uniform_colours_tables" {
@@ -819,7 +819,7 @@ impl ToolFactionPainter {
     }
 
     /// This function takes care of saving the banner's data into a PackedFile.
-    unsafe fn save_faction_banner_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_faction_banner_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         if let Some(first) = data.first() {
             if let Some(definition) = first.get("banner_definition") {
                 let mut table = DB::new("faction_banners_tables", None, &serde_json::from_str(definition)?);
@@ -868,7 +868,7 @@ impl ToolFactionPainter {
     }
 
     /// This function takes care of saving the banner's data into a PackedFile.
-    unsafe fn save_faction_uniform_data(&self, data: &[BTreeMap<String, String>]) -> Result<PackedFile> {
+    unsafe fn save_faction_uniform_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         if let Some(first) = data.first() {
             if let Some(definition) = first.get("uniform_definition") {
                 let mut table = DB::new("faction_uniform_colours_tables", None, &serde_json::from_str(definition)?);
