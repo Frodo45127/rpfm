@@ -40,7 +40,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::table::{db::DB, DecodedData};
+use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::schema::FieldType;
 
@@ -81,15 +81,15 @@ macro_rules! get_data_from_all_sources {
     );
 }
 
-/// Macro to automatically generate get code from all sources, because it gets big really fast.
+/// Macro to load a cell's data to the detailed view.
 macro_rules! load_field_to_detailed_view_editor {
     ($tool:ident, $processed_data:ident, $field_editor:ident, $field_name: expr) => (
-        if let Some(data) = $processed_data.get($field_name) {
-            $tool.$field_editor.set_text(&QString::from_std_str(data));
+        match $processed_data.get($field_name) {
+            Some(data) => $tool.$field_editor.set_text(&QString::from_std_str(data)),
+            None => $tool.$field_editor.set_text(&QString::new()),
         }
     );
 }
-
 
 pub mod faction_painter;
 pub mod unit_editor;
@@ -370,6 +370,8 @@ impl Tool {
     /// This function takes care of saving a DB table in a generic way into a PackedFile.
     ///
     /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
+    ///
+    /// TODO: Make this work for tables that admit multiple rows per relation.
     unsafe fn save_table_data(&self, data: &[BTreeMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
 
         // Prepare all the different name variations we need.
@@ -420,5 +422,91 @@ impl Tool {
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
             } else { Err(ErrorKind::Impossibru.into()) }
         } else { Err(ErrorKind::Impossibru.into()) }
+    }
+
+    /// This function gets the data needed for the tool from the locs in a generic way.
+    unsafe fn get_loc_data(
+        data: &mut BTreeMap<Vec<String>, PackedFile>,
+        processed_data: &mut BTreeMap<String, BTreeMap<String, String>>,
+        loc_keys: &[(&str, &str)],
+    ) -> Result<()> {
+
+        for (path, packed_file) in data.iter_mut() {
+            if path.len() > 1 && path[0].to_lowercase() == "text" && path.last().unwrap().ends_with(".loc") {
+                if let Ok(DecodedPackedFile::Loc(table)) = packed_file.decode_return_ref() {
+
+                    // For each entry on our list, check the provided loc keys we expect.
+                    //
+                    // TODO: Make this work with multi-key columns.
+                    for values in processed_data.values_mut() {
+                        let loc_keys = loc_keys.iter().filter_map(|(table_and_column, key)| Some((*table_and_column, format!("{}_{}", table_and_column, values.get(*key)?)))).collect::<Vec<(&str, String)>>();
+                        let mut loc_data = table.get_ref_table_data()
+                        .par_iter()
+                        .filter_map(|row| {
+                            let key = row[0].data_to_string();
+                            if let Some(partial_key) = loc_keys.iter().find_map(|(partial_key, full_key)| if full_key == &key { Some(partial_key) } else { None } ) {
+                                Some((format!("loc_{}", partial_key), row[1].data_to_string()))
+                            } else {
+                                None
+                            }
+                        }).collect::<BTreeMap<String, String>>();
+                        values.append(&mut loc_data);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// This function takes care of saving all the loc-related data in a generic way into a PackedFile.
+    unsafe fn save_loc_data(
+        &self,
+        data: &[BTreeMap<String, String>],
+        file_name: &str,
+        loc_keys: &[(&str, &str)]
+    ) -> Result<PackedFile> {
+        if let Some(schema) = &*SCHEMA.read().unwrap() {
+            if let Ok(definition) = schema.get_ref_last_definition_loc() {
+                let mut table = Loc::new(&definition);
+
+
+                // Generate the table's data from empty rows + our data.
+                let table_data = data.par_iter()
+                    .filter_map(|row_data| {
+                        let mut rows = vec![];
+
+                        for (key, value) in row_data {
+                            let loc_keys = loc_keys.iter().filter_map(|(table_and_column, key)| {
+                                Some((*table_and_column, format!("{}_{}", table_and_column, row_data.get(key.to_owned())?)))
+                            }).collect::<Vec<(&str, String)>>();
+
+                            if key.starts_with("loc_") {
+                                let mut key = key.to_owned();
+                                key.remove(0);
+                                key.remove(0);
+                                key.remove(0);
+                                key.remove(0);
+
+                                if let Some(loc_key) = loc_keys.iter().find_map(|(tool_key, loc_key)| if *tool_key == &key { Some(loc_key) } else { None }) {
+
+                                    let mut row = table.get_new_row();
+                                    row[0] = DecodedData::StringU8(loc_key.to_owned());
+                                    row[1] = DecodedData::StringU8(value.to_owned());
+                                    rows.push(row);
+                                }
+                            }
+                        }
+
+                        Some(rows)
+                    })
+                    .flatten()
+                    .collect::<Vec<Vec<DecodedData>>>();
+
+                table.set_table_data(&table_data)?;
+                let path = vec!["text".to_owned(), "db".to_owned(), file_name.to_owned()];
+                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::Loc(table), &path))
+            } else { Err(ErrorKind::Impossibru.into()) }
+        } else { Err(ErrorKind::SchemaNotFound.into()) }
     }
 }

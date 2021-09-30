@@ -146,7 +146,12 @@ impl ToolFactionPainter {
     ) -> Result<()> {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
-        let paths = vec![PathType::Folder(vec!["db".to_owned()])];
+        let paths = vec![
+            PathType::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
+            PathType::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()]),
+            PathType::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()]),
+        ];
+
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let tool = Tool::new(&app_ui.main_window, &paths, &TOOL_SUPPORTED_GAMES, view)?;
         tool.set_title(&tr("faction_painter_title"));
@@ -253,14 +258,9 @@ impl ToolFactionPainter {
 
     /// This function loads the data we need for the faction painter to the view, inside items in the ListView.
     unsafe fn load_data(&self) -> Result<()> {
-        let paths_to_use = vec![
-            PathType::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()]),
-        ];
 
         // Note: this data is HashMap<DataSource, BTreeMap<Path, PackedFile>>.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
         let mut data = if let Response::HashMapDataSourceBTreeMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 

@@ -66,14 +66,7 @@
        <property name="bottomMargin">
         <number>9</number>
        </property>
-       <item row="5" column="0">
-        <widget class="QLabel" name="packed_file_name_label">
-         <property name="text">
-          <string>TextLabel</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="2">
+       <item row="6" column="2">
         <widget class="QDialogButtonBox" name="button_box">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -83,14 +76,72 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="1">
-        <widget class="QLineEdit" name="packed_file_name_line_edit"/>
+       <item row="6" column="0">
+        <widget class="QLabel" name="packed_file_name_label">
+         <property name="text">
+          <string>TextLabel</string>
+         </property>
+        </widget>
        </item>
        <item row="0" column="0" colspan="3">
         <widget class="QTabWidget" name="detailed_view_tab_widget">
          <property name="currentIndex">
           <number>0</number>
          </property>
+         <widget class="QWidget" name="initial_tab">
+          <attribute name="title">
+           <string>Page</string>
+          </attribute>
+          <layout class="QFormLayout" name="formLayout">
+           <item row="2" column="0">
+            <widget class="QLabel" name="main_units_unit_label">
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="loc_land_units_onscreen_name_label">
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLineEdit" name="main_units_unit_line_edit"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="unit_icon_label_2">
+             <property name="text">
+              <string>TextLabel</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
+           </item>
+           <item row="8" column="1">
+            <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor"/>
+           </item>
+           <item row="6" column="1">
+            <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor"/>
+           </item>
+          </layout>
+         </widget>
          <widget class="QWidget" name="tab_3">
           <attribute name="title">
            <string>Tab 1</string>
@@ -961,12 +1012,40 @@
          </widget>
         </widget>
        </item>
+       <item row="6" column="1">
+        <widget class="QLineEdit" name="packed_file_name_line_edit"/>
+       </item>
+       <item row="5" column="0" colspan="3">
+        <widget class="KMessageWidget" name="warning_message_widget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+         <property name="closeButtonVisible">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </widget>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>KTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header>ktextedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KMessageWidget</class>
+   <extends>QFrame</extends>
+   <header>kmessagewidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>
