@@ -1025,7 +1025,7 @@
         <widget class="QLineEdit" name="packed_file_name_line_edit"/>
        </item>
        <item row="5" column="0" colspan="3">
-        <widget class="KMessageWidget" name="warning_message_widget">
+        <widget class="KMessageWidget" name="message_widget">
          <property name="enabled">
           <bool>true</bool>
          </property>

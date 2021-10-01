@@ -244,6 +244,40 @@ pub fn set_color_safe(view: &Ptr<QWidget>, color: &Ptr<QColor>) {
 }
 
 //---------------------------------------------------------------------------//
+// KMessageWidget stuff.
+//---------------------------------------------------------------------------//
+
+/// This function allow us to close a KMessageWidget.
+extern "C" { fn kmessage_widget_close(widget: *mut QWidget); }
+pub fn kmessage_widget_close_safe(widget: &Ptr<QWidget>) {
+    unsafe { kmessage_widget_close(widget.as_mut_raw_ptr()) }
+}
+
+/// This function allow us to set the text of the provided KMessageWidget, and se its type to Error.
+#[allow(dead_code)]
+extern "C" { fn kmessage_widget_set_error(widget: *mut QWidget, text: *const QString); }
+#[allow(dead_code)]
+pub fn kmessage_widget_set_error_safe(widget: &Ptr<QWidget>, text: Ptr<QString>) {
+    unsafe { kmessage_widget_set_error(widget.as_mut_raw_ptr(), text.as_raw_ptr()) }
+}
+
+/// This function allow us to set the text of the provided KMessageWidget, and se its type to Warning.
+#[allow(dead_code)]
+extern "C" { fn kmessage_widget_set_warning(widget: *mut QWidget, text: *const QString); }
+#[allow(dead_code)]
+pub fn kmessage_widget_set_warning_safe(widget: &Ptr<QWidget>, text: Ptr<QString>) {
+    unsafe { kmessage_widget_set_warning(widget.as_mut_raw_ptr(), text.as_raw_ptr()) }
+}
+
+/// This function allow us to set the text of the provided KMessageWidget, and se its type to Info.
+#[allow(dead_code)]
+extern "C" { fn kmessage_widget_set_info(widget: *mut QWidget, text: *const QString); }
+#[allow(dead_code)]
+pub fn kmessage_widget_set_info_safe(widget: &Ptr<QWidget>, text: Ptr<QString>) {
+    unsafe { kmessage_widget_set_info(widget.as_mut_raw_ptr(), text.as_raw_ptr()) }
+}
+
+//---------------------------------------------------------------------------//
 // Image stuff.
 //---------------------------------------------------------------------------//
 

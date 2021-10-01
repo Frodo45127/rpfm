@@ -40,7 +40,6 @@ use cpp_core::Ref;
 
 use itertools::Itertools;
 
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use rpfm_lib::packfile::PathType;
@@ -50,6 +49,7 @@ use rpfm_macros::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::ffi::*;
 use crate::locale::{qtr, tr};
 use crate::views::table::utils::clean_column_names;
 use self::slots::ToolUnitEditorSlots;
@@ -101,6 +101,7 @@ pub struct ToolUnitEditor {
 
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
+    message_widget: QPtr<QWidget>,
     button_box: QPtr<QDialogButtonBox>,
 
     //-----------------------------------------------------------------------//
@@ -193,8 +194,12 @@ impl ToolUnitEditor {
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
+        let message_widget: QPtr<QWidget> = tool.find_widget("message_widget")?;
         let button_box: QPtr<QDialogButtonBox> = tool.find_widget("button_box")?;
         packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
+
+        // Close the message widget, as by default is open.
+        kmessage_widget_close_safe(&message_widget.as_ptr());
 
         // Extra stuff.
         let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
@@ -261,6 +266,7 @@ impl ToolUnitEditor {
 
             packed_file_name_label,
             packed_file_name_line_edit,
+            message_widget,
             button_box,
 
             //-----------------------------------------------------------------------//
@@ -506,6 +512,9 @@ impl ToolUnitEditor {
     pub unsafe fn setup_translations(&self) {
         self.packed_file_name_label.set_text(&qtr("packed_file_name"));
 
+        self.detailed_view_tab_widget.set_tab_text(0, &qtr("tools_unit_editor_main_tab_title"));
+        self.detailed_view_tab_widget.set_tab_text(1, &qtr("tools_unit_editor_land_unit_tab_title"));
+
         self.land_units_ai_usage_group_label.set_text(&QString::from_std_str(&clean_column_names("ai_usage_group")));
         self.land_units_articulated_record_label.set_text(&QString::from_std_str(&clean_column_names("articulated_record")));
         self.land_units_attribute_group_label.set_text(&QString::from_std_str(&clean_column_names("attribute_group")));
@@ -514,6 +523,7 @@ impl ToolUnitEditor {
 
         self.main_units_unit_label.set_text(&QString::from_std_str(&clean_column_names("main_units_unit")));
 
+        self.unit_icon_key_label.set_text(&QString::from_std_str(clean_column_names("unit_variants_unit_card")));
         self.loc_land_units_onscreen_name_label.set_text(&QString::from_std_str(&clean_column_names("land_units_onscreen_name")));
         self.loc_unit_description_historical_text_key_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_historical_text_key")));
         self.loc_unit_description_short_texts_text_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_short_texts_text")));

@@ -1072,3 +1072,6 @@ tt_settings_debug_enable_esf_editor = This setting allows you to enable the new 
 
 settings_enable_unit_editor = Enable Unit Editor (EXPERIMENTAL):
 tt_settings_debug_enable_unit_editor = This setting allows you to enable the new Unit editor (experimental), but beware of issues.
+
+tools_unit_editor_main_tab_title = Unit Basic Info
+tools_unit_editor_land_unit_tab_title = Land Combat
