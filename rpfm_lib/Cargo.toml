@@ -22,7 +22,7 @@ rpfm_error = { path = "../rpfm_error" }
 rpfm_macros = { path = "../rpfm_macros" }
 
 # Configuration support.
-directories = "^3.0"
+directories = "^4.0"
 lazy_static = "^1.2"
 indexmap = "^1.5"
 
