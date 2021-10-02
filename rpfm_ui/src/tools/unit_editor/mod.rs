@@ -14,7 +14,6 @@ Module with all the code for managing the Unit Editor tool.
 This tool is a dialog where you can pick a unit from a list, and edit its values in an easy-to-use way.
 !*/
 
-use qt_widgets::QDialogButtonBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
@@ -49,7 +48,6 @@ use rpfm_macros::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::ffi::*;
 use crate::locale::{qtr, tr};
 use crate::views::table::utils::clean_column_names;
 use self::slots::ToolUnitEditorSlots;
@@ -79,6 +77,25 @@ const UNIT_INFOPICS_PATH: &str = "ui/units/infopics/";
 /// Path where all the unit icon pictures (for backup) are located.
 const UNIT_ICONS_PATH: &str = "ui/units/icons/";
 
+/// List of fields tht require special treatment from land_units_tables.
+const LAND_UNITS_CUSTOM_FIELDS: [&str; 3] = [
+    "short_description_text",
+    "historical_description_text",
+    "strengths_&_weaknesses_text"
+];
+
+/// List of loc keys used by this tool.
+///
+/// The values are:
+/// - table_name_column_name.
+/// - table_name_column_name from the column where we can get the "key" of this loc.
+const LOC_KEYS: [(&str, &str); 4] = [
+    ("land_units_onscreen_name", "land_units_key"),
+    ("unit_description_short_texts_text", "unit_description_short_texts_key"),
+    ("unit_description_historical_texts_text", "unit_description_historical_texts_key"),
+    ("unit_description_strengths_weaknesses_texts_text", "unit_description_strengths_weaknesses_texts_key")
+];
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -101,24 +118,6 @@ pub struct ToolUnitEditor {
 
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
-    message_widget: QPtr<QWidget>,
-    button_box: QPtr<QDialogButtonBox>,
-
-    //-----------------------------------------------------------------------//
-    // land_units_tables
-    //-----------------------------------------------------------------------//
-    land_units_key_line_edit: QPtr<QLineEdit>,
-
-    land_units_ai_usage_group_label: QPtr<QLabel>,
-    land_units_ai_usage_group_line_edit: QPtr<QLineEdit>,
-    land_units_articulated_record_label: QPtr<QLabel>,
-    land_units_articulated_record_line_edit: QPtr<QLineEdit>,
-    land_units_attribute_group_label: QPtr<QLabel>,
-    land_units_attribute_group_line_edit: QPtr<QLineEdit>,
-    land_units_ground_stat_effect_group_label: QPtr<QLabel>,
-    land_units_ground_stat_effect_group_line_edit: QPtr<QLineEdit>,
-    land_units_officers_label: QPtr<QLabel>,
-    land_units_officers_line_edit: QPtr<QLineEdit>,
 
     //-----------------------------------------------------------------------//
     // main_units_tables
@@ -135,6 +134,8 @@ pub struct ToolUnitEditor {
     loc_unit_description_historical_text_key_ktexteditor: QPtr<QTextEdit>,
     loc_unit_description_short_texts_text_label: QPtr<QLabel>,
     loc_unit_description_short_texts_text_ktexteditor: QPtr<QTextEdit>,
+    loc_unit_description_strengths_weaknesses_texts_text_label: QPtr<QLabel>,
+    loc_unit_description_strengths_weaknesses_texts_text_ktexteditor: QPtr<QTextEdit>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -161,6 +162,7 @@ impl ToolUnitEditor {
             PathType::Folder(vec!["db".to_owned(), "main_units_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_description_historical_texts_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_description_short_texts_tables".to_owned()]),
+            PathType::Folder(vec!["db".to_owned(), "unit_description_strengths_weaknesses_texts_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_variants_tables".to_owned()]),
             PathType::Folder(vec!["text".to_owned()]),
         ];
@@ -194,36 +196,11 @@ impl ToolUnitEditor {
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
-        let message_widget: QPtr<QWidget> = tool.find_widget("message_widget")?;
-        let button_box: QPtr<QDialogButtonBox> = tool.find_widget("button_box")?;
         packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
-
-        // Close the message widget, as by default is open.
-        kmessage_widget_close_safe(&message_widget.as_ptr());
 
         // Extra stuff.
         let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
         detailed_view_tab_widget.set_enabled(false);
-
-        //-----------------------------------------------------------------------//
-        // land_units_tables
-        //-----------------------------------------------------------------------//
-        let land_units_key_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_key_line_edit")?;
-
-        let land_units_ai_usage_group_label: QPtr<QLabel> = tool.find_widget("land_units_ai_usage_group_label")?;
-        let land_units_ai_usage_group_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_ai_usage_group_line_edit")?;
-
-        let land_units_articulated_record_label: QPtr<QLabel> = tool.find_widget("land_units_articulated_record_label")?;
-        let land_units_articulated_record_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_articulated_record_line_edit")?;
-
-        let land_units_attribute_group_label: QPtr<QLabel> = tool.find_widget("land_units_attribute_group_label")?;
-        let land_units_attribute_group_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_attribute_group_line_edit")?;
-
-        let land_units_ground_stat_effect_group_label: QPtr<QLabel> = tool.find_widget("land_units_ground_stat_effect_group_label")?;
-        let land_units_ground_stat_effect_group_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_ground_stat_effect_group_line_edit")?;
-
-        let land_units_officers_label: QPtr<QLabel> = tool.find_widget("land_units_officers_label")?;
-        let land_units_officers_line_edit: QPtr<QLineEdit> = tool.find_widget("land_units_officers_line_edit")?;
 
         //-----------------------------------------------------------------------//
         // main_units_tables
@@ -244,6 +221,9 @@ impl ToolUnitEditor {
 
         let loc_unit_description_short_texts_text_label: QPtr<QLabel> = tool.find_widget("loc_unit_description_short_texts_text_label")?;
         let loc_unit_description_short_texts_text_ktexteditor: QPtr<QTextEdit> = tool.find_widget("loc_unit_description_short_texts_text_ktexteditor")?;
+
+        let loc_unit_description_strengths_weaknesses_texts_text_label: QPtr<QLabel> = tool.find_widget("loc_unit_description_strengths_weaknesses_texts_text_label")?;
+        let loc_unit_description_strengths_weaknesses_texts_text_ktexteditor: QPtr<QTextEdit> = tool.find_widget("loc_unit_description_strengths_weaknesses_texts_text_ktexteditor")?;
 
         //-----------------------------------------------------------------------//
         // Table-related widgets done.
@@ -266,24 +246,6 @@ impl ToolUnitEditor {
 
             packed_file_name_label,
             packed_file_name_line_edit,
-            message_widget,
-            button_box,
-
-            //-----------------------------------------------------------------------//
-            // land_units_tables
-            //-----------------------------------------------------------------------//
-            land_units_key_line_edit,
-
-            land_units_ai_usage_group_label,
-            land_units_ai_usage_group_line_edit,
-            land_units_articulated_record_label,
-            land_units_articulated_record_line_edit,
-            land_units_attribute_group_label,
-            land_units_attribute_group_line_edit,
-            land_units_ground_stat_effect_group_label,
-            land_units_ground_stat_effect_group_line_edit,
-            land_units_officers_label,
-            land_units_officers_line_edit,
 
             //-----------------------------------------------------------------------//
             // main_units_tables
@@ -300,6 +262,8 @@ impl ToolUnitEditor {
             loc_unit_description_historical_text_key_ktexteditor,
             loc_unit_description_short_texts_text_label,
             loc_unit_description_short_texts_text_ktexteditor,
+            loc_unit_description_strengths_weaknesses_texts_text_label,
+            loc_unit_description_strengths_weaknesses_texts_text_ktexteditor,
 
         });
 
@@ -337,6 +301,7 @@ impl ToolUnitEditor {
         get_data_from_all_sources!(get_land_units_data, data, processed_data);
         get_data_from_all_sources!(get_unit_description_historical_text_data, data, processed_data);
         get_data_from_all_sources!(get_unit_description_short_texts_data, data, processed_data);
+        get_data_from_all_sources!(get_unit_description_strengths_weaknesses_texts_data, data, processed_data);
         get_data_from_all_sources!(get_unit_variants_data, data, processed_data);
         get_data_from_all_sources!(get_loc_data, data, processed_data);
 
@@ -382,6 +347,7 @@ impl ToolUnitEditor {
         let main_units_packed_file = self.save_main_units_tables_data(&data_to_save)?;
         let unit_description_historical_texts_packed_file = self.save_unit_description_historical_texts_tables_data(&data_to_save)?;
         let unit_description_short_texts_packed_file = self.save_unit_description_short_texts_tables_data(&data_to_save)?;
+        let unit_description_strengths_weaknesses_texts_packed_file = self.save_unit_description_strengths_weaknesses_texts_tables_data(&data_to_save)?;
         let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
 
         let loc_packed_file = self.save_loc_data(&data_to_save)?;
@@ -392,6 +358,7 @@ impl ToolUnitEditor {
             main_units_packed_file,
             unit_description_historical_texts_packed_file,
             unit_description_short_texts_packed_file,
+            unit_description_strengths_weaknesses_texts_packed_file,
             unit_variants_packed_file,
 
             loc_packed_file
@@ -408,21 +375,30 @@ impl ToolUnitEditor {
 
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
 
-        load_field_to_detailed_view_editor!(self, data, land_units_key_line_edit, "land_units_key");
-        load_field_to_detailed_view_editor!(self, data, land_units_ai_usage_group_line_edit, "land_units_ai_usage_group");
-        load_field_to_detailed_view_editor!(self, data, land_units_articulated_record_line_edit, "land_units_articulated_record");
-        load_field_to_detailed_view_editor!(self, data, land_units_attribute_group_line_edit, "land_units_attribute_group");
-        load_field_to_detailed_view_editor!(self, data, land_units_ground_stat_effect_group_line_edit, "land_units_ground_stat_effect_group");
-        load_field_to_detailed_view_editor!(self, data, land_units_officers_line_edit, "land_units_officers");
+        //-----------------------------------------------------------------------//
+        // land_units_tables
+        //-----------------------------------------------------------------------//
+        if let Err(error) = self.tool.load_definition_to_detailed_view_editor(&data, "land_units", &LAND_UNITS_CUSTOM_FIELDS) {
+            show_message_warning(&self.tool.message_widget, error);
+        }
 
-        load_field_to_detailed_view_editor!(self, data, main_units_unit_line_edit, "main_units_unit");
+        //-----------------------------------------------------------------------//
+        // main_units_tables
+        //-----------------------------------------------------------------------//
+        self.tool.load_field_to_detailed_view_editor_string_short(&data, &self.main_units_unit_line_edit, "main_units_unit");
 
-        load_field_to_detailed_view_editor!(self, data, loc_land_units_onscreen_name_line_edit, "loc_land_units_onscreen_name");
-        load_field_to_detailed_view_editor!(self, data, loc_unit_description_historical_text_key_ktexteditor, "loc_unit_description_historical_texts_text");
-        load_field_to_detailed_view_editor!(self, data, loc_unit_description_short_texts_text_ktexteditor, "loc_unit_description_short_texts_text");
+        //-----------------------------------------------------------------------//
+        // unit_variants_tables
+        //-----------------------------------------------------------------------//
+        self.tool.load_field_to_detailed_view_editor_string_short(&data, &self.unit_icon_key_line_edit, "unit_variants_unit_card");
 
-        // Unit Image Info.
-        load_field_to_detailed_view_editor!(self, data, unit_icon_key_line_edit, "unit_variants_unit_card");
+        //-----------------------------------------------------------------------//
+        // Loc data
+        //-----------------------------------------------------------------------//
+        self.tool.load_field_to_detailed_view_editor_string_short(&data, &self.loc_land_units_onscreen_name_line_edit, "loc_land_units_onscreen_name");
+        self.tool.load_field_to_detailed_view_editor_string_long(&data, &self.loc_unit_description_historical_text_key_ktexteditor, "loc_unit_description_historical_texts_text");
+        self.tool.load_field_to_detailed_view_editor_string_long(&data, &self.loc_unit_description_short_texts_text_ktexteditor, "loc_unit_description_short_texts_text");
+        self.tool.load_field_to_detailed_view_editor_string_long(&data, &self.loc_unit_description_strengths_weaknesses_texts_text_ktexteditor, "loc_unit_description_strengths_weaknesses_texts_text");
 
         // The icon needs to be pulled up from the dependencies cache on load.
         if let Some(unit_card) = data.get("unit_variants_unit_card") {
@@ -466,20 +442,13 @@ impl ToolUnitEditor {
     }
 
     /// This function saves the data of the detailed view to its item in the faction list.
-    ///
-    /// NOTE: Table column names are put as-is, not through translations.
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
-        data.insert("land_units_key".to_owned(), self.land_units_key_line_edit.text().to_std_string());
 
         //-----------------------------------------------------------------------//
         // land_units_tables
         //-----------------------------------------------------------------------//
-        data.insert("land_units_ai_usage_group".to_owned(), self.land_units_ai_usage_group_line_edit.text().to_std_string());
-        data.insert("land_units_articulated_record".to_owned(), self.land_units_articulated_record_line_edit.text().to_std_string());
-        data.insert("land_units_attribute_group".to_owned(), self.land_units_attribute_group_line_edit.text().to_std_string());
-        data.insert("land_units_ground_stat_effect_group".to_owned(), self.land_units_ground_stat_effect_group_line_edit.text().to_std_string());
-        data.insert("land_units_officers".to_owned(), self.land_units_officers_line_edit.text().to_std_string());
+        // TODO: make a save_definition_from_detailed_view_editor.
 
         //-----------------------------------------------------------------------//
         // main_units_tables
@@ -487,11 +456,17 @@ impl ToolUnitEditor {
         data.insert("main_units_unit".to_owned(), self.main_units_unit_line_edit.text().to_std_string());
 
         //-----------------------------------------------------------------------//
+        // unit_variants_tables
+        //-----------------------------------------------------------------------//
+        data.insert("unit_variants_unit_card".to_owned(), self.unit_icon_key_line_edit.text().to_std_string());
+
+        //-----------------------------------------------------------------------//
         // Loc data
         //-----------------------------------------------------------------------//
         data.insert("loc_land_units_onscreen_name".to_owned(), self.loc_land_units_onscreen_name_line_edit.text().to_std_string());
         data.insert("loc_unit_description_historical_texts_text".to_owned(), self.loc_unit_description_historical_text_key_ktexteditor.to_plain_text().to_std_string());
         data.insert("loc_unit_description_short_texts_text".to_owned(), self.loc_unit_description_short_texts_text_ktexteditor.to_plain_text().to_std_string());
+        data.insert("loc_unit_description_strengths_weaknesses_texts_text".to_owned(), self.loc_unit_description_strengths_weaknesses_texts_text_ktexteditor.to_plain_text().to_std_string());
 
         self.unit_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
@@ -514,19 +489,25 @@ impl ToolUnitEditor {
 
         self.detailed_view_tab_widget.set_tab_text(0, &qtr("tools_unit_editor_main_tab_title"));
         self.detailed_view_tab_widget.set_tab_text(1, &qtr("tools_unit_editor_land_unit_tab_title"));
+        self.detailed_view_tab_widget.set_tab_text(2, &qtr("tools_unit_editor_variantmeshes_tab_title"));
 
-        self.land_units_ai_usage_group_label.set_text(&QString::from_std_str(&clean_column_names("ai_usage_group")));
-        self.land_units_articulated_record_label.set_text(&QString::from_std_str(&clean_column_names("articulated_record")));
-        self.land_units_attribute_group_label.set_text(&QString::from_std_str(&clean_column_names("attribute_group")));
-        self.land_units_ground_stat_effect_group_label.set_text(&QString::from_std_str(&clean_column_names("ground_stat_effect_group")));
-        self.land_units_officers_label.set_text(&QString::from_std_str(&clean_column_names("officers")));
-
+        //-----------------------------------------------------------------------//
+        // main_units_tables
+        //-----------------------------------------------------------------------//
         self.main_units_unit_label.set_text(&QString::from_std_str(&clean_column_names("main_units_unit")));
 
+        //-----------------------------------------------------------------------//
+        // unit_variants_tables
+        //-----------------------------------------------------------------------//
         self.unit_icon_key_label.set_text(&QString::from_std_str(clean_column_names("unit_variants_unit_card")));
+
+        //-----------------------------------------------------------------------//
+        // Loc data
+        //-----------------------------------------------------------------------//
         self.loc_land_units_onscreen_name_label.set_text(&QString::from_std_str(&clean_column_names("land_units_onscreen_name")));
         self.loc_unit_description_historical_text_key_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_historical_text_key")));
         self.loc_unit_description_short_texts_text_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_short_texts_text")));
+        self.loc_unit_description_strengths_weaknesses_texts_text_label.set_text(&QString::from_std_str(&clean_column_names("unit_description_strengths_weaknesses_texts_text")));
     }
 
     /// This function gets the data needed for the tool from the land_units table.
@@ -549,6 +530,11 @@ impl ToolUnitEditor {
         Tool::get_table_data(data, processed_data, "unit_description_short_texts", "key", Some(("land_units".to_owned(), "short_description_text".to_owned())))
     }
 
+    /// This function gets the data needed for the tool from the unit_description_strengths_weaknesses_texts table.
+    unsafe fn get_unit_description_strengths_weaknesses_texts_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
+        Tool::get_table_data(data, processed_data, "unit_description_strengths_weaknesses_texts", "key", Some(("land_units".to_owned(), "strengths_&_weaknesses_text".to_owned())))
+    }
+
     /// This function gets the data needed for the tool from the unit_variants table.
     unsafe fn get_unit_variants_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_table_data(data, processed_data, "unit_variants", "name", Some(("land_units".to_owned(), "key".to_owned())))
@@ -556,12 +542,7 @@ impl ToolUnitEditor {
 
     /// This function gets the data needed for the tool from the locs available.
     unsafe fn get_loc_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        let loc_keys = vec![
-            ("land_units_onscreen_name", "land_units_key"),
-            ("unit_description_short_texts_text", "unit_description_short_texts_key"),
-            ("unit_description_historical_texts_text", "unit_description_historical_texts_key")
-        ];
-        Tool::get_loc_data(data, processed_data, &loc_keys)
+        Tool::get_loc_data(data, processed_data, &LOC_KEYS)
     }
 
     /// This function takes care of saving the land_units related data into a PackedFile.
@@ -584,6 +565,11 @@ impl ToolUnitEditor {
         self.tool.save_table_data(data, "unit_description_short_texts", &self.get_file_name())
     }
 
+    /// This function takes care of saving the unit_description_strengths_weaknesses_texts related data into a PackedFile.
+    unsafe fn save_unit_description_strengths_weaknesses_texts_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
+        self.tool.save_table_data(data, "unit_description_strengths_weaknesses_texts", &self.get_file_name())
+    }
+
     /// This function takes care of saving the unit_variants related data into a PackedFile.
     unsafe fn save_unit_variants_tables_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
         self.tool.save_table_data(data, "unit_variants", &self.get_file_name())
@@ -591,12 +577,7 @@ impl ToolUnitEditor {
 
     /// This function takes care of saving all the loc-related data into a PackedFile.
     unsafe fn save_loc_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        let loc_keys = vec![
-            ("land_units_onscreen_name", "land_units_key"),
-            ("unit_description_short_texts_text", "unit_description_short_texts_key"),
-            ("unit_description_historical_texts_text", "unit_description_historical_texts_key")
-        ];
-        self.tool.save_loc_data(data, &self.get_file_name(), &loc_keys)
+        self.tool.save_loc_data(data, &self.get_file_name(), &LOC_KEYS)
     }
 
     /// This function returns the file name this tool uses for the PackedFiles, when a PackedFile has no specific name.

@@ -1044,7 +1044,7 @@ impl Display for ErrorKind {
             ErrorKind::DependenciesImportFailure(paths) => write!(f, "<p>There was an error importing the following files:</p> <ul>{}</ul>", paths.iter().map(|x| "<li>".to_owned() + &x.join("/") + "</li>").collect::<String>()),
             ErrorKind::GlobalReplaceOverDependencies => write!(f, "<p>The dependencies are read-only. You cannot do a Global Replace over them.</p>"),
             ErrorKind::GameSelectedNotSupportedForTool => write!(f, "<p>This tool is not supported for the currently selected game.</p>"),
-            ErrorKind::TemplateUIWidgetNotFound(widget_name) => write!(f, "<p>One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.</p><p>The missing widget is: {}</p>", widget_name),
+            ErrorKind::TemplateUIWidgetNotFound(widget_name) => write!(f, "<p>One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.</p><p>The missing widgets are: {}</p>", widget_name),
             ErrorKind::ColumnNotFoundInTable(column_name) => write!(f, "<p>The column '{}' is missing from the table we expected to contain it.</p>", column_name),
             ErrorKind::ToolTableColumnNotFound => write!(f, "<p>One of the columns we need is not in the table we're searching for. This means either the tool needs updating, or you have some weird tables there.</p>"),
             ErrorKind::ToolTableColumnNotOfTypeWeExpected => write!(f, "<p>One of the columns we need is not of the type we expected. This means either the tool needs updating, or you have some weird tables there.</p>"),

@@ -7,6 +7,7 @@ extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWind
 
 QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (QMainWindow* main_window, bool is_delete_my_mod)) : QMainWindow(parent) {
     are_you_sure = are_you_sure_fn;
+    busyIndicator = new KBusyIndicatorWidget(this);
 }
 
 // Overload of the close event so we can put a dialog there.
@@ -23,5 +24,21 @@ void QMainWindowCustom::closeEvent(QCloseEvent *event) {
 
     if (are_you_sure(this, false)) {
         event->accept();
+    }
+}
+
+void QMainWindowCustom::moveEvent(QMoveEvent* event) {
+    const QPoint center = rect().center();
+    busyIndicator->move(center.x() - busyIndicator->width() / 2, center.y() - busyIndicator->height() / 2);
+}
+
+void QMainWindowCustom::changeEvent(QEvent* event) {
+    bool enabled = isEnabled();
+    if (event->type() == QEvent::EnabledChange) {
+        if (enabled) {
+            busyIndicator->hide();
+        } else {
+            busyIndicator->show();
+        }
     }
 }

@@ -1429,54 +1429,58 @@ impl AppUISlots {
             pack_file_contents_ui,
             dependencies_ui => move || {
 
-                // What this does:
-                // - Get the data source and path of the open file.
-                // - Import it into our mod.
-                // - Change the data source of the view to PackFile, so we can reuse the view.
-                let index = app_ui.tab_bar_packed_file.current_index();
-                if index != -1 {
-                    let mut paths_by_source = BTreeMap::new();
-                    let data_source_and_path = if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|packed_file_view| {
-                        index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
-                    }) {
-                        let path = packed_file_view.get_ref_path();
-                        let data_source = packed_file_view.get_data_source();
-                        paths_by_source.insert(data_source, vec![PathType::File(path.to_vec())]);
-                        Some((data_source, path.to_vec()))
-                    } else { None };
+                // Only allow importing if we currently have a PackFile open.
+                if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
 
-                    if let Some((data_source, path)) = data_source_and_path {
-                        match data_source {
-                            DataSource::ParentFiles |
-                            DataSource::GameFiles => {
-                                dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
+                    // What this does:
+                    // - Get the data source and path of the open file.
+                    // - Import it into our mod.
+                    // - Change the data source of the view to PackFile, so we can reuse the view.
+                    let index = app_ui.tab_bar_packed_file.current_index();
+                    if index != -1 {
+                        let mut paths_by_source = BTreeMap::new();
+                        let data_source_and_path = if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|packed_file_view| {
+                            index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                        }) {
+                            let path = packed_file_view.get_ref_path();
+                            let data_source = packed_file_view.get_data_source();
+                            paths_by_source.insert(data_source, vec![PathType::File(path.to_vec())]);
+                            Some((data_source, path.to_vec()))
+                        } else { None };
 
-                                let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
-                                    if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
-                                        Some(packed_file_view.get_ref_path().to_vec())
-                                    } else { None }
-                                });
+                        if let Some((data_source, path)) = data_source_and_path {
+                            match data_source {
+                                DataSource::ParentFiles |
+                                DataSource::GameFiles => {
+                                    dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
 
-                                // If we're overwriting a PackedFile already on our PackFile, remove it.
-                                if let Some(path_to_purge) = path_to_purge {
-                                    let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
-                                }
+                                    let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
+                                        if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
+                                            Some(packed_file_view.get_ref_path().to_vec())
+                                        } else { None }
+                                    });
 
-                                if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
-                                    index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
-                                }) {
-                                    packed_file_view.set_data_source(DataSource::PackFile);
-                                    if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
-                                        show_dialog(&app_ui.main_window, &error, false);
+                                    // If we're overwriting a PackedFile already on our PackFile, remove it.
+                                    if let Some(path_to_purge) = path_to_purge {
+                                        let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
                                     }
 
+                                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
+                                        index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                                    }) {
+                                        packed_file_view.set_data_source(DataSource::PackFile);
+                                        if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
+                                            show_dialog(&app_ui.main_window, &error, false);
+                                        }
+
+                                    }
                                 }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
+                    app_ui.update_views_names();
                 }
-                app_ui.update_views_names();
             }
         ));
 

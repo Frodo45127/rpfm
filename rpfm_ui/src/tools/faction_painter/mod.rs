@@ -15,7 +15,6 @@ This tool is a simple dialog, where you can choose a faction from a list, and ch
 !*/
 
 use qt_widgets::QComboBox;
-use qt_widgets::QDialogButtonBox;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
@@ -124,7 +123,6 @@ pub struct ToolFactionPainter {
     uniform_restore_vanilla_values_button: QPtr<QPushButton>,
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
-    button_box: QPtr<QDialogButtonBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -191,9 +189,6 @@ impl ToolFactionPainter {
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
         packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
 
-        // Button Box.
-        let button_box: QPtr<QDialogButtonBox> = tool.find_widget("button_box")?;
-
         // Extra stuff.
         let faction_list_filter = QSortFilterProxyModel::new_1a(&faction_list_view);
         let faction_list_model = QStandardItemModel::new_1a(&faction_list_filter);
@@ -234,7 +229,6 @@ impl ToolFactionPainter {
             uniform_restore_vanilla_values_button,
             packed_file_name_label,
             packed_file_name_line_edit,
-            button_box,
         });
 
         // Build the slots and connect them to the view.

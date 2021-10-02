@@ -27,6 +27,6 @@ pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) 
     ui.unit_list_filter_line_edit.text_changed().connect(&slots.filter_edited);
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
 
-    ui.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
-    ui.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
+    ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
+    ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
 }

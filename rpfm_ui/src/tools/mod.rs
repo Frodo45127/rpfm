@@ -14,7 +14,15 @@ Module with all the code for managing the UI.
 This module contains the code to manage the main UI and store all his slots.
 !*/
 
-use qt_widgets::{QDialog, QWidget};
+use qt_widgets::QCheckBox;
+use qt_widgets::QDialogButtonBox;
+use qt_widgets::QDialog;
+use qt_widgets::QDoubleSpinBox;
+use qt_widgets::QLabel;
+use qt_widgets::QLineEdit;
+use qt_widgets::QSpinBox;
+use qt_widgets::QTextEdit;
+use qt_widgets::QWidget;
 
 use qt_core::QBox;
 use qt_core::QObject;
@@ -42,18 +50,21 @@ use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc};
 use rpfm_lib::SCHEMA;
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
+use crate::ffi::kmessage_widget_close_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::*;
 use crate::UI_STATE;
+use crate::views::table::utils::clean_column_names;
 
 /// Macro to automatically generate get code from all sources, because it gets big really fast.
 macro_rules! get_data_from_all_sources {
@@ -81,16 +92,6 @@ macro_rules! get_data_from_all_sources {
     );
 }
 
-/// Macro to load a cell's data to the detailed view.
-macro_rules! load_field_to_detailed_view_editor {
-    ($tool:ident, $processed_data:ident, $field_editor:ident, $field_name: expr) => (
-        match $processed_data.get($field_name) {
-            Some(data) => $tool.$field_editor.set_text(&QString::from_std_str(data)),
-            None => $tool.$field_editor.set_text(&QString::new()),
-        }
-    );
-}
-
 pub mod faction_painter;
 pub mod unit_editor;
 
@@ -110,6 +111,12 @@ pub struct Tool {
 
     /// Stored PackedFiles, for quickly pulling data from them if needed.
     packed_files: Rc<RefCell<HashMap<DataSource, HashMap<Vec<String>, PackedFile>>>>,
+
+    /// KMessageWidget to display messages to the user in the Tool.
+    message_widget: QPtr<QWidget>,
+
+    /// Bottom buttonbox of the Tool.
+    button_box: QPtr<QDialogButtonBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -152,6 +159,13 @@ impl Tool {
         let ui_loader = QUiLoader::new_0a();
         let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
 
+        // Get the common widgets for all tools.
+        let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
+        let button_box: QPtr<QDialogButtonBox> = Self::find_widget_no_tool(&main_widget.static_upcast(), "button_box")?;
+
+        // Close the message widget, as by default is open.
+        kmessage_widget_close_safe(&message_widget.as_ptr());
+
         // Dedup the paths.
         let used_paths = PathType::dedup(paths);
 
@@ -160,6 +174,8 @@ impl Tool {
             main_widget,
             used_paths,
             packed_files: Rc::new(RefCell::new(HashMap::new())),
+            message_widget,
+            button_box,
         })
     }
 
@@ -270,7 +286,15 @@ impl Tool {
     /// This function returns the a widget from the view if it exits, and an error if it doesn't.
     pub unsafe fn find_widget<T: StaticUpcast<QWidget> + cpp_core::StaticUpcast<qt_core::QObject>>(&self, widget_name: &str) -> Result<QPtr<T>>
         where QObject: DynamicCast<T> {
-        self.get_ref_main_widget().find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
+        Self::find_widget_no_tool(&self.get_ref_main_widget().static_upcast(), widget_name)
+    }
+
+    /// This function returns the a widget from the view if it exits, and an error if it doesn't.
+    ///
+    /// For local use when no Tool has yet been created.
+    unsafe fn find_widget_no_tool<T: StaticUpcast<QWidget> + cpp_core::StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
+        where QObject: DynamicCast<T> {
+        main_widget.find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
     }
 
     /// This function gets the data needed for the tool from a DB table in a generic way.
@@ -533,4 +557,215 @@ impl Tool {
 
         None
     }
+
+    //-------------------------------------------------------------------------------//
+    //                                Data loaders
+    //-------------------------------------------------------------------------------//
+
+    /// This function takes care of loading on-mass data from a specific table, including label name,
+    /// dependency data, default values, and current data, into the detailed view.
+    ///
+    /// Fields that fail to load due to missing widgets are returned on error.
+    unsafe fn load_definition_to_detailed_view_editor(&self, data: &HashMap<String, String>, table_name: &str, fields_to_ignore: &[&str]) -> Result<()> {
+
+        let mut load_field_errors = vec![];
+
+        // Try to get the table's definition.
+        let definition_name = format!("{}_definition", table_name);
+        match data.get(&definition_name) {
+            Some(definition) => {
+                let definition: Definition = serde_json::from_str(&definition).unwrap();
+                definition.get_fields_processed()
+                    .iter()
+                    .filter(|field| !fields_to_ignore.contains(&field.get_name()))
+                    .for_each(|field| {
+
+                        // First, load the field's label. If it uses a custom one, set it after this function.
+                        let label_name = format!("{}_{}_label", table_name, field.get_name());
+                        let label_widget: Result<QPtr<QLabel>> = self.find_widget(&label_name);
+                        match label_widget {
+                            Ok(label) => label.set_text(&QString::from_std_str(&clean_column_names(field.get_name()))),
+                            Err(_) => load_field_errors.push(label_name),
+                        };
+
+                        // Next, setup the data in the widget's depending on the type of the data.
+                        match field.get_field_type() {
+                            FieldType::Boolean => {
+                                let widget_name = format!("{}_{}_checkbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+
+                                        // Check if we have data for the widget. If not, fill it with default data
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        match data.get(&field_key_name) {
+                                            Some(data) => {
+                                                if let Ok(value) = data.parse::<bool>() {
+                                                    widget.set_checked(value);
+                                                }
+                                            },
+                                            None => {
+                                                if let Some(default_value) = field.get_default_value() {
+                                                    if let Ok(value) = default_value.parse::<bool>() {
+                                                        widget.set_checked(value);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::I16 |
+                            FieldType::I32 |
+                            FieldType::I64 => {
+                                let widget_name = format!("{}_{}_spinbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+
+                                        // Check if we have data for the widget. If not, fill it with default data
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        match data.get(&field_key_name) {
+                                            Some(data) => {
+                                                if let Ok(value) = data.parse::<i32>() {
+                                                    widget.set_value(value);
+                                                }
+                                            },
+                                            None => {
+                                                if let Some(default_value) = field.get_default_value() {
+                                                    if let Ok(value) = default_value.parse::<i32>() {
+                                                        widget.set_value(value);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::F32 => {
+                                let widget_name = format!("{}_{}_double_spinbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+
+                                        // Check if we have data for the widget. If not, fill it with default data
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        match data.get(&field_key_name) {
+                                            Some(data) => {
+                                                if let Ok(value) = data.parse::<f64>() {
+                                                    widget.set_value(value);
+                                                }
+                                            },
+                                            None => {
+                                                if let Some(default_value) = field.get_default_value() {
+                                                    if let Ok(value) = default_value.parse::<f64>() {
+                                                        widget.set_value(value);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::StringU8 |
+                            FieldType::StringU16 |
+                            FieldType::OptionalStringU8 |
+                            FieldType::OptionalStringU16 => {
+                                let widget_name = format!("{}_{}_line_edit", table_name, field.get_name());
+                                let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+
+                                        // Check if we have data for the widget. If not, fill it with default data
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        match data.get(&field_key_name) {
+                                            Some(data) => widget.set_text(&QString::from_std_str(data)),
+                                            None => {
+                                                if let Some(default_value) = field.get_default_value() {
+                                                    widget.set_text(&QString::from_std_str(default_value));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            _ => unimplemented!()
+                        };
+                    }
+                );
+            }
+
+            // If we fail to find a definition... tbd.
+            None => {}
+        }
+
+        if !load_field_errors.is_empty() {
+            Err(ErrorKind::TemplateUIWidgetNotFound(load_field_errors.join(", ")).into())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// This function tries to load data from a bool value into a QCheckBox.
+    unsafe fn load_field_to_detailed_view_editor_bool(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QCheckBox>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => match data.parse::<bool>() {
+                Ok(data) => field_editor.set_checked(data),
+                Err(error) => show_message_warning(&self.message_widget, error.to_string()),
+            }
+            None => field_editor.set_checked(false),
+        }
+    }
+
+    /// This function tries to load data from a i32 value into a QSpinBox.
+    unsafe fn load_field_to_detailed_view_editor_i32(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QSpinBox>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => match data.parse::<i32>() {
+                Ok(data) => field_editor.set_value(data.into()),
+                Err(error) => {
+                    field_editor.set_value(0);
+                    show_message_warning(&self.message_widget, error.to_string());
+                }
+            }
+            None => field_editor.set_value(0),
+        }
+    }
+
+    /// This function tries to load data from a f32 value into a QDoubleSpinBox.
+    unsafe fn load_field_to_detailed_view_editor_f32(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QDoubleSpinBox>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => match data.parse::<f32>() {
+                Ok(data) => field_editor.set_value(data.into()),
+                Err(error) => {
+                    field_editor.set_value(0.0);
+                    show_message_warning(&self.message_widget, error.to_string());
+                }
+            }
+            None => field_editor.set_value(0.0),
+        }
+    }
+
+    /// This function tries to load data from a string into a QLineEdit.
+    unsafe fn load_field_to_detailed_view_editor_string_short(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QLineEdit>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => field_editor.set_text(&QString::from_std_str(data)),
+            None => field_editor.set_text(&QString::new()),
+        }
+    }
+
+    /// This function tries to load data from a long string into a QTextEdit.
+    unsafe fn load_field_to_detailed_view_editor_string_long(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QTextEdit>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => field_editor.set_text(&QString::from_std_str(data)),
+            None => field_editor.set_text(&QString::new()),
+        }
+    }
+
+    //-------------------------------------------------------------------------------//
+    //                               Data retrievers
+    //-------------------------------------------------------------------------------//
 }

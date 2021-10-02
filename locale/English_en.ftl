@@ -1075,3 +1075,4 @@ tt_settings_debug_enable_unit_editor = This setting allows you to enable the new
 
 tools_unit_editor_main_tab_title = Unit Basic Info
 tools_unit_editor_land_unit_tab_title = Land Combat
+tools_unit_editor_variantmeshes_tab_title = Variant Mesh

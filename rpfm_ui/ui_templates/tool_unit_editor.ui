@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1653</width>
+    <width>1884</width>
     <height>969</height>
    </rect>
   </property>
@@ -35,6 +35,12 @@
        </property>
        <item>
         <widget class="QListView" name="unit_list_view">
+         <property name="minimumSize">
+          <size>
+           <width>300</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="resizeMode">
           <enum>QListView::Adjust</enum>
          </property>
@@ -94,7 +100,7 @@
           </attribute>
           <layout class="QGridLayout" name="gridLayout_16">
            <item row="2" column="3" rowspan="4" colspan="2">
-            <widget class="QWidget" name="widget_2" native="true">
+            <widget class="QWidget" name="right_widget" native="true">
              <layout class="QFormLayout" name="formLayout_2">
               <item row="2" column="0">
                <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
@@ -136,11 +142,21 @@
               <item row="3" column="1">
                <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor"/>
               </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="loc_unit_description_strengths_weaknesses_texts_text_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="KTextEdit" name="loc_unit_description_strengths_weaknesses_texts_text_ktexteditor"/>
+              </item>
              </layout>
             </widget>
            </item>
            <item row="2" column="0" rowspan="4" colspan="2">
-            <widget class="QWidget" name="widget" native="true">
+            <widget class="QWidget" name="left_widget" native="true">
              <layout class="QGridLayout" name="gridLayout_17">
               <item row="1" column="1">
                <widget class="QLineEdit" name="unit_icon_key_line_edit">
@@ -177,13 +193,13 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_3">
+         <widget class="QWidget" name="land_units_tab">
           <attribute name="title">
            <string>Tab 1</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_15">
            <item row="1" column="0">
-            <widget class="QGroupBox" name="groupBox_3">
+            <widget class="QGroupBox" name="land_units_melee_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -195,20 +211,20 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_7">
               <item row="1" column="2">
-               <widget class="QLineEdit" name="shield"/>
+               <widget class="QLineEdit" name="land_units_shield_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_22">
+               <widget class="QLabel" name="land_units_primary_melee_weapon_label">
                 <property name="text">
                  <string>Primary Melee Weapon</string>
                 </property>
                </widget>
               </item>
               <item row="0" column="2">
-               <widget class="QLineEdit" name="primary_melee_weapon"/>
+               <widget class="QLineEdit" name="land_units_primary_melee_weapon_line_edit"/>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_31">
+               <widget class="QLabel" name="land_units_shield_label">
                 <property name="text">
                  <string>Shield</string>
                 </property>
@@ -218,7 +234,7 @@
             </widget>
            </item>
            <item row="0" column="2">
-            <widget class="QGroupBox" name="groupBox_10">
+            <widget class="QGroupBox" name="land_units_misc_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -283,7 +299,7 @@
             </widget>
            </item>
            <item row="3" column="2">
-            <widget class="QGroupBox" name="groupBox_9">
+            <widget class="QGroupBox" name="land_units_campaign_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -295,10 +311,10 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_13">
               <item row="0" column="1">
-               <widget class="QSpinBox" name="campaign_action_points"/>
+               <widget class="QSpinBox" name="land_units_campaign_action_points_spinbox"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_39">
+               <widget class="QLabel" name="land_units_campaign_action_points_label">
                 <property name="text">
                  <string>Campaign Action Points</string>
                 </property>
@@ -308,7 +324,7 @@
             </widget>
            </item>
            <item row="3" column="1">
-            <widget class="QGroupBox" name="groupBox_6">
+            <widget class="QGroupBox" name="land_units_engine_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -320,20 +336,20 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_9">
               <item row="0" column="1">
-               <widget class="QLineEdit" name="engine"/>
+               <widget class="QLineEdit" name="land_units_engine_line_edit"/>
               </item>
               <item row="1" column="1">
-               <widget class="QSpinBox" name="num_engines"/>
+               <widget class="QSpinBox" name="land_units_num_engines_spinbox"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_34">
+               <widget class="QLabel" name="land_units_engine_label">
                 <property name="text">
                  <string>Engine</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_35">
+               <widget class="QLabel" name="land_units_num_engines_label">
                 <property name="text">
                  <string>Num Engines</string>
                 </property>
@@ -343,7 +359,7 @@
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QGroupBox" name="groupBox_2">
+            <widget class="QGroupBox" name="land_units_missile_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -355,66 +371,66 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_5">
               <item row="0" column="0">
-               <widget class="QLabel" name="label_15">
+               <widget class="QLabel" name="land_units_primary_missile_weapon_label">
                 <property name="text">
                  <string>Primary Missile Weapon</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_2">
+               <widget class="QLabel" name="land_units_accuracy_label">
                 <property name="text">
                  <string>Accuracy</string>
                 </property>
                 <property name="buddy">
-                 <cstring>accuracy</cstring>
+                 <cstring>land_units_accuracy_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="1" column="4">
-               <widget class="QSpinBox" name="primary_ammo"/>
+               <widget class="QSpinBox" name="land_units_primary_ammo_spinbox"/>
               </item>
               <item row="1" column="3">
-               <widget class="QLabel" name="label_14">
+               <widget class="QLabel" name="land_units_primary_ammo_label">
                 <property name="text">
                  <string>Primary Ammo</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="2">
-               <widget class="QSpinBox" name="accuracy"/>
+               <widget class="QSpinBox" name="land_units_accuracy_spinbox"/>
               </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_10">
+               <widget class="QLabel" name="land_units_reload_label">
                 <property name="text">
                  <string>Reload</string>
                 </property>
                 <property name="buddy">
-                 <cstring>reload</cstring>
+                 <cstring>land_units_reload_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="2" column="4">
-               <widget class="QSpinBox" name="secondary_ammo"/>
+               <widget class="QSpinBox" name="land_units_secondary_ammo_spinbox"/>
               </item>
               <item row="2" column="3">
-               <widget class="QLabel" name="label_27">
+               <widget class="QLabel" name="land_units_secondary_ammo_label">
                 <property name="text">
                  <string>Secondary Ammo</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="2">
-               <widget class="QSpinBox" name="reload"/>
+               <widget class="QSpinBox" name="land_units_reload_spinbox"/>
               </item>
               <item row="0" column="2" colspan="3">
-               <widget class="QLineEdit" name="primary_missile_weapon"/>
+               <widget class="QLineEdit" name="land_units_primary_missile_weapon_line_edit"/>
               </item>
              </layout>
             </widget>
            </item>
            <item row="2" column="2">
-            <widget class="QGroupBox" name="groupBox_7">
+            <widget class="QGroupBox" name="land_units_animals_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -426,20 +442,20 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_11">
               <item row="1" column="1">
-               <widget class="QSpinBox" name="num_animals"/>
+               <widget class="QSpinBox" name="land_units_num_animals_spinbox"/>
               </item>
               <item row="0" column="1">
-               <widget class="QLineEdit" name="animal"/>
+               <widget class="QLineEdit" name="land_units_animal_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_36">
+               <widget class="QLabel" name="land_units_animal_label">
                 <property name="text">
                  <string>Animal</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_37">
+               <widget class="QLabel" name="land_units_num_animals_label">
                 <property name="text">
                  <string>Num Animals</string>
                 </property>
@@ -449,7 +465,7 @@
             </widget>
            </item>
            <item row="3" column="0">
-            <widget class="QGroupBox" name="groupBox_8">
+            <widget class="QGroupBox" name="land_units_vo_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -461,34 +477,34 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_12">
               <item row="2" column="2">
-               <widget class="QLineEdit" name="selected_vo_tertiary"/>
+               <widget class="QLineEdit" name="land_units_selected_vo_tertiary_line_edit"/>
               </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_23">
+               <widget class="QLabel" name="land_units_selected_vo_tertiary_label">
                 <property name="text">
                  <string>Selected VO Tertiary</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_25">
+               <widget class="QLabel" name="land_units_selected_vo_secondary_label">
                 <property name="text">
                  <string>Selected VO Secondary</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="2">
-               <widget class="QLineEdit" name="selected_vo_secondary"/>
+               <widget class="QLineEdit" name="land_units_selected_vo_secondary_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_24">
+               <widget class="QLabel" name="land_units_selection_vo_label">
                 <property name="text">
                  <string>Selected VO</string>
                 </property>
                </widget>
               </item>
               <item row="0" column="2">
-               <widget class="QLineEdit" name="selection_vo"/>
+               <widget class="QLineEdit" name="land_units_selection_vo_line_edit"/>
               </item>
              </layout>
             </widget>
@@ -506,282 +522,296 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
               <item row="2" column="1">
-               <widget class="QSpinBox" name="bonus_hit_points"/>
+               <widget class="QSpinBox" name="land_units_bonus_hit_points_spinbox"/>
               </item>
               <item row="3" column="1">
-               <widget class="QSpinBox" name="morale"/>
+               <widget class="QSpinBox" name="land_units_morale_spinbox"/>
               </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_13">
+               <widget class="QLabel" name="land_units_bonus_hit_points_label">
                 <property name="text">
                  <string>Bonus Hitpoints</string>
                 </property>
                 <property name="buddy">
-                 <cstring>bonus_hit_points</cstring>
+                 <cstring>land_units_bonus_hit_points_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="3" column="0">
-               <widget class="QLabel" name="label_3">
+               <widget class="QLabel" name="land_units_morale_label">
                 <property name="text">
                  <string>Morale</string>
                 </property>
                 <property name="buddy">
-                 <cstring>morale</cstring>
+                 <cstring>land_units_morale_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="2" column="2">
-               <widget class="QLabel" name="label_7">
+               <widget class="QLabel" name="land_units_melee_attack_label">
                 <property name="text">
                  <string>Melee Attack</string>
                 </property>
                 <property name="buddy">
-                 <cstring>melee_attack</cstring>
+                 <cstring>land_units_melee_attack_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="2" column="3">
-               <widget class="QSpinBox" name="melee_attack"/>
+               <widget class="QSpinBox" name="land_units_melee_attack_spinbox"/>
               </item>
               <item row="3" column="2">
-               <widget class="QLabel" name="label_8">
+               <widget class="QLabel" name="land_units_melee_defence_label">
                 <property name="text">
                  <string>Melee Defense</string>
                 </property>
                 <property name="buddy">
-                 <cstring>melee_defence</cstring>
+                 <cstring>land_units_melee_defence_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="3" column="3">
-               <widget class="QSpinBox" name="melee_defence"/>
+               <widget class="QSpinBox" name="land_units_melee_defence_spinbox"/>
               </item>
               <item row="4" column="2">
-               <widget class="QLabel" name="label_9">
+               <widget class="QLabel" name="land_units_charge_bonus_label">
                 <property name="text">
                  <string>Charge Bonus</string>
                 </property>
                 <property name="buddy">
-                 <cstring>charge_bonus</cstring>
+                 <cstring>land_units_charge_bonus_spinbox</cstring>
                 </property>
                </widget>
               </item>
               <item row="4" column="3">
-               <widget class="QSpinBox" name="charge_bonus"/>
+               <widget class="QSpinBox" name="land_units_charge_bonus_spinbox"/>
               </item>
               <item row="6" column="3">
-               <widget class="QSpinBox" name="spot_dist_tree"/>
+               <widget class="QSpinBox" name="land_units_spot_dist_tree_spinbox"/>
               </item>
               <item row="7" column="3">
-               <widget class="QSpinBox" name="spot_dist_scrub"/>
+               <widget class="QSpinBox" name="land_units_spot_dist_scrub_spinbox"/>
               </item>
               <item row="6" column="2">
-               <widget class="QLabel" name="label_40">
+               <widget class="QLabel" name="land_units_spot_dist_tree_label">
                 <property name="text">
                  <string>Spot Distance Tree</string>
                 </property>
                </widget>
               </item>
               <item row="7" column="2">
-               <widget class="QLabel" name="label_41">
+               <widget class="QLabel" name="land_units_spot_dist_scrub_label">
                 <property name="text">
                  <string>Spot Distance Shrub</string>
                 </property>
                </widget>
               </item>
               <item row="9" column="3">
-               <widget class="QDoubleSpinBox" name="visibility_spotting_range_min"/>
+               <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_min_double_spinbox"/>
               </item>
               <item row="9" column="2">
-               <widget class="QLabel" name="label_43">
+               <widget class="QLabel" name="land_units_visibility_spotting_range_min_label">
                 <property name="text">
                  <string>Visibility Spoting Range Min</string>
                 </property>
                </widget>
               </item>
               <item row="10" column="2">
-               <widget class="QLabel" name="label_42">
+               <widget class="QLabel" name="land_units_visibility_spotting_range_max_label">
                 <property name="text">
                  <string>Visibility Spoting Range Max</string>
                 </property>
                </widget>
               </item>
               <item row="10" column="3">
-               <widget class="QDoubleSpinBox" name="visibility_spotting_range_max"/>
+               <widget class="QDoubleSpinBox" name="land_units_visibility_spotting_range_max_double_spinbox"/>
               </item>
               <item row="5" column="3">
-               <widget class="QDoubleSpinBox" name="hiding_scalar"/>
+               <widget class="QDoubleSpinBox" name="land_units_hiding_scalar_double_spinbox"/>
               </item>
               <item row="5" column="2">
-               <widget class="QLabel" name="label_44">
+               <widget class="QLabel" name="land_units_hiding_scalar_label">
                 <property name="text">
                  <string>Hiding Scalar</string>
                 </property>
                </widget>
               </item>
               <item row="4" column="1">
-               <widget class="QLineEdit" name="training_level"/>
+               <widget class="QLineEdit" name="land_units_training_level_line_edit"/>
               </item>
               <item row="4" column="0">
-               <widget class="QLabel" name="label_45">
+               <widget class="QLabel" name="land_units_training_level_label">
                 <property name="text">
                  <string>Training Level</string>
                 </property>
                </widget>
               </item>
               <item row="6" column="1">
-               <widget class="QDoubleSpinBox" name="capture_power"/>
+               <widget class="QDoubleSpinBox" name="land_units_capture_power_double_spinbox"/>
               </item>
               <item row="6" column="0">
-               <widget class="QLabel" name="label_46">
+               <widget class="QLabel" name="land_units_capture_power_label">
                 <property name="text">
                  <string>Capture Power</string>
                 </property>
                </widget>
               </item>
               <item row="7" column="1">
-               <widget class="QSpinBox" name="rank_depth"/>
+               <widget class="QSpinBox" name="land_units_rank_depth_spinbox"/>
               </item>
               <item row="7" column="0">
-               <widget class="QLabel" name="label_47">
+               <widget class="QLabel" name="land_units_rank_depth_label">
                 <property name="text">
                  <string>Rank Depth</string>
                 </property>
                </widget>
               </item>
               <item row="5" column="0">
-               <widget class="QLabel" name="label">
+               <widget class="QLabel" name="land_units_armour_label">
                 <property name="text">
                  <string>Armour</string>
                 </property>
                 <property name="buddy">
-                 <cstring>armour</cstring>
+                 <cstring>land_units_armour_line_edit</cstring>
                 </property>
                </widget>
               </item>
               <item row="5" column="1">
-               <widget class="QLineEdit" name="armour"/>
+               <widget class="QLineEdit" name="land_units_armour_line_edit"/>
               </item>
               <item row="9" column="1">
-               <widget class="QLineEdit" name="spacing"/>
+               <widget class="QLineEdit" name="land_units_spacing_line_edit"/>
               </item>
               <item row="9" column="0">
-               <widget class="QLabel" name="label_50">
+               <widget class="QLabel" name="land_units_spacing_label">
                 <property name="text">
                  <string>Spacing</string>
                 </property>
                </widget>
               </item>
               <item row="10" column="1">
-               <widget class="QCheckBox" name="loose_spacing">
+               <widget class="QCheckBox" name="land_units_loose_spacing_checkbox">
                 <property name="text">
                  <string/>
                 </property>
                </widget>
               </item>
               <item row="10" column="0">
-               <widget class="QLabel" name="label_51">
+               <widget class="QLabel" name="land_units_loose_spacing_label">
                 <property name="text">
                  <string>Loose Spacing</string>
                 </property>
                </widget>
               </item>
               <item row="10" column="5">
-               <widget class="QDoubleSpinBox" name="ability_global_recharge"/>
+               <widget class="QDoubleSpinBox" name="land_units_ability_global_recharge_double_spinbox"/>
               </item>
               <item row="9" column="5">
-               <widget class="QCheckBox" name="can_skirmish">
+               <widget class="QCheckBox" name="land_units_can_skirmish_checkbox">
                 <property name="text">
                  <string/>
                 </property>
                </widget>
               </item>
-              <item row="2" column="4" rowspan="6" colspan="2">
-               <widget class="QGroupBox" name="groupBox">
-                <property name="title">
-                 <string>Damage Modifiers</string>
-                </property>
-                <layout class="QGridLayout" name="gridLayout_4">
-                 <item row="3" column="1">
-                  <widget class="QSpinBox" name="damage_mod_flame"/>
-                 </item>
-                 <item row="5" column="0">
-                  <widget class="QLabel" name="label_4">
-                   <property name="text">
-                    <string>Magic</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>damage_mod_magic</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="1">
-                  <widget class="QSpinBox" name="damage_mod_physical"/>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QLabel" name="label_11">
-                   <property name="text">
-                    <string>Flame</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>damage_mod_flame</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
-                  <widget class="QSpinBox" name="damage_mod_all"/>
-                 </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="label_12">
-                   <property name="text">
-                    <string>Physical</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>damage_mod_physical</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="label_6">
-                   <property name="text">
-                    <string>All</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>damage_mod_all</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="1">
-                  <widget class="QSpinBox" name="damage_mod_magic"/>
-                 </item>
-                 <item row="2" column="1">
-                  <widget class="QSpinBox" name="damage_mod_missile"/>
-                 </item>
-                 <item row="2" column="0">
-                  <widget class="QLabel" name="label_5">
-                   <property name="text">
-                    <string>Missile</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>damage_mod_missile</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </item>
               <item row="9" column="4">
-               <widget class="QLabel" name="label_52">
+               <widget class="QLabel" name="land_units_can_skirmish_label">
                 <property name="text">
                  <string>Can Skirmish</string>
                 </property>
                </widget>
               </item>
               <item row="10" column="4">
-               <widget class="QLabel" name="label_53">
+               <widget class="QLabel" name="land_units_ability_global_recharge_label">
                 <property name="text">
                  <string>Ability Global Recharge</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="4" rowspan="5" colspan="2">
+               <widget class="QGroupBox" name="groupBox">
+                <property name="title">
+                 <string>Damage Modifiers</string>
+                </property>
+                <layout class="QGridLayout" name="gridLayout_4">
+                 <item row="3" column="1">
+                  <widget class="QSpinBox" name="land_units_damage_mod_flame_spinbox"/>
+                 </item>
+                 <item row="5" column="0">
+                  <widget class="QLabel" name="land_units_damage_mod_magic_label">
+                   <property name="text">
+                    <string>Magic</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>land_units_damage_mod_magic_spinbox</cstring>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QSpinBox" name="land_units_damage_mod_physical_spinbox"/>
+                 </item>
+                 <item row="3" column="0">
+                  <widget class="QLabel" name="land_units_damage_mod_flame_label">
+                   <property name="text">
+                    <string>Flame</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>land_units_damage_mod_flame_spinbox</cstring>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QSpinBox" name="land_units_damage_mod_all_spinbox"/>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="land_units_damage_mod_physical_label">
+                   <property name="text">
+                    <string>Physical</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>land_units_damage_mod_physical_spinbox</cstring>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="land_units_damage_mod_all_label">
+                   <property name="text">
+                    <string>All</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>land_units_damage_mod_all_spinbox</cstring>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="1">
+                  <widget class="QSpinBox" name="land_units_damage_mod_magic_spinbox"/>
+                 </item>
+                 <item row="2" column="1">
+                  <widget class="QSpinBox" name="land_units_damage_mod_missile_spinbox"/>
+                 </item>
+                 <item row="2" column="0">
+                  <widget class="QLabel" name="land_units_damage_mod_missile_label">
+                   <property name="text">
+                    <string>Missile</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>land_units_damage_mod_missile_spinbox</cstring>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item row="7" column="4">
+               <widget class="QLabel" name="land_units_can_brace_label">
+                <property name="text">
+                 <string>Can Brace</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="5">
+               <widget class="QCheckBox" name="land_units_can_brace_checkbox">
+                <property name="text">
+                 <string/>
                 </property>
                </widget>
               </item>
@@ -789,7 +819,7 @@
             </widget>
            </item>
            <item row="2" column="0">
-            <widget class="QGroupBox" name="groupBox_4">
+            <widget class="QGroupBox" name="land_units_mount_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -801,54 +831,54 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_8">
               <item row="2" column="3">
-               <widget class="QSpinBox" name="dismounted_charge_bonus"/>
+               <widget class="QSpinBox" name="land_units_dismounted_charge_bonus_spinbox"/>
               </item>
               <item row="2" column="1">
-               <widget class="QSpinBox" name="dismounted_melee_attack"/>
+               <widget class="QSpinBox" name="land_units_dismounted_melee_attack_spinbox"/>
               </item>
               <item row="0" column="1" colspan="3">
-               <widget class="QLineEdit" name="mount"/>
+               <widget class="QLineEdit" name="land_units_mount_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_30">
+               <widget class="QLabel" name="land_units_mount_label">
                 <property name="text">
                  <string>Mount</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_28">
+               <widget class="QLabel" name="land_units_dismounted_melee_attack_label">
                 <property name="text">
                  <string>Dismounted Melee Attack</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="2">
-               <widget class="QLabel" name="label_29">
+               <widget class="QLabel" name="land_units_dismounted_charge_bonus_label">
                 <property name="text">
                  <string>Dismounted Charge Bonus</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_32">
+               <widget class="QLabel" name="land_units_num_mounts_label">
                 <property name="text">
                  <string>Num Mounts</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="QSpinBox" name="num_mounts"/>
+               <widget class="QSpinBox" name="land_units_num_mounts_spinbox"/>
               </item>
               <item row="1" column="3">
-               <widget class="QCheckBox" name="mounted_draughts">
+               <widget class="QCheckBox" name="land_units_mounted_draughts_checkbox">
                 <property name="text">
                  <string/>
                 </property>
                </widget>
               </item>
               <item row="1" column="2">
-               <widget class="QLabel" name="label_33">
+               <widget class="QLabel" name="land_units_mounted_draughts_label">
                 <property name="text">
                  <string>Mounted Draughts</string>
                 </property>
@@ -858,7 +888,7 @@
             </widget>
            </item>
            <item row="1" column="2">
-            <widget class="QGroupBox" name="groupBox_5">
+            <widget class="QGroupBox" name="land_units_animation_groupbox">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
@@ -870,34 +900,34 @@
              </property>
              <layout class="QGridLayout" name="gridLayout_10">
               <item row="2" column="1">
-               <widget class="QCheckBox" name="sync_locomotion">
+               <widget class="QCheckBox" name="land_units_sync_locomotion_checkbox">
                 <property name="text">
                  <string/>
                 </property>
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="QLineEdit" name="man_animation"/>
+               <widget class="QLineEdit" name="land_units_man_animation_line_edit"/>
               </item>
               <item row="1" column="0">
-               <widget class="QLabel" name="label_38">
+               <widget class="QLabel" name="land_units_man_animation_label">
                 <property name="text">
                  <string>Man Animation</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_48">
+               <widget class="QLabel" name="land_units_sync_locomotion_label">
                 <property name="text">
                  <string>Sync Locomotion</string>
                 </property>
                </widget>
               </item>
               <item row="0" column="1">
-               <widget class="QLineEdit" name="man_entity"/>
+               <widget class="QLineEdit" name="land_units_man_entity_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_49">
+               <widget class="QLabel" name="land_units_man_entity_label">
                 <property name="text">
                  <string>Man Entity</string>
                 </property>
@@ -921,103 +951,115 @@
               <string>Unit Info</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_6">
-              <item row="7" column="0">
-               <widget class="QLabel" name="label_21">
-                <property name="text">
-                 <string>Strengths &amp; Weaknesses</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="0">
-               <widget class="QLabel" name="label_20">
-                <property name="text">
-                 <string>Historical Description Text</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="0">
-               <widget class="QLabel" name="label_16">
-                <property name="text">
-                 <string>Short Description Text</string>
-                </property>
-               </widget>
-              </item>
-              <item row="11" column="3">
-               <widget class="QLabel" name="label_54">
+              <item row="8" column="3">
+               <widget class="QLabel" name="land_units_supports_first_person_label">
                 <property name="text">
                  <string>Supports First Person?</string>
                 </property>
                </widget>
               </item>
-              <item row="11" column="2">
-               <widget class="QCheckBox" name="is_male">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
+              <item row="0" column="2" colspan="3">
+               <widget class="QLineEdit" name="land_units_key_line_edit"/>
               </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="label_18">
+               <widget class="QLabel" name="land_units_key_label">
                 <property name="text">
                  <string>Unit Key</string>
                 </property>
                </widget>
               </item>
-              <item row="11" column="4">
-               <widget class="QCheckBox" name="supports_first_person">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
               <item row="2" column="0">
-               <widget class="QLabel" name="label_17">
+               <widget class="QLabel" name="land_units_class_label">
                 <property name="text">
                  <string>Unit Class</string>
                 </property>
                </widget>
               </item>
-              <item row="11" column="0">
-               <widget class="QLabel" name="label_26">
+              <item row="3" column="2" colspan="3">
+               <widget class="QLineEdit" name="land_units_category_line_edit"/>
+              </item>
+              <item row="8" column="4">
+               <widget class="QCheckBox" name="land_units_supports_first_person_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="2">
+               <widget class="QCheckBox" name="land_units_is_male_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="2" colspan="3">
+               <widget class="QLineEdit" name="land_units_class_line_edit"/>
+              </item>
+              <item row="8" column="0">
+               <widget class="QLabel" name="land_units_is_male_label">
                 <property name="text">
                  <string>Is Male?</string>
                 </property>
                </widget>
               </item>
               <item row="3" column="0">
-               <widget class="QLabel" name="label_19">
+               <widget class="QLabel" name="land_units_category_label">
                 <property name="text">
                  <string>Category</string>
                 </property>
                </widget>
-              </item>
-              <item row="2" column="2" colspan="3">
-               <widget class="QLineEdit" name="unit_class"/>
-              </item>
-              <item row="0" column="2" colspan="3">
-               <widget class="QLineEdit" name="land_units_key_line_edit"/>
-              </item>
-              <item row="3" column="2" colspan="3">
-               <widget class="QLineEdit" name="category"/>
-              </item>
-              <item row="5" column="2" colspan="3">
-               <widget class="QLineEdit" name="short_description_text"/>
-              </item>
-              <item row="6" column="2" colspan="3">
-               <widget class="QLineEdit" name="historical_description_text"/>
-              </item>
-              <item row="7" column="2" colspan="3">
-               <widget class="QLineEdit" name="strengths_and_weakness_text"/>
               </item>
              </layout>
             </widget>
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="tab_4">
+         <widget class="QWidget" name="variantmesh_tab">
           <attribute name="title">
            <string>Tab 2</string>
           </attribute>
+          <layout class="QGridLayout" name="gridLayout_18">
+           <item row="1" column="1">
+            <widget class="QWidget" name="variantmesh_details_widget" native="true">
+             <layout class="QFormLayout" name="formLayout">
+              <item row="0" column="0">
+               <widget class="QLabel" name="variantmesh_list_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="KComboBox" name="variantmesh_list_combobox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QToolButton" name="variantmesh_check_button">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="KTextEdit" name="variantmesh_text_edit">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>1</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </widget>
         </widget>
        </item>
@@ -1044,6 +1086,11 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>KComboBox</class>
+   <extends>QComboBox</extends>
+   <header>kcombobox.h</header>
+  </customwidget>
   <customwidget>
    <class>KTextEdit</class>
    <extends>QTextEdit</extends>

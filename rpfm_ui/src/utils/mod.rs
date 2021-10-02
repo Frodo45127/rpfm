@@ -50,7 +50,7 @@ use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::ffi::{new_text_editor_safe, set_text_safe};
+use crate::ffi::*;
 use crate::locale::{qtr, qtre};
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
@@ -98,6 +98,39 @@ pub(crate) fn ref_from_atomic_ref<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
 pub(crate) fn log_to_status_bar(text: &str) {
     unsafe { q_ptr_from_atomic(&STATUS_BAR).show_message_2a(&QString::from_std_str(text), 2500); }
     info!("{}", text);
+}
+
+/// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as an Error.
+///
+/// It requires:
+/// - widget: a pointer to the KMessageWidget.
+/// - text: something that implements the trait `Display`, to put in the KMessageWidget.
+#[allow(dead_code)]
+pub unsafe fn show_message_error<T: Display>(widget: &QPtr<QWidget>, text: T) {
+    let message = QString::from_std_str(&text.to_string());
+    kmessage_widget_set_error_safe(&widget.as_ptr(), message.as_ptr())
+}
+
+/// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as a Warning.
+///
+/// It requires:
+/// - widget: a pointer to the KMessageWidget.
+/// - text: something that implements the trait `Display`, to put in the KMessageWidget.
+#[allow(dead_code)]
+pub unsafe fn show_message_warning<T: Display>(widget: &QPtr<QWidget>, text: T) {
+    let message = QString::from_std_str(&text.to_string());
+    kmessage_widget_set_warning_safe(&widget.as_ptr(), message.as_ptr())
+}
+
+/// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as an Info Message.
+///
+/// It requires:
+/// - widget: a pointer to the KMessageWidget.
+/// - text: something that implements the trait `Display`, to put in the KMessageWidget.
+#[allow(dead_code)]
+pub unsafe fn show_message_info<T: Display>(widget: &QPtr<QWidget>, text: T) {
+    let message = QString::from_std_str(&text.to_string());
+    kmessage_widget_set_info_safe(&widget.as_ptr(), message.as_ptr())
 }
 
 /// This function creates a modal dialog, for showing successes or errors.
