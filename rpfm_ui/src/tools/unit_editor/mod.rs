@@ -448,7 +448,9 @@ impl ToolUnitEditor {
         //-----------------------------------------------------------------------//
         // land_units_tables
         //-----------------------------------------------------------------------//
-        // TODO: make a save_definition_from_detailed_view_editor.
+        if let Err(error) = self.tool.save_definition_from_detailed_view_editor(&mut data, "land_units", &LAND_UNITS_CUSTOM_FIELDS) {
+            show_message_warning(&self.tool.message_widget, error);
+        }
 
         //-----------------------------------------------------------------------//
         // main_units_tables

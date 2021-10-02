@@ -711,6 +711,7 @@ impl Tool {
     }
 
     /// This function tries to load data from a bool value into a QCheckBox.
+    #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_bool(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QCheckBox>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => match data.parse::<bool>() {
@@ -722,6 +723,7 @@ impl Tool {
     }
 
     /// This function tries to load data from a i32 value into a QSpinBox.
+    #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_i32(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QSpinBox>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => match data.parse::<i32>() {
@@ -736,6 +738,7 @@ impl Tool {
     }
 
     /// This function tries to load data from a f32 value into a QDoubleSpinBox.
+    #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_f32(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QDoubleSpinBox>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => match data.parse::<f32>() {
@@ -750,6 +753,7 @@ impl Tool {
     }
 
     /// This function tries to load data from a string into a QLineEdit.
+    #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_string_short(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QLineEdit>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => field_editor.set_text(&QString::from_std_str(data)),
@@ -758,6 +762,7 @@ impl Tool {
     }
 
     /// This function tries to load data from a long string into a QTextEdit.
+    #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_string_long(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QTextEdit>, field_name: &str) {
         match processed_data.get(field_name) {
             Some(data) => field_editor.set_text(&QString::from_std_str(data)),
@@ -768,4 +773,89 @@ impl Tool {
     //-------------------------------------------------------------------------------//
     //                               Data retrievers
     //-------------------------------------------------------------------------------//
+
+    /// This function takes care of saving on-mass the contents of a specific table from the detailed view.
+    ///
+    /// Fields that fail to load due to missing widgets are returned on error.
+    unsafe fn save_definition_from_detailed_view_editor(&self, data: &mut HashMap<String, String>, table_name: &str, fields_to_ignore: &[&str]) -> Result<()> {
+
+        let mut load_field_errors = vec![];
+
+        // Try to get the table's definition.
+        let definition_name = format!("{}_definition", table_name);
+        match data.get(&definition_name) {
+            Some(definition) => {
+                let definition: Definition = serde_json::from_str(&definition).unwrap();
+                definition.get_fields_processed()
+                    .iter()
+                    .filter(|field| !fields_to_ignore.contains(&field.get_name()))
+                    .for_each(|field| {
+
+                        // Next, find the widget and get its data.
+                        match field.get_field_type() {
+                            FieldType::Boolean => {
+                                let widget_name = format!("{}_{}_checkbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QCheckBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        data.insert(field_key_name, widget.is_checked().to_string());
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::I16 |
+                            FieldType::I32 |
+                            FieldType::I64 => {
+                                let widget_name = format!("{}_{}_spinbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QSpinBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        data.insert(field_key_name, widget.value().to_string());
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::F32 => {
+                                let widget_name = format!("{}_{}_double_spinbox", table_name, field.get_name());
+                                let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        data.insert(field_key_name, widget.value().to_string());
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            FieldType::StringU8 |
+                            FieldType::StringU16 |
+                            FieldType::OptionalStringU8 |
+                            FieldType::OptionalStringU16 => {
+                                let widget_name = format!("{}_{}_line_edit", table_name, field.get_name());
+                                let widget: Result<QPtr<QLineEdit>> = self.find_widget(&widget_name);
+                                match widget {
+                                    Ok(widget) => {
+                                        let field_key_name = format!("{}_{}", table_name, field.get_name());
+                                        data.insert(field_key_name, widget.text().to_std_string());
+                                    }
+                                    Err(_) => load_field_errors.push(widget_name),
+                                };
+                            },
+                            _ => unimplemented!()
+                        };
+                    }
+                );
+            }
+
+            // If we fail to find a definition... tbd.
+            None => {}
+        }
+
+        if !load_field_errors.is_empty() {
+            Err(ErrorKind::TemplateUIWidgetNotFound(load_field_errors.join(", ")).into())
+        } else {
+            Ok(())
+        }
+    }
 }
