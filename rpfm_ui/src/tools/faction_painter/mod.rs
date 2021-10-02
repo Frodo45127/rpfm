@@ -379,49 +379,51 @@ impl ToolFactionPainter {
         }
 
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
-        let screen_name = data.get("screen_name").unwrap();
-        self.get_ref_faction_name_label().set_text(&QString::from_std_str(screen_name));
+        self.tool.load_field_to_detailed_view_editor_string_label(&data, self.get_ref_faction_name_label(), "screen_name");
 
         let image = QPixmap::new();
-        image.load_from_data_q_byte_array(&index.data_1a(61).to_byte_array());
+        image.load_from_data_q_byte_array(&index.data_1a(FACTION_ICON).to_byte_array());
         self.get_ref_faction_icon_label().set_pixmap(&image);
 
-        let banner_primary = data.get("banner_primary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-        let banner_secondary = data.get("banner_secondary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-        let banner_tertiary = data.get("banner_tertiary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+        // From here, everything can not exits, depending on our tables.
+        let mut missing_fields = vec![];
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_primary(), "banner_primary") {
+            missing_fields.push(field);
+        }
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_secondary(), "banner_secondary") {
+            missing_fields.push(field);
+        }
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_tertiary(), "banner_tertiary") {
+            missing_fields.push(field);
+        }
 
-        let uniform_primary = data.get("uniform_primary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-        let uniform_secondary = data.get("uniform_secondary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-        let uniform_tertiary = data.get("uniform_tertiary").unwrap().split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_primary(), "uniform_primary") {
+            missing_fields.push(field);
+        }
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_secondary(), "uniform_secondary") {
+            missing_fields.push(field);
+        }
+        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary") {
+            missing_fields.push(field);
+        }
 
-        set_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_primary[0], banner_primary[1], banner_primary[2]).as_ptr());
-        set_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_secondary[0], banner_secondary[1], banner_secondary[2]).as_ptr());
-        set_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(banner_tertiary[0], banner_tertiary[1], banner_tertiary[2]).as_ptr());
-
-        set_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_primary[0], uniform_primary[1], uniform_primary[2]).as_ptr());
-        set_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_secondary[0], uniform_secondary[1], uniform_secondary[2]).as_ptr());
-        set_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_rgb_3a(uniform_tertiary[0], uniform_tertiary[1], uniform_tertiary[2]).as_ptr());
+        // If any of the fields failed, report it.
+        if !missing_fields.is_empty() {
+            show_message_warning(&self.tool.message_widget, ErrorKind::ToolEntryDataNotFound(missing_fields.join(", ")));
+        }
     }
 
     /// This function saves the data of the detailed view to its item in the faction list.
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
-        let banner_primary = get_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast());
-        let banner_secondary = get_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast());
-        let banner_tertiary = get_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast());
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_primary(), "banner_primary");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_secondary(), "banner_secondary");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_tertiary(), "banner_tertiary");
 
-        let uniform_primary = get_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast());
-        let uniform_secondary = get_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast());
-        let uniform_tertiary = get_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast());
-
-        *data.get_mut("banner_primary").unwrap() = format!("{},{},{}", banner_primary.red(), banner_primary.green(), banner_primary.blue());
-        *data.get_mut("banner_secondary").unwrap() = format!("{},{},{}", banner_secondary.red(), banner_secondary.green(), banner_secondary.blue());
-        *data.get_mut("banner_tertiary").unwrap() = format!("{},{},{}", banner_tertiary.red(), banner_tertiary.green(), banner_tertiary.blue());
-
-        *data.get_mut("uniform_primary").unwrap() = format!("{},{},{}", uniform_primary.red(), uniform_primary.green(), uniform_primary.blue());
-        *data.get_mut("uniform_secondary").unwrap() = format!("{},{},{}", uniform_secondary.red(), uniform_secondary.green(), uniform_secondary.blue());
-        *data.get_mut("uniform_tertiary").unwrap() = format!("{},{},{}", uniform_tertiary.red(), uniform_tertiary.green(), uniform_tertiary.blue());
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_primary(), "uniform_primary");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_secondary(), "uniform_secondary");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary");
 
         self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), FACTION_DATA);
     }

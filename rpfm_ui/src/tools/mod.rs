@@ -15,6 +15,7 @@ This module contains the code to manage the main UI and store all his slots.
 !*/
 
 use qt_widgets::QCheckBox;
+use qt_widgets::QComboBox;
 use qt_widgets::QDialogButtonBox;
 use qt_widgets::QDialog;
 use qt_widgets::QDoubleSpinBox;
@@ -23,6 +24,8 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QSpinBox;
 use qt_widgets::QTextEdit;
 use qt_widgets::QWidget;
+
+use qt_gui::QColor;
 
 use qt_core::QBox;
 use qt_core::QObject;
@@ -57,7 +60,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::kmessage_widget_close_safe;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
@@ -770,6 +773,39 @@ impl Tool {
         }
     }
 
+    /// This function tries to load data from a string into a QLabel.
+    #[allow(dead_code)]
+    unsafe fn load_field_to_detailed_view_editor_string_label(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QLabel>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => field_editor.set_text(&QString::from_std_str(data)),
+            None => field_editor.set_text(&QString::new()),
+        }
+    }
+
+    /// This function tries to load data from a R,G,B field into a KColorCombo.
+    ///
+    /// Note: This can fail if the colour is not found in the list, in which case we use 0,0,0, and report it as an error.
+    #[allow(dead_code)]
+    unsafe fn load_fields_to_detailed_view_editor_combo_color(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) -> Option<String> {
+        let mut failed = false;
+
+        let colour_split = match processed_data.get(field_name) {
+            Some(color_parts) => color_parts.split(',').map(|x| x.parse().unwrap_or(0)).collect::<Vec<i32>>(),
+            None => {
+                failed = true;
+                vec![0, 0, 0]
+            }
+        };
+
+        set_color_safe(&field_editor.as_ptr().static_upcast(), &QColor::from_rgb_3a(colour_split[0], colour_split[1], colour_split[2]).as_ptr());
+
+        if failed {
+            Some(field_name.to_owned())
+        } else {
+            None
+        }
+    }
+
     //-------------------------------------------------------------------------------//
     //                               Data retrievers
     //-------------------------------------------------------------------------------//
@@ -857,5 +893,12 @@ impl Tool {
         } else {
             Ok(())
         }
+    }
+
+    /// This function tries to save data from a KColorCombo into a R,G,B field.
+    #[allow(dead_code)]
+    unsafe fn save_fields_from_detailed_view_editor_combo_color(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
+        let colour = get_color_safe(&field_editor.as_ptr().static_upcast());
+        data.insert(field_name.to_owned(), format!("{},{},{}", colour.red(), colour.green(), colour.blue()));
     }
 }
