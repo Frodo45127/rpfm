@@ -895,7 +895,7 @@ pub fn background_loop() {
                 if pack_file_decoded.get_file_path().exists() {
                     let mut temp_path = pack_file_decoded.get_file_path().to_path_buf();
                     temp_path.pop();
-                    if open::that(&temp_path).is_err() {
+                    if open::that_in_background(&temp_path).is_err() {
                         CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackFileIsNotAFile.into()));
                     }
                     else {
