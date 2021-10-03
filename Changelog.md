@@ -6,19 +6,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [2.6.0]
 ### Added
 - Implemented warning when trying to rename a DB folder.
-- Implemented CCD(CEO)/ESF/SAVE editor (very beta for now).
+- Implemented CCD(CEO)/ESF/SAVE editor (EXPERIMENTAL).
 - Implemented Dependencies View.
 - Implemented Global Search Support for dependencies.
 - Implemented `Import from dependencies`.
 - Implemented `Tools` menu.
 - Implemented `Faction Painter` tool.
+- Implemented `Unit Editor` tool (EXPERIMENTAL, READ-ONLY FOR NOW).
 - Implemented `Only For The Brave` alert for specially unstable builds.
 
 ### Changed
 - Updated dependencies.
+- Updated KTextEditor.
 - RigidModel View updated to 0.8.2 (includes fixes for issues found in RPFM 2.5.4 regarding broken models).
 - Rigidmodel error messages should now be more specific.
 - TSVs to be imported no longer require to have all the columns of a table.
@@ -40,7 +42,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Removed `Templates` feature.
 
 ### Fixed
-- Fixed `Open MyMod Folder` hanging the program until you closed the explorer window.
+- Fixed multiple `Open ... Folder` actions hanging the program until you closed the explorer window.
 - Fixed focus not being set to tables after double-clicking on a Global Search/Diagnostic result.
 - Fixed very rare bug that caused RPFM to fail on reimport very specific TSV files.
 - Fixed a bug that caused dependencies to not update properly on game selected change.
@@ -477,7 +479,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...v2.6.0
 [2.5.4]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...v2.5.4
 [2.5.3]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...v2.5.3
 [2.5.2]: https://github.com/Frodo45127/rpfm/compare/v2.5.1...v2.5.2
