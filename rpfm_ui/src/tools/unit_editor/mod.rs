@@ -375,6 +375,11 @@ impl ToolUnitEditor {
 
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
 
+        // Log in debug mode, for debugging.
+        if cfg!(debug_assertions) {
+            log::info!("{:?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+        }
+
         //-----------------------------------------------------------------------//
         // land_units_tables
         //-----------------------------------------------------------------------//

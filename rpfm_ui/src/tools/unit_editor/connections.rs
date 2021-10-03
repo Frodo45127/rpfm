@@ -28,5 +28,9 @@ pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) 
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
 
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
-    ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
+
+    // Only allow saving on debug mode, until the bugs are fixed.
+    if cfg!(debug_assertions) {
+        ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
+    }
 }
