@@ -846,9 +846,7 @@ impl AppUISlots {
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             match GAME_SELECTED.read().unwrap().get_game_launch_command() {
-                Ok(command) => if open::that_in_background(&command).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                },
+                Ok(command) => { open::that_in_background(&command); },
                 _ => show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false),
             }
         }));
@@ -857,33 +855,30 @@ impl AppUISlots {
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path() {
-                if open::that_in_background(&path).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                };
+                open::that_in_background(&path);
+            } else {
+                show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
             }
-            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
         }));
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() {
-                if open::that_in_background(&path).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                };
+                open::that_in_background(&path);
+            } else {
+                show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
             }
-            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
         }));
 
         // What happens when we trigger the "Open Config Folder" action.
         let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = get_config_path() {
-                if open::that_in_background(&path).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                };
+                open::that_in_background(&path);
+            } else {
+                show_dialog(&app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false);
             }
-            else { show_dialog(&app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false); }
         }));
 
         // What happens when we trigger the "Change Game Selected" action.
