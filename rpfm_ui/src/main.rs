@@ -24,6 +24,7 @@
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
+// It also disables a lot of debugging messages on windows, so remember to comment it when needed.
 #![windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;

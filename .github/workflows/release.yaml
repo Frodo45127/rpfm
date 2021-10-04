@@ -99,6 +99,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\plugins\styles\qwindowsvistastyle.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\styles\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\d3dcompiler_47.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\editorconfig.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\git2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\iconv.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\icudt??.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -107,7 +108,6 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\intl.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Archive.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\KF5Attica.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5AuthCore.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Codecs.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Completion.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -117,7 +117,6 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5CoreAddons.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Crash.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5DBusAddons.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\KF5GlobalAccel.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5GuiAddons.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5I18n.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5IconThemes.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -128,6 +127,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5KIOWidgets.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Parts.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Service.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\KF5Solid.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SonnetCore.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SonnetUi.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5SyntaxHighlighting.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -149,6 +149,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\msvcp140_2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\pcre.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\pcre2-8.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\pcre2-16.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\Qt5Core.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
