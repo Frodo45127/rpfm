@@ -165,11 +165,11 @@ jobs:
 
           cp ${{ matrix.DDISK }}:\Craft\bin\vcruntime140.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\vcruntime140_1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\zlib.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\zlib1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\zstd.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           # No fucking clue why now needs two copies of the same lib.
-          cp ${{ matrix.DDISK }}:\Craft\bin\zlib.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\zlib1.dll
+          cp ${{ matrix.DDISK }}:\Craft\bin\zlib1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\zlib.dll
 
           # Required since this week it seems.
           cp ${{ matrix.DDISK }}:\Craft\bin\freetype.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
