@@ -52,8 +52,15 @@ jobs:
         name: Build RPFM
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
+
+          # Fix for the stupid KTextEditor header bug.
+          sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\editor.h"
+          sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\view.h"
+
           cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
           cd C:\actions-runner\_work\rpfm\rpfm
+
+          # First build everything, then rebuild only the UI with certain features enabled.
           cargo build --release
           cd rpfm_ui
           cargo build --release --features "support_rigidmodel support_modern_dds"
