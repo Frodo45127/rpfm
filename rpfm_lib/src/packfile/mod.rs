@@ -1623,9 +1623,9 @@ impl PackFile {
                     // Saving PackFile settings.
                     let mut data = vec![];
                     data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
+                    data.extend_from_slice(b"\n"); // Add newline to the end of the file
                     let path = extracted_path.join(RESERVED_NAME_SETTINGS.to_owned() + ".json");
                     let mut file = BufWriter::new(File::create(path)?);
-                    data.extend_from_slice(b"\n"); // Add newline to the end of the file
                     file.write_all(&data)?;
                     file.flush()?;
                 }
