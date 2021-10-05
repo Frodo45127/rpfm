@@ -179,7 +179,10 @@ impl Settings {
         let file_path = get_config_path()?.join(SETTINGS_FILE);
         let mut file = BufWriter::new(File::create(file_path)?);
         let config = PrettyConfig::default();
-        file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
+        // Append a newline `\n` to the file
+        let mut data = to_string_pretty(&self, config)?;
+        data.push_str("\n");
+        file.write_all(data.as_bytes())?;
         Ok(())
     }
 }

@@ -275,7 +275,10 @@ impl Shortcuts {
 
         // Try to save the file, and return the result.
         let config = PrettyConfig::default();
-        file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
+        // Append a newline `\n` to the file
+        let mut data = to_string_pretty(&self, config)?;
+        data.push_str("\n");
+        file.write_all(data.as_bytes())?;
 
         // Return success.
         Ok(())
