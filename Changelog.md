@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.6.1]
+### Fixed
+- Fixed CTD on start on new installations.
+- Fixed CTD when clicking on any of the tools.
+
 ## [2.6.0]
 ### Added
 - Implemented warning when trying to rename a DB folder.
@@ -479,7 +484,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...HEAD
+[2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...v2.6.0
 [2.5.4]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...v2.5.4
 [2.5.3]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...v2.5.3

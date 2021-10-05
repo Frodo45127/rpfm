@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "2.6.0"
+version = "2.6.1"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
@@ -80,7 +80,7 @@ filepath = "^0.1"
 pelite = "^0.9"
 
 # Caseless matching.
-unicase = "2.6.0"
+unicase = "^2.6"
 
 # Logging support.
 backtrace = "^0.3"
