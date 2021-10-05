@@ -47,7 +47,6 @@ use std::sync::{Arc, RwLock, atomic::AtomicPtr};
 use std::thread;
 
 use rpfm_lib::logger::Logger;
-use rpfm_lib::settings::init_config_path;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;

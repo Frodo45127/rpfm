@@ -92,6 +92,9 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\plugins\imageformats\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
           cp C:\actions-runner\_work\rpfm\rpfm/libs/qdds.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
 
+          mkdir designer
+          cp ${{ matrix.DDISK }}:\Craft\plugins\designer\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\designer\
+
           mkdir platforms
           cp ${{ matrix.DDISK }}:\Craft\plugins\platforms\qwindows.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\platforms\
 
