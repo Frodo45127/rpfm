@@ -37,7 +37,7 @@ use std::panic;
 
 use rpfm_error::Result;
 
-use crate::settings::get_config_path;
+use crate::settings::{init_config_path, get_config_path};
 
 /// Log file to log execution steps and other messages.
 const LOG_FILE: &str = "rpfm.log";
@@ -90,6 +90,10 @@ impl Logger {
     /// - Log execution steps to file/sentry.
     pub fn init() -> Result<ClientInitGuard> {
         info!("Initializing Logger.");
+
+        // For the love of god: initialize the fucking config path first. Otherwise this explodes before the logging even begins,
+        // and I don't want to spend another full day investigating this thing.
+        init_config_path()?;
 
         // Make sure the config folder actually exists before we try to dump crashes into it.
         let config_path = get_config_path()?;
