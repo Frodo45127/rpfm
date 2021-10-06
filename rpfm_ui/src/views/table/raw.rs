@@ -1456,7 +1456,9 @@ impl TableView {
         self.context_menu_update();
         if let Some(ref packed_file_path) = self.packed_file_path {
             TableSearch::update_search(self);
-            set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
+            if let DataSource::PackFile = *self.data_source.read().unwrap() {
+                set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
+            }
         }
 
         if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {

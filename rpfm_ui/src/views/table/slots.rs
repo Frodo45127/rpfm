@@ -215,7 +215,9 @@ impl TableViewSlots {
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
                                 TableSearch::update_search(&view);
-                                set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                                if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                                }
                             }
                         }
                     }
@@ -236,7 +238,9 @@ impl TableViewSlots {
             view => move || {
                 view.append_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    }
                 }
             }
         ));
@@ -248,7 +252,9 @@ impl TableViewSlots {
             view => move || {
                 view.insert_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    }
                 }
             }
         ));
@@ -280,7 +286,9 @@ impl TableViewSlots {
             view => move || {
             view.append_rows(true);
             if let Some(ref packed_file_path) = view.packed_file_path {
-                set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                }
             }
         }));
 
@@ -291,7 +299,9 @@ impl TableViewSlots {
             view => move || {
             view.insert_rows(true);
             if let Some(ref packed_file_path) = view.packed_file_path {
-                set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                }
             }
         }));
 
@@ -370,7 +380,9 @@ impl TableViewSlots {
                 view.context_menu_update();
                 if view.history_undo.read().unwrap().is_empty() {
                     if let Some(ref packed_file_path) = view.packed_file_path {
-                        set_modified(false, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                            set_modified(false, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        }
                     }
                 }
             }
@@ -385,7 +397,9 @@ impl TableViewSlots {
                 update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                 view.context_menu_update();
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    }
                 }
             }
         ));
@@ -448,7 +462,10 @@ impl TableViewSlots {
                                 view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
                                 view.history_redo.write().unwrap().clear();
                                 update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
-                                set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+
+                                if let DataSource::PackFile = *view.data_source.read().unwrap() {
+                                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                                }
                             },
                             Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
