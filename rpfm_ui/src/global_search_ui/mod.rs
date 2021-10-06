@@ -991,7 +991,6 @@ impl GlobalSearchUI {
             _ => return vec![],
         };
 
-        let filter_model: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
         let items = tree_view.get_items_from_selection(true);
 
         // For each item we follow the following logic:
@@ -1045,9 +1044,8 @@ impl GlobalSearchUI {
                     let match_file = matches.last_mut().unwrap();
 
                     // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                    for row in 0..item.row_count() {
-                        let row_item = item.child_2a(row, 0);
-                        if filter_model.map_from_source(row_item.index().as_ref()).is_valid() {
+                    for _ in 0..item.row_count() {
+                        if !item.is_null() {
                             let column_name = item.child_2a(item.row(), 0).text().to_std_string();
                             let column_number = item.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
                             let row_number = item.child_2a(item.row(), 1).text().to_std_string().parse::<i64>().unwrap() - 1;
