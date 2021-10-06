@@ -60,10 +60,12 @@ jobs:
           cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
           cd C:\actions-runner\_work\rpfm\rpfm
 
-          # First build everything, then rebuild only the UI with certain features enabled.
-          cargo build --release
-          cd rpfm_ui
-          cargo build --release --features "support_rigidmodel support_modern_dds"
+          # First build every executable one by one, so we can speed up compilation.
+          cargo build --release --bin rpfm
+          cargo build --release --bin rpfm_cli
+          cargo build --release --bin rpfm_mod_checker
+          cargo build --release --features "support_rigidmodel support_modern_dds" --bin rpfm_ui
+
         shell: pwsh
 
       - if: matrix.os == 'self-hosted-ubuntu'
