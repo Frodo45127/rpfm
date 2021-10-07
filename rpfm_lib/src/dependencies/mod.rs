@@ -551,7 +551,7 @@ impl Dependencies {
 
         for path in paths {
             match path {
-                PathType::File(path) => match self.get_packedfile_from_game_files(&path) {
+                PathType::File(path) => match self.get_packedfile_from_parent_files(&path) {
                     Ok(packed_file) => packed_files.push(packed_file),
                     Err(_) => errors.push(path),
                 },
