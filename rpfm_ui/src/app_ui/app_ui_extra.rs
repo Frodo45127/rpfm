@@ -2383,7 +2383,7 @@ impl AppUI {
         let was_window_disabled = !app_ui.main_window.is_enabled();
 
         // If the game changed, change the game selected.
-        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || SCHEMA.read().unwrap().is_none() {
+        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() {
             game_changed = true;
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
