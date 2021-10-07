@@ -1338,13 +1338,12 @@ pub fn background_loop() {
                 }
             },
 
-            // TODO: This has to be case insensitive.
             Command::GetPackedFilesFromAllSources(paths) => {
                 let mut packed_files = HashMap::new();
 
                 // Get PackedFiles requested from the Parent Files.
                 let mut packed_files_parent = HashMap::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files(&paths) {
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files_unicased(&paths) {
                     for packed_file in packed_files_decoded {
                         packed_files_parent.insert(packed_file.get_path().to_vec(), packed_file);
                     }
@@ -1353,7 +1352,7 @@ pub fn background_loop() {
 
                 // Get PackedFiles requested from the Game Files.
                 let mut packed_files_game = HashMap::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files(&paths) {
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files_unicased(&paths) {
                     for packed_file in packed_files_decoded {
                         packed_files_game.insert(packed_file.get_path().to_vec(), packed_file);
                     }

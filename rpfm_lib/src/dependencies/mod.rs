@@ -451,6 +451,33 @@ impl Dependencies {
         }
     }
 
+    /// This function returns the provided file, if exists, or an error if not, from the game files. Unicased version.
+    pub fn get_packedfile_from_game_files_unicased(&self, path: &[String]) -> Result<PackedFile> {
+        let path = UniCase::new(path.join("/"));
+        let packed_file = self.vanilla_packed_files_cache.read().unwrap().par_iter()
+            .find_map_any(|(cached_path, packed_file)| if UniCase::new(cached_path) == path { Some(packed_file.clone()) } else { None })
+            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound));
+
+        // If we found it in the cache, return it.
+        if packed_file.is_ok() {
+            packed_file
+        }
+
+        // If not, check on the big list.
+        else {
+            let packed_file = self.vanilla_cached_packed_files.par_iter()
+                .find_map_any(|(cached_path, cache_packed_file)| if UniCase::new(cached_path) == path {
+                    Some(PackedFile::try_from(cache_packed_file))
+                } else { None })
+                .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
+
+            // If we found one, add it to the cache to reduce load times later on.
+            self.vanilla_packed_files_cache.write().unwrap().insert(path.to_string(), packed_file.clone());
+
+            Ok(packed_file)
+        }
+    }
+
     /// This function returns the provided files, if exist, or an error if not, from the game files.
     pub fn get_packedfiles_from_game_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
         let mut packed_files = vec![];
@@ -467,6 +494,60 @@ impl Dependencies {
                     let base_path = base_path.join("/");
                     let (mut folder_packed_files, mut error_paths) = self.vanilla_cached_packed_files.par_iter()
                         .filter(|(path, _)| path.starts_with(&base_path) && path.len() > base_path.len())
+                        .partition_map(|(path, cached_packed_file)|
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        );
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+
+                },
+                PathType::PackFile => {
+                    let (mut folder_packed_files, mut error_paths) = self.vanilla_cached_packed_files.par_iter()
+                        .partition_map(|(path, cached_packed_file)| {
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        });
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+                },
+                PathType::None => unimplemented!(),
+            }
+        }
+
+        Ok((packed_files, errors))
+    }
+
+    /// This function returns the provided files, if exist, or an error if not, from the game files. Unicased version.
+    pub fn get_packedfiles_from_game_files_unicased(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        let mut packed_files = vec![];
+        let mut errors = vec![];
+        let paths = PathType::dedup(paths);
+
+        for path in paths {
+            match path {
+                PathType::File(path) => match self.get_packedfile_from_game_files_unicased(&path) {
+                    Ok(packed_file) => packed_files.push(packed_file),
+                    Err(_) => errors.push(path),
+                },
+                PathType::Folder(base_path) => {
+                    let base_path = base_path.join("/");
+                    let base_char_len = base_path.chars().count();
+                    let base_path_unicased = UniCase::new(&base_path);
+
+                    let (mut folder_packed_files, mut error_paths) = self.vanilla_cached_packed_files.par_iter()
+                        .filter(|(path, _)| {
+                            if path.len() > base_path.len() {
+                                let path_reduced = UniCase::new(path.chars().enumerate().take_while(|(index, _)| index < &base_char_len).map(|(_, c)| c).collect::<String>());
+                                path_reduced == base_path_unicased
+                            } else { false }
+                        })
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),
@@ -543,7 +624,34 @@ impl Dependencies {
         }
     }
 
-   /// This function returns the provided files, if exist, or an error if not, from the parent files.
+    /// This function returns the provided file, if exists, or an error if not, from the parent mod files. Unicased version.
+    pub fn get_packedfile_from_parent_files_unicased(&self, path: &[String]) -> Result<PackedFile> {
+        let path = UniCase::new(path.join("/"));
+        let packed_file = self.parent_packed_files_cache.read().unwrap().par_iter()
+            .find_map_any(|(cached_path, packed_file)| if UniCase::new(cached_path) == path { Some(packed_file.clone()) } else { None })
+            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound));
+
+        // If we found it in the cache, return it.
+        if packed_file.is_ok() {
+            packed_file
+        }
+
+        // If not, check on the big list.
+        else {
+            let packed_file = self.parent_cached_packed_files.par_iter()
+                .find_map_any(|(cached_path, cache_packed_file)| if UniCase::new(cached_path) == path {
+                    Some(PackedFile::try_from(cache_packed_file))
+                } else { None })
+                .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
+
+            // If we found one, add it to the cache to reduce load times later on.
+            self.parent_packed_files_cache.write().unwrap().insert(path.to_string(), packed_file.clone());
+
+            Ok(packed_file)
+        }
+    }
+
+    /// This function returns the provided files, if exist, or an error if not, from the parent files.
     pub fn get_packedfiles_from_parent_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
         let mut packed_files = vec![];
         let mut errors = vec![];
@@ -559,6 +667,60 @@ impl Dependencies {
                     let base_path = base_path.join("/");
                     let (mut folder_packed_files, mut error_paths) =self.parent_cached_packed_files.par_iter()
                         .filter(|(path, _)| path.starts_with(&base_path) && path.len() > base_path.len())
+                        .partition_map(|(path, cached_packed_file)|
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        );
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+
+                },
+                PathType::PackFile => {
+                    let (mut folder_packed_files, mut error_paths) = self.parent_cached_packed_files.par_iter()
+                        .partition_map(|(path, cached_packed_file)| {
+                            match PackedFile::try_from(cached_packed_file) {
+                                Ok(packed_file) => Either::Left(packed_file),
+                                Err(_) => Either::Right(path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()),
+                            }
+                        });
+
+                    packed_files.append(&mut folder_packed_files);
+                    errors.append(&mut error_paths);
+                },
+                PathType::None => unimplemented!(),
+            }
+        }
+
+        Ok((packed_files, errors))
+    }
+
+    /// This function returns the provided files, if exist, or an error if not, from the parent files. Unicased version.
+    pub fn get_packedfiles_from_parent_files_unicased(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        let mut packed_files = vec![];
+        let mut errors = vec![];
+        let paths = PathType::dedup(paths);
+
+        for path in paths {
+            match path {
+                PathType::File(path) => match self.get_packedfile_from_parent_files_unicased(&path) {
+                    Ok(packed_file) => packed_files.push(packed_file),
+                    Err(_) => errors.push(path),
+                },
+                PathType::Folder(base_path) => {
+                    let base_path = base_path.join("/");
+                    let base_char_len = base_path.chars().count();
+                    let base_path_unicased = UniCase::new(&base_path);
+
+                    let (mut folder_packed_files, mut error_paths) =self.parent_cached_packed_files.par_iter()
+                        .filter(|(path, _)| {
+                            if path.len() > base_path.len() {
+                                let path_reduced = UniCase::new(path.chars().enumerate().take_while(|(index, _)| index < &base_char_len).map(|(_, c)| c).collect::<String>());
+                                path_reduced == base_path_unicased
+                            } else { false }
+                        })
                         .partition_map(|(path, cached_packed_file)|
                             match PackedFile::try_from(cached_packed_file) {
                                 Ok(packed_file) => Either::Left(packed_file),

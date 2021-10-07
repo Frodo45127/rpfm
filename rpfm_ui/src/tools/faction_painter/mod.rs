@@ -42,7 +42,6 @@ use cpp_core::Ref;
 
 use itertools::Itertools;
 use rayon::prelude::*;
-use unicase::UniCase;
 
 use std::collections::HashMap;
 
@@ -281,10 +280,8 @@ impl ToolFactionPainter {
         let response = CentralCommand::recv(&receiver);
         let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
-        // Prepare the image paths in unicased format, so we can get them despite what weird casing the paths have.
-        let images_paths_unicased = processed_data.iter().map(|(x, y)|
-            (x.to_owned(), UniCase::new(y.get("flags_path").unwrap().to_owned()))
-        ).collect::<HashMap<String, UniCase<String>>>();
+        // Map the paths to be a single string, lowercase. That should speed-up things.
+        let images_data: HashMap<DataSource, HashMap<String, PackedFile>> = images_data.iter().map(|(x, y)| (*x, y.par_iter().map(|(path, z)| (path.join("/").to_lowercase(), z.clone())).collect())).collect();
 
         // Once we got everything processed, build the items for the ListView.
         for (key, data) in processed_data.iter().sorted_by_key(|x| x.0) {
@@ -293,24 +290,25 @@ impl ToolFactionPainter {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), FACTION_DATA);
 
             // Image paths, we may or may not have them, so only try to load them if we actually have a path for them.
-            if let Some(image_path_unicased) = images_paths_unicased.get(key) {
+            if let Some(image_path) = data.get("flags_path") {
+                let image_path_lowercase = image_path.to_lowercase();
                 let mut image_data = None;
 
                 if let Some(data) = images_data.get(&DataSource::PackFile) {
-                    if let Some(image_packed_file) = data.iter().find_map(|(path, packed_file)| if &UniCase::new(path.join("/")) == image_path_unicased { Some(packed_file) } else { None }) {
+                    if let Some(image_packed_file) = data.get(&image_path_lowercase) {
                         image_data = Some(image_packed_file.get_raw_data().unwrap());
                     }
                 }
                 if image_data.is_none() {
                     if let Some(data) = images_data.get(&DataSource::ParentFiles) {
-                        if let Some(image_packed_file) = data.iter().find_map(|(path, packed_file)| if &UniCase::new(path.join("/")) == image_path_unicased { Some(packed_file) } else { None }) {
+                        if let Some(image_packed_file) = data.get(&image_path_lowercase) {
                             image_data = Some(image_packed_file.get_raw_data().unwrap());
                         }
                     }
                 }
                 if image_data.is_none() {
                     if let Some(data) = images_data.get(&DataSource::GameFiles) {
-                        if let Some(image_packed_file) = data.iter().find_map(|(path, packed_file)| if &UniCase::new(path.join("/")) == image_path_unicased { Some(packed_file) } else { None }) {
+                        if let Some(image_packed_file) = data.get(&image_path_lowercase) {
                             image_data = Some(image_packed_file.get_raw_data().unwrap());
                         }
                     }
@@ -577,7 +575,13 @@ impl ToolFactionPainter {
                             DecodedData::StringU16(ref value) |
                             DecodedData::OptionalStringU8(ref value) |
                             DecodedData::OptionalStringU16(ref value) => {
-                                data.insert("flags_path".to_owned(), value.to_owned().replace("\\", "/") + "/mon_64.png");
+
+                                // This cleans up the \ slashes some paths use, and removes the "data\" prefix some games use in these paths.
+                                let mut value = value.to_owned().replace("\\", "/") + "/mon_64.png";
+                                if value.starts_with("data/") {
+                                    value = value[5..].to_owned();
+                                }
+                                data.insert("flags_path".to_owned(), value);
                             }
                             _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
                         }
