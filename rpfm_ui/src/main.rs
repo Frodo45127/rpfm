@@ -43,7 +43,7 @@ use log::info;
 use sentry::ClientInitGuard;
 
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock, atomic::AtomicPtr};
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicPtr}};
 use std::thread;
 
 use rpfm_lib::logger::Logger;
@@ -267,6 +267,9 @@ lazy_static! {
 
     /// Monospace font, just in case we need it.
     static ref FONT_MONOSPACE: AtomicPtr<QFont> = unsafe { atomic_from_cpp_box(QFontDatabase::system_font(SystemFont::FixedFont)) };
+
+    /// Atomic to control if we have performed the initial game selected change or not.
+    static ref FIRST_GAME_CHANGE_DONE: AtomicBool = AtomicBool::new(false);
 
     /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
     static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));

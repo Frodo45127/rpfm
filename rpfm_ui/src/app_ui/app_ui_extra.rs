@@ -44,6 +44,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -66,6 +67,7 @@ use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICA
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
+use crate::FIRST_GAME_CHANGE_DONE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
@@ -2383,7 +2385,8 @@ impl AppUI {
         let was_window_disabled = !app_ui.main_window.is_enabled();
 
         // If the game changed, change the game selected.
-        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() {
+        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
+            FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
             game_changed = true;
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
