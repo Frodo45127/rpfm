@@ -40,16 +40,7 @@ jobs:
         id: get_version
         uses: battila7/get-version-action@v2.2.1
 
-      - if: matrix.os == 'self-hosted-ubuntu'
-        name: Installing Qt5, KTextEditor & KImageFormats
-        run: |
-          apt update
-          apt upgrade
-          apt install qt5 qt5-imageformats ktexteditor kimageformats
-        shell: bash
-
-      - if: matrix.os == 'self-hosted-windows'
-        name: Build RPFM
+      - name: Build RPFM
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
@@ -68,15 +59,7 @@ jobs:
 
         shell: pwsh
 
-      - if: matrix.os == 'self-hosted-ubuntu'
-        name: Build RPFM
-        run: |
-          cd rpfm
-          cargo build --release
-        shell: bash
-
-      - if: matrix.os == 'self-hosted-windows'
-        name: Prepare Assets for Release
+      - name: Prepare Assets for Release
         run: |
           cd ${{ matrix.DDISK }}:\
           rm -r -fo ${{ matrix.DDISK }}:\deploy
@@ -199,11 +182,6 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
-      - if: matrix.os == 'self-hosted-ubuntu'
-        name: Prepare Assets for Release
-        run: |
-          7z a rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
-
       # Changelog step is common for all OS.
       - name: Get Changelog Entry
         id: changelog_reader
@@ -225,8 +203,7 @@ jobs:
           draft: true
           prerelease: true
 
-      - if: matrix.os == 'self-hosted-windows'
-        name: Upload Release Asset
+      - name: Upload Release Asset
         id: upload-release-asset-windows
         uses: actions/upload-release-asset@v1
         env:
@@ -237,14 +214,12 @@ jobs:
           asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
-      - if: matrix.os == 'self-hosted-ubuntu'
-        name: Upload Release Asset
-        id: upload-release-asset-ubuntu
-        uses: actions/upload-release-asset@v1
+      # Sentry release goes at the end, only when we have managed to finish the entire process without problems.
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          asset_content_type: ${{ matrix.MIME }}
+          environment: production
