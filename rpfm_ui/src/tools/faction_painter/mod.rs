@@ -40,6 +40,7 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
+use itertools::Itertools;
 use rayon::prelude::*;
 use unicase::UniCase;
 
@@ -286,7 +287,7 @@ impl ToolFactionPainter {
         ).collect::<HashMap<String, UniCase<String>>>();
 
         // Once we got everything processed, build the items for the ListView.
-        for (key, data) in &processed_data {
+        for (key, data) in processed_data.iter().sorted_by_key(|x| x.0) {
 
             let item = QStandardItem::from_q_string(&QString::from_std_str(&format!("{} - {}", data.get("screen_name").unwrap(), key))).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), FACTION_DATA);
