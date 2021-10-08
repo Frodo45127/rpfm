@@ -39,8 +39,11 @@ use rpfm_error::Result;
 
 use crate::settings::{init_config_path, get_config_path};
 
-/// Log file to log execution steps and other messages.
-const LOG_FILE: &str = "rpfm.log";
+/// Log files to log execution steps and other messages.
+const LOG_FILE_CURRENT: &str = "rpfm.log";
+const LOG_FILE_1: &str = "rpfm_1.log";
+const LOG_FILE_2: &str = "rpfm_2.log";
+const LOG_FILE_3: &str = "rpfm_3.log";
 
 /// Current version of the crate.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -98,10 +101,13 @@ impl Logger {
         // Make sure the config folder actually exists before we try to dump crashes into it.
         let config_path = get_config_path()?;
 
+        // Rotate the logs so we can keep a few old logs.
+        Self::rotate_logs(&config_path)?;
+
         // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
         let combined_logger = CombinedLogger::new(vec![
             TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(config_path.join(LOG_FILE))?),
+            WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(config_path.join(LOG_FILE_CURRENT))?),
         ]);
 
         // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
@@ -167,6 +173,32 @@ impl Logger {
         let file_path = path.join(format!("error/error-report-{}.toml", &uuid));
         let mut file = BufWriter::new(File::create(&file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
+        Ok(())
+    }
+
+    /// This function takes care of rotating the logs used by RPFM, so we can keep a few old logs when starting a new instance.
+    fn rotate_logs(config_path: &Path) -> Result<()> {
+        let log_path_current = config_path.join(LOG_FILE_CURRENT);
+        let log_path_1 = config_path.join(LOG_FILE_1);
+        let log_path_2 = config_path.join(LOG_FILE_2);
+        let log_path_3 = config_path.join(LOG_FILE_3);
+
+        if log_path_3.is_file() {
+            std::fs::remove_file(&log_path_3)?;
+        }
+
+        if log_path_2.is_file() {
+            std::fs::rename(&log_path_2, log_path_3)?;
+        }
+
+        if log_path_1.is_file() {
+            std::fs::rename(&log_path_1, log_path_2)?;
+        }
+
+        if log_path_current.is_file() {
+            std::fs::rename(log_path_current, log_path_1)?;
+        }
+
         Ok(())
     }
 }

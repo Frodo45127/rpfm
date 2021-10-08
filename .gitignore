@@ -44,9 +44,9 @@ missing_table_definitions.txt
 
 # Old crash logs.
 rpfm.log
-
-# New UI logs.
-rpfm_ui.log
+rpfm_1.log
+rpfm_2.log
+rpfm_3.log
 
 # Old RPFM Config files. These should not be added.
 settings.json
