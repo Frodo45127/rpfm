@@ -660,6 +660,9 @@ impl GlobalSearchUI {
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
         let path: Vec<String> = if is_match {
             let parent = gidhora.parent();
+
+            // Sometimes this is null, not sure why.
+            if parent.is_null() { return; }
             let path = parent.text().to_std_string();
             path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect()
         }
