@@ -619,7 +619,9 @@ impl DB {
                                 } else { Self::get_dependency_data_from_asskit_only_tables(&mut references, (ref_table, ref_column, &lookup_data), asskit_dependencies) };
 
                                 let real_found = if vanilla_dependencies.is_empty() {
-                                    Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, &lookup_data), &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true))
+                                    if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
+                                        Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, &lookup_data), &dependencies)
+                                    } else { false }
                                 } else { Self::get_dependency_data_from_vanilla_and_modded_tables(&mut references, (ref_table, ref_column, &lookup_data), vanilla_dependencies) };
 
                                 if fake_found && !real_found {
@@ -677,10 +679,12 @@ impl DB {
 
     /// This function is used to check if a table is outdated or not.
     pub fn is_outdated(&self, dependencies: &Dependencies) -> bool {
-        if let Some(vanilla_db) = dependencies.get_db_tables_from_cache(self.get_ref_table_name(), true, false).iter()
-            .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
-            if vanilla_db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
-                return true;
+        if let Ok(vanilla_dbs) = dependencies.get_db_tables_from_cache(self.get_ref_table_name(), true, false) {
+            if let Some(vanilla_db) = vanilla_dbs.iter()
+                .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
+                if vanilla_db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {
+                    return true;
+                }
             }
         }
 

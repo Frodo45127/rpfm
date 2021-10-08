@@ -137,7 +137,7 @@ impl Diagnostics {
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
-        let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
+        let vanilla_dependencies = if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) { dependencies } else { return; };
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
@@ -1099,7 +1099,7 @@ impl Diagnostics {
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
-        let vanilla_dependencies = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true);
+        let vanilla_dependencies = if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) { dependencies } else { return };
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.

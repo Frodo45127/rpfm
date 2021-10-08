@@ -2019,7 +2019,7 @@ impl PackFile {
         let mut files_to_delete: Vec<Vec<String>> = vec![];
 
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            let dependencies = dependencies.get_db_and_loc_tables_from_cache(true, true, true, true);
+            let dependencies = dependencies.get_db_and_loc_tables_from_cache(true, true, true, true)?;
 
             // Get a list of every Loc and DB PackedFiles in our dependency's files.
             let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter()

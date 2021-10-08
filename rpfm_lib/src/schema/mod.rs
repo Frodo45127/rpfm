@@ -412,7 +412,7 @@ impl Schema {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
         // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
-        if let Some(table) = dependencies.get_db_tables_from_cache(table_name, true, false).iter()
+        if let Some(table) = dependencies.get_db_tables_from_cache(table_name, true, false)?.iter()
             .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
             self.get_ref_versioned_file_db(table_name)?.get_version(table.get_ref_definition().get_version())
         }

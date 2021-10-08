@@ -717,7 +717,9 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
-                let tables = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true).iter().map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
+                let tables = if let Ok(tables) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
+                    tables.iter().map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>()
+                } else { vec![] };
                 CentralCommand::send_back(&sender, Response::VecString(tables));
             }
 
@@ -790,15 +792,17 @@ pub fn background_loop() {
                         &files_to_ignore,
                     )
                 } else {
-                    DB::get_dependency_data(
-                        &pack_file_decoded,
-                        &table_name,
-                        &definition,
-                        &dependencies.get_db_and_loc_tables_from_cache(true, false, true, true),
-                        dependencies.get_ref_asskit_only_db_tables(),
-                        &dependencies,
-                        &files_to_ignore,
-                    )
+                    if let Ok(dependencies_vanilla) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
+                        DB::get_dependency_data(
+                            &pack_file_decoded,
+                            &table_name,
+                            &definition,
+                            &dependencies_vanilla,
+                            dependencies.get_ref_asskit_only_db_tables(),
+                            &dependencies,
+                            &files_to_ignore,
+                        )
+                    } else { BTreeMap::new() }
                 };
 
                 CentralCommand::send_back(&sender, Response::BTreeMapI32DependencyData(dependency_data));
@@ -1188,14 +1192,15 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    let packed_files = dependencies.get_db_and_loc_tables_from_cache(true, false, false, true);
-                    for packed_file in &packed_files {
-                        if packed_file.get_path().starts_with(&table_folder) {
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
-                                if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
-                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
-                                    found = true;
-                                    break;
+                    if let Ok(packed_files) = dependencies.get_db_and_loc_tables_from_cache(true, false, false, true) {
+                        for packed_file in &packed_files {
+                            if packed_file.get_path().starts_with(&table_folder) {
+                                if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
+                                    if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
+                                        CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                        found = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1203,14 +1208,15 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    let packed_files = dependencies.get_db_and_loc_tables_from_cache(true, false, true, false);
-                    for packed_file in &packed_files {
-                        if packed_file.get_path().starts_with(&table_folder) {
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
-                                if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
-                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
-                                    found = true;
-                                    break;
+                    if let Ok(packed_files) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, false) {
+                        for packed_file in &packed_files {
+                            if packed_file.get_path().starts_with(&table_folder) {
+                                if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
+                                    if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data(&ref_column, &ref_data) {
+                                        CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                        found = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1250,26 +1256,28 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    let packed_files = dependencies.get_db_and_loc_tables_from_cache(false, true, false, true);
-                    for packed_file in &packed_files {
-                        if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
-                            if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
-                                CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
-                                found = true;
-                                break;
+                    if let Ok(packed_files) = dependencies.get_db_and_loc_tables_from_cache(false, true, false, true) {
+                        for packed_file in &packed_files {
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
+                                if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
+                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::ParentFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
 
                 if !found {
-                    let packed_files = dependencies.get_db_and_loc_tables_from_cache(false, true, true, false);
-                    for packed_file in &packed_files {
-                        if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
-                            if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
-                                CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
-                                found = true;
-                                break;
+                    if let Ok(packed_files) = dependencies.get_db_and_loc_tables_from_cache(false, true, true, false) {
+                        for packed_file in &packed_files {
+                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.get_decoded_from_memory() {
+                                if let Some((column_index, row_index)) = data.get_ref_table().get_source_location_of_reference_data("key", &loc_key) {
+                                    CentralCommand::send_back(&sender, Response::DataSourceVecStringUsizeUsize(DataSource::GameFiles, packed_file.get_path().to_vec(), column_index, row_index));
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }

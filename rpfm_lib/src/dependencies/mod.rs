@@ -138,66 +138,32 @@ impl Dependencies {
         let stored_data = Self::load_from_binary()?;
         self.build_date = stored_data.build_date;
 
-        if let Ok(needs_updating) = self.needs_updating() {
-            if !needs_updating {
+        if !self.needs_updating()? {
 
-                // Clear the intermediate cache on any rebuild.
-                self.cached_data.write().unwrap().clear();
-                *self.cached_data.write().unwrap() = BTreeMap::new();
+            // Clear the intermediate cache on any rebuild.
+            self.cached_data.write().unwrap().clear();
+            *self.cached_data.write().unwrap() = BTreeMap::new();
 
-                if !only_parent_mods {
+            if !only_parent_mods {
 
-                    // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
-                    // the bastart triggers a memory leak in the next step. Not sure why.
-                    self.vanilla_cached_packed_files.clear();
-                    self.asskit_only_db_tables.clear();
-                    self.vanilla_packed_files_cache.write().unwrap().clear();
+                // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
+                // the bastart triggers a memory leak in the next step. Not sure why.
+                self.vanilla_cached_packed_files.clear();
+                self.asskit_only_db_tables.clear();
+                self.vanilla_packed_files_cache.write().unwrap().clear();
 
-                    self.vanilla_cached_packed_files = HashMap::new();
-                    self.asskit_only_db_tables = vec![];
-                    *self.vanilla_packed_files_cache.write().unwrap() = HashMap::new();
+                self.vanilla_cached_packed_files = HashMap::new();
+                self.asskit_only_db_tables = vec![];
+                *self.vanilla_packed_files_cache.write().unwrap() = HashMap::new();
 
-                    // Preload the data from the game that only changes on updates.
-                    self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
-                    self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
-                    self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
-
-                    // Build the casing-related HashSets.
-                    self.vanilla_cached_packed_files_paths = self.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-                    self.vanilla_cached_folders_cased = self.vanilla_cached_packed_files_paths.par_iter().map(|x| {
-                        let path = x.split('/').collect::<Vec<&str>>();
-                        let mut paths = Vec::with_capacity(path.len() - 1);
-
-                        for (index, folder) in path.iter().enumerate() {
-                            if index < path.len() - 1 && !folder.is_empty() {
-                                paths.push(path[0..=index].join("/"))
-                            }
-                        }
-
-                        paths
-                    }).flatten().collect::<HashSet<String>>();
-                    self.vanilla_cached_folders_caseless = self.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-
-                    // Pre-decode all tables/locs to memory.
-                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                            let _ = x.1.decode_no_locks(schema);
-                        });
-                    }
-                }
-
-                // Preload parent mods of the currently open PackFile.
-                self.parent_cached_packed_files.clear();
-                self.parent_cached_packed_files = HashMap::new();
-
-                self.parent_packed_files_cache.write().unwrap().clear();
-                *self.parent_packed_files_cache.write().unwrap() = HashMap::new();
-
-                PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
+                // Preload the data from the game that only changes on updates.
+                self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
+                self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
+                self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
 
                 // Build the casing-related HashSets.
-                self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-                self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
+                self.vanilla_cached_packed_files_paths = self.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+                self.vanilla_cached_folders_cased = self.vanilla_cached_packed_files_paths.par_iter().map(|x| {
                     let path = x.split('/').collect::<Vec<&str>>();
                     let mut paths = Vec::with_capacity(path.len() - 1);
 
@@ -209,15 +175,47 @@ impl Dependencies {
 
                     paths
                 }).flatten().collect::<HashSet<String>>();
-                self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+                self.vanilla_cached_folders_caseless = self.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
 
                 // Pre-decode all tables/locs to memory.
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
+                    self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
                         let _ = x.1.decode_no_locks(schema);
                     });
-                };
+                }
             }
+
+            // Preload parent mods of the currently open PackFile.
+            self.parent_cached_packed_files.clear();
+            self.parent_cached_packed_files = HashMap::new();
+
+            self.parent_packed_files_cache.write().unwrap().clear();
+            *self.parent_packed_files_cache.write().unwrap() = HashMap::new();
+
+            PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
+
+            // Build the casing-related HashSets.
+            self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+            self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
+                let path = x.split('/').collect::<Vec<&str>>();
+                let mut paths = Vec::with_capacity(path.len() - 1);
+
+                for (index, folder) in path.iter().enumerate() {
+                    if index < path.len() - 1 && !folder.is_empty() {
+                        paths.push(path[0..=index].join("/"))
+                    }
+                }
+
+                paths
+            }).flatten().collect::<HashSet<String>>();
+            self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+
+            // Pre-decode all tables/locs to memory.
+            if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
+                    let _ = x.1.decode_no_locks(schema);
+                });
+            };
         }
 
         Ok(())
@@ -286,73 +284,81 @@ impl Dependencies {
     }
 
     /// This function returns the db/locs from the cache, according to the params you pass it.
-    pub fn get_db_and_loc_tables_from_cache(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_modded: bool) -> Vec<PackedFile> {
-        let mut cache = vec![];
+    pub fn get_db_and_loc_tables_from_cache(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_modded: bool) -> Result<Vec<PackedFile>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
 
-        if include_vanilla {
-            cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
-                let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if (include_db && packed_file_type == PackedFileType::DB) ||
-                    (include_loc && packed_file_type == PackedFileType::Loc) {
-                    Some(packed_file.clone())
-                } else {
-                    None
-                }
-            }).collect())
+            if include_vanilla {
+                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if (include_db && packed_file_type == PackedFileType::DB) ||
+                        (include_loc && packed_file_type == PackedFileType::Loc) {
+                        Some(packed_file.clone())
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+
+            if include_modded {
+                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if (include_db && packed_file_type == PackedFileType::DB) ||
+                        (include_loc && packed_file_type == PackedFileType::Loc) {
+                        Some(packed_file.clone())
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+
+            Ok(cache)
         }
-
-        if include_modded {
-            cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
-                let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if (include_db && packed_file_type == PackedFileType::DB) ||
-                    (include_loc && packed_file_type == PackedFileType::Loc) {
-                    Some(packed_file.clone())
-                } else {
-                    None
-                }
-            }).collect())
-        }
-
-        cache
     }
 
     /// This function returns the provided dbs from the cache, according to the params you pass it. Table name must end in _tables.
-    pub fn get_db_tables_from_cache(&self, table_name: &str, include_vanilla: bool, include_modded: bool) -> Vec<DB> {
-        let mut cache = vec![];
-        let mut table_folder = "db/".to_owned();
-        table_folder.push_str(&table_name.to_lowercase());
+    pub fn get_db_tables_from_cache(&self, table_name: &str, include_vanilla: bool, include_modded: bool) -> Result<Vec<DB>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
+            let mut table_folder = "db/".to_owned();
+            table_folder.push_str(&table_name.to_lowercase());
 
-        if include_vanilla {
-            cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                    if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                        Some(db.clone())
+            if include_vanilla {
+                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
+                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                            Some(db.clone())
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
-            }).collect())
-        }
+                }).collect())
+            }
 
-        if include_modded {
-            cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                    if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                        Some(db.clone())
+            if include_modded {
+                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
+                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                            Some(db.clone())
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
-            }).collect())
-        }
+                }).collect())
+            }
 
-        cache
+            Ok(cache)
+        }
     }
 
     /// This function checks if the current Game Selected has a dependencies file created.
@@ -426,6 +432,10 @@ impl Dependencies {
 
     /// This function returns the provided file, if exists, or an error if not, from the game files.
     pub fn get_packedfile_from_game_files(&self, path: &[String]) -> Result<PackedFile> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let path = path.join("/");
         let packed_file = self.vanilla_packed_files_cache.read().unwrap().par_iter()
             .find_map_any(|(cached_path, packed_file)| if cached_path == &path { Some(packed_file.clone()) } else { None })
@@ -453,6 +463,10 @@ impl Dependencies {
 
     /// This function returns the provided file, if exists, or an error if not, from the game files. Unicased version.
     pub fn get_packedfile_from_game_files_unicased(&self, path: &[String]) -> Result<PackedFile> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let path = UniCase::new(path.join("/"));
         let packed_file = self.vanilla_packed_files_cache.read().unwrap().par_iter()
             .find_map_any(|(cached_path, packed_file)| if UniCase::new(cached_path) == path { Some(packed_file.clone()) } else { None })
@@ -480,6 +494,10 @@ impl Dependencies {
 
     /// This function returns the provided files, if exist, or an error if not, from the game files.
     pub fn get_packedfiles_from_game_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let mut packed_files = vec![];
         let mut errors = vec![];
         let paths = PathType::dedup(paths);
@@ -526,6 +544,10 @@ impl Dependencies {
 
     /// This function returns the provided files, if exist, or an error if not, from the game files. Unicased version.
     pub fn get_packedfiles_from_game_files_unicased(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let mut packed_files = vec![];
         let mut errors = vec![];
         let paths = PathType::dedup(paths);
@@ -579,8 +601,12 @@ impl Dependencies {
     }
 
     /// This function returns all the PackedFiles in the game files of the provided types.
-    pub fn get_packedfiles_from_game_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
-        self.vanilla_cached_packed_files.par_iter()
+    pub fn get_packedfiles_from_game_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Result<Vec<PackedFile>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
+        Ok(self.vanilla_cached_packed_files.par_iter()
             .filter_map(|(_, cached_packed_file)| {
                 let y = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
                 if strict_match_mode {
@@ -594,11 +620,15 @@ impl Dependencies {
                 } else {
                     None
                 }
-            }).collect()
+            }).collect())
     }
 
     /// This function returns the provided file, if exists, or an error if not, from the parent mod files.
     pub fn get_packedfile_from_parent_files(&self, path: &[String]) -> Result<PackedFile> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let path = path.join("/");
         let packed_file = self.parent_packed_files_cache.read().unwrap().par_iter()
             .find_map_any(|(cached_path, packed_file)| if cached_path == &path { Some(packed_file.clone()) } else { None })
@@ -626,6 +656,10 @@ impl Dependencies {
 
     /// This function returns the provided file, if exists, or an error if not, from the parent mod files. Unicased version.
     pub fn get_packedfile_from_parent_files_unicased(&self, path: &[String]) -> Result<PackedFile> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let path = UniCase::new(path.join("/"));
         let packed_file = self.parent_packed_files_cache.read().unwrap().par_iter()
             .find_map_any(|(cached_path, packed_file)| if UniCase::new(cached_path) == path { Some(packed_file.clone()) } else { None })
@@ -653,6 +687,10 @@ impl Dependencies {
 
     /// This function returns the provided files, if exist, or an error if not, from the parent files.
     pub fn get_packedfiles_from_parent_files(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let mut packed_files = vec![];
         let mut errors = vec![];
         let paths = PathType::dedup(paths);
@@ -699,6 +737,10 @@ impl Dependencies {
 
     /// This function returns the provided files, if exist, or an error if not, from the parent files. Unicased version.
     pub fn get_packedfiles_from_parent_files_unicased(&self, paths: &[PathType]) -> Result<(Vec<PackedFile>, Vec<Vec<String>>)> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
         let mut packed_files = vec![];
         let mut errors = vec![];
         let paths = PathType::dedup(paths);
@@ -752,8 +794,12 @@ impl Dependencies {
     }
 
     /// This function returns all the PackedFiles in the parent files of the provided types.
-    pub fn get_packedfiles_from_parent_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
-        self.parent_cached_packed_files.par_iter()
+    pub fn get_packedfiles_from_parent_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Result<Vec<PackedFile>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
+        Ok(self.parent_cached_packed_files.par_iter()
             .filter_map(|(_, cached_packed_file)| {
                 let y = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
                 if strict_match_mode {
@@ -767,11 +813,14 @@ impl Dependencies {
                 } else {
                     None
                 }
-            }).collect()
+            }).collect())
     }
 
     /// This function returns the provided file, if exists, or an error if not, from the asskit files.
     pub fn get_packedfile_from_asskit_files(&self, path: &[String]) -> Result<DB> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
 
         // From the asskit we only have tables, so no need for the full path.
         if let Some(table_name) = path.get(1) {

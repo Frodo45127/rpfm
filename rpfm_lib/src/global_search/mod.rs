@@ -193,64 +193,70 @@ impl GlobalSearch {
                 }
                 SearchSource::ParentFiles => {
                     if self.search_on_dbs {
-                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::DB], false);
-                        self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_db(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::DB], false) {
+                            self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_db(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
 
                     if self.search_on_locs {
-                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Loc], false);
-                        self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_loc(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Loc], false) {
+                            self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_loc(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
 
                     if self.search_on_texts {
-                        let mut packed_files = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
-                        self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_text(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
+                            self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
                 },
                 SearchSource::GameFiles => {
                     if self.search_on_dbs {
-                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::DB], false);
-                        self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_db(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::DB], false) {
+                            self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::DB(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_db(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
 
                     if self.search_on_locs {
-                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Loc], false);
-                        self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_loc(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Loc], false) {
+                            self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::Loc(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_loc(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
 
                     if self.search_on_texts {
-                        let mut packed_files = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false);
-                        self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
-                            let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_text(&path, data, &matching_mode))
-                            } else { None }
-                        }).collect();
+                        if let Ok(mut packed_files) = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
+                            self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                                let path = packed_file.get_path().to_vec();
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
+                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                } else { None }
+                            }).collect();
+                        }
                     }
                 },
 

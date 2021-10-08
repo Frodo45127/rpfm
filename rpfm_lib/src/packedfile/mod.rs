@@ -338,7 +338,7 @@ impl DecodedPackedFile {
     pub fn update_table(&mut self, dependencies: &Dependencies) -> Result<(i32, i32)> {
         match self {
             DecodedPackedFile::DB(data) => {
-                let dep_db = dependencies.get_db_tables_from_cache(data.get_ref_table_name(), true, false);
+                let dep_db = dependencies.get_db_tables_from_cache(data.get_ref_table_name(), true, false)?;
                 if let Some(vanilla_db) = dep_db.iter()
                     .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
 

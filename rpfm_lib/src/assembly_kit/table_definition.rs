@@ -115,7 +115,7 @@ impl RawDefinition {
         let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
         match version {
             2 | 1 => {
-                let dependency_db = dependencies.get_db_and_loc_tables_from_cache(true, false, true, false);
+                let dependency_db = dependencies.get_db_and_loc_tables_from_cache(true, false, true, false)?;
                 Ok(definitions.par_iter()
                     .filter(|x| !BLACKLISTED_TABLES.contains(&x.file_name().unwrap().to_str().unwrap()))
                     .filter(|x| if skip_ingame_tables {
