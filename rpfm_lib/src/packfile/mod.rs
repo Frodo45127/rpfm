@@ -2208,7 +2208,7 @@ impl PackFile {
 
                     // Split the first line by \t so we can get the info of the table.
                     // We expect to have 2 or 3 items here. If we have more or less, stop.
-                    let tsv_info = line.split('\t').collect::<Vec<&str>>();
+                    let tsv_info = line.split(';').collect::<Vec<&str>>();
                     if tsv_info.len() == 2 || tsv_info.len() == 3 {
 
                         // Get the type of the table.
