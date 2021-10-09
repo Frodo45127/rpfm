@@ -108,7 +108,7 @@ pub(crate) fn log_to_status_bar(text: &str) {
 #[allow(dead_code)]
 pub unsafe fn show_message_error<T: Display>(widget: &QPtr<QWidget>, text: T) {
     let message = QString::from_std_str(&text.to_string());
-    kmessage_widget_set_error_safe(&widget.as_ptr(), message.as_ptr())
+    kmessage_widget_set_error_safe(&widget.as_ptr(), message.into_ptr())
 }
 
 /// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as a Warning.
@@ -119,7 +119,7 @@ pub unsafe fn show_message_error<T: Display>(widget: &QPtr<QWidget>, text: T) {
 #[allow(dead_code)]
 pub unsafe fn show_message_warning<T: Display>(widget: &QPtr<QWidget>, text: T) {
     let message = QString::from_std_str(&text.to_string());
-    kmessage_widget_set_warning_safe(&widget.as_ptr(), message.as_ptr())
+    kmessage_widget_set_warning_safe(&widget.as_ptr(), message.into_ptr())
 }
 
 /// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as an Info Message.
@@ -130,7 +130,7 @@ pub unsafe fn show_message_warning<T: Display>(widget: &QPtr<QWidget>, text: T) 
 #[allow(dead_code)]
 pub unsafe fn show_message_info<T: Display>(widget: &QPtr<QWidget>, text: T) {
     let message = QString::from_std_str(&text.to_string());
-    kmessage_widget_set_info_safe(&widget.as_ptr(), message.as_ptr())
+    kmessage_widget_set_info_safe(&widget.as_ptr(), message.into_ptr())
 }
 
 /// This function creates a modal dialog, for showing successes or errors.
