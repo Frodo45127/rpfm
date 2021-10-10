@@ -188,6 +188,8 @@ jobs:
           cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
+          ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
+          cd ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           windeployqt rpfm_ui.exe
 
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
