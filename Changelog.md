@@ -6,6 +6,30 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.6.2]
+### Added
+- Implemented log rotation.
+
+### Changed
+- Improved release build times.
+- Improved release build script.
+- Sorted faction list on Faction Painter tool.
+- Updated compilation instructions.
+
+### Fixed
+- Fixed CTD on Global Search.
+- Fixed CTD when opening certain Global Search results.
+- Fixed CTD when files that shouldn't be set as modified were set as modified.
+- Fixed CTD when you triggered two consecutive warnings on one of the tools.
+- Fixed Grey Screen Of Death when trying to open a PackedFile without even downloading the schemas.
+- Fixed dependency getter pulling files from Vanilla files instead of Parent files.
+- Fixed missing icons in certain games in the Faction Painter.
+- Fixed certain situations where RPFM could incorrectly pull data from a oudated dependency.
+- Fixed Mass-Import TSV importing locs as DB tables.
+- Fixed loc fields saving incorrectly in Unit Editor.
+- Fixed key fields saving incorrectly in Unit Editor.
+- Fixed ESF editor wiping out negative numbers.
+
 ## [2.6.1]
 ### Fixed
 - Fixed CTD on start on new installations.
@@ -484,8 +508,9 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...HEAD
-[2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.2...HEAD
+[2.6.2]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...v2.6.2
+[2.6.1]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...v2.6.0
 [2.5.4]: https://github.com/Frodo45127/rpfm/compare/v2.5.3...v2.5.4
 [2.5.3]: https://github.com/Frodo45127/rpfm/compare/v2.5.2...v2.5.3
