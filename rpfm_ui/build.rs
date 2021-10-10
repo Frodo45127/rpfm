@@ -132,6 +132,7 @@ fn common_config() {
     println!("cargo:rustc-link-lib=dylib=KF5TextEditor");
     println!("cargo:rustc-link-lib=dylib=KF5WidgetsAddons");
     println!("cargo:rustc-link-lib=dylib=KF5XmlGui");
+    println!("cargo:rustc-link-lib=dylib=KF5IconThemes");
 
     // Force cargo to rerun this script if any of these files is changed.
     println!("cargo:rerun-if-changed=./libs/*");
