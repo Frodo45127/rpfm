@@ -1,4 +1,7 @@
 #include "q_main_window_custom.h"
+#include <QApplication>
+#include <QIcon>
+#include <KF5/KIconThemes/KIconLoader>
 
 // Fuction to be able to create a custom QMainWindow.
 extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWindow* main_window, bool is_delete_my_mod)) {
@@ -8,6 +11,12 @@ extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWind
 QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (QMainWindow* main_window, bool is_delete_my_mod)) : QMainWindow(parent) {
     are_you_sure = are_you_sure_fn;
     busyIndicator = new KBusyIndicatorWidget(this);
+
+    // Initialize the global icon loader. We don't use it, just initialize it.
+    QStringList iconThemes;
+    iconThemes << QApplication::applicationDirPath()+"/icons";
+    QIcon::setThemeSearchPaths(iconThemes);
+    KIconLoader* iconLoader = KIconLoader::global();
 }
 
 // Overload of the close event so we can put a dialog there.

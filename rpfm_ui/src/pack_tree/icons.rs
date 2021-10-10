@@ -222,24 +222,24 @@ impl Icons {
         let mut icon_rigid_model_path = rpfm_path_string;
 
         // Get the Icons for each type of Item.
-        icon_packfile_editable_path.push_str("/img/packfile_editable.png");
-        icon_packfile_locked_path.push_str("/img/packfile_locked.png");
-        icon_folder_path.push_str("/img/folder.png");
-        icon_file_path.push_str("/img/file.png");
+        icon_packfile_editable_path.push_str("/icons/packfile_editable.png");
+        icon_packfile_locked_path.push_str("/icons/packfile_locked.png");
+        icon_folder_path.push_str("/icons/folder.png");
+        icon_file_path.push_str("/icons/file.png");
 
-        icon_table_path.push_str("/img/database.png");
+        icon_table_path.push_str("/icons/database.png");
 
-        icon_image_generic_path.push_str("/img/generic_image.png");
-        icon_image_png_path.push_str("/img/png.png");
-        icon_image_jpg_path.push_str("/img/jpg.png");
+        icon_image_generic_path.push_str("/icons/generic_image.png");
+        icon_image_png_path.push_str("/icons/png.png");
+        icon_image_jpg_path.push_str("/icons/jpg.png");
 
-        icon_text_generic_path.push_str("/img/generic_text.png");
-        icon_text_csv_path.push_str("/img/csv.png");
-        icon_text_html_path.push_str("/img/html.png");
-        icon_text_txt_path.push_str("/img/txt.png");
-        icon_text_xml_path.push_str("/img/xml.png");
+        icon_text_generic_path.push_str("/icons/generic_text.png");
+        icon_text_csv_path.push_str("/icons/csv.png");
+        icon_text_html_path.push_str("/icons/html.png");
+        icon_text_txt_path.push_str("/icons/txt.png");
+        icon_text_xml_path.push_str("/icons/xml.png");
 
-        icon_rigid_model_path.push_str("/img/rigid_model.png");
+        icon_rigid_model_path.push_str("/icons/rigid_model.png");
 
         // Get the Icons in QIcon format.
         Self {

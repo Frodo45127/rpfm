@@ -281,15 +281,22 @@ impl UI {
             QApplication::set_font_1a(&font);
         }
 
+        // Add the icon themes path to the current list of paths where Qt searchs for icons.
+        let current_theme_search_path = QIcon::theme_search_paths();
+        current_theme_search_path.push_front(&QString::from_std_str(&format!("{}/icons", RPFM_PATH.to_string_lossy())));
+        QIcon::set_theme_search_paths(&current_theme_search_path);
+
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
             if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
                 QApplication::set_style_q_string(&QString::from_std_str("fusion"));
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
+                QIcon::set_theme_name(&QString::from_std_str("breeze-dark"));
             } else {
                 QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
                 QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
+                QIcon::set_theme_name(&QString::from_std_str("breeze"));
             }
         }
 
@@ -298,8 +305,10 @@ impl UI {
             if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
+                QIcon::set_theme_name(&QString::from_std_str("breeze-dark"));
             } else {
                 QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
+                QIcon::set_theme_name(&QString::from_std_str("breeze"));
             }
         }
 
@@ -382,17 +391,17 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
-            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_big_file_name())),
-            three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_big_file_name())),
-            warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_big_file_name())),
-            warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_big_file_name())),
-            thrones_of_britannia: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_big_file_name())),
-            attila: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_big_file_name())),
-            rome_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_big_file_name())),
-            shogun_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_big_file_name())),
-            napoleon: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_big_file_name())),
-            empire: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_big_file_name())),
-            arena: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_file_name())))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_big_file_name())),
+            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_big_file_name())),
+            three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_big_file_name())),
+            warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_big_file_name())),
+            warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_big_file_name())),
+            thrones_of_britannia: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_big_file_name())),
+            attila: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_big_file_name())),
+            rome_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_big_file_name())),
+            shogun_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_big_file_name())),
+            napoleon: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_big_file_name())),
+            empire: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_big_file_name())),
+            arena: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_big_file_name())),
         }
     }
 

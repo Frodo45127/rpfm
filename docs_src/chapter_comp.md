@@ -10,9 +10,36 @@ You need to download and install:
 - ***Rust 1.32 with the MSVC toolchain*** (or superior).
 - ***Craft*** (from KDE).
 
-Then you need to:
-- OPTIONAL: Go to `craft_patches`, and copy all files to `C:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\kde\frameworks\tier3\ktexteditor` or equivalent. This fixes some bugs in text views caused by the way RPFM uses them. It's not mandatory, but it helps.
-- Open Craft and execute `craft -i ktexteditor`. This takes a while, so go grab some coffee.
+Once you have Craft installed, you need to install RPFM's dependencies:
+```bash
+craft -i qtimageformats
+craft -i kimageformats
+craft -i kwidgetaddons
+craft -i ktexteditor
+craft -i kiconthemes
+craft -i breeze-icons
+```
+
+- If it complains about libgit "git_valid_name_branch" or something similar, you also have to edit the libgit2 blueprint and make it use 1.2.0. You can do that by editing the file at: X:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\libs\libgit2\libgit2.py, changing both mentions of *1.1.0* to *1.2.0*, and then executing:
+```bash
+craft --set version=1.2.0 libgit2
+craft -i libgit2
+```
+
+- Then, you also need to edit these two files:
+```bash
+/usr/include/KF5/KTextEditor/ktexteditor/editor.h
+/usr/include/KF5/KTextEditor/ktexteditor/view.h
+```
+
+You have to open them, and change the following include:
+```
+#include <KSyntaxHighlighting/Theme>
+```
+to this:
+```
+#include <KF5/KSyntaxHighlighting/Theme>
+```
 
 Now you can open craft, move to RPFM's source code folder and call from that terminal:
 
@@ -27,13 +54,15 @@ cargo run --bin rpfm_ui
 cargo build --release
 ```
 
+You can also make any editor inherit Craft's environment (and thus, being able to compile RPFM) by opening it from Craft's Terminal.
+
 ## Linux
 
 You need to install the following packages on your distro:
 - ***CMake***.
 - ***Rust 1.32*** (or superior).
-- ***Qt 5.8*** (or superior).
-- ***KTextEditor***.
+- ***Qt 5.14*** (or superior).
+- ***KDE Framework (KF5) 5.61 (or superior)***.
 - ***xz***.
 - ***p7zip***.
 

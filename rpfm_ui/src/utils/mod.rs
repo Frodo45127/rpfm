@@ -376,7 +376,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-style: solid;
             border-width: 1px;
             border-color: {checkbox_bd_off};
-            image:url({assets_path}/img/checkbox_check.png);
+            image:url({assets_path}/icons/checkbox_check.png);
         }}
         QCheckBox::indicator:hover {{
             border-style: solid;
@@ -404,7 +404,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-style: solid;
             border-width: 1px;
             border-color: {checkbox_bd_off};
-            image:url({assets_path}/img/checkbox_check.png);
+            image:url({assets_path}/icons/checkbox_check.png);
         }}
         */
         /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */

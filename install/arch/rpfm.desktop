@@ -2,7 +2,7 @@
 Name=Rusted PackFile Manager
 Comment=Modding Tool for modern Total War Games.
 Exec=/usr/bin/rpfm_ui
-Icon=/usr/share/rpfm/img/rpfm.png
+Icon=/usr/share/rpfm/icons/rpfm.png
 Terminal=false
 Type=Application
 Categories=;Game;

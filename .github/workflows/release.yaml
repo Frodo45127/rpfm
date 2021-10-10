@@ -44,10 +44,11 @@ jobs:
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
-          # Fix for the stupid KTextEditor header bug.
+          # Fix for the stupid KTextEditor header bug if it's not already fixed.
           sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\editor.h"
           sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\view.h"
 
+          # TODO: Build this from tag.
           cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
           cd C:\actions-runner\_work\rpfm\rpfm
 
@@ -172,14 +173,23 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_cli.pdb ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
 
           # Here we copy assets from the repo.
-          mkdir img
+          mkdir icons
           mkdir locale
           mkdir ui
           cp C:\actions-runner\_work\rpfm\rpfm/LICENSE ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/CHANGELOG.md ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
-          cp C:\actions-runner\_work\rpfm\rpfm/img/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\img\
+          cp C:\actions-runner\_work\rpfm\rpfm/icons/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
+
+          # Copy Breeze icons into the release.
+          cp ${{ matrix.DDISK }}:\Craft\bin\data\icontheme.rcc ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
+
+          # Execute windeployqt to add missing translations and the vcredist if needed.
+          windeployqt rpfm_ui.exe
+
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
       # Changelog step is common for all OS.

@@ -6,8 +6,6 @@
         <title>Rusted PackFile Manager Documentation</title>
         <meta name="robots" content="noindex" />
         <!-- Custom HTML head -->
-        
-
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -86,7 +84,6 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                
                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
@@ -624,11 +621,32 @@ And now, let's begin!</li>
 <li><em><strong>Rust 1.32 with the MSVC toolchain</strong></em> (or superior).</li>
 <li><em><strong>Craft</strong></em> (from KDE).</li>
 </ul>
-<p>Then you need to:</p>
+<p>Once you have Craft installed, you need to install RPFM's dependencies:</p>
+<pre><code class="language-bash">craft -i qtimageformats
+craft -i kimageformats
+craft -i kwidgetaddons
+craft -i ktexteditor
+craft -i kiconthemes
+craft -i breeze-icons
+</code></pre>
 <ul>
-<li>OPTIONAL: Go to <code>craft_patches</code>, and copy all files to <code>C:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\kde\frameworks\tier3\ktexteditor</code> or equivalent. This fixes some bugs in text views caused by the way RPFM uses them. It's not mandatory, but it helps.</li>
-<li>Open Craft and execute <code>craft -i ktexteditor</code>. This takes a while, so go grab some coffee.</li>
+<li>If it complains about libgit &quot;git_valid_name_branch&quot; or something similar, you also have to edit the libgit2 blueprint and make it use 1.2.0. You can do that by editing the file at: X:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\libs\libgit2\libgit2.py, changing both mentions of <em>1.1.0</em> to <em>1.2.0</em>, and then executing:</li>
 </ul>
+<pre><code class="language-bash">craft --set version=1.2.0 libgit2
+craft -i libgit2
+</code></pre>
+<ul>
+<li>Then, you also need to edit these two files:</li>
+</ul>
+<pre><code class="language-bash">/usr/include/KF5/KTextEditor/ktexteditor/editor.h
+/usr/include/KF5/KTextEditor/ktexteditor/view.h
+</code></pre>
+<p>You have to open them, and change the following include:</p>
+<pre><code>#include &lt;KSyntaxHighlighting/Theme&gt;
+</code></pre>
+<p>to this:</p>
+<pre><code>#include &lt;KF5/KSyntaxHighlighting/Theme&gt;
+</code></pre>
 <p>Now you can open craft, move to RPFM's source code folder and call from that terminal:</p>
 <pre><code class="language-bash"># To build the executable without optimisations.
 cargo build
@@ -639,13 +657,14 @@ cargo run --bin rpfm_ui
 # To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
+<p>You can also make any editor inherit Craft's environment (and thus, being able to compile RPFM) by opening it from Craft's Terminal.</p>
 <h2 id="linux"><a class="header" href="#linux">Linux</a></h2>
 <p>You need to install the following packages on your distro:</p>
 <ul>
 <li><em><strong>CMake</strong></em>.</li>
 <li><em><strong>Rust 1.32</strong></em> (or superior).</li>
-<li><em><strong>Qt 5.8</strong></em> (or superior).</li>
-<li><em><strong>KTextEditor</strong></em>.</li>
+<li><em><strong>Qt 5.14</strong></em> (or superior).</li>
+<li><em><strong>KDE Framework (KF5) 5.61 (or superior)</strong></em>.</li>
 <li><em><strong>xz</strong></em>.</li>
 <li><em><strong>p7zip</strong></em>.</li>
 </ul>

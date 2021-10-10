@@ -18,7 +18,7 @@ fn main() {
 
     // Icon/Exe info gets added here.
     let mut res = winres::WindowsResource::new();
-    res.set_icon("./../img/rpfm.ico");
+    res.set_icon("./../icons/rpfm.ico");
     res.set("LegalCopyright","Copyright (c) - Ismael Gutiérrez González");
     res.set("ProductName","Rusted PackFile Manager");
     if let Err(error) = res.compile() { println!("Error: {}", error); }

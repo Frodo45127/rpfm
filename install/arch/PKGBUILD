@@ -30,9 +30,9 @@ package() {
     install -D -m755 "$srcdir/$_programname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
     # The icons.
-    mkdir -p "$pkgdir/usr/share/$_programname/img"
-    for image in "$srcdir/$_programname/img/."; do
-        cp -R $image "$pkgdir/usr/share/$_programname/img/"
+    mkdir -p "$pkgdir/usr/share/$_programname/icons"
+    for image in "$srcdir/$_programname/icons/."; do
+        cp -R $image "$pkgdir/usr/share/$_programname/icons/"
     done
 
     # The language files.
