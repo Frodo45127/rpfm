@@ -400,7 +400,6 @@ impl Tool {
     unsafe fn save_table_data(&self, data: &[HashMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
 
         // Prepare all the different name variations we need.
-        let table_name_end_underscore = format!("{}_", table_name);
         let table_name_end_tables = format!("{}_tables", table_name);
         let definition_key = format!("{}_definition", table_name);
 
@@ -416,14 +415,8 @@ impl Tool {
                         let mut row = table.get_new_row();
                         for (index, field) in table_fields.iter().enumerate() {
 
-                            // If the field is a reference to another, try to get the source instead. Only use the current table's value if that fails.
-                            let field_source_table_name = match field.get_is_reference() {
-                                Some((source_table, _)) => source_table.to_owned() + "_",
-                                None => table_name_end_underscore.to_owned(),
-                            };
-
                             // For each field, check if we have data for it, and replace the "empty" row's data with it. Skip invalid values
-                            if let Some(value) = row_data.get(&format!("{}{}", field_source_table_name, field.get_name())) {
+                            if let Some(value) = row_data.get(&format!("{}_{}", table_name, field.get_name())) {
                                 row[index] = match field.get_field_type() {
                                     FieldType::Boolean => DecodedData::Boolean(value.parse().ok()?),
                                     FieldType::F32 => DecodedData::F32(value.parse().ok()?),
@@ -532,7 +525,7 @@ impl Tool {
                     .collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;
-                let path = vec!["text".to_owned(), "db".to_owned(), file_name.to_owned()];
+                let path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", file_name)];
                 Ok(PackedFile::new_from_decoded(&DecodedPackedFile::Loc(table), &path))
             } else { Err(ErrorKind::Impossibru.into()) }
         } else { Err(ErrorKind::SchemaNotFound.into()) }
@@ -900,5 +893,39 @@ impl Tool {
     unsafe fn save_fields_from_detailed_view_editor_combo_color(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
         let colour = get_color_safe(&field_editor.as_ptr().static_upcast());
         data.insert(field_name.to_owned(), format!("{},{},{}", colour.red(), colour.green(), colour.blue()));
+    }
+
+    //-------------------------------------------------------------------------------//
+    //                              Misc data functions
+    //-------------------------------------------------------------------------------//
+
+    /// This function updates the reference keys in all values of an entry.
+    unsafe fn update_keys(&self, data: &mut HashMap<String, String>) {
+
+        // First, get all our definitions together.
+        let mut definitions = data.iter()
+            .filter_map(|(key, value)| if key.ends_with("_definition") {
+                Some((key.to_owned(), serde_json::from_str(value).unwrap()))
+            } else { None })
+            .collect::<HashMap<String, Definition>>();
+
+        // Then go, definition by definition, searching source values within our data, and updating out data from them.
+        for (table_name, definition) in &mut definitions {
+            let table_name = table_name.replace("_definition", "");
+            definition.get_fields_processed()
+                .iter()
+                .for_each(|field| {
+
+                    // Try to get its source data and, if found, replace ours.
+                    if let Some((table_name_source, field_name_source)) = field.get_is_reference() {
+                        let full_name_source = format!("{}_{}", table_name_source, field_name_source);
+                        if let Some(source_key) = data.get(&full_name_source).cloned() {
+                            let full_name_reference = format!("{}_{}", table_name, field.get_name());
+                            data.insert(full_name_reference, source_key.to_owned());
+                        }
+                    }
+                }
+            );
+        }
     }
 }

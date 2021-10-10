@@ -475,6 +475,11 @@ impl ToolUnitEditor {
         data.insert("loc_unit_description_short_texts_text".to_owned(), self.loc_unit_description_short_texts_text_ktexteditor.to_plain_text().to_std_string());
         data.insert("loc_unit_description_strengths_weaknesses_texts_text".to_owned(), self.loc_unit_description_strengths_weaknesses_texts_text_ktexteditor.to_plain_text().to_std_string());
 
+        // Update all the referenced keys in our data.
+        self.update_keys(&mut data);
+        if cfg!(debug_assertions) {
+            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+        }
         self.unit_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
 
@@ -550,6 +555,11 @@ impl ToolUnitEditor {
     /// This function gets the data needed for the tool from the locs available.
     unsafe fn get_loc_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
         Tool::get_loc_data(data, processed_data, &LOC_KEYS)
+    }
+
+    /// This function updates the reference keys in all values of an entry.
+    unsafe fn update_keys(&self, data: &mut HashMap<String, String>) {
+        self.tool.update_keys(data);
     }
 
     /// This function takes care of saving the land_units related data into a PackedFile.
