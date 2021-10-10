@@ -184,8 +184,8 @@ jobs:
 
           # Copy Breeze icons into the release.
           cp ${{ matrix.DDISK }}:\Craft\bin\data\icontheme.rcc ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
           windeployqt rpfm_ui.exe
