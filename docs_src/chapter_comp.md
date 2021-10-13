@@ -21,7 +21,7 @@ craft -i kiconthemes
 craft -i breeze-icons
 ```
 
-- If it complains about libgit2 with an error message mentioning `git_branch_name_is_valid` or something similar, edit the libgit2 blueprint and make it use 1.2.0.
+- If it complains about `libgit2` with an error message mentioning `git_branch_name_is_valid` or something similar, edit the `libgit2` blueprint and make it use `1.2.0`.
   
   You can do that by editing the following file:
 
@@ -29,8 +29,8 @@ craft -i breeze-icons
   X:/CraftRoot/etc/blueprints/locations/craft-blueprints-kde/libs/libgit2/libgit2.py
   ```
 
-  Change both mentions of `1.1.0` to `1.2.0`. Additionally, either commenting out the line starting with
-  `self.targetDigests[ver]` or update the SHA256 hash:
+  Change both mentions of `1.1.0` to `1.2.0`. Additionally, either comment out the line starting with
+  `self.targetDigests[ver]` or update the SHA256 hash there:
 
   ```diff
     …
