@@ -631,12 +631,12 @@ craft -i breeze-icons
 </code></pre>
 <ul>
 <li>
-<p>If it complains about libgit2 with an error message mentioning <code>git_branch_name_is_valid</code> or something similar, edit the libgit2 blueprint and make it use 1.2.0.</p>
+<p>If it complains about <code>libgit2</code> with an error message mentioning <code>git_branch_name_is_valid</code> or something similar, edit the <code>libgit2</code> blueprint and make it use <code>1.2.0</code>.</p>
 <p>You can do that by editing the following file:</p>
 <pre><code class="language-plain">X:/CraftRoot/etc/blueprints/locations/craft-blueprints-kde/libs/libgit2/libgit2.py
 </code></pre>
-<p>Change both mentions of <code>1.1.0</code> to <code>1.2.0</code>. Additionally, either commenting out the line starting with
-<code>self.targetDigests[ver]</code> or update the SHA256 hash:</p>
+<p>Change both mentions of <code>1.1.0</code> to <code>1.2.0</code>. Additionally, either comment out the line starting with
+<code>self.targetDigests[ver]</code> or update the SHA256 hash there:</p>
 <pre><code class="language-diff">  …
   class subinfo(info.infoclass):
     def setTargets(self):
