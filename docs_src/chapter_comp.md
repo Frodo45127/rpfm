@@ -11,20 +11,55 @@ You need to download and install:
 - ***Craft*** (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
+
 ```bash
 craft -i qtimageformats
 craft -i kimageformats
-craft -i kwidgetaddons
+craft -i kwidgetsaddons
 craft -i ktexteditor
 craft -i kiconthemes
 craft -i breeze-icons
 ```
 
-- If it complains about libgit "git_valid_name_branch" or something similar, you also have to edit the libgit2 blueprint and make it use 1.2.0. You can do that by editing the file at: X:\CraftRoot\etc\blueprints\locations\craft-blueprints-kde\libs\libgit2\libgit2.py, changing both mentions of *1.1.0* to *1.2.0*, and then executing:
-```bash
-craft --set version=1.2.0 libgit2
-craft -i libgit2
-```
+- If it complains about libgit2 with an error message mentioning `git_branch_name_is_valid` or something similar, edit the libgit2 blueprint and make it use 1.2.0.
+  
+  You can do that by editing the following file:
+
+  ```plain
+  X:/CraftRoot/etc/blueprints/locations/craft-blueprints-kde/libs/libgit2/libgit2.py
+  ```
+
+  Change both mentions of `1.1.0` to `1.2.0`. Additionally, either commenting out the line starting with
+  `self.targetDigests[ver]` or update the SHA256 hash:
+
+  ```diff
+    …
+    class subinfo(info.infoclass):
+      def setTargets(self):
+          self.description = "a portable C library for accessing git repositories"
+          self.svnTargets['master'] = 'https://github.com/libgit2/libgit2.git'
+
+          # try to use latest stable libgit2
+  -       ver = '1.1.0'
+  +       ver = '1.2.0'
+          self.targets[ver] = f"https://github.com/libgit2/libgit2/archive/v{ver}.tar.gz"
+          self.archiveNames[ver] = f"libgit2-{ver}.tar.gz"
+          self.targetInstSrc[ver] = f"libgit2-{ver}"
+  -       self.targetDigests[ver] = (['41a6d5d740fd608674c7db8685685f45535323e73e784062cf000a633d420d1e'], CraftHash.HashAlgorithm.SHA256)
+  +       self.targetDigests[ver] = (['701a5086a968a46f25e631941b99fc23e4755ca2c56f59371ce1d94b9a0cc643'], CraftHash.HashAlgorithm.SHA256)
+          self.defaultTarget = ver
+  -       self.patchToApply['1.1.0'] = [("libgit2-pcre2-debugsuffix.diff", 1)]
+  +       self.patchToApply['1.2.0'] = [("libgit2-pcre2-debugsuffix.diff", 1)]
+          self.patchLevel[self.defaultTarget] = 1
+    …
+  ```
+  
+  Then execute:
+
+  ```bash
+  craft --set version=1.2.0 libgit2
+  craft -i libgit2
+  ```
 
 - Then, you also need to edit these two files:
 ```bash
