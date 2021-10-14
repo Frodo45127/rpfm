@@ -715,7 +715,7 @@ impl TableView {
         for filter in self.get_ref_mut_filters().iter() {
             let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
             filter.filter_column_selector.clear();
-            for column in self.table_definition.read().unwrap().get_fields_processed() {
+            for column in self.table_definition.read().unwrap().get_fields_sorted() {
                 let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
                 filter.filter_column_selector.add_item_q_string(&name);
             }
@@ -724,7 +724,7 @@ impl TableView {
         let search_column_selector = &self.search_column_selector;
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in self.table_definition.read().unwrap().get_fields_processed() {
+        for column in self.table_definition.read().unwrap().get_fields_sorted() {
             let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
             search_column_selector.add_item_q_string(&name);
         }
