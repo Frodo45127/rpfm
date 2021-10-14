@@ -72,7 +72,7 @@ impl AnimPack {
         for _ in 0..file_count {
             let path = packed_file_data.decode_packedfile_string_u8(index, &mut index)?.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
             let byte_count = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
-            let data = packed_file_data[index..index + byte_count as usize].to_vec();
+            let data = packed_file_data.get_bytes_checked(index,  byte_count as usize)?.to_vec();
             index += byte_count as usize;
 
             anim_packeds.push(AnimPacked {
