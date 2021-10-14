@@ -386,24 +386,37 @@ impl ToolFactionPainter {
 
         // From here, everything can not exits, depending on our tables.
         let mut missing_fields = vec![];
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_primary(), "banner_primary") {
-            missing_fields.push(field);
-        }
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_secondary(), "banner_secondary") {
-            missing_fields.push(field);
-        }
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_tertiary(), "banner_tertiary") {
-            missing_fields.push(field);
+
+        if data.get("banner_primary").is_some() {
+            self.banner_groupbox.set_checked(true);
+
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_primary(), "banner_primary") {
+                missing_fields.push(field);
+            }
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_secondary(), "banner_secondary") {
+                missing_fields.push(field);
+            }
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_tertiary(), "banner_tertiary") {
+                missing_fields.push(field);
+            }
+        } else {
+            self.banner_groupbox.set_checked(false);
         }
 
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_primary(), "uniform_primary") {
-            missing_fields.push(field);
-        }
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_secondary(), "uniform_secondary") {
-            missing_fields.push(field);
-        }
-        if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary") {
-            missing_fields.push(field);
+        if data.get("uniform_primary").is_some() {
+            self.uniform_groupbox.set_checked(true);
+
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_primary(), "uniform_primary") {
+                missing_fields.push(field);
+            }
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_secondary(), "uniform_secondary") {
+                missing_fields.push(field);
+            }
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary") {
+                missing_fields.push(field);
+            }
+        } else {
+            self.uniform_groupbox.set_checked(false);
         }
 
         // If any of the fields failed, report it.
@@ -416,13 +429,26 @@ impl ToolFactionPainter {
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_primary(), "banner_primary");
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_secondary(), "banner_secondary");
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_tertiary(), "banner_tertiary");
+        // Only save if checked. If not, remove the data we have, if we have any.
+        if self.banner_groupbox.is_checked() {
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_primary(), "banner_primary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_secondary(), "banner_secondary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_tertiary(), "banner_tertiary");
+        } else {
+            data.remove("banner_primary");
+            data.remove("banner_secondary");
+            data.remove("banner_tertiary");
+        }
 
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_primary(), "uniform_primary");
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_secondary(), "uniform_secondary");
-        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary");
+        if self.uniform_groupbox.is_checked() {
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_primary(), "uniform_primary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_secondary(), "uniform_secondary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary");
+        } else {
+            data.remove("uniform_primary");
+            data.remove("uniform_secondary");
+            data.remove("uniform_tertiary");
+        }
 
         self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), FACTION_DATA);
     }
@@ -842,23 +868,27 @@ impl ToolFactionPainter {
                         let row = row_data.get("banner_row")?;
                         let mut row: Vec<DecodedData> = serde_json::from_str(row).ok()?;
 
-                        let primary = row_data.get("banner_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let secondary = row_data.get("banner_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let tertiary = row_data.get("banner_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        if row_data.get("banner_primary").is_some() {
+                            let primary = row_data.get("banner_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                            let secondary = row_data.get("banner_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                            let tertiary = row_data.get("banner_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
-                        row[primary_colour_r_column] = DecodedData::I32(primary[0]);
-                        row[primary_colour_g_column] = DecodedData::I32(primary[1]);
-                        row[primary_colour_b_column] = DecodedData::I32(primary[2]);
+                            row[primary_colour_r_column] = DecodedData::I32(primary[0]);
+                            row[primary_colour_g_column] = DecodedData::I32(primary[1]);
+                            row[primary_colour_b_column] = DecodedData::I32(primary[2]);
 
-                        row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
-                        row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
-                        row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
+                            row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
+                            row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
+                            row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
 
-                        row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
-                        row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
-                        row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
+                            row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
+                            row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
+                            row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
 
-                        Some(row)
+                            Some(row)
+                        } else {
+                            None
+                        }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;
@@ -891,23 +921,27 @@ impl ToolFactionPainter {
                         let row = row_data.get("uniform_row")?;
                         let mut row: Vec<DecodedData> = serde_json::from_str(row).ok()?;
 
-                        let primary = row_data.get("uniform_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let secondary = row_data.get("uniform_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
-                        let tertiary = row_data.get("uniform_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                        if row_data.get("uniform_primary").is_some() {
+                            let primary = row_data.get("uniform_primary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                            let secondary = row_data.get("uniform_secondary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
+                            let tertiary = row_data.get("uniform_tertiary")?.split(',').map(|x| x.parse().unwrap()).collect::<Vec<i32>>();
 
-                        row[primary_colour_r_column] = DecodedData::I32(primary[0]);
-                        row[primary_colour_g_column] = DecodedData::I32(primary[1]);
-                        row[primary_colour_b_column] = DecodedData::I32(primary[2]);
+                            row[primary_colour_r_column] = DecodedData::I32(primary[0]);
+                            row[primary_colour_g_column] = DecodedData::I32(primary[1]);
+                            row[primary_colour_b_column] = DecodedData::I32(primary[2]);
 
-                        row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
-                        row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
-                        row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
+                            row[secondary_colour_r_column] = DecodedData::I32(secondary[0]);
+                            row[secondary_colour_g_column] = DecodedData::I32(secondary[1]);
+                            row[secondary_colour_b_column] = DecodedData::I32(secondary[2]);
 
-                        row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
-                        row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
-                        row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
+                            row[tertiary_colour_r_column] = DecodedData::I32(tertiary[0]);
+                            row[tertiary_colour_g_column] = DecodedData::I32(tertiary[1]);
+                            row[tertiary_colour_b_column] = DecodedData::I32(tertiary[2]);
 
-                        Some(row)
+                            Some(row)
+                        } else {
+                            None
+                        }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;

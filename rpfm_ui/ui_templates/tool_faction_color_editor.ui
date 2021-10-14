@@ -64,6 +64,9 @@
         <property name="title">
          <string>Banners</string>
         </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
         <layout class="QFormLayout" name="formLayout">
          <property name="fieldGrowthPolicy">
           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
@@ -125,6 +128,9 @@
         </property>
         <property name="title">
          <string>Uniforms</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <layout class="QFormLayout" name="formLayout_2">
          <property name="fieldGrowthPolicy">
