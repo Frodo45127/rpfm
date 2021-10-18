@@ -44,7 +44,7 @@ pub mod matched_combat;
 /// This struct contains the data of a Table-like PackedFile after being decoded.
 ///
 /// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
@@ -58,7 +58,7 @@ pub struct Table {
 ///
 /// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
 /// inside a single field. Used, for example, in certain model tables.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialOrd, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     F32(f32),

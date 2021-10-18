@@ -2003,12 +2003,17 @@ impl PackFile {
 
     /// This function is used to optimize a `PackFile` by removing extra useless data from it.
     ///
-    /// Currently, this function removes:
-    /// - Unchanged data from DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
-    /// - Unchanged data from Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
-    /// - Empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
-    /// - Empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
-    /// - XML files in map folders.
+    /// Currently, this function does the following:
+    /// - Sort tables by their first key.
+    /// - Remove duplicated rows on DB tables.
+    /// - Remove duplicated rows on Loc tables.
+    /// - Remove default rows from DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove default rows from Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove unchanged data from DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove unchanged data from Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Remove XML files in map folders.
     pub fn optimize(&mut self, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
 
         // We can only optimize if we have vanilla data available.
@@ -2033,45 +2038,50 @@ impl PackFile {
             );
 
             // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
-            for packed_file in self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc, PackedFileType::Text(TextType::Plain)], false) {
+            let packed_files_to_optimize = self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc, PackedFileType::Text(TextType::Plain)], false);
+            files_to_delete = packed_files_to_optimize.into_par_iter().filter_map(|packed_file|{
                 let path = packed_file.get_path().to_vec();
 
                 // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
                 // as those are probably intended to overwrite vanilla files, not to be optimized.
-                if dependencies.iter().map(|x| x.get_path()).any(|x| x == path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+                let can_be_optimized = SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] || (
+                    !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] &&
+                    dependencies.iter().map(|x| x.get_path()).all(|x| x != path)
+                );
 
-                match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
-
-                    PackedFileType::DB => {
-                        match packed_file.decode_return_ref_mut_no_locks(schema) {
-                            Ok(data) => if let DecodedPackedFile::DB(db) = data {
+                if can_be_optimized {
+                    match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
+                        PackedFileType::DB => {
+                            if let Ok(DecodedPackedFile::DB(db)) = packed_file.decode_return_ref_mut_no_locks(schema) {
                                 let is_empty = db.optimize_table(&game_dbs);
-                                if is_empty { files_to_delete.push(path.to_vec()); }
-                            },
-                            Err(_) => continue,
-                        };
-                    }
-
-                    PackedFileType::Loc => {
-                        match packed_file.decode_return_ref_mut_no_locks(schema) {
-                            Ok(data) => if let DecodedPackedFile::Loc(loc) = data {
-                                let is_empty = loc.optimize_table(&game_locs);
-                                if is_empty { files_to_delete.push(path.to_vec()); }
-                            },
-                            Err(_) => continue,
-                        };
-                    }
-
-                    PackedFileType::Text(text_type) => {
-                        if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
-                            files_to_delete.push(path.to_vec());
+                                if is_empty {
+                                    return Some(path.to_vec());
+                                }
+                            }
                         }
-                    }
 
-                    // Ignore the rest.
-                    _ => {}
+                        PackedFileType::Loc => {
+                            if let Ok(DecodedPackedFile::Loc(loc)) = packed_file.decode_return_ref_mut_no_locks(schema) {
+                                let is_empty = loc.optimize_table(&game_locs);
+                                if is_empty {
+                                    return Some(path.to_vec());
+                                }
+                            }
+                        }
+
+                        PackedFileType::Text(text_type) => {
+                            if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
+                                return Some(path.to_vec());
+                            }
+                        }
+
+                        // Ignore the rest.
+                        _ => {}
+                    }
                 }
-            }
+
+                None
+            }).collect();
         }
 
         // Delete all the files marked for deletion.

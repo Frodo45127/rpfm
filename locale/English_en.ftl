@@ -967,8 +967,14 @@ generate_dependencies_cache_are_you_sure = Do you want to generate the dependenc
 
 optimize_packfile_are_you_sure = <p><b>Are you sure you want to optimze this PackFile?</b></p>
     <p>
-        Please, do a backup before using this. What this does is:
+        Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod dissapeared!!!" again. What this does is:
         <ul>
+            <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
+            <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
+            <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
             <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
             <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
             <li><b>Remove empty DB tables</b>.</li>

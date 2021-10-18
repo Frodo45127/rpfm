@@ -51,6 +51,25 @@ const DEPENDENCIES_FOLDER: &str = "dependencies";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the dependency data for the different features within RPFM.
+///
+/// As even I am getting a bit confused by how this works (and it has caused a few bugs):
+/// - First, these three are loaded with the data to load files from the game and parent files.
+///     - parent_cached_packed_files.
+///     - vanilla_cached_packed_files.
+///     - asskit_only_db_tables.
+/// - Then, every table and loc is preloaded here:
+///     - parent_packed_files_cache.
+///     - vanilla_packed_files_cache.
+/// - Then we build the "Path" cache:
+///     - vanilla_cached_packed_files_paths.
+///     - parent_cached_packed_files_paths.
+///     - vanilla_cached_folders_caseless.
+///     - parent_cached_folders_caseless.
+///     - vanilla_cached_folders_cased.
+///     - parent_cached_folders_cased.
+///
+/// - Then, on runtime, we add decoded table's dependencies data to this one, so we don't need to recalculate it again.
+///     - cached_data,
 #[derive(Default, Debug, Clone, GetRef, GetRefMut, Serialize, Deserialize)]
 pub struct Dependencies {
 
@@ -130,140 +149,67 @@ impl Dependencies {
     /// Use it when changing the game selected or opening a new PackFile.
     pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
 
-        // First, clear the current data if we intend to rebuild the entire thing. Otherwise we'll hit situations where, on certain failures, we get dependencies from one game loaded into another.
+        // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
         if !only_parent_mods {
+
+            // First, clear the current data, so we're not left with broken data afterwards if the next operations fail.
             *self = Self::default();
+
+            // Try to load the binary file and check if it's even valid.
+            let stored_data = Self::load_from_binary()?;
+            if !stored_data.needs_updating()? {
+                *self = stored_data;
+            }
         }
 
-        let stored_data = Self::load_from_binary()?;
-        self.build_date = stored_data.build_date;
+        // Clear the table's cached data, to ensure it gets rebuild properly when needed.
+        self.cached_data.write().unwrap().clear();
 
-        if !self.needs_updating()? {
+        // Preload parent mods of the currently open PackFile.
+        PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
 
-            // Clear the intermediate cache on any rebuild.
-            self.cached_data.write().unwrap().clear();
-            *self.cached_data.write().unwrap() = BTreeMap::new();
+        // Build the casing-related HashSets.
+        self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+        self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
+            let path = x.split('/').collect::<Vec<&str>>();
+            let mut paths = Vec::with_capacity(path.len() - 1);
 
-            if !only_parent_mods {
-
-                // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
-                // the bastart triggers a memory leak in the next step. Not sure why.
-                self.vanilla_cached_packed_files.clear();
-                self.asskit_only_db_tables.clear();
-                self.vanilla_packed_files_cache.write().unwrap().clear();
-
-                self.vanilla_cached_packed_files = HashMap::new();
-                self.asskit_only_db_tables = vec![];
-                *self.vanilla_packed_files_cache.write().unwrap() = HashMap::new();
-
-                // Preload the data from the game that only changes on updates.
-                self.vanilla_cached_packed_files = stored_data.vanilla_cached_packed_files;
-                self.vanilla_packed_files_cache = stored_data.vanilla_packed_files_cache;
-                self.asskit_only_db_tables = stored_data.asskit_only_db_tables;
-
-                // Build the casing-related HashSets.
-                self.vanilla_cached_packed_files_paths = self.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-                self.vanilla_cached_folders_cased = self.vanilla_cached_packed_files_paths.par_iter().map(|x| {
-                    let path = x.split('/').collect::<Vec<&str>>();
-                    let mut paths = Vec::with_capacity(path.len() - 1);
-
-                    for (index, folder) in path.iter().enumerate() {
-                        if index < path.len() - 1 && !folder.is_empty() {
-                            paths.push(path[0..=index].join("/"))
-                        }
-                    }
-
-                    paths
-                }).flatten().collect::<HashSet<String>>();
-                self.vanilla_cached_folders_caseless = self.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-
-                // Pre-decode all tables/locs to memory.
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    self.vanilla_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                        let _ = x.1.decode_no_locks(schema);
-                    });
+            for (index, folder) in path.iter().enumerate() {
+                if index < path.len() - 1 && !folder.is_empty() {
+                    paths.push(path[0..=index].join("/"))
                 }
             }
 
-            // Preload parent mods of the currently open PackFile.
-            self.parent_cached_packed_files.clear();
-            self.parent_cached_packed_files = HashMap::new();
+            paths
+        }).flatten().collect::<HashSet<String>>();
+        self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
 
-            self.parent_packed_files_cache.write().unwrap().clear();
-            *self.parent_packed_files_cache.write().unwrap() = HashMap::new();
-
-            PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
-
-            // Build the casing-related HashSets.
-            self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-            self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
-                let path = x.split('/').collect::<Vec<&str>>();
-                let mut paths = Vec::with_capacity(path.len() - 1);
-
-                for (index, folder) in path.iter().enumerate() {
-                    if index < path.len() - 1 && !folder.is_empty() {
-                        paths.push(path[0..=index].join("/"))
-                    }
-                }
-
-                paths
-            }).flatten().collect::<HashSet<String>>();
-            self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-
-            // Pre-decode all tables/locs to memory.
-            if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                    let _ = x.1.decode_no_locks(schema);
-                });
-            };
-        }
+        // Pre-decode all tables/locs to memory.
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
+                let _ = x.1.decode_no_locks(schema);
+            });
+        };
 
         Ok(())
     }
 
     /// This function generates the entire dependency cache for the currently selected game.
-    pub fn generate_dependencies_cache(&mut self, asskit_path: &Option<PathBuf>, version: i16) -> Result<()> {
+    pub fn generate_dependencies_cache(&mut self, asskit_path: &Option<PathBuf>, version: i16) -> Result<Self> {
 
-        self.build_date = get_current_time();
-
-        // Clear all items to ensure we don't keep data from another game.
-        self.cached_data.write().unwrap().clear();
-        self.parent_packed_files_cache.write().unwrap().clear();
-        self.parent_cached_packed_files.clear();
-        self.vanilla_cached_packed_files_paths.clear();
-        self.parent_cached_packed_files_paths.clear();
-        self.vanilla_cached_folders_caseless.clear();
-        self.parent_cached_folders_caseless.clear();
-        self.vanilla_cached_folders_cased.clear();
-        self.parent_cached_folders_cased.clear();
-        self.asskit_only_db_tables.clear();
-
-        let pack_file = PackFile::open_all_ca_packfiles()?;
-        self.vanilla_cached_packed_files = pack_file.get_ref_packed_files_all().par_iter()
+        let mut cache = Self::default();
+        cache.build_date = get_current_time();
+        cache.vanilla_cached_packed_files = PackFile::open_all_ca_packfiles()?.get_ref_packed_files_all().par_iter()
             .filter_map(|x| if let Ok(data) = CachedPackedFile::try_from(*x) { Some((data.get_ref_packed_file_path().to_owned(), data)) } else { None })
             .collect::<HashMap<String, CachedPackedFile>>();
-
-        // Preload all tables/locs to cache.
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            self.vanilla_packed_files_cache.write().unwrap().extend(self.vanilla_cached_packed_files.par_iter()
-                .filter_map(|(_, cached_packed_file)| {
-                    let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
-                    if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
-                        if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
-                            let _ = packed_file.decode_no_locks(schema);
-                            Some((cached_packed_file.get_ref_packed_file_path().to_owned(), packed_file))
-                        } else { None }
-                    } else { None }
-                }).collect::<HashMap<String, PackedFile>>());
-        }
 
         // This one can fail, leaving the dependencies with only game data.
         // This is needed to support table creation on Empire and Napoleon.
         if let Some(path) = asskit_path {
-            let _ = self.generate_asskit_only_db_tables(path, version);
+            let _ = cache.generate_asskit_only_db_tables(path, version);
         }
 
-        Ok(())
+        Ok(cache)
     }
 
     /// This function generates a "fake" table list with tables only present in the Assembly Kit.
@@ -393,18 +339,37 @@ impl Dependencies {
         file.read_to_end(&mut data)?;
 
         // Never deserialize directly from the file. It's bloody slow!!!
-        let dependencies: Self = bincode::deserialize(&data).map_err(Error::from)?;
+        let mut dependencies: Self = bincode::deserialize(&data).map_err(Error::from)?;
 
         // Preload all tables/locs to cache.
-        dependencies.vanilla_packed_files_cache.write().unwrap().extend(dependencies.vanilla_cached_packed_files.par_iter()
-            .filter_map(|(path, cached_packed_file)| {
-                let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
-                if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
-                    if let Ok(packed_file) = PackedFile::try_from(cached_packed_file) {
-                        Some((path.to_owned(), packed_file))
+        if let Some(schema) = &*SCHEMA.read().unwrap() {
+            dependencies.vanilla_packed_files_cache.write().unwrap().extend(dependencies.vanilla_cached_packed_files.par_iter()
+                .filter_map(|(path, cached_packed_file)| {
+                    let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
+                    if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
+                        if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
+                            let _ = packed_file.decode_no_locks(&schema).unwrap();
+                            Some((path.to_owned(), packed_file))
+                        } else { None }
                     } else { None }
-                } else { None }
-            }).collect::<HashMap<String, PackedFile>>());
+                }).collect::<HashMap<String, PackedFile>>());
+        }
+
+        // Build the casing-related HashSets.
+        dependencies.vanilla_cached_packed_files_paths = dependencies.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+        dependencies.vanilla_cached_folders_cased = dependencies.vanilla_cached_packed_files_paths.par_iter().map(|x| {
+            let path = x.split('/').collect::<Vec<&str>>();
+            let mut paths = Vec::with_capacity(path.len() - 1);
+
+            for (index, folder) in path.iter().enumerate() {
+                if index < path.len() - 1 && !folder.is_empty() {
+                    paths.push(path[0..=index].join("/"))
+                }
+            }
+
+            paths
+        }).flatten().collect::<HashSet<String>>();
+        dependencies.vanilla_cached_folders_caseless = dependencies.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
 
         Ok(dependencies)
     }

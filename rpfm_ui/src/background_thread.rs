@@ -261,7 +261,7 @@ pub fn background_loop() {
             // In case we want to generate the dependencies cache for our Game Selected...
             Command::GenerateDependenciesCache(path, version) => {
                 match dependencies.generate_dependencies_cache(&path, version) {
-                    Ok(_) => match dependencies.save_to_binary() {
+                    Ok(mut cache) => match cache.save_to_binary() {
                         Ok(_) => {
                             let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
                             let dependencies_info = DependenciesInfo::from(&dependencies);
@@ -1387,7 +1387,6 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapVecStringPackedFile(packed_files));
             },
 
-            // TODO: This has to be case insensitive.
             Command::SavePackedFilesToPackFileAndClean(packed_files) => {
 
                 // We receive a list of edited PackedFiles. The UI is the one that takes care of editing them to have the data we want where we want.

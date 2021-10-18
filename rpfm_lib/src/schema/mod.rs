@@ -143,7 +143,7 @@ pub enum VersionedFile {
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:
@@ -160,7 +160,7 @@ pub struct Definition {
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Field {
 
     /// Name of the field. Should contain no spaces, using `_` instead.
@@ -204,7 +204,7 @@ pub struct Field {
 }
 
 /// This enum defines every type of field the lib can encode/decode.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     F32,

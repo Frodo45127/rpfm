@@ -20,7 +20,8 @@ use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use std::collections::BTreeMap;
+use std::cmp::Ordering;
+use std::collections::{HashSet, BTreeMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -364,24 +365,62 @@ impl DB {
     pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
 
         // For each vanilla table, if it's the same table/version as our own, we check it
-        let mut new_entries = Vec::with_capacity(self.table.get_entry_count());
-        let entries = self.get_ref_table_data();
+        let mut entries = self.get_ref_table_data().to_vec();
         let definition = self.get_ref_definition();
+        let first_key = definition.get_fields_sorted().iter().position(|x| x.get_is_key()).unwrap_or(0);
 
         // To do it faster, make a freaking big table with all the vanilla entries together.
         let vanilla_table = vanilla_tables.iter()
             .filter(|x| x.name == self.name && x.get_ref_definition().get_version() == definition.get_version())
-            .map(|x| x.get_ref_table_data())
-            .flatten();
+            .map(|x| x.get_ref_table_data().to_vec())
+            .flatten()
+            .map(|x| {
 
-        for entry in entries {
-            if !vanilla_table.clone().any(|x| x == entry) {
-                new_entries.push(entry.to_vec());
+                // We map all floats here to string representations of floats, so we can actually compare them reliably.
+                let json = x.iter().map(|data|
+                    if let DecodedData::F32(value) = data {
+                        DecodedData::StringU8(format!("{:.4}", value))
+                    } else {
+                        data.to_owned()
+                    }
+                ).collect::<Vec<DecodedData>>();
+                serde_json::to_string(&json).unwrap()
+            })
+            .collect::<HashSet<String>>();
+
+        // Remove ITM and ITNR entries, sort the remaining ones by keys, and dedup them.
+        let new_row = self.get_new_row();
+        entries.retain(|entry| {
+            let entry_json = entry.iter().map(|data|
+                if let DecodedData::F32(value) = data {
+                    DecodedData::StringU8(format!("{:.4}", value))
+                } else {
+                    data.to_owned()
+                }
+            ).collect::<Vec<DecodedData>>();
+            !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
+        });
+
+        // Sort the table so it can be dedupd. Sorting floats is a pain in the ass.
+        entries.par_sort_by(|a, b| {
+            let ordering = if let DecodedData::F32(x) = a[first_key] {
+                if let DecodedData::F32(y) = b[first_key] {
+                    if float_eq::float_eq!(x, y, abs <= 0.0001) {
+                        Some(Ordering::Equal)
+                    } else { None }
+                } else { None }
+            } else { None };
+
+            match ordering {
+                Some(ordering) => ordering,
+                None => a[first_key].partial_cmp(&b[first_key]).unwrap_or(Ordering::Equal)
             }
-        }
+        });
+
+        entries.dedup();
 
         // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
-        let _ = self.table.set_table_data(&new_entries);
+        let _ = self.table.set_table_data(&entries);
         self.table.get_ref_table_data().is_empty()
     }
 
