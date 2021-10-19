@@ -2471,30 +2471,55 @@ optimize_packfile_are_you_sure =
         } { -packfile }?
     </h3>
     <p>
-        Пожалуйста, <b>создайте резервную копию</b> перед тем, как продолжить. Вот, что произойдёт:
-        <ul>
-            <li>
-                <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
-                (если { -db(capitalization: "lower") } не замещает оригинальные данные).
-            </li>
-            <li>
-                <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
-                (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
-            </li>
-            <li>
-                <b>Пустые записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
-            </li>
-            <li>
-                <b>Пустые записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
-            </li>
-            <li>
-                <b>Ненужные { -packedfiles(number: "other", capitalization: "lower") } XML комплектов карт</b>,
-                являющиеся побочным продуктом работы BOB из { -AssemblyKit(case: "genitive") },
-                <b>будут удалены</b>.
-            </li>
-        </ul>
-        Всё ещё хотите оптимизировать { -packfile }?
+        Пожалуйста, <b>создайте резервную копию</b> перед тем, как продолжить. <i>«Ой, я нажал(а) на кнопку и мой мод исчез!!!»</i> — так себе оправдание при обращении за помощью к автору { -app(case: "genitive") }.
     </p>
+    <p>Вот, что произойдёт:</p>
+    <ul>
+        <li>
+            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут отсортированы по своему первому «ключевому» полю или столбцу</b>
+            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут отсортированы по своему «ключу»</b>
+            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Дублирующиеся записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>
+            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Дублирующиеся записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>
+            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, данные в которых идентичны их значениям по умолчанию, будут удалены</b>
+            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, данные в которых идентичны их значениям по умолчанию, будут удалены</b>
+            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
+            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
+            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+        </li>
+        <li>
+            <b>Пустые записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
+        </li>
+        <li>
+            <b>Пустые записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
+        </li>
+        <li>
+            <b>Ненужные { -packedfiles(number: "other", capitalization: "lower") } XML комплектов карт</b>,
+            являющиеся побочным продуктом работы BOB из { -AssemblyKit(case: "genitive") },
+            <b>будут удалены</b>.
+        </li>
+    </ul>
+    <p>Всё ещё хотите оптимизировать { -packfile }?</p>
 
 animpack_view_instructions = <h3>Как пользоваться этим инструментом:</h3>
     <ul>
