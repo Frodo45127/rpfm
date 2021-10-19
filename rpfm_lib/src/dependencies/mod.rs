@@ -348,8 +348,11 @@ impl Dependencies {
                     let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
                     if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
                         if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
-                            let _ = packed_file.decode_no_locks(&schema).unwrap();
-                            Some((path.to_owned(), packed_file))
+
+                            // Only allow files that actually decode.
+                            if packed_file.decode_no_locks(&schema).is_ok() {
+                                Some((path.to_owned(), packed_file))
+                            } else { None }
                         } else { None }
                     } else { None }
                 }).collect::<HashMap<String, PackedFile>>());
