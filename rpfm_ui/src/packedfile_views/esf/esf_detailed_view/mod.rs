@@ -169,9 +169,9 @@ impl ESFDetailedView {
                 NodeType::I8(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(i8::MAX.into());
                     widget.set_minimum(i8::MIN.into());
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -180,9 +180,9 @@ impl ESFDetailedView {
                 NodeType::I16(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(i16::MAX.into());
                     widget.set_minimum(i16::MIN.into());
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -192,9 +192,9 @@ impl ESFDetailedView {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
-                    widget.set_value(*value.get_ref_value() as i32);
                     widget.set_maximum(i32::MAX);
                     widget.set_minimum(i32::MIN);
+                    widget.set_value(*value.get_ref_value());
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
                     self.data_types.push(DataType::I32(widget));
@@ -202,9 +202,9 @@ impl ESFDetailedView {
                 NodeType::I64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(i32::MAX);
                     widget.set_minimum(i32::MIN);
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -213,8 +213,8 @@ impl ESFDetailedView {
                 NodeType::U8(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(u8::MAX.into());
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -223,8 +223,8 @@ impl ESFDetailedView {
                 NodeType::U16(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(u16::MAX.into());
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -233,8 +233,8 @@ impl ESFDetailedView {
                 NodeType::U32(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value.get_ref_value() as i32);
                     widget.set_maximum(u32::MAX as i32);
+                    widget.set_value(*value.get_ref_value() as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -243,8 +243,8 @@ impl ESFDetailedView {
                 NodeType::U64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as i32);
                     widget.set_maximum(u32::MAX as i32);
+                    widget.set_value(*value as i32);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -253,9 +253,9 @@ impl ESFDetailedView {
                 NodeType::F32(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value.get_ref_value() as f64);
                     widget.set_maximum(f32::MAX.into());
                     widget.set_minimum(f32::MIN.into());
+                    widget.set_value(*value.get_ref_value() as f64);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
@@ -264,9 +264,9 @@ impl ESFDetailedView {
                 NodeType::F64(value) => {
                     let label = QLabel::from_q_string_q_widget(&QString::from_std_str("label"), parent_widget);
                     let widget = QDoubleSpinBox::new_1a(parent_widget);
-                    widget.set_value(*value as f64);
                     widget.set_maximum(f64::MAX);
                     widget.set_minimum(f64::MIN);
+                    widget.set_value(*value as f64);
                     layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
 
