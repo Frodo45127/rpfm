@@ -262,7 +262,10 @@ impl UI {
             KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
             KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
-            _ => unimplemented!()
+
+            // Turns out some... lets say "not very brigth individual" changed the settings file manually and broke this.
+            // So just in case, by default we use WH2.
+            _ => app_ui.game_selected_warhammer_2.set_checked(true),
         }
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
         info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
