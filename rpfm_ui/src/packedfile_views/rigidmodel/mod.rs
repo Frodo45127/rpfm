@@ -101,10 +101,8 @@ impl PackedFileRigidModelView {
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    ///
-    /// FIXME: there is a rare chance this fails.
-    pub unsafe fn reload_view(&self, data: &RigidModel) {
+    pub unsafe fn reload_view(&self, data: &RigidModel) -> Result<()> {
         let byte_array = QByteArray::from_slice(&data.data);
-        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr()).unwrap();
+        set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr())
     }
 }

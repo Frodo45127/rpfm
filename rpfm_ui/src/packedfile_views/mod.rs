@@ -531,7 +531,7 @@ impl PackedFileView {
                         #[cfg(feature = "support_rigidmodel")]
                         Response::RigidModelPackedFileInfo((rigidmodel, packed_file_info)) => {
                             if let View::RigidModel(old_rigidmodel) = view {
-                                old_rigidmodel.reload_view(&rigidmodel);
+                                old_rigidmodel.reload_view(&rigidmodel)?;
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
