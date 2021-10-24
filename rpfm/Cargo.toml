@@ -1,10 +1,11 @@
 [package]
 name = "rpfm"
-version = "2.6.2"
+version = "2.6.3"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Launcher of RPFM, to allow autorestarting on update."
 edition = "2021"
+rust-version = "1.56"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

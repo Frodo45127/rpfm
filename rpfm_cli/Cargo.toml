@@ -1,10 +1,11 @@
 [package]
 name = "rpfm_cli"
-version = "2.6.2"
+version = "2.6.3"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A CLI tool to automate all your modding needs."
 edition = "2021"
+rust-version = "1.56"
 
 [dependencies]
 # Internal dependencies.
