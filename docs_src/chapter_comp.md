@@ -7,7 +7,7 @@ Just in case someone wants to collaborate with code (who knows, maybe there is s
 You need to download and install:
 - [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
 - ***MSVC*** (with C++ support from the Visual Studio installer).
-- ***Rust 1.32 with the MSVC toolchain*** (or superior).
+- ***Rust 1.56 with the MSVC toolchain*** (or superior).
 - ***Craft*** (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
@@ -95,7 +95,7 @@ You can also make any editor inherit Craft's environment (and thus, being able t
 
 You need to install the following packages on your distro:
 - ***CMake***.
-- ***Rust 1.32*** (or superior).
+- ***Rust 1.56*** (or superior).
 - ***Qt 5.14*** (or superior).
 - ***KDE Framework (KF5) 5.61 (or superior)***.
 - ***xz***.
