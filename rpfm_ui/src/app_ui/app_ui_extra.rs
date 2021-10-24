@@ -16,7 +16,6 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
@@ -52,7 +51,7 @@ use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
+use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -71,6 +70,7 @@ use crate::FIRST_GAME_CHANGE_DONE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
+use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
@@ -197,6 +197,10 @@ impl AppUI {
         data_source: DataSource,
         save_before_deleting: bool
     ) -> Result<()> {
+
+        if path.is_empty() {
+            log::info!("purging empty path? this is a bug.");
+        }
 
         let mut did_it_worked = Ok(());
 
@@ -1725,7 +1729,7 @@ impl AppUI {
         if !UI_STATE.get_packfile_contents_read_only() {
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
-            let path = vec![];
+            let path = vec![RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned()];
             let name = qtr("table_dependency_manager_title");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
@@ -1757,7 +1761,7 @@ impl AppUI {
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+            match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
                 Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.

@@ -14,6 +14,8 @@ Module with extra functions for `PackedFileView`.
 
 use std::rc::Rc;
 
+use rpfm_lib::packfile::RESERVED_NAME_DEPENDENCIES_MANAGER;
+
 use crate::app_ui::AppUI;
 use crate::pack_tree::*;
 use crate::packedfile_views::DataSource;
@@ -26,7 +28,7 @@ use crate::UI_STATE;
 
 /// This function sets the `is_modified` state of the open PackFile, setting also the visual state of the provided PackedFile in the process.
 pub unsafe fn set_modified(is_modified: bool, path: &[String], app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-    let path = if path.is_empty() { TreePathType::PackFile } else { TreePathType::File(path.to_vec()) };
+    let path = if path.is_empty() || path == &[RESERVED_NAME_DEPENDENCIES_MANAGER] { TreePathType::PackFile } else { TreePathType::File(path.to_vec()) };
     if is_modified {
         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![path; 1]), DataSource::PackFile);
         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);

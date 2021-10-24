@@ -95,7 +95,7 @@ impl DiagnosticType {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.get_path(),
             Self::PackFile(_) => &[],
-            Self::DependencyManager(_) => &[],
+            Self::DependencyManager(diag) => diag.get_path(),
             Self::Config(_) => &[],
         }
     }

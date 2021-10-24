@@ -46,6 +46,7 @@ use self::animpack::PackedFileAnimPackView;
 use self::ca_vp8::PackedFileCaVp8View;
 use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
+use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
 use self::table::PackedFileTableView;
@@ -64,6 +65,7 @@ pub mod anim_fragment;
 pub mod animpack;
 pub mod ca_vp8;
 pub mod decoder;
+pub mod dependencies_manager;
 pub mod esf;
 pub mod external;
 pub mod image;
@@ -132,6 +134,7 @@ pub enum View {
     AnimPack(Arc<PackedFileAnimPackView>),
     CaVp8(Arc<PackedFileCaVp8View>),
     Decoder(Arc<PackedFileDecoderView>),
+    DependenciesManager(Arc<DependenciesManagerView>),
     ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
@@ -341,20 +344,54 @@ impl PackedFileView {
                             },
 
                             // These ones are like very reduced tables.
-                            PackedFileType::DependencyPackFilesList => if let View::Table(view) = view {
+                            PackedFileType::DependencyPackFilesList => if let View::DependenciesManager(view) = view {
                                 let mut entries = vec![];
                                 let model = view.get_ref_table().get_mut_ptr_table_model();
-                                for row in 0..model.row_count_0a() {
-                                    let item = model.item_1a(row as i32).text().to_std_string();
-                                    entries.push(item);
+                                if model.is_null() {
+                                    log::warn!("
+                                        model null on active view!!! WTF?
+                                        this basically means RPFM it's going to crash once this if is over.
+                                        to avoid crashing, we'll skip this save step.
+                                        also, log whatever is in that active view.
+                                        because I have no idea how it managed to end up like that:
+                                        - is_preview? {}
+                                        - is_read_only? {}
+                                        - is_the_qbox_seriously_null? {}
+                                        - is_the_table_also_null? {}
+                                        ",
+                                        self.get_is_preview(),
+                                        self.get_is_read_only(),
+                                        view.get_ref_table().get_ref_table_model().is_null(),
+                                        view.get_ref_table().get_mut_ptr_table_view_primary().is_null()
+                                    );
+
+                                    show_dialog(&app_ui.main_window,
+                                        "Congratulations! You hit a rare bug I'm trying to fix!
+
+                                        First, if there's an update for RPFM, update, as this may have been fixed already in an update.
+
+                                        If not, welcome to hell. RPFM will try to work around the bug and not crash, but if you edited the dependencies with the dependencies manager,
+                                        your changes to it may (may or may not) have been lost. Better save, then reopen the PackFile (to avoid further issues),
+                                        and open the Dependencies manager again and check if your changes are still there.
+
+                                        Also, RPFM has logged a bit of data that may help pinpoint why this is actually happen in a rpfm.log file you can access going to
+                                        Game Selected/Open RPFM Config folder. If you don't mind, share it with the dev, and if you can, specify the steps you took before this appeared,
+                                        specially those related to the
+
+                                        ", false);
+                                } else {
+                                    for row in 0..model.row_count_0a() {
+                                        let item = model.item_1a(row as i32).text().to_std_string();
+                                        entries.push(item);
+                                    }
+
+                                    // Save the new list and return Ok.
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
+
+                                    // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
+                                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                 }
-
-                                // Save the new list and return Ok.
-                                let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
-
-                                // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
-                                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                                 return Ok(())
                             } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },

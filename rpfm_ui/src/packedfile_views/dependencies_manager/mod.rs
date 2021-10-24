@@ -9,16 +9,17 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with all the code for managing the view for Table PackedFiles.
+Module with all the code for managing the view for the Dependencies Manager.
 !*/
 
 use std::sync::Arc;
 
 use std::rc::Rc;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::Result;
 
 use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -36,8 +37,8 @@ use crate::views::table::{TableView, TableType};
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains pointers to all the widgets in a Table View.
-pub struct PackedFileTableView {
+/// This struct contains pointers to all the widgets needed for the view.
+pub struct DependenciesManagerView {
     table_view: Arc<TableView>,
 }
 
@@ -45,10 +46,10 @@ pub struct PackedFileTableView {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileTableView`.
-impl PackedFileTableView {
+/// Implementation for `DependenciesManagerView`.
+impl DependenciesManagerView {
 
-    /// This function creates a new Table View, and sets up his slots and connections.
+    /// This function creates a new `DependenciesManagerView`, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
@@ -59,28 +60,11 @@ impl PackedFileTableView {
     ) -> Result<Option<PackedFileInfo>> {
 
         // Get the decoded Table.
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetDependencyPackFilesList);
         let response = CentralCommand::recv(&receiver);
-        let (table_data, packed_file_info) = match response {
-            Response::AnimTablePackedFileInfo((table, packed_file_info)) => (TableType::AnimTable(table), Some(packed_file_info)),
-            Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), Some(packed_file_info)),
-            Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
-            Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => (TableType::MatchedCombat(table), Some(packed_file_info)),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
+        let table_data = match response {
+            Response::VecString(table) => TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
-
-        let packed_file_type = match table_data {
-
-            // This one should never happen.
-            TableType::AnimFragment(_) => PackedFileType::AnimFragment,
-            TableType::AnimTable(_) => PackedFileType::AnimTable,
-            TableType::DB(_) => PackedFileType::DB,
-            TableType::Loc(_) => PackedFileType::Loc,
-            TableType::MatchedCombat(_) => PackedFileType::MatchedCombat,
-            _ => unimplemented!()
         };
 
         let table_view = TableView::new_view(
@@ -95,15 +79,15 @@ impl PackedFileTableView {
             packed_file_view.data_source.clone()
         )?;
 
-        let packed_file_table_view = Self {
+        let dependencies_manager_view = Self {
             table_view,
         };
 
-        packed_file_view.view = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
-        packed_file_view.packed_file_type = packed_file_type;
+        packed_file_view.view = ViewType::Internal(View::DependenciesManager(Arc::new(dependencies_manager_view)));
+        packed_file_view.packed_file_type = PackedFileType::DependencyPackFilesList;
 
         // Return success.
-        Ok(packed_file_info)
+        Ok(None)
     }
 
     pub fn get_ref_table(&self) ->&TableView {

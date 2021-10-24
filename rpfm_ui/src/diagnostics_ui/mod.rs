@@ -648,7 +648,7 @@ impl DiagnosticsUI {
                             let level = QStandardItem::new();
                             let diag_type = QStandardItem::new();
                             let cells_affected = QStandardItem::new();
-                            let fill2 = QStandardItem::new();
+                            let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
                             let (result_type, color) = match result.level {
@@ -661,24 +661,25 @@ impl DiagnosticsUI {
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
                             message.set_text(&QString::from_std_str(&result.message));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
                             cells_affected.set_editable(false);
-                            fill2.set_editable(false);
+                            path.set_editable(false);
                             message.set_editable(false);
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_dependency_manager(&[&level, &fill2, &message], &result.report_type);
+                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], &result.report_type);
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&cells_affected.into_ptr().as_mut_raw_ptr());
-                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
 
@@ -776,9 +777,8 @@ impl DiagnosticsUI {
         let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
         let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
 
-        // If the path is empty, we're looking for the dependency manager.
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
-        if path.is_empty() && diagnostic_type == "DependencyManager" {
+        if diagnostic_type == "DependencyManager" {
             AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
         } else if !path.is_empty() {
 
@@ -850,6 +850,26 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
+                    } else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
+
+                        let table_view = view.get_ref_table();
+                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let table_selection_model = table_view.selection_model();
+
+                        table_selection_model.clear_selection();
+                        let cells_affected: Vec<(i32, i32)> = serde_json::from_str(&model.item_2a(model_index.row(), 2).text().to_std_string()).unwrap();
+                        for (row, column) in cells_affected {
+                            let table_model_index = table_model.index_2a(row, column);
+                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                            if table_model_index_filtered.is_valid() {
+                                table_view.set_focus_0a();
+                                table_view.set_current_index(table_model_index_filtered.as_ref());
+                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
+                            }
+                        }
                     }
                 }
             }
@@ -894,7 +914,7 @@ impl DiagnosticsUI {
             DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.get_path(),
             DiagnosticType::DB(ref diagnostic) |
             DiagnosticType::Loc(ref diagnostic) => diagnostic.get_path(),
-            DiagnosticType::DependencyManager(_) => &[],
+            DiagnosticType::DependencyManager(ref diagnostic) => diagnostic.get_path(),
             _ => return,
         };
 
@@ -902,48 +922,25 @@ impl DiagnosticsUI {
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
-                if let ViewType::Internal(View::Table(view)) = view.get_view() {
-                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
-                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+                let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
+                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
+                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.get_ref_table_view_2() }
+                else { return };
 
-                    match diagnostic {
-                        DiagnosticType::DB(ref diagnostic) |
-                        DiagnosticType::Loc(ref diagnostic) => {
-                            for result in diagnostic.get_ref_result() {
-                                for (row, column) in &result.cells_affected {
-                                    if *row != -1 || *column != -1 {
-                                        if *column == -1 {
-                                            for column in 0..table_model.column_count_0a() {
-                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
+                let table_view = internal_table_view.get_mut_ptr_table_view_primary();
+                let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else if *row == -1 {
-                                            for row in 0..table_model.row_count_0a() {
-                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                match diagnostic {
+                    DiagnosticType::DB(ref diagnostic) |
+                    DiagnosticType::Loc(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            for (row, column) in &result.cells_affected {
+                                if *row != -1 || *column != -1 {
+                                    if *column == -1 {
+                                        for column in 0..table_model.column_count_0a() {
+                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -955,45 +952,9 @@ impl DiagnosticsUI {
                                                 }
                                             }
                                         }
-                                    }
-                                }
-                            }
-                        },
-                        DiagnosticType::DependencyManager(ref diagnostic) => {
-                            for result in diagnostic.get_ref_result() {
-                                for (row, column) in &result.cells_affected {
-                                    if *row != -1 || *column != -1 {
-
-                                        if *column == -1 {
-                                            for column in 0..table_model.column_count_0a() {
-                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else if *row == -1 {
-                                            for row in 0..table_model.row_count_0a() {
-                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                    } else if *row == -1 {
+                                        for row in 0..table_model.row_count_0a() {
+                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -1005,82 +966,128 @@ impl DiagnosticsUI {
                                                 }
                                             }
                                         }
+                                    } else {
+                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                        if table_model_index.is_valid() {
+                                            match result.level {
+                                                DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        },
-                        _ => return,
-                    }
+                        }
+                    },
+                    DiagnosticType::DependencyManager(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            for (row, column) in &result.cells_affected {
+                                if *row != -1 || *column != -1 {
 
-                    // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
-                    blocker.unblock();
-                    table_view.viewport().repaint();
+                                    if *column == -1 {
+                                        for column in 0..table_model.column_count_0a() {
+                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
+                                        }
+                                    } else if *row == -1 {
+                                        for row in 0..table_model.row_count_0a() {
+                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                        if table_model_index.is_valid() {
+                                            match result.level {
+                                                DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    DiagnosticType::AnimFragment(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            for (row, column) in &result.cells_affected {
+                                if *row != -1 || *column != -1 {
+                                    if *column == -1 {
+                                        for column in 0..table_model.column_count_0a() {
+                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
+                                        }
+                                    } else if *row == -1 {
+                                        for row in 0..table_model.row_count_0a() {
+                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                            if table_model_index.is_valid() {
+                                                match result.level {
+                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_item = table_model.item_from_index(&table_model_index);
+
+                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                        if table_model_index.is_valid() {
+                                            match result.level {
+                                                DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
+                                                DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
+                                                DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    _ => return,
                 }
 
-                // AnimFragments have some special logic.
-                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
-                    let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
-                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
-
-                    match diagnostic {
-                        DiagnosticType::AnimFragment(ref diagnostic) => {
-                            for result in diagnostic.get_ref_result() {
-                                for (row, column) in &result.cells_affected {
-                                    if *row != -1 || *column != -1 {
-                                        if *column == -1 {
-                                            for column in 0..table_model.column_count_0a() {
-                                                let table_model_index = table_model.index_2a(*row as i32, column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else if *row == -1 {
-                                            for row in 0..table_model.row_count_0a() {
-                                                let table_model_index = table_model.index_2a(row as i32, *column as i32);
-                                                let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                                // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                                if table_model_index.is_valid() {
-                                                    match result.level {
-                                                        DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                        DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                        DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            let table_model_index = table_model.index_2a(*row as i32, *column as i32);
-                                            let table_model_item = table_model.item_from_index(&table_model_index);
-
-                                            // At this point, is possible the row is no longer valid, so we have to check it out first.
-                                            if table_model_index.is_valid() {
-                                                match result.level {
-                                                    DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
-                                                    DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
-                                                    DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        _ => return,
-                    }
-
-                    // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
-                    blocker.unblock();
-                    table_view.viewport().repaint();
-                }
+                // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
+                blocker.unblock();
+                table_view.viewport().repaint();
             }
         }
     }
@@ -1117,6 +1124,31 @@ impl DiagnosticsUI {
                     table_view.viewport().repaint();
                 } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
                     let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
+                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+
+                    for row in 0..table_model.row_count_0a() {
+                        for column in 0..table_model.column_count_0a() {
+                            let item = table_model.item_2a(row, column);
+
+                            if item.data_1a(ITEM_HAS_ERROR).to_bool() {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_ERROR);
+                            }
+                            if item.data_1a(ITEM_HAS_WARNING).to_bool() {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_WARNING);
+                            }
+                            if item.data_1a(ITEM_HAS_INFO).to_bool() {
+                                item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_INFO);
+                            }
+                        }
+                    }
+                    blocker.unblock();
+                    table_view.viewport().repaint();
+                }
+
+                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
+                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());

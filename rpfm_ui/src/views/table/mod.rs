@@ -739,6 +739,11 @@ impl TableView {
         self.table_model.static_upcast()
     }
 
+    /// This function returns a reference to the table's model.
+    pub unsafe fn get_ref_table_model(&self) -> &QBox<QStandardItemModel> {
+        &self.table_model
+    }
+
     // This function returns a mutable reference to the `Enable Lookups` Pushbutton.
     //pub fn get_mut_ptr_enable_lookups_button(&self) -> QPtr<QPushButton> {
     //    q_ptr_from_atomic(&self.table_enable_lookups_button)

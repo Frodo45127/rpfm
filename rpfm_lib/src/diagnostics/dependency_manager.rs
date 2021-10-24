@@ -18,6 +18,8 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
+use crate::packfile::RESERVED_NAME_DEPENDENCIES_MANAGER;
+
 use super::DiagnosticLevel;
 
 //-------------------------------------------------------------------------------//
@@ -27,6 +29,7 @@ use super::DiagnosticLevel;
 /// This struct contains the results of a diagnostics check over a single PackedFile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DependencyManagerDiagnostic {
+    path: Vec<String>,
     result: Vec<DependencyManagerDiagnosticReport>
 }
 
@@ -52,6 +55,7 @@ pub enum DependencyManagerDiagnosticReportType {
 impl DependencyManagerDiagnostic {
     pub fn new() -> Self {
         Self {
+            path: vec![RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned()],
             result: vec![],
         }
     }
@@ -62,6 +66,10 @@ impl DependencyManagerDiagnostic {
 
     pub fn get_ref_mut_result(&mut self) -> &mut Vec<DependencyManagerDiagnosticReport> {
         &mut self.result
+    }
+
+    pub fn get_path(&self) -> &[String] {
+        &self.path
     }
 }
 
