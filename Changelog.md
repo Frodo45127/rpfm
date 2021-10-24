@@ -6,6 +6,29 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.6.3]
+### Added
+- Added russian localisation (by [@im-mortal](https://github.com/im-mortal)).
+
+### Changed
+- Optimizer now also removes duplicate/new/empty rows.
+- Added a flag to ensure the subclasses lib is recompiled alongside RPFM.
+- Updated compilation instructions (by [@im-mortal](https://github.com/im-mortal)).
+
+### Fixed
+- Fixed CTD when opening broken/incompatible AnimPacks.
+- Fixed CTD when adding an empty folder.
+- Fixed CTD when inputting a multibyte character (like a kanji) on the `New PackedFile` dialog (again).
+- Fixed CTD when someone deliberately messes up the settings file.
+- Fixed CTD when replacing an open rigidmodel with another which RPFM cannot open.
+- Fixed (hopefully) a random CTD when RPFM needed to back data to the backend on mass..
+- Fixed `column` filter combobox order changing on table reload.
+- Fixed Faction Painter Tool adding entries for factions that don't need them.
+- Fixed tables not changing after using a Tool.
+- Fixed dependencies not always reloading correctly.
+- Fixed ESF editor wiping out negative numbers (this time for good).
+- Fixed Optimizer not properly removing certain rows containing floats (AGAIN).
+
 ## [2.6.2]
 ### Added
 - Implemented log rotation.
@@ -509,7 +532,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...HEAD
+[2.6.3]: https://github.com/Frodo45127/rpfm/compare/v2.6.2...v2.6.3
 [2.6.2]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Frodo45127/rpfm/compare/v2.5.4...v2.6.0
