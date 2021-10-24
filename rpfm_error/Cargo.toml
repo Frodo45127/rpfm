@@ -3,7 +3,7 @@ name = "rpfm_error"
 version = "2.6.2"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Shared error module for RPFM."
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 # Dependencies directly used by this module.

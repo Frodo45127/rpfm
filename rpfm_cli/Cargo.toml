@@ -4,7 +4,7 @@ version = "2.6.2"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A CLI tool to automate all your modding needs."
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 # Internal dependencies.

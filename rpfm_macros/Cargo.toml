@@ -3,7 +3,7 @@ name = "rpfm_macros"
 version = "2.6.2"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Library with some custom macros used in RPFM."
-edition = "2018"
+edition = "2021"
 
 [lib]
 proc-macro=true

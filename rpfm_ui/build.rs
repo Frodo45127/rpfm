@@ -37,9 +37,11 @@ fn main() {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
 
-            if !output.stderr.is_empty() {
-                println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
-                exit(98)
+            #[cfg(feature = "strict_subclasses_compilation")] {
+                if !output.stderr.is_empty() {
+                    println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
+                    exit(98)
+                }
             }
         }
         Err(error) => {
@@ -68,9 +70,11 @@ fn main() {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
 
-            if !output.stderr.is_empty() {
-                println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
-                exit(98)
+            #[cfg(feature = "strict_subclasses_compilation")] {
+                if !output.stderr.is_empty() {
+                    println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
+                    exit(98)
+                }
             }
         }
         Err(error) => {
@@ -92,9 +96,11 @@ fn main() {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
 
-            if !output.stderr.is_empty() {
-                println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
-                exit(98)
+            #[cfg(feature = "strict_subclasses_compilation")] {
+                if !output.stderr.is_empty() {
+                    println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
+                    exit(98)
+                }
             }
         }
         Err(error) => {
