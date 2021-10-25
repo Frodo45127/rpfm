@@ -11,7 +11,7 @@
 /*!
 Module with all the code related to the `GlobalSearch`.
 
-This module contains the code needed to get a `GlobalSeach` over an entire `PackFile`.
+This module contains the code needed to get a `GlobalSearch` over an entire `PackFile`.
 !*/
 
 use regex::{RegexBuilder, Regex};
@@ -87,14 +87,14 @@ pub struct GlobalSearch {
 }
 
 /// This enum defines the matching mode of the search. We use `Pattern` by default, and fall back to it
-/// if we try to use `Regex` and the provided regex expresion is invalid.
+/// if we try to use `Regex` and the provided regex expression is invalid.
 #[derive(Debug, Clone)]
 enum MatchingMode {
     Regex(Regex),
     Pattern,
 }
 
-/// This enum is a way to put toguether all kind of matches.
+/// This enum is a way to put together all kind of matches.
 #[derive(Debug, Clone)]
 pub enum MatchHolder {
     Table(TableMatches),
@@ -353,7 +353,7 @@ impl GlobalSearch {
         }
     }
 
-    /// This function clears the Global Search resutl's data, and reset the UI for it.
+    /// This function clears the Global Search result's data, and reset the UI for it.
     pub fn clear(&mut self) {
         *self = Self::default();
     }

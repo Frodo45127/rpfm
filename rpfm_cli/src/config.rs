@@ -10,7 +10,7 @@
 
 //! This module contains the basic configuration for the CLI tool.
 //!
-//! It has to be initialized at the begining, before any command gets executed.
+//! It has to be initialized at the beginning, before any command gets executed.
 
 use rpfm_error::Result;
 use rpfm_lib::games::*;

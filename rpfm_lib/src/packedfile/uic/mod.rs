@@ -62,7 +62,7 @@ impl UIC {
     pub fn read(packed_file_data: &[u8], _schema: &Schema) -> Result<Self> {
         let version = Self::read_header(packed_file_data)?;
 
-        // If we've reached this, we've succesfully decoded the entire UI.
+        // If we've reached this, we've successfully decoded the entire UI.
         Ok(Self {
             version,
         })

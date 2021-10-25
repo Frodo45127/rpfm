@@ -611,7 +611,7 @@ fn test_decode_packedfile_string_u16() {
 #[test]
 fn test_decode_packedfile_optional_string_u8() {
 
-    // Check the decoding works for a non-existant string.
+    // Check the decoding works for a nonexistent string.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_optional_string_u8([0].as_ref(), 0, &mut index).unwrap(), "".to_owned());
@@ -659,7 +659,7 @@ fn test_decode_packedfile_optional_string_u8() {
 #[test]
 fn test_decode_packedfile_optional_string_u16() {
 
-    // Check the decoding works for a non-existant string.
+    // Check the decoding works for a nonexistent string.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_optional_string_u16([0].as_ref(), 0, &mut index).unwrap(), "".to_owned());

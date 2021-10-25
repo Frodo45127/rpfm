@@ -159,7 +159,7 @@ pub struct FieldV2 {
     /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
     pub lookup: Option<Vec<String>>,
 
-    /// Aclarative description of what the field is for.
+    /// Declarative description of what the field is for.
     pub description: String,
 
     /// Visual position in CA's Table. `-1` means we don't know its position.
@@ -187,7 +187,7 @@ pub enum FieldTypeV2 {
 impl SchemaV2 {
 
     /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
-    /// already exists, and replace it if neccesary.
+    /// already exists, and replace it if necessary.
     pub fn add_versioned_file(&mut self, versioned_file: &VersionedFileV2) {
         match self.versioned_files.iter().position(|x| x.conflict(versioned_file)) {
             Some(position) => { self.versioned_files.splice(position..=position, [versioned_file.clone()].iter().cloned()); },

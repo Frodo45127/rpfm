@@ -111,7 +111,7 @@ impl UnitVariant {
             return Err(ErrorKind::PackedFileIncompleteDecoding.into())
         }
 
-        // If we've reached this, we've succesfully decoded the entire UnitVariant.
+        // If we've reached this, we've successfully decoded the entire UnitVariant.
         Ok(Self {
             version,
             unknown_1,

@@ -235,7 +235,7 @@ pub enum APIResponseSchema {
 impl Schema {
 
     /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
-    /// already exists, and replace it if neccesary.
+    /// already exists, and replace it if necessary.
     pub fn add_versioned_file(&mut self, versioned_file: &VersionedFile) {
         match self.versioned_files.par_iter().position_any(|x| x.conflict(versioned_file)) {
             Some(position) => { self.versioned_files.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
@@ -560,7 +560,7 @@ impl Schema {
 
     /// This function exports all the schema files from the `schemas/` folder to `.json`.
     ///
-    /// For compatibility purpouses.
+    /// For compatibility purposes.
     pub fn export_to_json() -> Result<()> {
         for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
             let schema = Schema::load(schema_file)?;
@@ -706,7 +706,7 @@ impl Schema {
         }
 
         // If not, we face multiple problems:
-        // - If there are uncommited changes: covered by the stash.
+        // - If there are uncommitted changes: covered by the stash.
         // - If we're not in the branch: covered by the branch switch.
         // - If the branches diverged: this one... the cleanest way to deal with it should be redownload the repo.
         else if analysis.0.is_normal() || analysis.0.is_none() || analysis.0.is_unborn() {

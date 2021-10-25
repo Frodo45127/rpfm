@@ -145,7 +145,7 @@ impl ESF {
         data
     }
 
-    /// This function takes care of reading a node's data into the appropiate NodeType.
+    /// This function takes care of reading a node's data into the appropriate NodeType.
     fn read_node(
         packed_file_data: &[u8],
         mut offset: &mut usize,
@@ -715,7 +715,7 @@ impl ESF {
         Ok(node_type)
     }
 
-    /// This function takes care of reading a node's data into the appropiate NodeType.
+    /// This function takes care of reading a node's data into the appropriate NodeType.
     fn save_node(node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Vec<u8> {
         let mut data = vec![];
         match node_type {
@@ -1125,7 +1125,7 @@ impl ESF {
                     data.encode_integer_u16(info.swap_bytes());
                 }
 
-                let mut childs_data = vec![];
+                let mut children_data = vec![];
 
                 if value.record_flags.contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
                     for group_node in &value.children {
@@ -1135,11 +1135,11 @@ impl ESF {
                             group_node_data.extend_from_slice(&child_node);
                         }
 
-                        childs_data.encode_integer_cauleb128(group_node_data.len() as u32);
-                        childs_data.extend_from_slice(&group_node_data);
+                        children_data.encode_integer_cauleb128(group_node_data.len() as u32);
+                        children_data.extend_from_slice(&group_node_data);
                     }
 
-                    data.encode_integer_cauleb128(childs_data.len() as u32);
+                    data.encode_integer_cauleb128(children_data.len() as u32);
                     data.encode_integer_cauleb128(value.children.len() as u32);
                 } else {
 
@@ -1147,13 +1147,13 @@ impl ESF {
                     if let Some(children) = value.children.get(0) {
                         for node in children {
                             let child_node = Self::save_node(node, false, record_names, strings_utf8, strings_utf16);
-                            childs_data.extend_from_slice(&child_node);
+                            children_data.extend_from_slice(&child_node);
                         }
                     }
 
-                    data.encode_integer_cauleb128(childs_data.len() as u32);
+                    data.encode_integer_cauleb128(children_data.len() as u32);
                 }
-                data.extend_from_slice(&childs_data);
+                data.extend_from_slice(&children_data);
             },
         }
 

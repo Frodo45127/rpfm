@@ -11,7 +11,7 @@
 /*!
 Module to log CTDs and messages within RPFM.
 
-This module is a custom CTD logging module, heavely inspired in the `human-panic` crate.
+This module is a custom CTD logging module, heavily inspired in the `human-panic` crate.
 The reason to not use that crate is because it's not configurable. At all. But otherwise,
 feel free to check it out if you need an easy-to-use simple error logger.
 

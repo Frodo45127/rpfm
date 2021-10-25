@@ -122,7 +122,7 @@ impl AnimTable {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
-        // If we've reached this, we've succesfully decoded the table.
+        // If we've reached this, we've successfully decoded the table.
         Ok(Self {
             table,
         })

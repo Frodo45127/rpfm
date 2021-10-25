@@ -30,7 +30,7 @@ use std::path::PathBuf;
 use std::result;
 use std::string;
 
-/// Alias for handling errors more easely.
+/// Alias for handling errors more easily.
 pub type Result<T> = result::Result<T, Error>;
 
 //---------------------------------------------------------------------------//
@@ -505,7 +505,7 @@ pub enum ErrorKind {
     /// Error for when the MyMod PackFile has been deleted, but his folder is nowhere to be found.
     MyModPackFileDeletedFolderNotFound,
 
-    /// Error for when trying to remove a non-existant MyMod PackFile.
+    /// Error for when trying to remove a nonexistent MyMod PackFile.
     MyModPackFileDoesntExist,
 
     /// Error for when trying to do something only MyMods can do.
@@ -592,7 +592,7 @@ pub enum ErrorKind {
     ReservedFiles,
 
     /// Error for when trying to do something to a file that doesn't exists anymore.
-    NonExistantFile,
+    NonExistentFile,
 
     /// Error for when we're trying to merge two invalid files.
     InvalidFilesForMerging,
@@ -687,7 +687,7 @@ pub enum ErrorKind {
     /// Error for when one of the widgets in a Template UI fails to be found.
     TemplateUIWidgetNotFound(String),
 
-    /// Error for when we try to get an inexistant column from a table. Contains the column name.
+    /// Error for when we try to get an inexistent column from a table. Contains the column name.
     ColumnNotFoundInTable(String),
 
     /// Error for when we try to access an inexistent column of a table.
@@ -696,7 +696,7 @@ pub enum ErrorKind {
     /// Error for when we try to access a column expecting the wrong type.
     ToolTableColumnNotOfTypeWeExpected,
 
-    /// Error for when we try to get an inexistant data from an entry in a Tool.
+    /// Error for when we try to get an inexistent data from an entry in a Tool.
     ToolEntryDataNotFound(String),
 
     /// It says it all.
@@ -1016,7 +1016,7 @@ impl Display for ErrorKind {
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
             ErrorKind::GenericHTMLError(error) => write!(f,"{}", error),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
-            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to… use doesn't exist. This is a bug, because if everything worked properly, you'll never see this message.</p>"),
+            ErrorKind::NonExistentFile => write!(f, "<p>The file you tried to… use doesn't exist. This is a bug, because if everything worked properly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
             ErrorKind::NotEnoughBytesToDecode => write!(f, "<p>There are not enough bytes to decode in the data you provided.</p>"),
             ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),

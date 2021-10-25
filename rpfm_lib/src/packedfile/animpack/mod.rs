@@ -81,7 +81,7 @@ impl AnimPack {
             });
         }
 
-        // If we've reached this, we've succesfully decoded the entire AnimPack.
+        // If we've reached this, we've successfully decoded the entire AnimPack.
         Ok(Self {
             packed_files: anim_packeds,
         })
@@ -180,7 +180,7 @@ impl AnimPack {
 
     pub fn get_file_paths_from_path_types(&self, path_types: &[PathType]) -> Vec<Vec<String>> {
 
-        // Keep the PathTypes added so we can return them to the UI easely.
+        // Keep the PathTypes added so we can return them to the UI easily.
         let path_types = PathType::dedup(path_types);
 
         // As this can get very slow very quickly, we do here some... optimizations.

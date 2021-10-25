@@ -1633,7 +1633,7 @@ impl PackFile {
             },
 
             // No paths selected, none selected, invalid path selected, or invalid value.
-            0 | 8..=255 => return Err(ErrorKind::NonExistantFile.into()),
+            0 | 8..=255 => return Err(ErrorKind::NonExistentFile.into()),
         }
 
         // If there is any error in the list, report it.
@@ -2852,11 +2852,11 @@ impl PackFile {
             packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
-            let is_compressable = !matches!(PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false), PackedFileType::DB | PackedFileType::Loc);
+            let is_compressible = !matches!(PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false), PackedFileType::DB | PackedFileType::Loc);
             let (_, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
 
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile. EXCEPT FOR TABLES. NEVER COMPRESS TABLES.
-            if !is_compressable {
+            if !is_compressible {
                 *should_be_compressed = false;
             }
 
@@ -2869,7 +2869,7 @@ impl PackFile {
                 *is_compressed = false;
             }
 
-            // Encryption is not yet supported. Unencrypt everything.
+            // Encryption is not yet supported. Decrypt everything.
             if is_encrypted.is_some() {
                 *data = decrypt_packed_file(data);
                 *is_encrypted = None;
@@ -2991,7 +2991,7 @@ impl PackFile {
     }
 }
 
-/// Implementaion of trait `Default` for `PackFile`.
+/// Implementation of trait `Default` for `PackFile`.
 impl Default for PackFile {
 
     /// This function creates a new empty `PackFile`.
@@ -3020,7 +3020,7 @@ impl From<&PackFile> for PackFileInfo {
 /// Implementation of `Manifest`.
 impl Manifest {
 
-    /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
+    /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parsable.
     pub fn read_from_game_selected() -> Result<Self> {
         let mut manifest_path = GAME_SELECTED.read().unwrap().get_data_path().map_err(|_| Error::from(ErrorKind::GameManifestNotFound))?;
         manifest_path.push("manifest.txt");
@@ -3064,7 +3064,7 @@ impl Manifest {
         Ok(manifest)
     }
 
-    /// This function returns a parsed version of the `manifest.txt` in the folder you provided, if exists and is parseable.
+    /// This function returns a parsed version of the `manifest.txt` in the folder you provided, if exists and is parsable.
     pub fn read_from_folder(path: &Path) -> Result<Self> {
         let manifest_path = path.join("manifest.txt");
 
@@ -3197,28 +3197,28 @@ impl PackFileSettings {
     }
 }
 
-/// Implementaion of trait `Default` for `PFHFlags`.
+/// Implementation of trait `Default` for `PFHFlags`.
 impl Default for PFHFlags {
     fn default() -> Self {
         Self::empty()
     }
 }
 
-/// Implementaion of trait `Default` for `PFHVersion`.
+/// Implementation of trait `Default` for `PFHVersion`.
 impl Default for PFHVersion {
     fn default() -> Self {
         Self::PFH6
     }
 }
 
-/// Implementaion of trait `Default` for `PFHFileType`.
+/// Implementation of trait `Default` for `PFHFileType`.
 impl Default for PFHFileType {
     fn default() -> Self {
         Self::Mod
     }
 }
 
-/// Implementaion of trait `Default` for `CompressionState`.
+/// Implementation of trait `Default` for `CompressionState`.
 impl Default for CompressionState {
     fn default() -> Self {
         Self::Disabled
