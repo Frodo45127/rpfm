@@ -15,7 +15,20 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          
+
+      - name: Cache build target
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Build rpfm-lib
         uses: actions-rs/cargo@v1
         with:
