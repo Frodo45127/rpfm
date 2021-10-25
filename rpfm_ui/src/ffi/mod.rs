@@ -57,11 +57,11 @@ use crate::UI_STATE;
 //---------------------------------------------------------------------------//
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
-pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_length: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, max_length: i32, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
     let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
-    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_lenght, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+    unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, max_length, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
@@ -81,11 +81,11 @@ pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i
 }
 
 /// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
-extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
-pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_lenght: i32, timer: &Ptr<QTimer>, has_filter: bool) {
+extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_length: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
+pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, max_length: i32, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
     let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
-    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_lenght, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
+    unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, max_length, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 /// This function changes the default delegate for all cell types that doesn't have a specific delegate already.

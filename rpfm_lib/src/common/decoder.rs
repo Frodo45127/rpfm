@@ -126,7 +126,7 @@ pub trait Decoder {
     /// This function allows us to decode an u64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u64(&self, offset: usize, index: &mut usize) -> Result<u64>;
 
-    /// This function allows us to decode an unsigned leb128 variant-lenght integer (CA's own twist and flavour) from raw data, moving the provided index to the byte where the next data starts.
+    /// This function allows us to decode an unsigned leb128 variant-length integer (CA's own twist and flavour) from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_cauleb128(&self, index: &mut usize) -> Result<u32>;
 
     /// This function allows us to decode an i8 integer from raw data, moving the provided index to the byte where the next data starts.

@@ -873,7 +873,7 @@ impl Table {
             .flexible(true)
             .from_path(&path)?;
 
-        // If we succesfully load the TSV file into a reader, check the first line to get the column list.
+        // If we successfully load the TSV file into a reader, check the first line to get the column list.
         let field_order = reader.headers()?.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
         let mut entries = vec![];
         let mut fields_processed = vec![];
@@ -882,7 +882,7 @@ impl Table {
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
-                // The second line contains the TSV metadata. It may have it splitted in three columns, or just one.
+                // The second line contains the TSV metadata. It may have it split in three columns, or just one.
                 if row == 0 {
                     let has_legacy_structure = if let Some(table_type) = record.get(1) { table_type != "" } else { false };
 
@@ -977,7 +977,7 @@ impl Table {
             .flexible(true)
             .from_path(&source_path)?;
 
-        // If we succesfully load the TSV file into a reader, check the first line to get the column list.
+        // If we successfully load the TSV file into a reader, check the first line to get the column list.
         let field_order = reader.headers()?.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
         let mut entries = vec![];
         let mut fields_processed = vec![];

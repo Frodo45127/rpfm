@@ -12,7 +12,7 @@
 Module with all the code for extra implementations of `AppUI`.
 
 This module contains the implementation of custom functions for `AppUI`. The reason
-they're here and not in the main file is because I don't want to polute that one,
+they're here and not in the main file is because I don't want to pollute that one,
 as it's mostly meant for initialization and configuration.
 !*/
 
@@ -1776,7 +1776,7 @@ impl AppUI {
         Self::update_views_names(app_ui);
     }
 
-    /// This function is used to open the settings embebed into a PackFile.
+    /// This function is used to open the settings embedded into a PackFile.
     pub unsafe fn open_packfile_settings(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -1849,7 +1849,7 @@ impl AppUI {
             }
         }
 
-        // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
+        // Create the "New PackedFile" dialog and wait for his data (or a cancellation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
         if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, packed_file_type) {
             match new_packed_file {
@@ -2497,13 +2497,13 @@ impl AppUI {
             app_ui.timer_backup_autosave.start_0a();
         }
 
-        // Disable the main window, so the user can't interrupt the process or iterfere with it.
+        // Disable the main window, so the user can't interrupt the process or interfere with it.
         let window_was_disabled = app_ui.main_window.is_enabled();
         if !window_was_disabled {
             app_ui.main_window.set_enabled(false);
         }
 
-        // Close any open PackedFile and clear the global search pannel.
+        // Close any open PackedFile and clear the global search panel.
         let _ = AppUI::purge_them_all(app_ui,  pack_file_contents_ui, false);
         GlobalSearchUI::clear(global_search_ui);
         diagnostics_ui.get_ref_diagnostics_table_model().clear();

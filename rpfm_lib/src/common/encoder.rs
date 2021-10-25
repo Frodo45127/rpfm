@@ -28,7 +28,7 @@ use rpfm_error::{ErrorKind, Result};
 //                      `Encoder` Trait Definition
 //---------------------------------------------------------------------------//
 
-/// This trair allow us to easely encode all kinds of data to a `Vec<u8>`.
+/// This trait allow us to easily encode all kinds of data to a `Vec<u8>`.
 pub trait Encoder {
 
     /// This function allows us to encode a boolean to a byte of a `Vec<u8>`.
@@ -93,10 +93,10 @@ pub trait Encoder {
     /// longer than the provided size, we throw an error.
     fn encode_string_u16_0padded(&mut self, string: &(&str, usize)) -> Result<()>;
 
-    /// This function allows us to encode an UTF-8 String with his lenght (u16) before the String into the provided `Vec<u8>`..
+    /// This function allows us to encode an UTF-8 String with his length (u16) before the String into the provided `Vec<u8>`..
     fn encode_packedfile_string_u8(&mut self, string: &str);
 
-    /// This function allows us to encode an UTF-16 String with his lenght (u16) before the String into the provided `Vec<u8>`..
+    /// This function allows us to encode an UTF-16 String with his length (u16) before the String into the provided `Vec<u8>`..
     fn encode_packedfile_string_u16(&mut self, string: &str);
 
     /// This function allows us to encode an UTF-8 Optional String into the provided `Vec<u8>`.
@@ -201,7 +201,7 @@ impl Encoder for Vec<u8> {
             self.extend_from_slice(&vec![0; size - string.len()]);
             Ok(())
         } else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a lenght of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
+            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
         }
     }
 
@@ -215,7 +215,7 @@ impl Encoder for Vec<u8> {
             self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
             Ok(())
         } else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-16 0-Padded String: \"{}\" has a lenght of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
+            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-16 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
         }
     }
 

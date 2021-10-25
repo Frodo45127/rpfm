@@ -2185,12 +2185,12 @@ tt_settings_autosave_amount = Задаёт максимальное количе
 restart_button = Перезапустить
 error_not_booted_from_launcher = Это окно { -app(case: "genitive") } было открыто путём непосредственного запуска исполняемого файла «rpfm_ui.exe». Начиная с { -app } v2.3.102, Вам следует запускать программу, используя исполняемый файл «rpfm.exe» (или эквивалентный ему) для поддержки некоторых функций системы обновления.
 
-install_sucess = { -packfile } успешно установлен{ -packfile.gender ->
+install_success = { -packfile } успешно установлен{ -packfile.gender ->
        *[masculine] { "" }
         [feminine] а
         [other] о
     }.
-uninstall_sucess = { -packfile } успешно удал{ -packfile.gender ->
+uninstall_success = { -packfile } успешно удал{ -packfile.gender ->
        *[masculine] ён
         [feminine] ена
         [other] ено

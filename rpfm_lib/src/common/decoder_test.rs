@@ -287,7 +287,7 @@ fn test_decode_packedfile_integer_u8() {
         assert_eq!(index, 1);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 1.
+    // Check the decoder returns an error for a slice whose length is smaller than 1.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_u8([].as_ref(), 0, &mut index).is_err(), true);
@@ -307,7 +307,7 @@ fn test_decode_packedfile_integer_u16() {
         assert_eq!(index, 2);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 2.
+    // Check the decoder returns an error for a slice whose length is smaller than 2.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_u16([10].as_ref(), 0, &mut index).is_err(), true);
@@ -328,7 +328,7 @@ fn test_decode_packedfile_integer_u24() {
     }
 
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 3.
+    // Check the decoder returns an error for a slice whose length is smaller than 3.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_u24([152, 150].as_ref(), 0, &mut index).is_err(), true);
@@ -349,7 +349,7 @@ fn test_decode_packedfile_integer_u32() {
     }
 
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 4.
+    // Check the decoder returns an error for a slice whose length is smaller than 4.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_u32([10, 0].as_ref(), 0, &mut index).is_err(), true);
@@ -369,7 +369,7 @@ fn test_decode_packedfile_integer_u64() {
         assert_eq!(index, 8);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 8.
+    // Check the decoder returns an error for a slice whose length is smaller than 8.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_u64([10, 0].as_ref(), 0, &mut index).is_err(), true);
@@ -401,7 +401,7 @@ fn test_decode_packedfile_integer_i8() {
         assert_eq!(index, 1);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 1.
+    // Check the decoder returns an error for a slice whose length is smaller than 1.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i8([].as_ref(), 0, &mut index).is_err(), true);
@@ -421,7 +421,7 @@ fn test_decode_packedfile_integer_i16() {
         assert_eq!(index, 2);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 2.
+    // Check the decoder returns an error for a slice whose length is smaller than 2.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i16([10].as_ref(), 0, &mut index).is_err(), true);
@@ -442,7 +442,7 @@ fn test_decode_packedfile_integer_i24() {
     }
 
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 3.
+    // Check the decoder returns an error for a slice whose length is smaller than 3.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i24([152, 150].as_ref(), 0, &mut index).is_err(), true);
@@ -462,7 +462,7 @@ fn test_decode_packedfile_integer_i32() {
         assert_eq!(index, 4);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 4.
+    // Check the decoder returns an error for a slice whose length is smaller than 4.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i32([10, 0].as_ref(), 0, &mut index).is_err(), true);
@@ -483,7 +483,7 @@ fn test_decode_packedfile_integer_i64() {
     }
 
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 8.
+    // Check the decoder returns an error for a slice whose length is smaller than 8.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_integer_i64([10, 0].as_ref(), 0, &mut index).is_err(), true);
@@ -503,7 +503,7 @@ fn test_decode_packedfile_float_f32() {
         assert_eq!(index, 4);
     }
 
-    // Check the decoder returns an error for a slice whose lenght is smaller than 4.
+    // Check the decoder returns an error for a slice whose length is smaller than 4.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_float_f32([10, 0].as_ref(), 0, &mut index).is_err(), true);
@@ -530,7 +530,7 @@ fn test_decode_packedfile_string_u8() {
         assert_eq!(index, 0);
     }
 
-    // Check the decoder returns an error for a slice shorter than it's specified lenght.
+    // Check the decoder returns an error for a slice shorter than it's specified length.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_string_u8([4, 0, 2].as_ref(), 0, &mut index).is_err(), true);
@@ -591,7 +591,7 @@ fn test_decode_packedfile_string_u16() {
         assert_eq!(index, 0);
     }
 
-    // Check the decoder returns an error for a slice shorter than it's specified lenght.
+    // Check the decoder returns an error for a slice shorter than it's specified length.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_string_u16([4, 0, 2].as_ref(), 0, &mut index).is_err(), true);
@@ -639,7 +639,7 @@ fn test_decode_packedfile_optional_string_u8() {
         assert_eq!(index, 0);
     }
 
-    // Check the decoder returns an error for a slice shorter than it's specified lenght.
+    // Check the decoder returns an error for a slice shorter than it's specified length.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_optional_string_u8([1, 4, 0, 2].as_ref(), 0, &mut index).is_err(), true);
@@ -680,7 +680,7 @@ fn test_decode_packedfile_optional_string_u16() {
         assert_eq!(index, 0);
     }
 
-    // Check the decoder returns an error for a slice shorter than it's specified lenght.
+    // Check the decoder returns an error for a slice shorter than it's specified length.
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_optional_string_u16([1, 4, 0, 2].as_ref(), 0, &mut index).is_err(), true);

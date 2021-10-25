@@ -796,7 +796,7 @@ impl PackFileContentsSlots {
                             }
 
                             // Ok, problem here: the view expects you pass the exact items renamed, NOT THE GODDAM FILES!!!!
-                            // which menas in case of folders we have turn all those "renamed items" into a big "renamed folder".
+                            // which means in case of folders we have turn all those "renamed items" into a big "renamed folder".
                             // What a fucking planning mess.
                             let renamed_items_view: Vec<(TreePathType, Vec<String>)> = renaming_data_background.iter().map(|(x, y)| {
                                 let path = if let PathType::File(path) | PathType::Folder(path) = x {
@@ -865,7 +865,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
 
-                // Create the "New Folder" dialog and wait for a new name (or a cancelation).
+                // Create the "New Folder" dialog and wait for a new name (or a cancellation).
                 if let Some(new_folder_name) = AppUI::new_folder_dialog(&app_ui) {
 
                     // Get the currently selected paths, and only continue if there is only one.
@@ -1104,7 +1104,7 @@ impl PackFileContentsSlots {
                 // Don't do anything if there is a PackedFile open. This fixes the situation where you could overwrite data already in the UI.
                 //if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
 
-                // Create the "Mass-Import TSV" dialog and wait for his data (or a cancelation).
+                // Create the "Mass-Import TSV" dialog and wait for his data (or a cancellation).
                 if let Some(data) = PackFileContentsUI::create_mass_import_tsv_dialog(&app_ui) {
 
                     // If there is no name provided, nor TSV file selected, return an error.

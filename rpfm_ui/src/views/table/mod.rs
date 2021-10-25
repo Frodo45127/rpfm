@@ -620,7 +620,7 @@ impl TableView {
         FilterView::new(&packed_file_table_view);
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
-        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+        // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
             &packed_file_table_view.get_mut_ptr_table_view_primary(),
             &packed_file_table_view.get_mut_ptr_table_view_frozen(),
@@ -656,7 +656,7 @@ impl TableView {
 
     /// Function to reload the data of the view without having to delete the view itself.
     ///
-    /// NOTE: This allows for a table to change it's definition on-the-fly, so be carefull with that!
+    /// NOTE: This allows for a table to change it's definition on-the-fly, so be careful with that!
     pub unsafe fn reload_view(&self, data: TableType) {
         let table_view_primary = &self.get_mut_ptr_table_view_primary();
         let table_view_frozen = &self.get_mut_ptr_table_view_frozen();
@@ -679,7 +679,7 @@ impl TableView {
         *self.table_definition.write().unwrap() = table_definition;
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
-        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+        // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
             table_view_primary,
             table_view_frozen,
@@ -1070,7 +1070,7 @@ impl TableSearch {
         self.matches.iter().filter(|x| x.1.is_some()).map(|x| x.0).collect()
     }
 
-    /// This function takes care of searching data whithin a column, and adding the matches to the matches list.
+    /// This function takes care of searching data within a column, and adding the matches to the matches list.
     unsafe fn find_in_column(
         &mut self,
         model: Ptr<QStandardItemModel>,

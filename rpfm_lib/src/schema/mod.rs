@@ -101,7 +101,7 @@ pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
 pub const REMOTE: &str = "origin";
 pub const BRANCH: &str = "master";
 
-/// Current structural version of the Schema, for compatibility purpouses.
+/// Current structural version of the Schema, for compatibility purposes.
 const CURRENT_STRUCTURAL_VERSION: u16 = 3;
 
 //---------------------------------------------------------------------------//
@@ -175,7 +175,7 @@ pub struct Field {
     /// The default value of the field.
     default_value: Option<String>,
 
-    /// The max allowed lenght for the data in the field.
+    /// The max allowed length for the data in the field.
     max_length: i32,
 
     /// If the field's data corresponds to a filename.
@@ -417,7 +417,7 @@ impl Schema {
             self.get_ref_versioned_file_db(table_name)?.get_version(table.get_ref_definition().get_version())
         }
 
-        // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for
+        // If there was no coincidence in the dependency database... we risk ourselves getting the last definition we have for
         // that db from the schema.
         else{
             let versioned_file = self.get_ref_versioned_file_db(table_name)?;
@@ -697,7 +697,7 @@ impl Schema {
             Err(ErrorKind::NoSchemaUpdatesAvailable.into())
         }
 
-        // If we can do a fast-forward, we do it. This is the prefered option.
+        // If we can do a fast-forward, we do it. This is the preferred option.
         else if analysis.0.is_fast_forward() {
             let mut reference = repo.find_reference(&master_refname)?;
             reference.set_target(fetch_commit_id, "Fast-Forward")?;
@@ -963,7 +963,7 @@ impl Definition {
     ///
     /// Not all data is updated though, only:
     /// - Is Key.
-    /// - Max Lenght.
+    /// - Max Length.
     /// - Default Value.
     /// - Filename Relative Path.
     /// - Is Filename.
@@ -978,9 +978,9 @@ impl Definition {
                         field.is_key = raw_field.primary_key == "1";
                     }
 
-                    if let Some(ref lenght) = raw_field.max_length {
-                        if let Ok(lenght) = lenght.parse::<i32>() {
-                            field.max_length = lenght;
+                    if let Some(ref length) = raw_field.max_length {
+                        if let Ok(length) = length.parse::<i32>() {
+                            field.max_length = length;
                         }
                     }
 

@@ -37,7 +37,7 @@ pub type Result<T> = result::Result<T, Error>;
 //                      Definition of the Types
 //---------------------------------------------------------------------------//
 
-/// Custom `Error` Type. One type to hold them all...
+/// Custom `Error` Type. One type to hold them all…
 ///
 /// This type implements the `Display` trait to return a meaningful, user-readable error message.
 /// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
@@ -177,8 +177,8 @@ pub enum ErrorKind {
     /// Error for when we try to open a PackFile, but don't provide his path.
     PackFileNoPathProvided,
 
-    /// Error for when doing mass-loading and we hit an uknown PFHFileType.
-    PackFileTypeUknown,
+    /// Error for when doing mass-loading and we hit an unknown PFHFileType.
+    PackFileTypeUnknown,
 
     // Error for when we try to load an unsupported PackFile.
     //PackFileNotSupported,
@@ -794,7 +794,7 @@ impl Display for ErrorKind {
             ErrorKind::OpenPackFileGeneric(name, error) => write!(f, "<p>Error while trying to open the PackFile \"{}\":</p><p>{}</p>", name, error),
             ErrorKind::SavePackFileGeneric(error) => write!(f, "<p>Error while trying to save the currently open PackFile:</p><p>{}</p>", error),
             ErrorKind::PackFileNoPathProvided => write!(f, "<p>No PackFile's path was provided.</p>"),
-            ErrorKind::PackFileTypeUknown => write!(f, "<p>The provided PackFile has an Unkwnon PackFile type, which means it cannot be loaded with others. Open it alone if you want to see his contents.</p>"),
+            ErrorKind::PackFileTypeUnknown => write!(f, "<p>The provided PackFile has an Unknown PackFile type, which means it cannot be loaded with others. Open it alone if you want to see his contents.</p>"),
             /*ErrorKind::PackFileNotSupported => write!(f, "
             <p>The file is not a supported PackFile.</p>
             <p>For now, we only support:</p>
@@ -821,7 +821,7 @@ impl Display for ErrorKind {
             ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
             ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
-            ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
+            ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So… the view showing it will get closed.</p>"),
             ErrorKind::PackFileIsAlreadyInDataFolder => write!(f, "<p>This PackFile is already being edited from the data folder of the game. You cannot install/uninstall it.</p>"),
 
             //-----------------------------------------------------//
@@ -843,30 +843,30 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileIsOpenInAnotherView => write!(f, "<p>That PackedFile is already open in another view. Opening the same PackedFile in multiple views is not supported.</p>"),
             ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
             ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
-            ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
+            ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
             ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
             ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
             ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
             ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
-            ErrorKind::PackedFileSourceChanged => write!(f, "<p>The PackFile's data has been altered on disk outside RPFM. If you see this, it means you're using lazy-loading and another program has altered the data on disk before RPFM could load it to memory.</p><p><b>Basically, this means your PackFile got partially corrupted.</b></p><p>Luckily, not all is lost. Your original PackFile on disk should still be safe, and RPFM can recover part of the files inside the open PackFile: DB tables, Locs and any PackedFile open before this message appeared. To do that, go to Special Stuff and hit '<b><i>Rescue PackFile</i></b>', then choose a folder to save the clean PackFile.</p><p>That will create a PackFile with only the files that were confirmed as non-corrupted, so at least you can recover their data.</p><p>And some final words: If you intentionally opened the same PackFile in two instances of RPFM and tried to save on both, that was the cause of this. No, it's not a bug in RPFM. No, I can't magically fix it. It's how lazy-loading data from disk works. If you don't like it, you can disable lazy-loading in the settings. You'll be resistant to PackFile corruption, but RPFM will use a ton more RAM. So... choose your poison.</p><p><b>Note:</b> If this message appeared while adding files from a PackFile, you're save. Just close the 'Add From PackFile' tab and open it again.</p>"),
+            ErrorKind::PackedFileSourceChanged => write!(f, "<p>The PackFile's data has been altered on disk outside RPFM. If you see this, it means you're using lazy-loading and another program has altered the data on disk before RPFM could load it to memory.</p><p><b>Basically, this means your PackFile got partially corrupted.</b></p><p>Luckily, not all is lost. Your original PackFile on disk should still be safe, and RPFM can recover part of the files inside the open PackFile: DB tables, Locs and any PackedFile open before this message appeared. To do that, go to Special Stuff and hit '<b><i>Rescue PackFile</i></b>', then choose a folder to save the clean PackFile.</p><p>That will create a PackFile with only the files that were confirmed as non-corrupted, so at least you can recover their data.</p><p>And some final words: If you intentionally opened the same PackFile in two instances of RPFM and tried to save on both, that was the cause of this. No, it's not a bug in RPFM. No, I can't magically fix it. It's how lazy-loading data from disk works. If you don't like it, you can disable lazy-loading in the settings. You'll be resistant to PackFile corruption, but RPFM will use a ton more RAM. So… choose your poison.</p><p><b>Note:</b> If this message appeared while adding files from a PackFile, you're save. Just close the 'Add From PackFile' tab and open it again.</p>"),
             ErrorKind::PackedFileTypeIsNotWhatWeExpected(found_type, expected_type) => write!(f, "<p>The PackedFile's type is not what we expected. We expected {} but found {}. This is either a bug or you did weird things with the game selected.</p>", expected_type, found_type),
             ErrorKind::PackFileIsACAPackFile => write!(f, "<p>You can't do that to a CA PackFile, you monster!</p>"),
-            ErrorKind::PackedFileIncompleteDecoding => write!(f, "<p>The PackedFile has been decoded, but there's still part of it undecoded. This means the decoder logic is incomplete for this PackedFile.</p>"),
+            ErrorKind::PackedFileIncompleteDecoding => write!(f, "<p>The PackedFile has been decoded, but there's still part of it that's not decoded. This means the decoder logic is incomplete for this PackedFile.</p>"),
 
             //--------------------------------//
             // Table Errors
             //--------------------------------//
             ErrorKind::TableRowWrongFieldCount(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a row with \"{}\" fields, but we got a row with \"{}\" fields instead.</p>", expected, real),
             ErrorKind::TableWrongFieldType(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a field of type \"{}\", but we got a field of type \"{}\".</p>", expected, real),
-            ErrorKind::TableEmptyWithNoDefinition => write!(f, "<p>This table is empty and there is not a Definition for it. That means is undecodeable.</p>"),
+            ErrorKind::TableEmptyWithNoDefinition => write!(f, "<p>This table is empty and there is not a Definition for it. That means it cannot be decoded.</p>"),
 
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//
             ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
-            ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
+            ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so it cannot be decoded for now.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p><p>Before anything else, please check your game selected is really the one this PackFile is for! If it isn't, change your game selected and try again.</p>", cause),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
@@ -1016,12 +1016,12 @@ impl Display for ErrorKind {
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
             ErrorKind::GenericHTMLError(error) => write!(f,"{}", error),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
-            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
+            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to… use doesn't exist. This is a bug, because if everything worked properly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
             ErrorKind::NotEnoughBytesToDecode => write!(f, "<p>There are not enough bytes to decode in the data you provided.</p>"),
             ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),
             ErrorKind::GameSelectedPathNotCorrectlyConfigured => write!(f, "<p>The Game Selected's Path is not properly configured.</p>"),
-            ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,...) after that.</p>", name),
+            ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,…) after that.</p>", name),
             ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
             ErrorKind::DecoderDecode(cause) => write!(f, "<p>Error while trying to load the following PackedFile to the decoder:</p><p>{}</p>", cause),
             ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
@@ -1034,7 +1034,7 @@ impl Display for ErrorKind {
             ErrorKind::CannotFindExtraPackFile(path) => write!(f, "<p>Cannot find extra PackFile with path: {:?}.<p>", path),
             ErrorKind::NoAnimTableInPackFile => write!(f, "<p>No AnimTable found in the PackFile.<p>"),
             ErrorKind::NoUpdateForYourArchitecture => write!(f, "<p>No download available for your architecture.<p>"),
-            ErrorKind::ErrorExtractingUpdate => write!(f, "<p>There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so... try again later.<p>"),
+            ErrorKind::ErrorExtractingUpdate => write!(f, "<p>There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later.<p>"),
             ErrorKind::PackedFileNotDecoded => write!(f, "<p>Undecoded PackedFile. If you see this, it's a bug, so please report it.<p>"),
             ErrorKind::ManifestError => write!(f, "<p>Error while parsing the manifest.txt file of the game selected.<p>"),
             ErrorKind::TemplateUpdateError => write!(f, "<p>There was an error while downloading the templates. Please, try again later.</p>"),
@@ -1052,7 +1052,7 @@ impl Display for ErrorKind {
             ErrorKind::ToolTableColumnNotFound => write!(f, "<p>One of the columns we need is not in the table we're searching for. This means either the tool needs updating, or you have some weird tables there.</p>"),
             ErrorKind::ToolTableColumnNotOfTypeWeExpected => write!(f, "<p>One of the columns we need is not of the type we expected. This means either the tool needs updating, or you have some weird tables there.</p>"),
             ErrorKind::ToolEntryDataNotFound(value_names) => write!(f, "<p>The following values hasn't been found for this entry: {}.</p>", value_names),
-            ErrorKind::Impossibru => write!(f, "<p>I am quite interested in knowing how the hell did you managed to trigger this message, because this is a theorically impossible situation. Feel free to tell me (the author of RPFM) about it so I can fix it.</p>"),
+            ErrorKind::Impossibru => write!(f, "<p>I am quite interested in knowing how the hell did you managed to trigger this message, because this is a theoretically impossible situation. Feel free to tell me (the author of RPFM) about it so I can fix it.</p>"),
         }
     }
 }

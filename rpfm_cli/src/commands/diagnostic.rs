@@ -62,7 +62,7 @@ pub fn check(
 
             if dependencies.rebuild(&[], false).is_err() {
                 if config.verbosity_level > 0 {
-                    info!("Dependencies rebuild failed. Regenerating...");
+                    info!("Dependencies rebuild failed. Regenerating…");
                 }
 
                 let version = game_selected.get_raw_db_version();
@@ -78,7 +78,7 @@ pub fn check(
             println!("{}", serde_json::to_string_pretty(&diagnostics)?);
 
             if config.verbosity_level > 0 {
-                info!("File/s added successfully to the PackFile.");
+                info!("File(s) added successfully to the PackFile.");
             }
         },
         None => return Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),

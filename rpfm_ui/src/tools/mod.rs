@@ -133,12 +133,12 @@ impl Tool {
     pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[PathType], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
 
         // First, some checks to ensure we can actually open a tool.
-        // The requeriments for all tools are:
+        // The requirements for all tools are:
         // - Game Selected supported by the specific tool we want to open.
         // - Schema for the Game Selected.
         // - Dependencies cache generated and up-to-date.
         //
-        // These requeriments are common for all tools, so they're checked here.
+        // These requirements are common for all tools, so they're checked here.
         if tool_supported_games.iter().all(|x| *x != GAME_SELECTED.read().unwrap().get_game_key_name()) {
             return Err(ErrorKind::GameSelectedNotSupportedForTool.into());
         }

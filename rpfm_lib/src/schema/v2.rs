@@ -144,7 +144,7 @@ pub struct FieldV2 {
     /// The default value of the field.
     pub default_value: Option<String>,
 
-    /// The max allowed lenght for the data in the field.
+    /// The max allowed length for the data in the field.
     pub max_length: i32,
 
     /// If the field's data corresponds to a filename.

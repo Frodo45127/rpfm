@@ -11,7 +11,7 @@
 /*!
 Module with all the code to setup shortcuts for `DependenciesUI`.
 
-This module is, and should stay, private, as it's only here to not polute the `DependenciesUI` module.
+This module is, and should stay, private, as it's only here to not pollute the `DependenciesUI` module.
 !*/
 
 use qt_gui::QKeySequence;

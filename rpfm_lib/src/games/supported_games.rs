@@ -92,7 +92,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_troy.ron".to_owned(),
-            depenencies_cache_file_name: "troy.pak2".to_owned(),
+            dependencies_cache_file_name: "troy.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -138,7 +138,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_3k.ron".to_owned(),
-            depenencies_cache_file_name: "3k.pak2".to_owned(),
+            dependencies_cache_file_name: "3k.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -236,7 +236,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_wh2.ron".to_owned(),
-            depenencies_cache_file_name: "wh2.pak2".to_owned(),
+            dependencies_cache_file_name: "wh2.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -412,7 +412,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_wh.ron".to_owned(),
-            depenencies_cache_file_name: "wh.pak2".to_owned(),
+            dependencies_cache_file_name: "wh.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -540,7 +540,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_tob.ron".to_owned(),
-            depenencies_cache_file_name: "tob.pak2".to_owned(),
+            dependencies_cache_file_name: "tob.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -616,7 +616,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_att.ron".to_owned(),
-            depenencies_cache_file_name: "att.pak2".to_owned(),
+            dependencies_cache_file_name: "att.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -663,7 +663,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_rom2.ron".to_owned(),
-            depenencies_cache_file_name: "rom2.pak2".to_owned(),
+            dependencies_cache_file_name: "rom2.pak2".to_owned(),
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -700,7 +700,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_sho2.ron".to_owned(),
-            depenencies_cache_file_name: "sho2.pak2".to_owned(),
+            dependencies_cache_file_name: "sho2.pak2".to_owned(),
             raw_db_version: 1,
             supports_editing: true,
             db_tables_have_guid: true,
@@ -769,7 +769,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_nap.ron".to_owned(),
-            depenencies_cache_file_name: "nap.pak2".to_owned(),
+            dependencies_cache_file_name: "nap.pak2".to_owned(),
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
@@ -851,7 +851,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_emp.ron".to_owned(),
-            depenencies_cache_file_name: "emp.pak2".to_owned(),
+            dependencies_cache_file_name: "emp.pak2".to_owned(),
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
@@ -1011,7 +1011,7 @@ impl SupportedGames {
                 data
             },
             schema_file_name: "schema_are.ron".to_owned(),
-            depenencies_cache_file_name: "are.pack2".to_owned(),
+            dependencies_cache_file_name: "are.pack2".to_owned(),
             raw_db_version: -1,
             supports_editing: false,
             db_tables_have_guid: true,

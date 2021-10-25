@@ -671,7 +671,7 @@ impl GlobalSearch {
             // If we're searching a pattern, we just check every text PackedFile, line by line.
             MatchingMode::Pattern => {
                 let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
-                let lenght = self.pattern.chars().count();
+                let length = self.pattern.chars().count();
                 let mut column = 0;
 
                 for (row, data) in data.get_ref_contents().lines().enumerate() {
@@ -679,8 +679,8 @@ impl GlobalSearch {
                         if self.case_sensitive {
                             match text.find(&pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                    column += position + lenght;
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    column += position + length;
                                 }
                                 None => break,
                             }
@@ -689,8 +689,8 @@ impl GlobalSearch {
                             let text = text.to_lowercase();
                             match text.find(&pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                    column += position + lenght;
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    column += position + length;
                                 }
                                 None => break,
                             }

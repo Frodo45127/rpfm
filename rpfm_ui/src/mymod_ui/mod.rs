@@ -162,7 +162,7 @@ impl MyModUI {
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
         if let Some(ref mod_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
 
-            // If there is text and it doesn't have whitespaces...
+            // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {
                 let mut mod_path = mod_path.clone();
                 mod_path.push(mod_game);

@@ -75,7 +75,7 @@ pub fn background_loop() {
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
-    info!("Background Thread looping around...");
+    info!("Background Thread looping around…");
     loop {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
@@ -238,7 +238,7 @@ pub fn background_loop() {
             Command::SetGameSelected(game_selected) => {
                 *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.get_supported_game_from_key(&game_selected).unwrap();
 
-                // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUIILD IT AFTERWARDS.
+                // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUILD IT AFTERWARDS.
                 pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
                 *SCHEMA.write().unwrap() = Schema::load(GAME_SELECTED.read().unwrap().get_schema_name()).ok();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -1383,7 +1383,7 @@ pub fn background_loop() {
                 }
                 packed_files.insert(DataSource::PackFile, packed_files_packfile);
 
-                // Return the full list of PackedFiles requested, splited by source.
+                // Return the full list of PackedFiles requested, split by source.
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapVecStringPackedFile(packed_files));
             },
 

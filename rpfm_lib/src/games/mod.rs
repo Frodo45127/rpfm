@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module that contains the GameInfo defintion and stuff related with it.
+Module that contains the GameInfo definition and stuff related with it.
 
 !*/
 
@@ -46,7 +46,7 @@ pub struct GameInfo {
     schema_file_name: String,
 
     /// This is the name of the file containing the dependencies cache for this game.
-    depenencies_cache_file_name: String,
+    dependencies_cache_file_name: String,
 
     /// This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
     raw_db_version: i16,
@@ -104,7 +104,7 @@ pub enum InstallType {
 #[derive(GetRef, Clone, Debug)]
 struct InstallData {
 
-    /// List of vanilla packs, to be use as reference for knowning what PackFiles are vanilla in games without a manifest file.
+    /// List of vanilla packs, to be use as reference for knowing what PackFiles are vanilla in games without a manifest file.
     /// Currently only used for Empire and Napoleon. Relative to data_path.
     vanilla_packs: Vec<String>,
 
@@ -164,7 +164,7 @@ impl GameInfo {
 
     /// This function returns this Game's dependencies cache file name.
     pub fn get_dependencies_cache_file_name(&self) -> &str {
-        &self.depenencies_cache_file_name
+        &self.dependencies_cache_file_name
     }
 
     /// This function returns this Game's raw_db_version, used to identify how to process AssKit table files for this game.
@@ -250,7 +250,7 @@ impl GameInfo {
                     Ok(InstallType::WinEpic)
                 }
 
-                // If neither of those are true, asume it's wargaming/netease (arena?).
+                // If neither of those are true, assume it's wargaming/netease (arena?).
                 else {
                     Ok(InstallType::WinWargaming)
                 }

@@ -31,7 +31,7 @@ pub fn network_loop() {
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
-    info!("Network Thread looping around...");
+    info!("Network Thread looping around…");
     loop {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,

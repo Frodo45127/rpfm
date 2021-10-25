@@ -34,7 +34,7 @@ pub fn add_files(
 	destination_path: &str
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Adding File/s to the PackFile: {}", packfile);
+		info!("Adding File(s) to the PackFile: {}", packfile);
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
@@ -53,7 +53,7 @@ pub fn add_files(
 	let result = packfile.save(None);
 
     if config.verbosity_level > 0 {
-        info!("File/s added successfully to the PackFile.");
+        info!("File(s) added successfully to the PackFile.");
     }
 
     result
@@ -67,7 +67,7 @@ pub fn add_folders(
     destination_path: &str
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Adding Folder/s to the PackFile: {}.", packfile);
+		info!("Adding Folder(s) to the PackFile: {}.", packfile);
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
@@ -87,7 +87,7 @@ pub fn add_folders(
 	let result = packfile.save(None);
 
     if config.verbosity_level > 0 {
-        info!("Folder/s added successfully to the PackFile.");
+        info!("Folder(s) added successfully to the PackFile.");
     }
 
     result

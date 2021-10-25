@@ -21,7 +21,7 @@ use crate::config::Config;
 
 pub fn update(config: &Config) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Updating schemas.");
+		info!("Updating schemas…");
 	}
 
 	let result = Schema::update_schema_repo();
@@ -33,7 +33,7 @@ pub fn update(config: &Config) -> Result<()> {
 
 pub fn to_json(config: &Config) -> Result<()> {
     if config.verbosity_level > 0 {
-        info!("Converting schemas to Json.");
+        info!("Converting schemas to Json…");
     }
 
 

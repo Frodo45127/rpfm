@@ -3,11 +3,11 @@
 ## These two need to be changed for special builds, so they go first.
 
 title_only_for_the_brave = Only For The Brave
-message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But... you can check features before anyone else.</p>
+message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But… you can check features before anyone else.</p>
 
     <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version.</p>
 
-    <p>So, in "Only For The Brave" versions, it's hightly reccomended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
+    <p>So, in "Only For The Brave" versions, it's highly recommended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
     <ul>
         <li>RigidModel Editor: it has been updated, but it barely received testing. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
         <li>ESF Editor: It has received only very limited testing. If you're going to edit mods with ESF/CCD/SAVE files and don't want to edit them by accident, you can disable it in the settings.</li>
@@ -42,7 +42,7 @@ gen_loc_length = Length
 
 trololol = queek_headtaker_yes_yes
 
-### mod.rs localization
+## mod.rs localization
 
 ## Menu Bar
 
@@ -60,7 +60,7 @@ menu_bar_debug = &Debug
 new_packfile = &New PackFile
 open_packfile = &Open PackFile
 save_packfile = &Save PackFile
-save_packfile_as = Save PackFile &As...
+save_packfile_as = Save PackFile &As…
 packfile_install = &Install
 packfile_uninstall = &Uninstall
 load_all_ca_packfiles = &Load All CA PackFiles
@@ -139,18 +139,18 @@ about_check_schema_updates = Check Schema &Updates
 update_current_schema_from_asskit = Update currently loaded Schema with Assembly Kit
 generate_schema_diff = Generate Schema Diff
 
-### app_ui_extra.rs localisation
+## app_ui_extra.rs localisation
 
 ## Update Stuff
 
 update_checker = Update Checker
 update_schema_checker = Update Schema Checker
 update_template_checker = Update Template Checker
-update_searching = Searching for updates...
+update_searching = Searching for updates…
 update_button = &Update
-update_in_prog = <p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>
-update_no_local_schema = <p>No local schemas found. Do you want to download the lastest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
-update_no_local_template = <p>No local templates found. Do you want to download the lastest ones?</p><p><b>NOTE:</b> Templates are useful to bootstraps mods in a few clicks.</p>
+update_in_prog = <p>Downloading updates, don't close this window…</p> <p>This may take a while.</p>
+update_no_local_schema = <p>No local schemas found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
+update_no_local_template = <p>No local templates found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Templates are useful to bootstraps mods in a few clicks.</p>
 
 ## Folder Dialogues
 
@@ -244,7 +244,7 @@ tt_about_patreon_link = Open RPFM's Patreon page. Even if you are not interested
 tt_about_check_updates = Checks if there is any update available for RPFM.
 tt_about_check_schema_updates = Checks if there is any update available for the schemas. This is what you have to use after a game's patch.
 
-### global_search_ui/mod.rs
+## global_search_ui/mod.rs
 
 global_search = Global Search
 global_search_info = Search Info
@@ -286,38 +286,38 @@ tt_global_search_search_on_locs_checkbox = Include LOC Tables on the search.
 tt_global_search_search_on_texts_checkbox = Include any kind of Text PackedFile on the search.
 tt_global_search_search_on_schemas_checkbox = Include the currently loaded Schema on the search.
 
-### Open PackedFile Dialog
+## Open PackedFile Dialog
 
 open_packedfile_dialog_1 = Are you sure?
 open_packedfile_dialog_2 = One or more of the PackedFiles you want to replace/delete is open. Are you sure you want to do it? Hitting yes will close it.
 
-### TreeView Text/Filter
+## TreeView Text/Filter
 
 treeview_aai = AaI
 treeview_autoexpand = Auto-Expand Matches
 treeview_expand_all = &Expand All
 treeview_collapse_all = &Collapse All
 
-### TreeView Tips
+## TreeView Tips
 
-tt_context_menu_add_file = Add one or more files to the currently open PackFile. Existing files are not overwriten!
-tt_context_menu_add_folder = Add a folder to the currently open PackFile. Existing files are not overwriten!
-tt_context_menu_add_from_packfile = Add files from another PackFile to the currently open PackFile. Existing files are not overwriten!
+tt_context_menu_add_file = Add one or more files to the currently open PackFile. Existing files are not overwritten!
+tt_context_menu_add_folder = Add a folder to the currently open PackFile. Existing files are not overwritten!
+tt_context_menu_add_from_packfile = Add files from another PackFile to the currently open PackFile. Existing files are not overwritten!
 tt_context_menu_check_tables = Check all the DB Tables of the currently open PackFile for dependency errors.
 tt_context_menu_new_folder = Open the dialog to create an empty folder. Due to how the PackFiles are done, these are NOT KEPT ON SAVING if they stay empty.
 tt_context_menu_new_packed_file_anim_pack = Open the dialog to create an AnimPack.
-tt_context_menu_new_packed_file_db = Open the dialog to create a DB Table (used by the game for... most of the things).
-tt_context_menu_new_packed_file_loc = Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.
-tt_context_menu_new_packed_file_text = Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',....
+tt_context_menu_new_packed_file_db = Open the dialog to create a DB Table (used by the game for… most of the things).
+tt_context_menu_new_packed_file_loc = Open the dialog to create a Loc File (used by the game to store the texts you see in game) in the selected folder.
+tt_context_menu_new_packed_file_text = Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',….
 tt_context_menu_new_queek_packed_file = Open the dialog to create a Packedfile based on the context. For example, if you launch this in /text, it'll create a loc PackedFile.
 tt_context_menu_mass_import_tsv = Import a bunch of TSV files at the same time. It automatically checks if they are DB Tables, Locs or invalid TSVs, and imports them all at once. Existing files will be overwritten!
 tt_context_menu_mass_export_tsv = Export every DB Table and Loc PackedFile from this PackFile as TSV files at the same time. Existing files will be overwritten!
-tt_context_menu_merge_tables = Merge multple DB Tables/Loc PackedFiles into one.
+tt_context_menu_merge_tables = Merge multiple DB Tables/Loc PackedFiles into one.
 tt_context_menu_update_tables = Update a table to the last known working version of it for the Current game Selected.
 tt_context_menu_delete = Delete the selected File/Folder.
 
 tt_context_menu_extract = Extract the selected File/Folder from the PackFile.
-tt_context_menu_rename = Rename the selected File/Folder. Remember, whitespaces are NOT ALLOWED and duplicated names in the same folder will NOT BE RENAMED.
+tt_context_menu_rename = Rename the selected File/Folder. Remember, whitespace is NOT ALLOWED and duplicated names in the same folder will NOT BE RENAMED.
 tt_context_menu_open_decoder = Open the selected table in the DB Decoder. To create/update schemas.
 tt_context_menu_open_dependency_manager = Open the list of PackFiles referenced from this PackFile.
 tt_context_menu_open_containing_folder = Open the currently open PackFile's location in your default file manager.
@@ -342,7 +342,7 @@ mass_import_use_original_filename = Use original filename:
 mass_import_import = Import
 mass_import_default_name = new_imported_file
 
-mass_import_select = Select TSV Files to Import...
+mass_import_select = Select TSV Files to Import…
 
 files_to_import = Files to import: {"{"}{"}"}.
 
@@ -355,9 +355,9 @@ table_enable_lookups = Use Lookups
 
 ### Contextual Menu for TreeView
 
-context_menu_add = &Add...
-context_menu_create = &Create...
-context_menu_open = &Open...
+context_menu_add = &Add…
+context_menu_create = &Create…
+context_menu_open = &Open…
 
 context_menu_add_file = &Add File
 context_menu_add_files = Add File/s
@@ -479,7 +479,7 @@ tt_ui_table_disable_combos_tip = If you disable this, no more combos will be sho
 tt_ui_table_extend_last_column_tip = If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.
 tt_ui_table_tight_table_mode_tip = If you enable this, the vertical useless space in tables will be reduced, so you can see more data at the same time.
 tt_ui_table_remember_column_visual_order_tip = Enable this to make RPFM remember the visual order of the columns of a DB Table/LOC, when closing it and opening it again.
-tt_ui_table_remember_table_state_permanently_tip = If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.
+tt_ui_table_remember_table_state_permanently_tip = If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table, …) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.
 tt_ui_window_start_maximized_tip = If you enable this, RPFM will start maximized.
 
 
@@ -487,7 +487,7 @@ tt_extra_network_check_updates_on_start_tip = If you enable this, RPFM will chec
     Whether download it or not is up to you.
 tt_extra_network_check_schema_updates_on_start_tip = If you enable this, RPFM will check for schema updates at the start of the program,
     and allow you to automatically download it if there is any update available.
-tt_extra_packfile_allow_editing_of_ca_packfiles_tip = By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as those are the only ones used for modding.
+tt_extra_packfile_allow_editing_of_ca_packfiles_tip = By default, only PackFiles of Type 'Mod' and 'Movie' can be edited, as those are the only ones used for modding.
     If you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!
 tt_extra_packfile_optimize_not_renamed_packedfiles_tip = If you enable this, when running the 'Optimize PackFile' feature RPFM will optimize Tables and Locs that have the same name as their vanilla counterparts.
     Usually, those files are intended to fully override their vanilla counterparts, so by default (this setting off) they are ignored by the optimizer. But it can be useful sometimes to optimize them too (AssKit including too many files), so that's why this setting exists.
@@ -506,7 +506,7 @@ tt_diagnostics_trigger_diagnostics_on_table_edit_tip = Enable this to trigger a 
 
 format = Format:
 version = Version:
-header_len = Header Lenght:
+header_len = Header Length:
 codec_four_cc = Codec Four CC:
 width = Width:
 height = Height:
@@ -540,7 +540,7 @@ api_response_success_new_stable_update = <h4>New major stable update found: {"{"
 api_response_success_new_beta_update = <h4>New beta update found: {"{"}{"}"}</h4><p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>
 api_response_success_new_update_hotfix = <h4>New minor update/hotfix found: {"{"}{"}"}</h4><p>Please, make sure to save your work in progress before hitting 'Update', or you may lose it.</p>
 api_response_success_no_update = <h4>No new updates available</h4> <p>More luck next time :)</p>
-api_response_success_unknown_version = <h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>
+api_response_success_unknown_version = <h4>Error while checking new updates</h4> <p>There has been a problem when getting the latest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>
 api_response_error = <h4>Error while checking new updates :(</h4> {"{"}{"}"}
 
 schema_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
@@ -560,18 +560,20 @@ game_selected_unsupported_operation = This operation is not supported for the Ga
 
 optimize_packfile_success = PackFile optimized.
 update_current_schema_from_asskit_success = Currently loaded schema updated.
-generate_schema_diff_success = Diff generated succesfully.
+generate_schema_diff_success = Diff generated successfully.
 settings_font_title = Font Settings
 
 title_success = Success!
 title_error = Error!
 
-rename_instructions = It's easy, but you'll not understand it without an example, so here it's one:
-     - Your files/folders says 'you' and 'I'.
-     - Write 'whatever {"{"}x{"}"} want' in the box below.
-     - Hit 'Accept'.
-     - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
-    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
+rename_instructions = <p>It's easy, but you'll not understand it without an example, so here it's one:</p>
+    <ul>
+        <li>Your files/folders says 'you' and 'I'.</li>
+        <li>Write 'whatever {"{"}x{"}"} want' in the box below.</li>
+        <li>Hit 'Accept'.</li>
+        <li>RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.</li>
+    </ul>
+    <p>And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.</p>
 
 update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.
 no_errors_detected = No errors detected.
@@ -582,22 +584,24 @@ column_tooltip_3 = Fields that reference this column:
 column_tooltip_4 = This field expects the path of a file.
 column_tooltip_5 = This field expect the name of a file under the following path:
 
-tsv_select_title = Select TSV File to Import...
-tsv_export_title = Export TSV File...
+tsv_select_title = Select TSV File to Import…
+tsv_export_title = Export TSV File…
 
 rewrite_selection_title = Rewrite Selection
 rewrite_selection_instructions_title = Instructions
-rewrite_selection_instructions = Legend says:
-     - {"{"}x{"}"} means current value.
-     - {"{"}y{"}"} means current column.
-     - {"{"}z{"}"} means current row.
+rewrite_selection_instructions = <p>Legend says:</p>
+    <ul>
+        <li>{"{"}x{"}"} means current value.</li>
+        <li>{"{"}y{"}"} means current column.</li>
+        <li>{"{"}z{"}"} means current row.</li>
+    </ul>
 rewrite_selection_is_math = Is a math operation?
 rewrite_selection_placeholder = Write here whatever you want.
 rewrite_selection_accept = Accept
 
-context_menu_apply_submenu = A&pply...
-context_menu_clone_submenu = &Clone...
-context_menu_copy_submenu = &Copy...
+context_menu_apply_submenu = A&pply…
+context_menu_clone_submenu = &Clone…
+context_menu_copy_submenu = &Copy…
 context_menu_add_rows = &Add Row
 context_menu_insert_rows = &Insert Row
 context_menu_delete_rows = &Delete Row
@@ -638,7 +642,7 @@ nested_table_accept = Accept
 
 about_check_template_updates = Check Template Updates
 uodate_templates_success = Templates updated correctly.
-tt_uodate_templates = This command attemps to update your templates.
+tt_uodate_templates = This command attempts to update your templates.
 
 integer_1 = Unknown integer 1:
 integer_2 = Unknown integer 2:
@@ -647,7 +651,7 @@ settings_update_channel = Update Channel
 update_success_main_program = <h4>RPFM updated correctly!</h4> <p>To check what changed in this update, check this link: <a href='file:///{"{"}{"}"}'>CHANGELOG.md</a>. If you're updating to a beta, the relevant changes are on the "Unreleased" section.</p> <p>Please, restart the program for the changes to apply.</p>
 
 settings_autosave_interval = Autosave Interval (min)
-autosaving = Autosaving...
+autosaving = Autosaving…
 autosaved = Autosaved
 error_autosave_non_editable = This PackFile cannot be autosaved.
 
@@ -700,30 +704,39 @@ diagnostic_show = Show?
 dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a PackFile to this list will load that PackFile if present EVEN IF IT'S NOT SELECTED IN THE MOD MANAGER!</b></p><p></p>
 
 context_menu_open_packfile_settings = Open PackFile Settings
-pfs_diagnostics_files_to_ignore_label = <p><b><i>PackedFiles to Ignore on Diagnostics Check</i></b></p>
-pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other things (like providing reference data) but they will not be analyzed.</p><p><b>One path per line. Comment lines with #.</b> The following are valid examples</p>
-    <ul>
+pfs_diagnostics_files_to_ignore_label =
+    <span>&nbsp;</span>
+    <h3>PackedFiles to Ignore on Diagnostics Check</h3>
+pfs_diagnostics_files_to_ignore_description_label =
+    <span>&nbsp;</span>
+    <p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other things (like providing reference data) but they will not be analyzed.</p><p><b>One path per line. Comment lines with #.</b> The following are valid examples:</p>
+    <ul style="list-style-type: none">
         <li>
-        <i><b>db/land_units_tables</b></i> => All tables in that folder will be ignored.
+            <code>db/land_units_tables</code>
+            <ul><li>All tables in that folder will be ignored.</li></ul>
         </li>
         <li>
-        <i><b>db/land_units_tables/table1</b></i> => That exact table will be ignored.
+            <code>db/land_units_tables/table1</code>
+            <ul><li>That exact table will be ignored.</li></ul>
         </li>
         <li>
-        <i><b>db/land_units_tables/table2;field1,field2</b></i> => Only those two fields of that specific table will be ignored.
+            <code>db/land_units_tables/table2;field1,field2</code>
+            <ul><li>Only those two fields of that specific table will be ignored.</li></ul>
         </li>
         <li>
-        <i><b>db/land_units_tables;field1,field2</b></i> => Only those two fields of all tables in that folder will be ignored.
+            <code>db/land_units_tables;field1,field2</code>
+            <ul><li>Only those two fields of all tables in that folder will be ignored.</li></ul>
         </li>
         <li>
-        <i><b>db/land_units_tables/table1;;DiagId1,DiagId2</b></i> => Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.
+            <code>db/land_units_tables/table1;;DiagId1,DiagId2</code>
+            <ul><li>Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.</li></ul>
         </li>
     </ul>
-    <br/>
+    <hr>
 
-pfs_import_files_to_ignore_label = <p><b><i>Files to Ignore when Importing</i></b></p>
+pfs_import_files_to_ignore_label = <h3>Files to Ignore when Importing</h3>
 pfs_import_files_to_ignore_description_label = <p>The files on this list will be ignored when importing from a MyMod folder. Only for MyMods. Paths are relative, the glory of the empire is absolute.</p>
-pfs_disable_autosaves_label = <p><b><i>Disable Autosaves for this PackFile</i></b></p>
+pfs_disable_autosaves_label = <h3>Disable Autosaves for this PackFile</h3>
 pfs_disable_autosaves_description_label = <p></p>
 
 instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by the game) and IVF (reproducible on a media player with VP8 codecs).
@@ -731,7 +744,7 @@ instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by t
   To make it load in-game, convert it to CAMV and save the PackFile.
 
 settings_debug_spoof_ca_authoring_tool = Spoof CA's Authoring Tool
-tt_settings_debug_spoof_ca_authoring_tool = Checking this will make all PFH6 PackFiles saved with RPFM to be marked as "Saved with CA-TOOL". For testing purpouses only.
+tt_settings_debug_spoof_ca_authoring_tool = Checking this will make all PFH6 PackFiles saved with RPFM to be marked as "Saved with CA-TOOL". For testing purposes only.
 
 template_name = Name:
 template_description = Description:
@@ -744,7 +757,7 @@ new_template_options = Options
 new_template_params = Parameters
 new_template_info = Basic Info
 
-new_template_sections_description = <p>Sections or Steps this template will be splitted in.</p>
+new_template_sections_description = <p>Sections or Steps this template will be split in.</p>
  <p>By default, all steps will show in the order they're here, but you can hide them to only appear if certain options are selected. The columns mean:
     <ul>
        <li>Key: Internal name of the section.</li>
@@ -755,7 +768,7 @@ new_template_sections_description = <p>Sections or Steps this template will be s
 
 new_template_options_description = <p>These are options/flags/however you want to call them.</p>
  <p>They control what parts of the template can be enabled/disabled when loading it to a PackFile.
- For example, in a template for projectiles, an option can be "Has custom explosion?" or "Has custom display proyectile?".</p>
+ For example, in a template for projectiles, an option can be "Has custom explosion?" or "Has custom display projectile?".</p>
  The columns mean:
  <ul>
     <li>The first column is the internal name of the option.</li>
@@ -763,7 +776,7 @@ new_template_options_description = <p>These are options/flags/however you want t
  </ul>
 
 new_template_params_description = <p>These are the parameters that can be applied to the Template by the user when loading it to a PackFile.</p>
- <p>They allow the user to personalize parts of the template for his use, like changing the name of the files, the value on cells,...</p>
+ <p>They allow the user to personalize parts of the template for his use, like changing the name of the files, the value on cells,…</p>
  The columns mean:
  <ul>
     <li>The first column is the internal name of the parameter.</li>
@@ -805,20 +818,20 @@ tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to us
 restart_button = Restart
 error_not_booted_from_launcher = This window of RPFM has not been launched from the "rpfm.exe" file, but directly from the "rpfm_ui.exe" file. Since version 2.3.102, you should launch it from "rpfm.exe" (or equivalent) to support certain features regarding the update system.
 
-install_sucess = PackFile successfully installed.
-uninstall_sucess = PackFile successfully uninstalled.
+install_success = PackFile successfully installed.
+uninstall_success = PackFile successfully uninstalled.
 
 outdated_table_explanation = Tables have an internal version number that changes whenever CA does an update to said table that changes its structure.
     An outdated table means your table may have structural differences introduced in newer versions, like new/changed columns.
 
-    This can have consecuences ranging from not being able to use certain new features, to straigh crashes, depending on the table and changes.
+    This can have consequences ranging from inability to use certain new features to straight up crashes, depending on the table and changes.
     It's advised to always update your tables after a patch by opening your PackFile, right-clicking your table, and clicking in "Update Table".
 
     Keep in mind RPFM fills new columns with default data on update. After updating a table, make sure its data is still correct!
-    Otherwise, you may find that you needed to put something in the new columns for the game not to crash...
+    Otherwise, you may find that you needed to put something in the new columns for the game not to crash…
 
 invalid_reference_explanation = Some table columns reference another table's columns. "Invalid Reference" means the data present in a cell it's not present in any of the tables that cell references.
-    This is usually due to a typo, a table update, a submod that doesn't reference the parent mod,...
+    This is usually due to a typo, a table update, a submod that doesn't reference the parent mod,…
 
     This is one of the most common causes of crashes on start, and you have to make sure to fix these when they popup if you want to avoid crashes.
     One special situation is if this mod is a submod of another mod. In that case, you have to open your PackFile, right-clicking it, and click in "Open/Open Dependency Manager".
@@ -856,17 +869,17 @@ no_reference_table_nor_column_found_no_pak_explanation = Some tables found in th
     This message means that a table is referencing a column on another table, but that column couldn't be found in the referenced table,
     and RPFM didn't find a generated dependencies cache for the game, so it doesn't know if the problem is due to the missing cache file, or due to an error.
 
-    If you see this message, genetate the cache for your game by going into "Special Stuff" and clicking in "Generate Dependencies Cache".
+    If you see this message, generate the cache for your game by going into "Special Stuff" and clicking in "Generate Dependencies Cache".
 
-invalid_escape_explanation = Certain characters, like \n (jumpline) and \t (tabulation) need to be escaped in a special way in order for the game to recognize them.
-    This error means RPFM has detected one of these characters that's not escaped correctly, causing it to show incorrectly ingame.
+invalid_escape_explanation = Certain characters, like \n (newline) and \t (tabulation) need to be escaped in a special way in order for the game to recognize them.
+    This error means RPFM has detected one of these characters that's not escaped correctly, causing it to show incorrectly in game.
 
     To fix it, make sure you use \\n or \\t (with two slashes) instead.
 
 duplicated_row_explanation = Table rows usually convey one specific data to the game. For example, one row may indicate X unit has X ability.
     This error means there are 2 or more rows in a table that are exactly the same.
 
-    This can cause problems and it's adviced to leave only one copy of each row in a table.
+    This can cause problems and it's advised to leave only one copy of each row in a table.
 
 invalid_loc_key_explanation = RPFM has detected that one row from your Loc file has a key with invalid characters in it. This can cause all sort of problems, including crashes, so it's better to fix it ASAP.
     A common cause of this is an old bug in PFM code (yes, PFM) that causes Loc Keys to get invalid characters added at their end if you copy/paste them.
@@ -892,7 +905,7 @@ generate_ids_accept = Accept
 context_menu_delete_filtered_out_rows = Delete Filtered-out Rows
 are_you_sure_delete_filtered_out_rows = This will delete all filtered-out rows. Are you sure?
 
-context_menu_go_to = Go To...
+context_menu_go_to = Go To…
 context_menu_go_to_definition = Go To Definition
 source_data_for_field_not_found = The source of the selected data could not be found.
 context_menu_go_to_loc = Go To Loc Entry:  {"{"}{"}"}
@@ -943,16 +956,16 @@ table_is_datacoring_explanation = When your mod has a table (or any file, really
     And so, "Datacoring" is something that should be avoided except when it's the only way to do something, like if you want to actually remove a row from a vanilla table.
 
     This warning is to notice you that you are, either intentionally or accidentally, datacoring a table. If it's accidentally, change the name of the reported table with
-    another one. If it's intentionally, you can hide this message by going to the PackFile Settings ("Right-click the PackFile/Open.../Open PackFile Settings") and blacklisting
+    another one. If it's intentionally, you can hide this message by going to the PackFile Settings ("Right-click the PackFile/Open…/Open PackFile Settings") and blacklisting
     this warning for this table there.
 
 
 label_dependencies_cache_outdated = Dependencies Cache is outdated:
 label_dependencies_cache_could_not_be_loaded = Dependencies Cache could not be loaded:
 
-dependencies_cache_outdated_explanation = The dependencies cache is outdated and must be regenerated. This usually happens due to a game update, or due to someone modifing the game files.
+dependencies_cache_outdated_explanation = The dependencies cache is outdated and must be regenerated. This usually happens due to a game update, or due to someone modifying the game files.
 
-    RPFM needs the dependencies cache up-to-date in order to provide diagnostics, table completions, table creations, etc... so it's important to keep it updated.
+    RPFM needs the dependencies cache up-to-date in order to provide diagnostics, table completions, table creations, etc… so it's important to keep it updated.
 
     To fix it, go to "Special Stuff/yourgame/Generate Dependencies Cache" and wait until it finish.
 
@@ -965,26 +978,26 @@ dependencies_cache_could_not_be_loaded_explanation = RPFM failed to load the dep
 
 generate_dependencies_cache_are_you_sure = Do you want to generate the dependencies cache?
 
-optimize_packfile_are_you_sure = <p><b>Are you sure you want to optimze this PackFile?</b></p>
+optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this PackFile?</h3>
     <p>
-        Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod dissapeared!!!" again. What this does is:
-        <ul>
-            <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
-            <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
-            <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
-            <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-            <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-            <li><b>Remove empty DB tables</b>.</li>
-            <li><b>Remove empty LOC files</b>.</li>
-            <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
-        </ul>
-        So again, are you sure you want to do it?
+        Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod disappeared!!!" again. What this does is:
     </p>
+    <ul>
+        <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
+        <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
+        <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
+        <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
+        <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
+        <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
+        <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+        <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+        <li><b>Remove empty DB tables</b>.</li>
+        <li><b>Remove empty LOC files</b>.</li>
+        <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+    </ul>
+    <p>So again, are you sure you want to do it?</p>
 
-animpack_view_instructions = <p><b>How to use this view:</b></p>
+animpack_view_instructions = <h3>How to use this view:</h3>
     <ul>
         <li><b>If you want to add stuff from the PackFile to the AnimPack</b>: double-click the files you want to add on the left panel.</li>
         <li><b>If you want to extract files from the AnimPack into the PackFile</b>: double-click the files you want to add on the right panel.</li>

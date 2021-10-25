@@ -39,7 +39,7 @@ pub struct TextMatch {
     // Row of the first character of the match.
     pub row: u64,
 
-    // Lenght of the matched pattern.
+    // Length of the matched pattern.
     pub len: i64,
 
     // Line of text containing the match.
