@@ -1047,15 +1047,13 @@ impl GlobalSearchUI {
                     let match_file = matches.last_mut().unwrap();
 
                     // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                    for _ in 0..item.row_count() {
-                        if !item.is_null() {
-                            let column_name = item.child_2a(item.row(), 0).text().to_std_string();
-                            let column_number = item.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let row_number = item.child_2a(item.row(), 1).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let text = item.child_2a(item.row(), 2).text().to_std_string();
-                            let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
-                            match_file.matches.push(match_entry);
-                        }
+                    for row in 0..item.row_count() {
+                        let column_name = item.child_2a(row, 0).text().to_std_string();
+                        let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                        let row_number = item.child_2a(row, 1).text().to_std_string().parse::<i64>().unwrap() - 1;
+                        let text = item.child_2a(row, 2).text().to_std_string();
+                        let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+                        match_file.matches.push(match_entry);
                     }
                 }
             }
