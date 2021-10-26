@@ -432,7 +432,7 @@ impl GameInfo {
         match install_type {
             InstallType::LnxSteam |
             InstallType::WinSteam => Ok(format!("steam://rungameid/{}", self.install_data.get(&install_type).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.get_ref_store_id())),
-            _ => todo!()
+            _ => return Err(ErrorKind::LaunchNotSupportedForThisGame.into())
         }
     }
 
