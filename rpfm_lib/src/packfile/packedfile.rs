@@ -84,7 +84,7 @@ pub enum PackedFileData {
 }
 
 /// This struct contains the stuff needed to read the data of a particular PackedFile from disk.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, GetRef)]
 pub struct RawOnDisk {
 
     /// Reader over the PackFile containing the PackedFile.
@@ -113,6 +113,9 @@ pub struct CachedPackedFile {
     is_compressed: bool,
     is_encrypted: Option<PFHVersion>,
     last_modified_date_pack: i64,
+
+    /// Hash of the PackedFile's data, for quick comparisons of raw data.
+    hash: u64
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
@@ -534,6 +537,17 @@ impl PackedFile {
     pub(crate) fn get_ref_raw_inner_data(&self) -> &PackedFileData {
         &self.raw.data
     }
+
+    /// This function calculates the hash of the binary data of this PackedFile and returns it.
+    pub fn get_hash_from_data(&mut self) -> Result<u64> {
+        if self.decoded != DecodedPackedFile::Unknown {
+            self.encode_and_clean_cache()?;
+        }
+        let mut hasher = DefaultHasher::new();
+        let data = self.raw.get_data()?;
+        data.hash(&mut hasher);
+        Ok(hasher.finish())
+    }
 }
 
 /// Implementation of `RawPackedFile`.
@@ -924,6 +938,11 @@ impl TryFrom<&PackedFile> for CachedPackedFile {
     type Error = Error;
     fn try_from(packed_file: &PackedFile) -> Result<Self> {
         if let PackedFileData::OnDisk(data) = packed_file.get_ref_raw_inner_data() {
+
+            // Read to ensure the hash has been generated.
+            data.read()?;
+            let hash = data.get_ref_hash().lock().unwrap();
+
             Ok(Self {
                 pack_file_path: data.reader.lock().unwrap().get_ref().path()?.to_string_lossy().to_string(),
                 packed_file_path: packed_file.get_path().join("/"),
@@ -932,6 +951,7 @@ impl TryFrom<&PackedFile> for CachedPackedFile {
                 is_compressed: data.is_compressed,
                 is_encrypted: data.is_encrypted,
                 last_modified_date_pack: data.last_modified_date_pack,
+                hash: *hash
             })
         }
 

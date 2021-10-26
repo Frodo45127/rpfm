@@ -977,9 +977,10 @@ optimize_packfile_are_you_sure = <p><b>Are you sure you want to optimze this Pac
             <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
             <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
             <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-            <li><b>Remove empty DB tables</b>.</li>
-            <li><b>Remove empty LOC files</b>.</li>
+            <li><b>Remove empty DB tables.</b></li>
+            <li><b>Remove empty LOC files.</b></li>
             <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+            <li><b>Remove ANY PackedFile that's identical to the parent/vanilla file it's overwriting.</b></li>
         </ul>
         So again, are you sure you want to do it?
     </p>

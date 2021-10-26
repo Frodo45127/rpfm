@@ -307,6 +307,25 @@ impl Dependencies {
         }
     }
 
+    /// This function returns the paths->hash of every file in the dependencies.
+    pub fn get_dependencies_data_hashes_by_path(&self, include_vanilla: bool, include_modded: bool) -> Result<HashMap<&String, &u64>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = HashMap::new();
+
+            if include_vanilla {
+                cache.extend( self.vanilla_cached_packed_files.par_iter().map(|(path, cached_packed_file)| (path, cached_packed_file.get_ref_hash())).collect::<HashMap<&String, &u64>>());
+            }
+
+            if include_modded {
+                cache.extend(self.parent_cached_packed_files.par_iter().map(|(path, cached_packed_file)| (path, cached_packed_file.get_ref_hash())).collect::<HashMap<&String, &u64>>());
+            }
+
+            Ok(cache)
+        }
+    }
+
     /// This function checks if the current Game Selected has a dependencies file created.
     pub fn game_has_dependencies_generated(&self) -> bool {
         let mut file_path = get_config_path().unwrap().join(DEPENDENCIES_FOLDER);
