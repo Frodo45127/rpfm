@@ -2518,6 +2518,10 @@ optimize_packfile_are_you_sure =
             являющиеся побочным продуктом работы BOB из { -AssemblyKit(case: "genitive") },
             <b>будут удалены</b>.
         </li>
+        <li>
+            <b>ЛЮБЫЕ { -packedfiles(number: "other", capitalization: "lower") }, идентичные оригинальным игровым, 
+            будут удалены</b>.
+        </li>
     </ul>
     <p>Всё ещё хотите оптимизировать { -packfile }?</p>
 

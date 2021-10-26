@@ -2015,6 +2015,7 @@ impl PackFile {
     /// - Remove empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - Remove empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - Remove XML files in map folders.
+    /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
     pub fn optimize(&mut self, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
 
         // We can only optimize if we have vanilla data available.
@@ -2025,6 +2026,19 @@ impl PackFile {
         // List of PackedFiles to delete.
         let mut files_to_delete: Vec<Vec<String>> = vec![];
 
+        // First, do a hash pass over all the files, and mark for removal those that match by path and hash with vanilla/parent ones.
+        let dependencies_hashes = dependencies.get_dependencies_data_hashes_by_path(true, true)?;
+        files_to_delete.append(&mut self.get_ref_mut_packed_files_all().into_par_iter().filter_map(|packed_file| {
+            if let Some(dependency_hash) = dependencies_hashes.get(&packed_file.get_path().join("/")) {
+                if let Ok(local_hash) = packed_file.get_hash_from_data() {
+                    if &&local_hash == dependency_hash {
+                        Some(packed_file.get_path().to_vec())
+                    } else { None }
+                } else { None }
+            } else { None }
+        }).collect());
+
+        // Then, do a second pass, this time over the decodeable files that we can optimize.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             let dependencies = dependencies.get_db_and_loc_tables_from_cache(true, true, true, true)?;
 
@@ -2038,51 +2052,55 @@ impl PackFile {
                 }
             );
 
-            // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
+            // Then, we optimize the data inside the `PackedFiles`.
             let packed_files_to_optimize = self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc, PackedFileType::Text(TextType::Plain)], false);
-            files_to_delete = packed_files_to_optimize.into_par_iter().filter_map(|packed_file|{
-                let path = packed_file.get_path().to_vec();
+            files_to_delete.append(&mut packed_files_to_optimize.into_par_iter().filter_map(|packed_file|{
 
-                // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
-                // as those are probably intended to overwrite vanilla files, not to be optimized.
-                let can_be_optimized = SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] || (
-                    !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] &&
-                    dependencies.iter().map(|x| x.get_path()).all(|x| x != path)
-                );
+                // Only check it if it's not already marked for deletion.
+                if files_to_delete.iter().all(|path| packed_file.get_path() != path) {
+                    let path = packed_file.get_path().to_vec();
 
-                if can_be_optimized {
-                    match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
-                        PackedFileType::DB => {
-                            if let Ok(DecodedPackedFile::DB(db)) = packed_file.decode_return_ref_mut_no_locks(schema) {
-                                let is_empty = db.optimize_table(&game_dbs);
-                                if is_empty {
+                    // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
+                    // as those are probably intended to overwrite vanilla files, not to be optimized.
+                    let can_be_optimized = SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] || (
+                        !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] &&
+                        dependencies.iter().map(|x| x.get_path()).all(|x| x != path)
+                    );
+
+                    if can_be_optimized {
+                        match PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false) {
+                            PackedFileType::DB => {
+                                if let Ok(DecodedPackedFile::DB(db)) = packed_file.decode_return_ref_mut_no_locks(schema) {
+                                    let is_empty = db.optimize_table(&game_dbs);
+                                    if is_empty {
+                                        return Some(path.to_vec());
+                                    }
+                                }
+                            }
+
+                            PackedFileType::Loc => {
+                                if let Ok(DecodedPackedFile::Loc(loc)) = packed_file.decode_return_ref_mut_no_locks(schema) {
+                                    let is_empty = loc.optimize_table(&game_locs);
+                                    if is_empty {
+                                        return Some(path.to_vec());
+                                    }
+                                }
+                            }
+
+                            PackedFileType::Text(text_type) => {
+                                if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
                                     return Some(path.to_vec());
                                 }
                             }
-                        }
 
-                        PackedFileType::Loc => {
-                            if let Ok(DecodedPackedFile::Loc(loc)) = packed_file.decode_return_ref_mut_no_locks(schema) {
-                                let is_empty = loc.optimize_table(&game_locs);
-                                if is_empty {
-                                    return Some(path.to_vec());
-                                }
-                            }
+                            // Ignore the rest.
+                            _ => {}
                         }
-
-                        PackedFileType::Text(text_type) => {
-                            if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
-                                return Some(path.to_vec());
-                            }
-                        }
-
-                        // Ignore the rest.
-                        _ => {}
                     }
                 }
 
                 None
-            }).collect();
+            }).collect());
         }
 
         // Delete all the files marked for deletion.

@@ -980,22 +980,23 @@ generate_dependencies_cache_are_you_sure = Do you want to generate the dependenc
 
 optimize_packfile_are_you_sure = <h3>Are you sure you want to optimize this PackFile?</h3>
     <p>
-        Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod disappeared!!!" again. What this does is:
+        Please, do a backup before using this if you're not sure, because I don't want complains about "I pressed this and my mod dissapeared!!!" again. What this does is:
+        <ul>
+            <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
+            <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
+            <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
+            <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+            <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
+            <li><b>Remove empty DB tables.</b></li>
+            <li><b>Remove empty LOC files.</b></li>
+            <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
+            <li><b>Remove ANY PackedFile that's identical to the parent/vanilla file it's overwriting.</b></li>
+        </ul>
+        So again, are you sure you want to do it?
     </p>
-    <ul>
-        <li><b>Sort DB tables by their first key, or first column</b> (unless the table is datacoring).</li>
-        <li><b>Sort LOC tables by their key</b> (unless the table is datacoring).</li>
-        <li><b>Remove duplicated entries on DB tables</b> (unless the table is datacoring).</li>
-        <li><b>Remove duplicated entries on LOC tables</b> (unless the table is datacoring).</li>
-        <li><b>Remove rows unchanged from default row on DB tables</b> (unless the table is datacoring).</li>
-        <li><b>Remove rows unchanged from default row on LOC tables</b> (unless the table is datacoring).</li>
-        <li><b>Remove DB table entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-        <li><b>Remove LOC entries unchanged from the vanilla files</b> (unless the table is datacoring).</li>
-        <li><b>Remove empty DB tables</b>.</li>
-        <li><b>Remove empty LOC files</b>.</li>
-        <li><b>Remove useless xml on map packs</b>, which are a byproduct of how bob exports map packs.</li>
-    </ul>
-    <p>So again, are you sure you want to do it?</p>
 
 animpack_view_instructions = <h3>How to use this view:</h3>
     <ul>

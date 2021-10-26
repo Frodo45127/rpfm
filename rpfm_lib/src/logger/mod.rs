@@ -20,9 +20,9 @@ Otherwise, none of them will work.
 !*/
 
 use backtrace::Backtrace;
-use log::{error, info};
+use log::{error, info, warn};
 use sentry::ClientInitGuard;
-use simplelog::{ColorChoice, CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode, WriteLogger};
 
 use sentry::integrations::log::SentryLogger;
 
@@ -92,7 +92,7 @@ impl Logger {
     /// - Log CTD to sentry (release only)
     /// - Log execution steps to file/sentry.
     pub fn init() -> Result<ClientInitGuard> {
-        info!("Initializing Logger.");
+        println!("Initializing Logger.");
 
         // For the love of god: initialize the fucking config path first. Otherwise this explodes before the logging even begins,
         // and I don't want to spend another full day investigating this thing.
@@ -105,10 +105,17 @@ impl Logger {
         Self::rotate_logs(&config_path)?;
 
         // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
-        let combined_logger = CombinedLogger::new(vec![
-            TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-            WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(config_path.join(LOG_FILE_CURRENT))?),
-        ]);
+        //
+        // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
+        let mut file_logger_failed = true;
+        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
+        if let Ok(write_logger_file) = File::create(config_path.join(LOG_FILE_CURRENT)) {
+            let write_logger = WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), write_logger_file);
+            loggers.push(write_logger);
+            file_logger_failed = false;
+        }
+
+        let combined_logger = CombinedLogger::new(loggers);
 
         // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
         let logger = SentryLogger::with_dest(combined_logger);
@@ -133,6 +140,10 @@ impl Logger {
             orig_hook(info);
             std::process::exit(1);
         }));
+
+        if file_logger_failed {
+            warn!("File Logger failed.");
+        }
 
         // Return Sentry's guard, so we can keep it alive until everything explodes, or the user closes the program.
         info!("Logger initialized.");
