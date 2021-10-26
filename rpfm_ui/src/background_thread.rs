@@ -76,7 +76,7 @@ pub fn background_loop() {
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
     info!("Background Thread looping around...");
-    loop {
+    'background_loop: loop {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
@@ -1317,7 +1317,11 @@ pub fn background_loop() {
                                     error_paths.append(&mut errors);
                                     packed_files
                                 }
-                                Err(_) => unimplemented!()
+                                Err(error) => {
+                                    CentralCommand::send_back(&sender, Response::Error(error));
+                                    CentralCommand::send_back(&sender, Response::Success);
+                                    continue 'background_loop;
+                                },
                             }
                         }
                         DataSource::ParentFiles => {
@@ -1326,11 +1330,19 @@ pub fn background_loop() {
                                     error_paths.append(&mut errors);
                                     packed_files
                                 }
-                                Err(_) => unimplemented!()
+                                Err(error) => {
+                                    CentralCommand::send_back(&sender, Response::Error(error));
+                                    CentralCommand::send_back(&sender, Response::Success);
+                                    continue 'background_loop;
+                                },
                             }
                         },
 
-                        _ => unimplemented!(),
+                        _ => {
+                            CentralCommand::send_back(&sender, Response::Error(ErrorKind::Generic.into()));
+                            CentralCommand::send_back(&sender, Response::Success);
+                            continue 'background_loop;
+                        },
                     };
 
                     let packed_files_ref = packed_files.iter().collect::<Vec<&PackedFile>>();
