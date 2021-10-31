@@ -78,7 +78,7 @@ impl PackFileExtraViewSlots {
                     match response {
                         Response::VecPathType(paths_ok) => {
 
-                            // If any of the PackedFiles was already open (and we overwote them) remove his view.
+                            // If any of the PackedFiles was already open (and we overwrote them) remove his view.
                             for path in &paths_ok {
                                 if let PathType::File(path) = path {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();

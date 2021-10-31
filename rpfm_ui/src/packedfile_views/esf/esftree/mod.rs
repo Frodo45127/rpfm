@@ -11,7 +11,7 @@
 /*!
 Module with all the code for the ESFTree, the tree used for the ESF Views.
 
-It's similar to the PackTree, but modified for the requeriments of the ESF files.
+It's similar to the PackTree, but modified for the requirements of the ESF files.
 !*/
 
 use qt_widgets::QTreeView;
@@ -339,7 +339,7 @@ unsafe fn get_node_type_from_tree_node(current_item: Option<Ptr<QStandardItem>>,
     match node {
         NodeType::Record(ref mut node) => {
 
-            // Depending if we should have nested blocks or not, get the childs in one way or another.
+            // Depending if we should have nested blocks or not, get the children in one way or another.
             if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
 
                 // Get the record group nodes, and process the groups one by one.

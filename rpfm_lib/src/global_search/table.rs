@@ -11,7 +11,7 @@
 /*!
 Module with all the code related to the `TableMatches`.
 
-This module contains the code needed to get table matches from a `GlobalSeach`.
+This module contains the code needed to get table matches from a `GlobalSearch`.
 !*/
 
 //-------------------------------------------------------------------------------//
@@ -25,7 +25,7 @@ pub struct TableMatches {
     /// The path of the table.
     pub path: Vec<String>,
 
-    /// The list of matches whithin a table.
+    /// The list of matches within a table.
     pub matches: Vec<TableMatch>,
 }
 

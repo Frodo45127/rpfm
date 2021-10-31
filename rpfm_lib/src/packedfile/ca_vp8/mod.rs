@@ -66,7 +66,7 @@ pub struct CaVp8 {
     /// Width of the video in pixels.
     width: u16,
 
-    /// Heighht of the video in pixels.
+    /// Height of the video in pixels.
     height: u16,
 
     /// Number of frames on the video.
@@ -154,7 +154,7 @@ impl CaVp8 {
         let width = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let height = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let ms_per_frame = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
-        let _mistery_u32 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let _mystery_u32 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _num_frames_copy = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let offset_frame_table = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
@@ -163,9 +163,9 @@ impl CaVp8 {
         // From here on, it's frame data, then the frame table.
         offset = offset_frame_table as usize;
 
-        // Brace yourself, wonky workaround incomming!
+        // Brace yourself, wonky workaround incoming!
         // There are some files that, for unknown reasons, have 13 bytes instead of 9 in the frame table.
-        // I have no freaking idea what's the logic behind 9/13 bytes, so we go with the getto solution:
+        // I have no freaking idea what's the logic behind 9/13 bytes, so we go with the ghetto solution:
         // - Frames / 13. If the remainder is 0, we have groups of 13. If not, groups of 9.
         let bells = packed_file_data[offset..].len() / 13 == num_frames as usize && packed_file_data[offset..].len() % 13 == 0;
         let mut frame_offset = 0;

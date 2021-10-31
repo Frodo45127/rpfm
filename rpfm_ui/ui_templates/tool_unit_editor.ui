@@ -1045,7 +1045,7 @@
            <item row="1" column="0">
             <widget class="QToolButton" name="variantmesh_check_button">
              <property name="text">
-              <string>...</string>
+              <string>…</string>
              </property>
             </widget>
            </item>

@@ -20,7 +20,7 @@
     clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
     clippy::match_wild_err_arm,             // Disabled because, despite being a bad practice, it's the intended behavior in the code it warns about.
     clippy::clone_on_copy,                  // Disabled because triggers false positives on qt cloning.
-    clippy::mutex_atomic                    // Disabled because in the only instance it triggers, we do it on purpouse.
+    clippy::mutex_atomic                    // Disabled because in the only instance it triggers, we do it on purpose.
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.

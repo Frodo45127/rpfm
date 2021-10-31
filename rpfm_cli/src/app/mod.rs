@@ -14,13 +14,13 @@
 
 use clap::{Arg, App, SubCommand};
 
-/// Version of the program, to get it more easely if needed.
+/// Version of the program, to get it more easily if needed.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Full name of the program, to get it more easely.
+/// Full name of the program, to get it more easily.
 const PROGRAM_NAME: &str = "Rusted PackFile Manager - CLI Version";
 
-/// Author of the program, to get it more easely.
+/// Author of the program, to get it more easily.
 const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 
 
@@ -32,7 +32,7 @@ const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
 
     // Matches: here we build the entire command parsing for the tool, courtesy of Clap.
-    // Also, clap autogenerates certaing commands, like help and version, so those are not needed.
+    // Also, clap autogenerates certain commands, like help and version, so those are not needed.
     App::new(PROGRAM_NAME)
         .version(VERSION)
         .author(AUTHOR)
@@ -54,7 +54,7 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
             .short("g")
             .long("game")
             .value_name("GAME")
-            .help("Sets the 'Game' all the commands will be tailored too. This affects what schemas will be use when dealing with DB Tables, the format of the PackFiles... If it's not set, the default game from the settings will be used.")
+            .help("Sets the 'Game' all the commands will be tailored to. This affects what schemas will be used when dealing with DB Tables, the format of the PackFiles… If it's not set, the default game from the settings will be used.")
             .possible_values(&["three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])
             .takes_value(true))
 
@@ -63,7 +63,7 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
             .short("a")
             .long("assdb")
             .value_name("ASSKIT DB PATH")
-            .help("Sets the 'Asskit Raw DB Path'. Used on certain operations depending on the dependencies cache.")
+            .help("Sets the 'Asskit Raw DB Path'. Used for certain operations depending on the dependencies cache.")
             .required(false)
             .takes_value(true))
 
@@ -82,7 +82,7 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
 
         // `Diagnostic` Subcommand. To check for errors between PackFiles.
         .subcommand(SubCommand::with_name("diagnostic")
-            .about("Allows you to perform diagnostic-related operation over specific sets of PackFiles.")
+            .about("Allows you to perform diagnostic-related operations over specific sets of PackFiles.")
             .arg(Arg::with_name("check")
                 .short("c")
                 .long("check")
@@ -135,7 +135,7 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
                 .short("e")
                 .long("extract-files")
                 .value_name("DESTINATION FOLDER - FILE PATHS")
-                .help("extracts one or more files from the PackFile.")
+                .help("Extracts one or more files from the PackFile.")
                 .takes_value(true)
                 .min_values(2))
 
@@ -162,9 +162,9 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
 
         // `Table` Subcommand. Every command that allows you to manipulate DB/Loc Tables in any way goes here.
         .subcommand(SubCommand::with_name("table")
-            .about("Allows you to manipulate in multiple ways DB/LOC Tables.")
+            .about("Allows you to manipulate DB/LOC Tables in multiple ways.")
 
-            // `EImort TSV` option. To import DB/Loc `PackedFiles` from TSV.
+            // `Import TSV` option. To import DB/Loc `PackedFiles` from TSV.
             .arg(Arg::with_name("import")
                 .short("i")
                 .long("import")

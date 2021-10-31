@@ -203,7 +203,7 @@ impl TableViewSlots {
                         view.history_redo.write().unwrap().clear();
 
                         {
-                            // We block the saving for painting, so this doesn't get rettriggered again.
+                            // We block the saving for painting, so this doesn't get retriggered again.
                             let blocker = QSignalBlocker::from_q_object(&view.table_model);
                             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_MODIFIED);
                             blocker.unblock();

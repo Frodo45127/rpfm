@@ -11,7 +11,7 @@
 /*!
 Module with all the code related to the `GlobalSearch`.
 
-This module contains the code needed to get a `GlobalSeach` over an entire `PackFile`.
+This module contains the code needed to get a `GlobalSearch` over an entire `PackFile`.
 !*/
 
 use regex::{RegexBuilder, Regex};
@@ -87,14 +87,14 @@ pub struct GlobalSearch {
 }
 
 /// This enum defines the matching mode of the search. We use `Pattern` by default, and fall back to it
-/// if we try to use `Regex` and the provided regex expresion is invalid.
+/// if we try to use `Regex` and the provided regex expression is invalid.
 #[derive(Debug, Clone)]
 enum MatchingMode {
     Regex(Regex),
     Pattern,
 }
 
-/// This enum is a way to put toguether all kind of matches.
+/// This enum is a way to put together all kind of matches.
 #[derive(Debug, Clone)]
 pub enum MatchHolder {
     Table(TableMatches),
@@ -353,7 +353,7 @@ impl GlobalSearch {
         }
     }
 
-    /// This function clears the Global Search resutl's data, and reset the UI for it.
+    /// This function clears the Global Search result's data, and reset the UI for it.
     pub fn clear(&mut self) {
         *self = Self::default();
     }
@@ -671,7 +671,7 @@ impl GlobalSearch {
             // If we're searching a pattern, we just check every text PackedFile, line by line.
             MatchingMode::Pattern => {
                 let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
-                let lenght = self.pattern.chars().count();
+                let length = self.pattern.chars().count();
                 let mut column = 0;
 
                 for (row, data) in data.get_ref_contents().lines().enumerate() {
@@ -679,8 +679,8 @@ impl GlobalSearch {
                         if self.case_sensitive {
                             match text.find(&pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                    column += position + lenght;
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    column += position + length;
                                 }
                                 None => break,
                             }
@@ -689,8 +689,8 @@ impl GlobalSearch {
                             let text = text.to_lowercase();
                             match text.find(&pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                    column += position + lenght;
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    column += position + length;
                                 }
                                 None => break,
                             }

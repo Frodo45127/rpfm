@@ -890,7 +890,7 @@ impl GlobalSearchUI {
             model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_column")));
             model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_length")));
 
-            // Hide the column and lenght numbers on the TreeView.
+            // Hide the column and length numbers on the TreeView.
             tree_view.hide_column(2);
             tree_view.hide_column(3);
             tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);

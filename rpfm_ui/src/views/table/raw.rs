@@ -67,7 +67,7 @@ impl TableView {
 
         if let DataSource::PackFile = self.get_data_source() {
 
-            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
+            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
             let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
 
             // If we have something selected, enable these actions.
@@ -134,7 +134,7 @@ impl TableView {
             self.context_menu_cascade_edition.set_enabled(false);
             self.smart_delete.set_enabled(false);
 
-            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
+            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
             let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
 
             // If we have something selected, enable these actions.
@@ -416,7 +416,7 @@ impl TableView {
                     }
                 }
 
-                // Fix for weird precission issues on copy.
+                // Fix for weird precision issues on copy.
                 else if self.table_definition.read().unwrap().get_fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
                     copy.push_str(&format!("{}", (item.data_1a(2).to_float_0a() * 1000.0).round() / 1000.0));
                 }
@@ -495,7 +495,7 @@ impl TableView {
         // At this point we should have the strings to paste and the selection. Now, clever pasting ahead:
         // - If the entire selection are rows of the same amount of cells and we have only one row of text with the exact same amount
         //   of items as the rows, we paste the same row in each selected row.
-        // - If we only have one TSV value in the text and a ton of cells selcted, paste the same value everywhere.
+        // - If we only have one TSV value in the text and a ton of cells selected, paste the same value everywhere.
         // - In any other case, pick the first selected cell, and paste the TSV using that as cell 0,0.
         let same_amount_of_cells_selected_per_row = if rows.len() == 1 {
             let mut row = -1;
@@ -645,7 +645,7 @@ impl TableView {
         // We need to update the undo model here, because otherwise it'll start triggering crashes
         // in case the first thing to paste is equal to the current value. In that case, the set_data
         // will not trigger, and the update_undo_model will not trigger either, causing a crash if
-        // inmediatly after that we try to paste something in a new line (which will not exist in the undo model).
+        // immediately after that we try to paste something in a new line (which will not exist in the undo model).
         {
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         }
@@ -721,8 +721,8 @@ impl TableView {
                     // Sort them 0->9, so we can process them.
                     rows.sort_unstable();
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    let rows_splitted = delete_rows(&self.get_mut_ptr_table_model(), &rows);
-                    history_opposite.push(TableOperations::RemoveRows(rows_splitted));
+                    let rows_split = delete_rows(&self.get_mut_ptr_table_model(), &rows);
+                    history_opposite.push(TableOperations::RemoveRows(rows_split));
                     self.undo_lock.store(false, Ordering::SeqCst);
                 }
 
@@ -931,7 +931,7 @@ impl TableView {
         match definition.get_fields_processed()[index.column() as usize].get_ref_field_type() {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
-            // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+            // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
             FieldType::F32 => {
                 let data_str = format!("{}", item.data_1a(2).to_float_0a());
 
@@ -1478,7 +1478,7 @@ impl TableView {
     /// This function triggers a cascade edition through the entire program of the selected cells.
     pub unsafe fn cascade_edition(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
-        // This feature has some... interesting lockups when running alonside a diagnostics check. So, while this runs,
+        // This feature has some... interesting lockups when running alongside a diagnostics check. So, while this runs,
         // we have to avoid triggering the diagnostics check.
         self.timer_delayed_updates.stop();
 

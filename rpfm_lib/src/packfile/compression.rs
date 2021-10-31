@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here should go all the functions related to the compresion/decompression of PackedFiles.
+// Here should go all the functions related to the compression/decompression of PackedFiles.
 
 use xz2::read::XzDecoder;
 use xz2::stream::Stream;
@@ -41,7 +41,7 @@ pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
             fixed_data.extend_from_slice(&[0; 4]);
             fixed_data.extend_from_slice(&data[9..]);
 
-            // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducibles by compressing them
+            // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
             // with default settings with 7-Zip. This should do the trick to get them decoded.
             let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| Error::from(ErrorKind::PackedFileDataCouldNotBeDecompressed))?;
             let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
@@ -83,15 +83,15 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
             // Get the compressed LZMA data (and only that data) from the compressed file. To get it, we know:
             // - The header of a 7z file is 32 bytes.
             // - The bytes 12-16 are the offset of the footer from the end of the header.
-            // - We have just one file, so the offset is the exact lenght of that file.
+            // - We have just one file, so the offset is the exact length of that file.
             // - Then we read the offset from the end of the header. And done.
             let mut reader = BufReader::new(File::open(&compressed_path)?);
             let mut footer_offset = vec![0; 4];
             reader.seek(SeekFrom::Start(12))?;
             reader.read_exact(&mut footer_offset)?;
-            let compressed_data_lenght = footer_offset.decode_integer_u32(0)?;
+            let compressed_data_length = footer_offset.decode_integer_u32(0)?;
 
-            let mut compressed_data = vec![0; compressed_data_lenght as usize];
+            let mut compressed_data = vec![0; compressed_data_length as usize];
             reader.seek(SeekFrom::Start(32))?;
             reader.read_exact(&mut compressed_data)?;
 

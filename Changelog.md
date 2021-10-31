@@ -47,7 +47,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed Grey Screen Of Death when trying to open a PackedFile without even downloading the schemas.
 - Fixed dependency getter pulling files from Vanilla files instead of Parent files.
 - Fixed missing icons in certain games in the Faction Painter.
-- Fixed certain situations where RPFM could incorrectly pull data from a oudated dependency.
+- Fixed certain situations where RPFM could incorrectly pull data from a outdated dependency.
 - Fixed Mass-Import TSV importing locs as DB tables.
 - Fixed loc fields saving incorrectly in Unit Editor.
 - Fixed key fields saving incorrectly in Unit Editor.
@@ -81,7 +81,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - TSVs first and second rows have been swapped, to allow programs that expect the first row to be the column headers to actually not complaint and work.
 - TSVs now store on their second row their original path, so it can be restored properly when using `Use original filename` on a MassImport.
 - TSVs second row can now be marked with # so tools using them can be configured to ignore it.
-- TSVs metadata now its contained in the first cell of the second row, splitted by `;`.
+- TSVs metadata now its contained in the first cell of the second row, split by `;`.
 - Import/Export MyMods now import/export tables as TSV if they can.
 - Import/Export MyMods now import/export notes and PackFile settings.
 - When installing a PackFile, a save is now automatically done before the install, so the installed PackFile is always the most up-to-date.
@@ -100,7 +100,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed very rare bug that caused RPFM to fail on reimport very specific TSV files.
 - Fixed a bug that caused dependencies to not update properly on game selected change.
 - Fixed multiple bugs that caused dependencies to become missing or unloaded from time to time.
-- Fixed dependencies going away immediatly after generating them.
+- Fixed dependencies going away immediately after generating them.
 - Fixed missing shortcuts in the view submenu.
 - Fixed `Some("","")` references being incorrectly imported from the Assembly Kit.
 - Fixed error when exporting a TSV if its parent folder doesn't exist.
@@ -127,7 +127,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed update table not performing type updates correctly.
 - Fixed decoder not picking up updated data after a table gets updated.
 - Fixed lockups on `Rename references` (again).
-- Fixed incorrect action getting triggered after double-cliking the `Dependencies Cache outdated` diagnostic.
+- Fixed incorrect action getting triggered after double-clicking the `Dependencies Cache outdated` diagnostic.
 - Fixed `Optimize PackFile` failing to optimize certain float values.
 - Fixed a myriad of issues related to game selected, dependencies cache, diagnostics, and the linux ports of Total War games.
 
@@ -179,7 +179,7 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [2.5.1]
 ### Changed
-- Removed requeriment of Assembly Kit for Generation of Dependencies Cache.
+- Removed requirement of Assembly Kit for Generation of Dependencies Cache.
 - Implemented Generation of Dependencies Cache for Empire and Napoleon.
 
 ### Fixed
@@ -200,7 +200,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented `Debug` PackedFile View.
 - Implemented support for UnitVariant (Shogun 2/Napoleon/Empire).
 - Implemented support for RigidModels (new editor by [@phazer](https://github.com/mr-phazer)).
-- Implemented `Game-Wide` caché (replaces the old PAKs).
+- Implemented `Game-Wide` cache (replaces the old PAKs).
 - Implemented support for steam's `MFH` packs.
 - Implemented read support for modern DDS files (by [@phazer](https://github.com/mr-phazer)).
 - Implemented support to open references from out of the Packfile when using `Go To Definition` or `Go To Loc`.
@@ -250,7 +250,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a semi-random CTD that happened when RPFM could not access for a moment to a file on disk.
 - Fixed a CTD that happened when a update download ended up with an incomplete file.
 - Fixed `Paste as New Row` not properly marking cells as added.
-- Fixed CTD that happenend sometimes when trying to use the table decoder.
+- Fixed CTD that happened sometimes when trying to use the table decoder.
 - Fixed false positive on diagnostics when a cell was of a numeric type, it referenced another cell, and had 0 as value.
 
 ### Known Issues
@@ -344,7 +344,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Reworked `Install/Uninstall` commands to work with any PackFile, not only MyMods, and moved both commands to the `PackFile` menu ([@chadvandy](https://github.com/chadvandy)).
 - Empty rows are now shown by default when filtering a table.
 - Now each version has a name (why not?).
-- Improved responsiness during diagnostics checks.
+- Improved responsiveness during diagnostics checks.
 - Tweaked timing of diagnostics checks.
 - Improved performance when opening PackedFiles.
 - `Extract Table` now uses the PackFile's folder as default, then /data, then Rpfm's folder.
@@ -362,7 +362,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed a bug that caused dependencies of parent mods to not load properly, causing valid data to show as errors in the diagnostics tool.
 - Fixed a bug that could cause RPFM to become trap in an infinite PackFile loading loop.
 - Fixed a bug that caused the column indexes used in `Rewrite selection` to be incorrect.
-- Fixed a bug that caused the `Delete` funtion on tables to not delete properly a row if it had hidden columns.
+- Fixed a bug that caused the `Delete` function on tables to not delete properly a row if it had hidden columns.
 - Fixed a bug that caused local schema changes to be lost in a schema update.
 - Fixed a rare CTD/hang when performing a diagnostics check.
 - Fixed `Access is Denied` issue when clearing the schemas folder.
@@ -456,8 +456,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed quite a few bugs regarding parent-child widget relationships.
 - Fixed a performance regression when saving PackFiles with the diagnostics tool enabled.
 - Fixed a weird behavior when adding a folder to a PackFile while on MyMod mode.
-- Fixed a bug that caused Global Search results to dissapear when double-clicking them.
-- Fixed a bug that caused files with weird casing to be recognized as `Umknown` type and not being openable.
+- Fixed a bug that caused Global Search results to disappear when double-clicking them.
+- Fixed a bug that caused files with weird casing to be recognized as `Unknown` type and not being openable.
 - Fixed a bug that caused RPFM to not start if you didn't have the msvcp140_1.dll file in your system.
 
 ## [2.2.1] - 2020-09-26
@@ -478,7 +478,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented the `Use Old Column Order (Keys first)` setting for people who prefer pre-2.x column order in tables.
 - Implemented `Paste As New Row` for tables.
 - Implemented `Diagnostics` panel (you need to enable it in the settings).
-- Implemented `Copy Path` feature, to easely copy paths of files/folders in a PackFile.
+- Implemented `Copy Path` feature, to easily copy paths of files/folders in a PackFile.
 - Implemented a not-very-optimal definition guesser for the PackedFile Decoder.
 - Implemented a check to see if a table is outdated.
 - Implemented `Resize tables on edits to content's size:` setting.
@@ -488,7 +488,7 @@ If you're looking for the changes included in the latest beta (against the lates
 ### Changed
 - Changed all fields that accept regex so it turns green or red depending if the regex is valid or not.
 - Tweaked TreeView Colours to be more visible on light theme.
-- Now the search field gets focused when opening the Global/Table Search pannels.
+- Now the search field gets focused when opening the Global/Table Search panels.
 - Images now are shown in their original size, except if they are bigger than the current window.
 - The view menu now uses checkboxes to show if a panel is visible or not.
 - Newly added files are expanded automatically on the Treeview.

@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with all the code to interact with infividual PackedFiles.
+Module with all the code to interact with individual PackedFiles.
 
 This module contains all the code related with the interaction with individual PackFiles,
 meaning the code that takes care of loading/writing their data from/to disk.
@@ -59,7 +59,7 @@ pub struct RawPackedFile {
     /// Name of the original `PackFile` containing it. To know from where a `PackedFile` came when loading multiple PackFiles as one.
     packfile_name: String,
 
-    /// The '*Last Modified Date*' of the `PackedFile`, encoded in `i64`. Only in PackFiles with the appropiate flag enabled..
+    /// The '*Last Modified Date*' of the `PackedFile`, encoded in `i64`. Only in PackFiles with the appropriate flag enabled..
     timestamp: i64,
 
     /// If the data should be compressed when saving it to disk. Only available from `PFHVersion::PFH5` onwards.

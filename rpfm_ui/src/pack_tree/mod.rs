@@ -594,7 +594,7 @@ impl PackTree for QBox<QTreeView> {
                  TreePathType::File(_) => item_types.push(item_type.clone()),
                  TreePathType::Folder(_) | TreePathType::PackFile => {
                     let item = <QBox<QTreeView> as PackTree>::get_item_from_type(item_type, &model);
-                    get_visible_childs_of_item(&item, self, &filter, &model, &mut item_types);
+                    get_visible_children_of_item(&item, self, &filter, &model, &mut item_types);
                  }
                  TreePathType::None => unreachable!(),
             }
@@ -915,7 +915,7 @@ impl PackTree for QBox<QTreeView> {
                 // Get the root node and the data to fill the rest.
                 let (big_parent, mut packed_files_data) = match source {
 
-                    // If it's a PackFile, two posibilities: editable (normal packfile) or non-editable (Add From Packfile).
+                    // If it's a PackFile, two possibilities: editable (normal packfile) or non-editable (Add From Packfile).
                     DataSource::PackFile => {
 
                         // If we got data for it, use it. If not, ask the backend for it.
@@ -1800,15 +1800,15 @@ unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItem
     }
 }
 
-/// This function returns the currently visible childs of the given parent, and add them as `TreePathType`s to the provided list.
-unsafe fn get_visible_childs_of_item(parent: &QStandardItem, tree_view: &QTreeView, filter: &QSortFilterProxyModel, model: &QPtr<QStandardItemModel>, item_types: &mut Vec<TreePathType>) {
+/// This function returns the currently visible children of the given parent, and add them as `TreePathType`s to the provided list.
+unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTreeView, filter: &QSortFilterProxyModel, model: &QPtr<QStandardItemModel>, item_types: &mut Vec<TreePathType>) {
     for row in 0..parent.row_count() {
         let child = parent.child_1a(row);
         let child_index = child.index();
         let filtered_index = filter.map_from_source(&child_index);
         if filtered_index.is_valid() {
             if child.has_children() {
-                get_visible_childs_of_item(&child, tree_view, filter, model, item_types);
+                get_visible_children_of_item(&child, tree_view, filter, model, item_types);
             }
             else {
                 item_types.push(<QBox<QTreeView> as PackTree>::get_type_from_item(child, model));

@@ -1669,7 +1669,7 @@ height = Высота:
 ms_per_frame = Мс. на кадр:
 num_frames = Кол-во кадров:
 largest_frame = Наибольший кадр:
-mistery_number = Загадочное число:
+mystery_number = Загадочное число:
 offset_frame_table = Сдвиг таблицы кадра:
 framerate = Частота кадров:
 timebase = Развёртка:
@@ -2082,7 +2082,7 @@ pfs_diagnostics_files_to_ignore_description_label =
             </ul>
         </li>
     </ul>
-    <hr>
+    <br>
 
 pfs_import_files_to_ignore_label =
     <h3>Игнорируемые при импорте файлы</h3>
@@ -2185,12 +2185,12 @@ tt_settings_autosave_amount = Задаёт максимальное количе
 restart_button = Перезапустить
 error_not_booted_from_launcher = Это окно { -app(case: "genitive") } было открыто путём непосредственного запуска исполняемого файла «rpfm_ui.exe». Начиная с { -app } v2.3.102, Вам следует запускать программу, используя исполняемый файл «rpfm.exe» (или эквивалентный ему) для поддержки некоторых функций системы обновления.
 
-install_sucess = { -packfile } успешно установлен{ -packfile.gender ->
+install_success = { -packfile } успешно установлен{ -packfile.gender ->
        *[masculine] { "" }
         [feminine] а
         [other] о
     }.
-uninstall_sucess = { -packfile } успешно удал{ -packfile.gender ->
+uninstall_success = { -packfile } успешно удал{ -packfile.gender ->
        *[masculine] ён
         [feminine] ена
         [other] ено
@@ -2517,6 +2517,10 @@ optimize_packfile_are_you_sure =
             <b>Ненужные { -packedfiles(number: "other", capitalization: "lower") } XML комплектов карт</b>,
             являющиеся побочным продуктом работы BOB из { -AssemblyKit(case: "genitive") },
             <b>будут удалены</b>.
+        </li>
+        <li>
+            <b>ЛЮБЫЕ { -packedfiles(number: "other", capitalization: "lower") }, идентичные оригинальным игровым, 
+            будут удалены</b>.
         </li>
     </ul>
     <p>Всё ещё хотите оптимизировать { -packfile }?</p>

@@ -230,7 +230,7 @@ impl Diagnostics {
                         } else { None }
                         PackedFileType::DB => {
 
-                            // Get the depoendency data for tables once per batch.
+                            // Get the dependency data for tables once per batch.
                             // That way we can speed up this a lot.
                             let decoded_packed_file = packed_file.get_ref_decoded();
                             if dependency_data_for_table.is_empty() {
@@ -1191,7 +1191,7 @@ impl Diagnostics {
                             } else { None }
                         PackedFileType::DB => {
 
-                            // Get the depoendency data for tables once per batch.
+                            // Get the dependency data for tables once per batch.
                             // That way we can speed up this a lot.
                             let decoded_packed_file = packed_file.get_ref_decoded();
                             if dependency_data_for_table.is_empty() {

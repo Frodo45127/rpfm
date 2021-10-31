@@ -11,7 +11,7 @@
 /*!
 Module with all the code to setup shortcuts for `PackFileContentsUI`.
 
-This module is, and should stay, private, as it's only here to not polute the `PackFileContentsUI` module.
+This module is, and should stay, private, as it's only here to not pollute the `PackFileContentsUI` module.
 !*/
 
 use qt_gui::QKeySequence;

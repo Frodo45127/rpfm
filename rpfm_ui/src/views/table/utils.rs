@@ -137,7 +137,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 
     // To optimize this, we remove them in consecutive packs, which really helps when you're deleting a ton of rows at the same time.
     // That way we only trigger one deletion with it's signals instead a ton of them.
-    let mut rows_splitted = vec![];
+    let mut rows_split = vec![];
     let mut current_row_pack = vec![];
     let mut current_row_index = -2;
     for (index, row) in rows.iter().enumerate() {
@@ -150,7 +150,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
         // If the current line is not the next of the batch, nor the first one, finish the pack.
         if (*row != current_row_index - 1) && index != 0 {
             current_row_pack.reverse();
-            rows_splitted.push((current_row_index, current_row_pack.to_vec()));
+            rows_split.push((current_row_index, current_row_pack.to_vec()));
             current_row_pack.clear();
         }
 
@@ -159,16 +159,16 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
         current_row_index = *row;
     }
     current_row_pack.reverse();
-    rows_splitted.push((current_row_index, current_row_pack));
+    rows_split.push((current_row_index, current_row_pack));
 
     // And finally, remove the rows from the table.
-    for row_pack in rows_splitted.iter() {
+    for row_pack in rows_split.iter() {
         model.remove_rows_2a(row_pack.0, row_pack.1.len() as i32);
     }
 
     // Reverse them, so the final result is full top to bottom, and return them.
-    rows_splitted.reverse();
-    rows_splitted.iter()
+    rows_split.reverse();
+    rows_split.iter()
         .map(|x| (x.0, x.1.iter()
             .map(|y| y.iter()
                 .map(|z| atomic_from_ptr(*z))
@@ -431,7 +431,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item
         }
 
-        // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+        // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
         // Also, they should be limited to 3 decimals.
         DecodedData::F32(ref data) => {
             let data = {
@@ -593,7 +593,7 @@ pub unsafe fn build_columns(
         }
     }
 
-    // If we want to let the columns resize themselfs...
+    // If we want to let the columns resize themselves...
     if SETTINGS.read().unwrap().settings_bool["adjust_columns_to_content"] {
         table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
     }
@@ -858,7 +858,7 @@ pub unsafe fn get_table_from_view(
     for row in 0..model.row_count_0a() {
         let mut new_row: Vec<DecodedData> = vec![];
 
-        // Bitwise columns can span across multiple columns. That means we have to keep track of the column ourselfs.
+        // Bitwise columns can span across multiple columns. That means we have to keep track of the column ourselves.
         for (column, field) in definition.get_fields_processed().iter().enumerate() {
 
             // Create a new Item.

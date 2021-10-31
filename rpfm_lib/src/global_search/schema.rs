@@ -11,7 +11,7 @@
 /*!
 Module with all the code related to the `SchemaMatches`.
 
-This module contains the code needed to get schema matches from a `GlobalSeach`.
+This module contains the code needed to get schema matches from a `GlobalSearch`.
 !*/
 
 //-------------------------------------------------------------------------------//
@@ -28,7 +28,7 @@ pub struct SchemaMatches {
     // The name of the versioned file, for versioned files that have it.
     pub versioned_file_name: Option<String>,
 
-    /// The list of matches whithin the versioned file.
+    /// The list of matches within the versioned file.
     pub matches: Vec<SchemaMatch>,
 }
 

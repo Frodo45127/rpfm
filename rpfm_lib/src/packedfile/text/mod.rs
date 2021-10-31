@@ -171,7 +171,7 @@ impl Text {
             SupportedEncodings::Utf8 => data.encode_string_u8(&self.contents),
             SupportedEncodings::Iso8859_1 => data.encode_string_u8_iso_8859_1(&self.contents),
 
-            // For UTF-16 we always have to add the BOM. Otherwise we have no way to easely tell what this file is.
+            // For UTF-16 we always have to add the BOM. Otherwise we have no way to easily tell what this file is.
             SupportedEncodings::Utf16Le => {
                 data.append(&mut BOM_UTF_16_LE.to_vec());
                 data.encode_string_u16(&self.contents)

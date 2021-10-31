@@ -15,7 +15,7 @@ Qt::ItemFlags PackedFileModel::flags(const QModelIndex &index) const {
 
     // In case of valid index, allow:
     // - Drag for everything except the PackFile
-    // - Drop for eveything except files.
+    // - Drop for everything except files.
     if (index.isValid()) {
         QStandardItem* item = PackedFileModel::itemFromIndex(index);
         int item_type = item->data(20).toInt();

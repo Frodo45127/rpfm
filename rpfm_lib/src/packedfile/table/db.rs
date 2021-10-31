@@ -11,7 +11,7 @@
 /*!
 Module with all the code to interact with DB Tables.
 
-DB Tables are the files which controls a lot of the parameters used ingame, like units data,
+DB Tables are the files which controls a lot of the parameters used in game, like units data,
 effects data, projectile parameters.... It's what modders use the most.
 !*/
 
@@ -72,7 +72,7 @@ pub struct DB {
 
 /// This holds all the data needed to trigger cascade editions.
 ///
-/// We use a struct because Cascade Editions need a lot of different data, and it's a mess to deal with all of it independenlty.
+/// We use a struct because Cascade Editions need a lot of different data, and it's a mess to deal with all of it independently.
 #[derive(Clone, Debug, Default, GetRef, GetRefMut, Set)]
 pub struct CascadeEdition {
 
@@ -231,7 +231,7 @@ impl DB {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
-        // If we've reached this, we've succesfully decoded the table.
+        // If we've reached this, we've successfully decoded the table.
         Ok(Self {
             name: name.to_owned(),
             mysterious_byte,
@@ -261,7 +261,7 @@ impl DB {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
-        // If we've reached this, we've succesfully decoded the table.
+        // If we've reached this, we've successfully decoded the table.
         Ok(Self {
             name: name.to_owned(),
             mysterious_byte,

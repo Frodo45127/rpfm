@@ -12,7 +12,7 @@
 Module with all the code for utility functions for `PackFileContentsUI`.
 
 This module contains the implementation of custom functions for `PackFileContentsUI`.
-The reason they're here and not in the main file is because I don't want to polute
+The reason they're here and not in the main file is because I don't want to pollute
 that one, as it's mostly meant for initialization and configuration.
 !*/
 
@@ -232,7 +232,7 @@ impl PackFileContentsUI {
         // Create the main Grid and his stuff.
         let main_grid = create_grid_layout(dialog.static_upcast());
         let files_to_import_label = QLabel::from_q_string(&qtr("mass_import_num_to_import"));
-        let select_files_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        let select_files_button = QPushButton::from_q_string(&QString::from_std_str("…"));
         let imported_files_name_line_edit = QLineEdit::new();
         let use_original_filenames_label = QLabel::from_q_string(&qtr("mass_import_use_original_filename"));
         let use_original_filenames_checkbox = QCheckBox::new();
@@ -256,7 +256,7 @@ impl PackFileContentsUI {
         // Create the list of Paths to import.
         let files_to_import = Rc::new(RefCell::new(vec![]));
 
-        // What happens when we hit the "..." button.
+        // What happens when we hit the "…" button.
         let slot_select_files = SlotNoArgs::new(&*dialog, clone!(
             dialog,
             files_to_import => move || {

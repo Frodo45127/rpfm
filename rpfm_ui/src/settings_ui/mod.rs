@@ -1099,7 +1099,7 @@ impl SettingsUI {
             }
         };
 
-        // Cresate the `FileDialog` and configure it.
+        // Create the `FileDialog` and configure it.
         let title = if is_file { qtr("settings_select_file") } else { qtr("settings_select_folder") };
         let file_dialog = QFileDialog::from_q_widget_q_string(
             &self.dialog,

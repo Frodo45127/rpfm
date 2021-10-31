@@ -1,5 +1,5 @@
-#ifndef COMMAND_PALLETE_H
-#define COMMAND_PALLETE_H
+#ifndef COMMAND_PALLETTE_H
+#define COMMAND_PALLETTE_H
 
 #include "qt_subclasses_global.h"
 #include "QTableView"
@@ -21,4 +21,4 @@ class QTableViewCommandPalette : public QTableView {
 
 };
 
-#endif // COMMAND_PALLETE_H
+#endif // COMMAND_PALLETTE_H

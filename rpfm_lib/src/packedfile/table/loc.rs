@@ -154,7 +154,7 @@ impl Loc {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
-        // If we've reached this, we've succesfully decoded the table.
+        // If we've reached this, we've successfully decoded the table.
         Ok(Self {
             table,
         })
@@ -232,25 +232,25 @@ impl Loc {
     /// We return the table without "_tables". Keep that in mind if you use this.
     pub fn get_source_location_of_loc_key(key: &str, dependencies: &Dependencies) -> Option<(String, String, String)> {
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            let key_splitted = key.split('_').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let key_split = key.split('_').map(|x| x.to_owned()).collect::<Vec<String>>();
             let mut table = String::new();
 
             // Loop to get the table.
-            for (index, value) in key_splitted.iter().enumerate() {
+            for (index, value) in key_split.iter().enumerate() {
                 table.push_str(value);
                 let temp_table = table.to_owned() + "_tables";
                 if let Ok(definition) = schema.get_ref_last_definition_db(&temp_table, dependencies) {
                     let localised_fields = definition.get_localised_fields();
-                    if !localised_fields.is_empty() && key_splitted.len() > index + 2 {
+                    if !localised_fields.is_empty() && key_split.len() > index + 2 {
                         let mut field = String::new();
 
                         // Loop to get the column.
-                        for (secon_index, value) in key_splitted[index + 1..].iter().enumerate() {
+                        for (second_index, value) in key_split[index + 1..].iter().enumerate() {
                             field.push_str(value);
                             if localised_fields.iter().any(|x| x.get_name() == field) {
 
                                 // If we reached this, the rest is the value.
-                                let key_field = &key_splitted[index + secon_index + 2..].join("_");
+                                let key_field = &key_split[index + second_index + 2..].join("_");
                                 if let Some(field) = definition.get_fields_processed().iter().find(|x| (x.get_name() == "key" || x.get_name() == "id") && x.get_is_key()) {
                                     return Some((table, field.get_name().to_string(), key_field.to_owned()));
                                 }

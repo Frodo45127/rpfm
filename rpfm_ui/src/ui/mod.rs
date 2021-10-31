@@ -249,7 +249,7 @@ impl UI {
         UI_STATE.set_operational_mode(&app_ui, None);
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
-        info!("Setting initial Game Selected...");
+        info!("Setting initial Game Selected…");
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
             KEY_TROY => app_ui.game_selected_troy.set_checked(true),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
@@ -263,7 +263,7 @@ impl UI {
             KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
 
-            // Turns out some... lets say "not very brigth individual" changed the settings file manually and broke this.
+            // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
             // So just in case, by default we use WH2.
             _ => app_ui.game_selected_warhammer_2.set_checked(true),
         }
@@ -284,7 +284,7 @@ impl UI {
             QApplication::set_font_1a(&font);
         }
 
-        // Add the icon themes path to the current list of paths where Qt searchs for icons.
+        // Add the icon themes path to the current list of paths where Qt searches for icons.
         let current_theme_search_path = QIcon::theme_search_paths();
         current_theme_search_path.push_front(&QString::from_std_str(&format!("{}/icons", RPFM_PATH.to_string_lossy())));
         QIcon::set_theme_search_paths(&current_theme_search_path);

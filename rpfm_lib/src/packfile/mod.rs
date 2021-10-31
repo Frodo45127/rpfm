@@ -74,7 +74,7 @@ const TERRY_MAP_PATH: [&str; 4] = ["terrain", "tiles", "battle", "_assembly_kit"
 /// This one is the name of the main BMD data file used by maps exported from Terry.
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
-/// These three hints are neccesary for the map patching function.
+/// These three hints are necessary for the map patching function.
 const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
 const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
 const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
@@ -84,7 +84,7 @@ pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
 pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
 pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
 
-/// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
+/// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special purposes.
 pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
 
 const SUBHEADER_MARK: u32 = 0x12345678;
@@ -168,7 +168,7 @@ pub struct PackFile {
     /// Notes added to the PackFile. Exclusive of this lib.
     notes: Option<String>,
 
-    /// Settings stored in the PackFile itself, to be able to share them between instalations.
+    /// Settings stored in the PackFile itself, to be able to share them between installations.
     settings: PackFileSettings,
 }
 
@@ -411,13 +411,13 @@ impl Display for PFHVersion {
 /// Implementation of `PathType`.
 impl PathType {
 
-    /// This function removes collisioned items from the provided list of `PathType`.
+    /// This function removes collided items from the provided list of `PathType`.
     ///
     /// This means, if you have an item of type `PackFile` it removes the rest of the items.
     /// If you have a file and a folder containing the file, it removes the file. And so on.
     ///
     /// NOTE: It DOES NOT remove duplicated PathTypes. This means, if you pass it a slice with the same PathType duplicated,
-    /// it'll give it you back as it came. This is for removing collisioned PathTypes, not duplicated ones!!!!
+    /// it'll give it you back as it came. This is for removing collided PathTypes, not duplicated ones!!!!
     pub fn dedup(path_types: &[Self]) -> Vec<Self> {
         let mut path_types = path_types.to_vec();
 
@@ -535,7 +535,7 @@ impl PackFile {
         }
     }
 
-    /// This function returns a list of reserved PackedFile names, used by RPFM for special porpouses.
+    /// This function returns a list of reserved PackedFile names, used by RPFM for special purposes.
     pub fn get_reserved_packed_file_names() -> Vec<Vec<String>> {
         RESERVED_PACKED_FILE_NAMES.iter().map(|x| vec![(*x).to_string()]).collect()
     }
@@ -581,14 +581,14 @@ impl PackFile {
         self.pack_files = pack_files.to_vec();
     }
 
-    /// This function retuns the list of PackedFiles inside a `PackFile`.
+    /// This function returns the list of PackedFiles inside a `PackFile`.
     pub fn get_packedfiles_list(&self) -> Vec<Vec<String>> {
         self.packed_files.par_iter().map(|x| x.get_path().to_vec()).collect()
     }
 
     /// This function adds a `PackedFile` to an existing `PackFile`.
     ///
-    /// This function returns the path of the `PackedFile` which got added succesfully. Also, if you set `overwrite` to `true`,
+    /// This function returns the path of the `PackedFile` which got added successfully. Also, if you set `overwrite` to `true`,
     /// in case of conflict, the `PackedFile` is overwritten. If set to false, it'll be renamed instead.
     ///
     /// This is a convenience function to add just one PackedFile to our PackFile.
@@ -598,10 +598,10 @@ impl PackFile {
 
     /// This function adds one or more `PackedFiles` to an existing `PackFile`.
     ///
-    /// This function returns the paths of the `PackedFiles` which got added succesfully, which should be all. Also, if you set `overwrite` to `true`,
+    /// This function returns the paths of the `PackedFiles` which got added successfully, which should be all. Also, if you set `overwrite` to `true`,
     /// in case of conflict the destination `PackedFiles`, if exists, are overwritten. If set to false, they'll be renamed instead.
     ///
-    /// NOTE: This assumes the paths of the list of PackedFiles you pass it are unique among themselfs. It'll do weird things otherwise.
+    /// NOTE: This assumes the paths of the list of PackedFiles you pass it are unique among themselves. It'll do weird things otherwise.
     pub fn add_packed_files(&mut self, packed_files: &[&PackedFile], overwrite: bool, update_packfile_name: bool) -> Result<Vec<Vec<String>>> {
 
         // If we hit a reserved name, stop. Don't add anything.
@@ -664,9 +664,9 @@ impl PackFile {
                     }
 
                     let name_current = path.last().unwrap().to_owned();
-                    let name_splitted = name_current.split('.').collect::<Vec<&str>>();
-                    let name = name_splitted[0];
-                    let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
+                    let name_split = name_current.split('.').collect::<Vec<&str>>();
+                    let name = name_split[0];
+                    let extension = if name_split.len() > 1 { name_split[1..].join(".") } else { "".to_owned() };
                     for number in 0.. {
                         let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                         *path.last_mut().unwrap() = name;
@@ -716,12 +716,12 @@ impl PackFile {
                             file.read_line(&mut first_row)?;
                             file.read_line(&mut second_row)?;
 
-                            let second_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
-                            match second_row_splitted.get(0) {
+                            let second_row_split = second_row.split('\t').collect::<Vec<&str>>();
+                            match second_row_split.get(0) {
                                 Some(table_type) => {
 
                                     // If we have at least 2 fields, use the legacy behavior.
-                                    let has_legacy_structure = if let Some(table_type) = second_row_splitted.get(1) { table_type != &"" } else { false };
+                                    let has_legacy_structure = if let Some(table_type) = second_row_split.get(1) { table_type != &"" } else { false };
                                     let mut table_type = if has_legacy_structure { table_type.to_string() } else { table_type.split(';').collect::<Vec<&str>>()[0].to_owned() };
 
                                     if table_type.starts_with("#") {
@@ -885,12 +885,12 @@ impl PackFile {
                                             file.read_line(&mut first_row)?;
                                             file.read_line(&mut second_row)?;
 
-                                            let second_row_splitted = second_row.split('\t').collect::<Vec<&str>>();
-                                            match second_row_splitted.get(0) {
+                                            let second_row_split = second_row.split('\t').collect::<Vec<&str>>();
+                                            match second_row_split.get(0) {
                                                 Some(table_type) => {
 
                                                     // If we have at least 2 fields, use the legacy behavior.
-                                                    let has_legacy_structure = if let Some(table_type) = second_row_splitted.get(1) { table_type != &"" } else { false };
+                                                    let has_legacy_structure = if let Some(table_type) = second_row_split.get(1) { table_type != &"" } else { false };
                                                     let mut table_type = if has_legacy_structure { table_type.to_string() } else { table_type.split(';').collect::<Vec<&str>>()[0].to_owned() };
 
                                                     if table_type.starts_with("#") {
@@ -985,7 +985,7 @@ impl PackFile {
         overwrite: bool,
     ) -> Result<Vec<PathType>> {
 
-        // Keep the PathTypes added so we can return them to the UI easely.
+        // Keep the PathTypes added so we can return them to the UI easily.
         let paths;
         let path_types = PathType::dedup(path_types);
 
@@ -1103,7 +1103,7 @@ impl PackFile {
     ///   - All PackFiles of type `Boot`, `Release` or `Patch` are editable.
     pub fn is_editable(&self, is_editing_of_ca_packfiles_allowed: bool) -> bool {
 
-        // If it's this very specific type, don't save under any circunstance.
+        // If it's this very specific type, don't save under any circumstance.
         if let PFHFileType::Other(_) = self.pfh_file_type { false }
 
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
@@ -1222,7 +1222,7 @@ impl PackFile {
     /// This function returns a copy of all the PackedFiles in the current PackFile of the provided type.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` the type.
     pub fn get_packed_files_by_type(&self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
@@ -1234,7 +1234,7 @@ impl PackFile {
     /// This function returns a reference of all the PackedFiles in the current PackFile of the provided type.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` the type.
     pub fn get_ref_packed_files_by_type(&self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<&PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
@@ -1246,7 +1246,7 @@ impl PackFile {
     /// This function returns a mutable reference of all the PackedFiles in the current PackFile of the provided type.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` the type.
     pub fn get_ref_mut_packed_files_by_type(&mut self, packed_file_type: PackedFileType, strict_match_mode: bool) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut()
             .filter(|x| {
@@ -1258,7 +1258,7 @@ impl PackFile {
     /// This function returns a copy of all the PackedFiles in the current PackFile of the provided types.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` one of the types.
     pub fn get_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
@@ -1270,7 +1270,7 @@ impl PackFile {
     /// This function returns a reference of all the PackedFiles in the current PackFile of the provided types.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` one of the types.
     pub fn get_ref_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
@@ -1282,7 +1282,7 @@ impl PackFile {
     /// This function returns a mutable reference of all the PackedFiles in the current PackFile of the provided types.
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
-    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    /// NOTE: This does not guarantee the provided PackedFiles are of the type. Just that they `match` one of the types.
     pub fn get_ref_mut_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&mut PackedFile> {
         self.packed_files.par_iter_mut()
             .filter(|x| {
@@ -1354,7 +1354,7 @@ impl PackFile {
     /// This function returns a copy of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
     pub fn get_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<PackedFile> {
 
-        // Keep the PathTypes added so we can return them to the UI easely.
+        // Keep the PathTypes added so we can return them to the UI easily.
         let path_types = PathType::dedup(path_types);
 
         // As this can get very slow very quickly, we do here some... optimizations.
@@ -1401,7 +1401,7 @@ impl PackFile {
     /// This function returns a copy of all the PackedFiles in the provided PathTypes.
     pub fn get_packed_files_by_path_type(&mut self, path_types: &[PathType]) -> Vec<PackedFile> {
 
-        // Keep the PathTypes added so we can return them to the UI easely.
+        // Keep the PathTypes added so we can return them to the UI easily.
         let path_types = PathType::dedup(path_types);
 
         // As this can get very slow very quickly, we do here some... optimizations.
@@ -1633,7 +1633,7 @@ impl PackFile {
             },
 
             // No paths selected, none selected, invalid path selected, or invalid value.
-            0 | 8..=255 => return Err(ErrorKind::NonExistantFile.into()),
+            0 | 8..=255 => return Err(ErrorKind::NonExistentFile.into()),
         }
 
         // If there is any error in the list, report it.
@@ -1825,9 +1825,9 @@ impl PackFile {
             if overwrite { self.remove_packed_file_by_path(&destination_path); }
             else {
                 let name_current = destination_path.last().unwrap().to_owned();
-                let name_splitted = name_current.split('.').collect::<Vec<&str>>();
-                let name = name_splitted[0];
-                let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
+                let name_split = name_current.split('.').collect::<Vec<&str>>();
+                let name = name_split[0];
+                let extension = if name_split.len() > 1 { name_split[1..].join(".") } else { "".to_owned() };
                 for number in 0.. {
                     let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
                     *destination_path.last_mut().unwrap() = name;
@@ -2112,7 +2112,7 @@ impl PackFile {
 
     /// This function is used to patch Warhammer Siege map packs so their AI actually works.
     ///
-    /// This also removes the useles xml files left by Terry in the `PackFile`.
+    /// This also removes the useless xml files left by Terry in the `PackFile`.
     pub fn patch_siege_ai(&mut self) -> Result<(String, Vec<Vec<String>>)> {
 
         // If there are no files, directly return an error.
@@ -2148,7 +2148,7 @@ impl PackFile {
                 }
             }
 
-            // All xml in this folder are useles, so we mark them all for deletion.
+            // All xml in this folder are useless, so we mark them all for deletion.
             else if name.ends_with(".xml") {
                 files_to_delete.push(packed_file.get_path().to_vec());
             }
@@ -2248,7 +2248,7 @@ impl PackFile {
                         }
 
                         // Get the definition, depending on the table type and version.
-                        // If the name is not specific for a type of file, we trat it as a DB Table.
+                        // If the name is not specific for a type of file, we treat it as a DB Table.
                         match &*table_type {
                             TSV_NAME_LOC => {
                                 if let Ok((table, file_path)) = Loc::import_tsv(schema, path) {
@@ -2361,7 +2361,7 @@ impl PackFile {
         match *SCHEMA.read().unwrap() {
             Some(ref schema) => {
 
-                // Keep the PathTypes added so we can return them to the UI easely.
+                // Keep the PathTypes added so we can return them to the UI easily.
                 let path_types = PathType::dedup(path_types);
                 let paths = self.get_paths_from_path_types(&path_types);
                 let paths_ref = paths.par_iter().map(|x| (*x).as_ref()).collect::<Vec<&[String]>>();
@@ -2564,7 +2564,7 @@ impl PackFile {
                         PFHFileType::Movie => movie_files.append(&mut pack.packed_files),
 
                         // If we find an unknown one, return an error.
-                        PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown.into()),
+                        PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUnknown.into()),
                     },
                     Err(error) => return Err(error)
                 }
@@ -2599,7 +2599,7 @@ impl PackFile {
             pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
             pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
 
-            // Set it as type "Other(200)", so we can easely identify it as fake in other places.
+            // Set it as type "Other(200)", so we can easily identify it as fake in other places.
             // Used to lock the CA Files.
             if lock_packfile {
                 pack_file.set_pfh_file_type(PFHFileType::Other(200));
@@ -2870,11 +2870,11 @@ impl PackFile {
             packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
-            let is_compressable = !matches!(PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false), PackedFileType::DB | PackedFileType::Loc);
+            let is_compressible = !matches!(PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false), PackedFileType::DB | PackedFileType::Loc);
             let (_, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
 
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile. EXCEPT FOR TABLES. NEVER COMPRESS TABLES.
-            if !is_compressable {
+            if !is_compressible {
                 *should_be_compressed = false;
             }
 
@@ -2887,7 +2887,7 @@ impl PackFile {
                 *is_compressed = false;
             }
 
-            // Encryption is not yet supported. Unencrypt everything.
+            // Encryption is not yet supported. Decrypt everything.
             if is_encrypted.is_some() {
                 *data = decrypt_packed_file(data);
                 *is_encrypted = None;
@@ -3009,7 +3009,7 @@ impl PackFile {
     }
 }
 
-/// Implementaion of trait `Default` for `PackFile`.
+/// Implementation of trait `Default` for `PackFile`.
 impl Default for PackFile {
 
     /// This function creates a new empty `PackFile`.
@@ -3038,7 +3038,7 @@ impl From<&PackFile> for PackFileInfo {
 /// Implementation of `Manifest`.
 impl Manifest {
 
-    /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
+    /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parsable.
     pub fn read_from_game_selected() -> Result<Self> {
         let mut manifest_path = GAME_SELECTED.read().unwrap().get_data_path().map_err(|_| Error::from(ErrorKind::GameManifestNotFound))?;
         manifest_path.push("manifest.txt");
@@ -3082,7 +3082,7 @@ impl Manifest {
         Ok(manifest)
     }
 
-    /// This function returns a parsed version of the `manifest.txt` in the folder you provided, if exists and is parseable.
+    /// This function returns a parsed version of the `manifest.txt` in the folder you provided, if exists and is parsable.
     pub fn read_from_folder(path: &Path) -> Result<Self> {
         let manifest_path = path.join("manifest.txt");
 
@@ -3215,28 +3215,28 @@ impl PackFileSettings {
     }
 }
 
-/// Implementaion of trait `Default` for `PFHFlags`.
+/// Implementation of trait `Default` for `PFHFlags`.
 impl Default for PFHFlags {
     fn default() -> Self {
         Self::empty()
     }
 }
 
-/// Implementaion of trait `Default` for `PFHVersion`.
+/// Implementation of trait `Default` for `PFHVersion`.
 impl Default for PFHVersion {
     fn default() -> Self {
         Self::PFH6
     }
 }
 
-/// Implementaion of trait `Default` for `PFHFileType`.
+/// Implementation of trait `Default` for `PFHFileType`.
 impl Default for PFHFileType {
     fn default() -> Self {
         Self::Mod
     }
 }
 
-/// Implementaion of trait `Default` for `CompressionState`.
+/// Implementation of trait `Default` for `CompressionState`.
 impl Default for CompressionState {
     fn default() -> Self {
         Self::Disabled

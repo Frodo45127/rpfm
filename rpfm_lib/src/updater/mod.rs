@@ -140,7 +140,7 @@ pub fn update_main_program() -> Result<()> {
 /// This function takes care of checking for new RPFM updates.
 ///
 /// Also, this has a special behavior: If we have a beta version and we have the stable channel selected,
-/// it'll pick the newest stable release, even if it's older than our beta. That way we can easely opt-out of betas.
+/// it'll pick the newest stable release, even if it's older than our beta. That way we can easily opt-out of betas.
 pub fn check_updates_rpfm() -> Result<APIResponse> {
     let update_channel = get_update_channel();
     let last_release = get_last_release(update_channel)?;

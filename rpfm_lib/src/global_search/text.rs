@@ -11,7 +11,7 @@
 /*!
 Module with all the code related to the `TextMatches`.
 
-This module contains the code needed to get text matches from a `GlobalSeach`.
+This module contains the code needed to get text matches from a `GlobalSearch`.
 !*/
 
 //-------------------------------------------------------------------------------//
@@ -25,7 +25,7 @@ pub struct TextMatches {
     /// The path of the file.
     pub path: Vec<String>,
 
-    /// The list of matches whithin the file.
+    /// The list of matches within the file.
     pub matches: Vec<TextMatch>,
 }
 
@@ -39,7 +39,7 @@ pub struct TextMatch {
     // Row of the first character of the match.
     pub row: u64,
 
-    // Lenght of the matched pattern.
+    // Length of the matched pattern.
     pub len: i64,
 
     // Line of text containing the match.

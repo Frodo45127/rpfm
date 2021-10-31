@@ -1478,7 +1478,7 @@ impl PackedFileDecoderView {
     ///
     /// Known issues:
     /// - If the loc files hasn't been properly marked in the Assembly Kit, this fails.
-    /// - Sometimes this returns some floats as valid when they're not due to precission differences.
+    /// - Sometimes this returns some floats as valid when they're not due to precision differences.
     /// - Sometimes it duplicates some column names, if both columns are exactly equal.
     /// - To make this not consider anything as a valid integer, the integers are limited to an range of -60k+60k, around 0 and near their type limits.
     pub fn import_from_assembly_kit(&self) -> Result<Vec<Vec<Field>>> {
@@ -1705,7 +1705,7 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
     table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
     table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
-    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
+    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Length")));
     table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
     table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
     table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
@@ -1730,7 +1730,7 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     list.append_q_string(&QString::from_std_str("SequenceU32"));
     new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, 0, &QTimer::new_0a().into_ptr(), false);
 
-    // Fields Max lenght and CA Order must be numeric.
+    // Fields Max length and CA Order must be numeric.
     new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 9, 32, &QTimer::new_0a().into_ptr(), false);
     new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 12, 16, &QTimer::new_0a().into_ptr(), false);
     new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 65535, &QTimer::new_0a().into_ptr(), false);

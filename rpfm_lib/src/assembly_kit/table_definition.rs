@@ -76,7 +76,7 @@ pub struct RawField {
     /// The default value of the field.
     pub default_value: Option<String>,
 
-    /// The max allowed lenght for the data in the field.
+    /// The max allowed length for the data in the field.
     pub max_length: Option<String>,
 
     /// If the field's data corresponds to a filename.

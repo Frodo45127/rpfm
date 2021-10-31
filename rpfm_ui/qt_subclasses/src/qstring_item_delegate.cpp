@@ -4,14 +4,14 @@
 #include <QSettings>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QStringItemDelegate.
-extern "C" void new_qstring_item_delegate(QObject *parent, const int column, const int max_lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
-    QStringItemDelegate* delegate = new QStringItemDelegate(parent, max_lenght, timer, is_dark_theme_enabled, has_filter, right_side_mark);
+extern "C" void new_qstring_item_delegate(QObject *parent, const int column, const int max_length, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark) {
+    QStringItemDelegate* delegate = new QStringItemDelegate(parent, max_length, timer, is_dark_theme_enabled, has_filter, right_side_mark);
     dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
-// Constructor of the QStringItemDelegate. We use it to store the max lenght allowed for the delegate.
-QStringItemDelegate::QStringItemDelegate(QObject *parent, const int lenght, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent) {
-    max_lenght = lenght;
+// Constructor of the QStringItemDelegate. We use it to store the max length allowed for the delegate.
+QStringItemDelegate::QStringItemDelegate(QObject *parent, const int length, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QExtendedStyledItemDelegate(parent) {
+    max_length = length;
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
@@ -43,8 +43,8 @@ QWidget* QStringItemDelegate::createEditor(QWidget *parent, const QStyleOptionVi
     }
 
     QLineEdit *editor = new QLineEdit(parent);
-    //if (this->max_lenght > 0) {
-    //    editor->setMaxLength(max_lenght);
+    //if (this->max_length > 0) {
+    //    editor->setMaxLength(max_length);
     //}
     return editor;
 }

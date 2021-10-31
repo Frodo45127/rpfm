@@ -331,7 +331,7 @@ impl AppUISlots {
                         }
 
                         // Report the success, so the user knows it worked.
-                        log_to_status_bar(&tr("install_sucess"));
+                        log_to_status_bar(&tr("install_success"));
 
                         // Enable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(true);
@@ -380,7 +380,7 @@ impl AppUISlots {
                         }
 
                         // Report the success, so the user knows it worked.
-                        log_to_status_bar(&tr("uninstall_sucess"));
+                        log_to_status_bar(&tr("uninstall_success"));
 
                         // Disable the uninstall button.
                         app_ui.packfile_uninstall.set_enabled(false);
@@ -1125,7 +1125,7 @@ impl AppUISlots {
                     &app_ui.main_window,
                     &qtr("about_about_rpfm"),
 
-                    // NOTE: This one is hardcoded, because I don't want people attributing themselfs the program in the translations.
+                    // NOTE: This one is hardcoded, because I don't want people attributing themselves the program in the translations.
                     &QString::from_std_str(format!(
                         "<table>
                             <tr>
