@@ -732,7 +732,7 @@ pfs_diagnostics_files_to_ignore_description_label =
             <ul><li>Only those two diagnostics for that specific table will be ignored. Filter keys available in the manual.</li></ul>
         </li>
     </ul>
-    <hr>
+    <br>
 
 pfs_import_files_to_ignore_label = <h3>Files to Ignore when Importing</h3>
 pfs_import_files_to_ignore_description_label = <p>The files on this list will be ignored when importing from a MyMod folder. Only for MyMods. Paths are relative, the glory of the empire is absolute.</p>

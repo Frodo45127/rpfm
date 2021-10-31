@@ -2082,7 +2082,7 @@ pfs_diagnostics_files_to_ignore_description_label =
             </ul>
         </li>
     </ul>
-    <hr>
+    <br>
 
 pfs_import_files_to_ignore_label =
     <h3>Игнорируемые при импорте файлы</h3>
