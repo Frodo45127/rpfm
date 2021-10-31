@@ -903,34 +903,36 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the autosave folder, sorted by modification date, and make an action for each one of them.
-        let autosave_paths = get_files_in_folder_from_newest_to_oldest(&get_backup_autosave_path().unwrap());
-        if let Ok(ref paths) = autosave_paths {
-            for path in paths {
+        if let Ok(autosave_paths) = get_backup_autosave_path() {
+            let autosave_paths = get_files_in_folder_from_newest_to_oldest(&autosave_paths);
+            if let Ok(ref paths) = autosave_paths {
+                for path in paths {
 
-                // That means our file is a valid PackFile and it needs to be added to the menu.
-                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(mod_name));
+                    // That means our file is a valid PackFile and it needs to be added to the menu.
+                    let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                    let open_mod_action = app_ui.packfile_open_from_autosave.add_action_q_string(&QString::from_std_str(mod_name));
 
-                // Create the slot for that action.
-                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                    app_ui,
-                    pack_file_contents_ui,
-                    global_search_ui,
-                    diagnostics_ui,
-                    path => move |_| {
-                    if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
-                            return show_dialog(&app_ui.main_window, error, false);
+                    // Create the slot for that action.
+                    let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                        app_ui,
+                        pack_file_contents_ui,
+                        global_search_ui,
+                        diagnostics_ui,
+                        path => move |_| {
+                        if Self::are_you_sure(&app_ui, false) {
+                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
+                                return show_dialog(&app_ui.main_window, error, false);
+                            }
+
+                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            }
                         }
+                    }));
 
-                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        }
-                    }
-                }));
-
-                // Connect the slot and store it.
-                open_mod_action.triggered().connect(&slot_open_mod);
+                    // Connect the slot and store it.
+                    open_mod_action.triggered().connect(&slot_open_mod);
+                }
             }
         }
 
