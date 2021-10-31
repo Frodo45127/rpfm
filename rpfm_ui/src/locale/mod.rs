@@ -107,7 +107,7 @@ impl Locale {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {
-                let lang_id = Language::from_str(lang_info[1]).unwrap();
+                let lang_id = Language::from_str(lang_info[1])?;
                 let language_id = LanguageIdentifier::from_parts(lang_id, None, None, &[]);
                 languages.push((lang_info[0].to_owned(), language_id));
             }
