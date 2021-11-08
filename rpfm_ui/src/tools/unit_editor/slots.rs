@@ -31,6 +31,8 @@ pub struct ToolUnitEditorSlots {
     pub delayed_updates: QBox<SlotNoArgs>,
     pub load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     pub filter_edited: QBox<SlotNoArgs>,
+    pub change_caste: QBox<SlotNoArgs>,
+    pub change_icon: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -74,10 +76,37 @@ impl ToolUnitEditorSlots {
             }
         ));
 
+        let change_caste = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+            ui => move || {
+
+                // First, disable the widgets enabled by the previous type.
+                if let Some(widgets) = ui.unit_type_dependant_widgets.get(&*ui.unit_caste_previous.read().unwrap()) {
+                    widgets.iter().for_each(|x| x.set_enabled(false));
+                }
+
+                // Then enable the new widgets and change the previous type.
+                let unit_type = ui.main_units_caste_combobox.current_text().to_std_string();
+                if let Some(widgets) = ui.unit_type_dependant_widgets.get(&unit_type) {
+                    widgets.iter().for_each(|x| x.set_enabled(true));
+                }
+
+                *ui.unit_caste_previous.write().unwrap() = unit_type;
+            }
+        ));
+
+        let change_icon = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+            ui => move || {
+                let key = ui.unit_icon_key_combobox.current_text().to_std_string();
+                ui.load_unit_icon(&HashMap::new(), Some(key));
+            }
+        ));
+
         ToolUnitEditorSlots {
             delayed_updates,
             load_data_to_detailed_view,
             filter_edited,
+            change_caste,
+            change_icon,
         }
     }
 }

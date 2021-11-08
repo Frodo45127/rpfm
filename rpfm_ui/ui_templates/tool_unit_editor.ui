@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1884</width>
-    <height>969</height>
+    <width>1632</width>
+    <height>856</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,6 +72,13 @@
        <property name="bottomMargin">
         <number>9</number>
        </property>
+       <item row="6" column="0">
+        <widget class="QLabel" name="packed_file_name_label">
+         <property name="text">
+          <string>TextLabel</string>
+         </property>
+        </widget>
+       </item>
        <item row="6" column="2">
         <widget class="QDialogButtonBox" name="button_box">
          <property name="orientation">
@@ -82,12 +89,21 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="packed_file_name_label">
-         <property name="text">
-          <string>TextLabel</string>
+       <item row="5" column="0" colspan="3">
+        <widget class="KMessageWidget" name="message_widget">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+         <property name="closeButtonVisible">
+          <bool>true</bool>
          </property>
         </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLineEdit" name="packed_file_name_line_edit"/>
        </item>
        <item row="0" column="0" colspan="3">
         <widget class="QTabWidget" name="detailed_view_tab_widget">
@@ -99,80 +115,600 @@
            <string>Page</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_16">
-           <item row="2" column="3" rowspan="4" colspan="2">
-            <widget class="QWidget" name="right_widget" native="true">
+           <item row="0" column="1" colspan="2">
+            <widget class="QGroupBox" name="unit_key_loc_data_groupbox">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
              <layout class="QFormLayout" name="formLayout_2">
-              <item row="2" column="0">
-               <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor"/>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="loc_land_units_onscreen_name_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
-              </item>
               <item row="0" column="0">
-               <widget class="QLabel" name="main_units_unit_label">
+               <widget class="QLabel" name="main_units_unique_index_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
               </item>
               <item row="0" column="1">
+               <widget class="QSpinBox" name="main_units_unique_index_spinbox"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="main_units_unit_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
                <widget class="QLineEdit" name="main_units_unit_line_edit"/>
               </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="main_units_caste_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QComboBox" name="main_units_caste_combobox"/>
+              </item>
               <item row="3" column="0">
-               <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+               <widget class="QLabel" name="loc_land_units_onscreen_name_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
               </item>
               <item row="3" column="1">
-               <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor"/>
+               <widget class="QLineEdit" name="loc_land_units_onscreen_name_line_edit"/>
               </item>
               <item row="4" column="0">
-               <widget class="QLabel" name="loc_unit_description_strengths_weaknesses_texts_text_label">
+               <widget class="QLabel" name="loc_unit_description_short_texts_text_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
               </item>
               <item row="4" column="1">
-               <widget class="KTextEdit" name="loc_unit_description_strengths_weaknesses_texts_text_ktexteditor"/>
+               <widget class="KTextEdit" name="loc_unit_description_short_texts_text_ktexteditor">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>30</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLabel" name="loc_unit_description_historical_text_key_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="KTextEdit" name="loc_unit_description_historical_text_key_ktexteditor">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>80</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>80</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="loc_unit_description_strengths_weaknesses_texts_text_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="KTextEdit" name="loc_unit_description_strengths_weaknesses_texts_text_ktexteditor">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>30</height>
+                 </size>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
            </item>
-           <item row="2" column="0" rowspan="4" colspan="2">
-            <widget class="QWidget" name="left_widget" native="true">
-             <layout class="QGridLayout" name="gridLayout_17">
+           <item row="2" column="1">
+            <widget class="QGroupBox" name="unit_ui_groupbox">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_23">
+              <item row="5" column="1">
+               <widget class="QLineEdit" name="main_units_porthole_composite_scene_line_edit"/>
+              </item>
               <item row="1" column="1">
-               <widget class="QLineEdit" name="unit_icon_key_line_edit">
-                <property name="clearButtonEnabled">
-                 <bool>true</bool>
+               <widget class="QLineEdit" name="main_units_porthole_camera_line_edit"/>
+              </item>
+              <item row="8" column="0">
+               <widget class="QLabel" name="main_units_ui_unit_group_land_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="main_units_special_edition_mask_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="0">
+               <widget class="QLabel" name="main_units_ui_unit_group_naval_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLineEdit" name="main_units_optional_ui_element_line_edit"/>
+              </item>
+              <item row="6" column="1">
+               <widget class="QSpinBox" name="main_units_special_edition_mask_spinbox"/>
+              </item>
+              <item row="8" column="1">
+               <widget class="QLineEdit" name="main_units_ui_unit_group_land_line_edit"/>
+              </item>
+              <item row="7" column="1">
+               <widget class="QLineEdit" name="main_units_ui_unit_group_naval_line_edit"/>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLabel" name="main_units_porthole_composite_scene_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="main_units_optional_ui_element_label">
+                <property name="text">
+                 <string>TextLabel</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="0">
+               <widget class="QLabel" name="main_units_porthole_camera_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="5" column="0" colspan="3">
+            <widget class="KCollapsibleGroupBox" name="kcollapsiblegroupbox">
+             <property name="title">
+              <string>Extra widgets</string>
+             </property>
+             <property name="expanded">
+              <bool>false</bool>
+             </property>
+             <layout class="QFormLayout" name="formLayout_3">
+              <item row="0" column="0">
+               <widget class="QLabel" name="main_units_melee_cp_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QDoubleSpinBox" name="main_units_melee_cp_double_spinbox"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="main_units_weight_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLineEdit" name="main_units_weight_line_edit"/>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="main_units_multiplayer_qb_cap_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QSpinBox" name="main_units_multiplayer_qb_cap_spinbox"/>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="main_units_multiplayer_cap_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QSpinBox" name="main_units_multiplayer_cap_spinbox"/>
+              </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="main_units_missile_cp_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QDoubleSpinBox" name="main_units_missile_cp_double_spinbox"/>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLabel" name="main_units_min_men_per_ship_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QSpinBox" name="main_units_min_men_per_ship_spinbox"/>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="main_units_in_encyclopedia_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QCheckBox" name="main_units_in_encyclopedia_checkbox">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="0">
+               <widget class="QLabel" name="main_units_naval_unit_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QLineEdit" name="main_units_naval_unit_spinbox"/>
+              </item>
+              <item row="8" column="0">
+               <widget class="QLabel" name="main_units_num_ships_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="1">
+               <widget class="QSpinBox" name="main_units_num_ships_spinbox"/>
+              </item>
+              <item row="9" column="0">
+               <widget class="QLabel" name="main_units_num_men_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="9" column="1">
+               <widget class="QSpinBox" name="main_units_num_men_spinbox"/>
+              </item>
+              <item row="10" column="0">
+               <widget class="QLabel" name="main_units_multiplayer_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="10" column="1">
+               <widget class="QSpinBox" name="main_units_multiplayer_cost_spinbox"/>
+              </item>
+              <item row="11" column="0">
+               <widget class="QLabel" name="main_units_is_naval_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="11" column="1">
+               <widget class="QCheckBox" name="main_units_is_naval_checkbox">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="12" column="0">
+               <widget class="QLabel" name="main_units_is_monstrous_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="12" column="1">
+               <widget class="QCheckBox" name="main_units_is_monstrous_checkbox">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="13" column="0">
+               <widget class="QLabel" name="main_units_mount_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="13" column="1">
+               <widget class="QLineEdit" name="main_units_mount_line_edit"/>
+              </item>
+              <item row="14" column="0">
+               <widget class="QLabel" name="main_units_is_high_threat_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="14" column="1">
+               <widget class="QCheckBox" name="main_units_is_high_threat_checkbox">
+                <property name="text">
+                 <string>CheckBox</string>
+                </property>
+               </widget>
+              </item>
+              <item row="15" column="0">
+               <widget class="QLabel" name="main_units_max_men_per_ship_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="15" column="1">
+               <widget class="QSpinBox" name="main_units_max_men_per_ship_spinbox"/>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QGroupBox" name="unit_campaign_groupbox">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_22">
+              <item row="2" column="2">
+               <widget class="QSpinBox" name="main_units_food_cost_spinbox"/>
+              </item>
+              <item row="5" column="2">
+               <widget class="QCheckBox" name="main_units_use_hitpoints_in_campaign_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QLabel" name="main_units_upkeep_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="11" column="1">
+               <widget class="QLabel" name="main_units_recruitment_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLabel" name="main_units_create_time_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLabel" name="main_units_campaign_cap_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="11" column="2">
+               <widget class="QSpinBox" name="main_units_recruitment_cost_spinbox"/>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLabel" name="main_units_food_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="2">
+               <widget class="QSpinBox" name="main_units_create_time_spinbox"/>
+              </item>
+              <item row="7" column="2">
+               <widget class="QSpinBox" name="main_units_upkeep_cost_spinbox"/>
+              </item>
+              <item row="9" column="1">
+               <widget class="QLabel" name="main_units_restrict_xp_gain_in_campaign_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="12" column="2">
+               <widget class="QLineEdit" name="main_units_recruitment_movie_line_edit"/>
+              </item>
+              <item row="3" column="2">
+               <widget class="QSpinBox" name="main_units_campaign_cap_spinbox"/>
+              </item>
+              <item row="5" column="1">
+               <widget class="QLabel" name="main_units_use_hitpoints_in_campaign_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="9" column="2">
+               <widget class="QCheckBox" name="main_units_restrict_xp_gain_in_campaign_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="12" column="1">
+               <widget class="QLabel" name="main_units_recruitment_movie_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QGroupBox" name="groupBox_3">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_20">
+              <item row="2" column="1">
+               <widget class="QSpinBox" name="main_units_tier_spinbox"/>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="main_units_can_trade_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="main_units_prestige_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QCheckBox" name="main_units_unit_scaling_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1">
+               <widget class="QCheckBox" name="main_units_world_leader_only_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QCheckBox" name="main_units_can_trade_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QSpinBox" name="main_units_prestige_spinbox"/>
+              </item>
+              <item row="0" column="1">
+               <widget class="QCheckBox" name="main_units_can_siege_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0">
+               <widget class="QLabel" name="main_units_can_siege_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="main_units_tier_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="main_units_unit_scaling_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="main_units_world_leader_only_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QWidget" name="icon_groupbox" native="true">
+             <layout class="QGridLayout" name="gridLayout_17">
+              <item row="2" column="1">
+               <widget class="QComboBox" name="unit_icon_key_combobox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="editable">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
                <widget class="QLabel" name="unit_icon_key_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="0" colspan="2">
+              <item row="2" column="2">
+               <widget class="QToolButton" name="unit_icon_key_tool_button">
+                <property name="text">
+                 <string>...</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0" colspan="3">
                <widget class="QLabel" name="unit_icon_label">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -180,11 +716,147 @@
                   <verstretch>0</verstretch>
                  </sizepolicy>
                 </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QGroupBox" name="unit_requirements_groupbox">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_21">
+              <item row="0" column="1">
+               <widget class="QLabel" name="main_units_resource_requirement_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="2">
+               <widget class="QLineEdit" name="main_units_resource_requirement_line_edit"/>
+              </item>
+              <item row="1" column="2">
+               <widget class="QLineEdit" name="main_units_region_unit_resource_requirement_line_edit"/>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLabel" name="main_units_region_unit_resource_requirement_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLabel" name="main_units_religion_requirement_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="2">
+               <widget class="QLineEdit" name="main_units_religion_requirement_line_edit"/>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLabel" name="main_units_additional_building_requirement_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="2">
+               <widget class="QLineEdit" name="main_units_additional_building_requirement_line_edit"/>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="3" column="1" colspan="2">
+            <widget class="QGroupBox" name="unit_audio_groupbox">
+             <property name="title">
+              <string>GroupBox</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_19">
+              <item row="5" column="1">
+               <widget class="QLabel" name="main_units_vo_is_dinosaur_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QLabel" name="main_units_audio_voiceover_culture_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="4">
+               <widget class="QCheckBox" name="main_units_vo_is_dragon_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="2" colspan="3">
+               <widget class="QLineEdit" name="main_units_audio_voiceover_culture_override_line_edit"/>
+              </item>
+              <item row="2" column="2" colspan="3">
+               <widget class="QLineEdit" name="main_units_audio_voiceover_culture_line_edit"/>
+              </item>
+              <item row="3" column="1">
+               <widget class="QLabel" name="main_units_audio_voiceover_actor_group_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="2" colspan="3">
+               <widget class="QLineEdit" name="main_units_audio_voiceover_actor_group_line_edit"/>
+              </item>
+              <item row="5" column="3">
+               <widget class="QLabel" name="main_units_vo_is_dragon_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="2">
+               <widget class="QCheckBox" name="main_units_vo_is_dinosaur_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QLabel" name="main_units_audio_voiceover_culture_override_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="2">
+               <widget class="QCheckBox" name="main_units_has_spoken_vo_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLabel" name="main_units_has_spoken_vo_label">
+                <property name="text">
+                 <string>TextLabel</string>
                 </property>
                </widget>
               </item>
@@ -1045,7 +1717,7 @@
            <item row="1" column="0">
             <widget class="QToolButton" name="variantmesh_check_button">
              <property name="text">
-              <string>…</string>
+              <string>...</string>
              </property>
             </widget>
            </item>
@@ -1063,22 +1735,6 @@
          </widget>
         </widget>
        </item>
-       <item row="6" column="1">
-        <widget class="QLineEdit" name="packed_file_name_line_edit"/>
-       </item>
-       <item row="5" column="0" colspan="3">
-        <widget class="KMessageWidget" name="message_widget">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
-         <property name="closeButtonVisible">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
     </widget>
@@ -1086,6 +1742,17 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>KCollapsibleGroupBox</class>
+   <extends>QWidget</extends>
+   <header>kcollapsiblegroupbox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>KMessageWidget</class>
+   <extends>QFrame</extends>
+   <header>kmessagewidget.h</header>
+  </customwidget>
   <customwidget>
    <class>KComboBox</class>
    <extends>QComboBox</extends>
@@ -1095,11 +1762,6 @@
    <class>KTextEdit</class>
    <extends>QTextEdit</extends>
    <header>ktextedit.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KMessageWidget</class>
-   <extends>QFrame</extends>
-   <header>kmessagewidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

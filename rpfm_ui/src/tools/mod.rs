@@ -37,8 +37,10 @@ use qt_ui_tools::QUiLoader;
 use cpp_core::{CastInto, DynamicCast, Ptr, StaticUpcast};
 
 use rayon::prelude::*;
+use rpfm_lib::packedfile::table::DependencyData;
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, BufReader};
@@ -51,7 +53,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc};
+use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc, Table};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::schema::{Definition, FieldType};
 
@@ -71,26 +73,26 @@ use crate::views::table::utils::clean_column_names;
 
 /// Macro to automatically generate get code from all sources, because it gets big really fast.
 macro_rules! get_data_from_all_sources {
-    ($funtion:ident, $data:ident, $processed_data:ident) => (
+    ($self:ident, $funtion:ident, $data:ident, $processed_data:ident) => (
         if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
-            Self::$funtion(data, &mut $processed_data)?;
+            $self.$funtion(data, &mut $processed_data)?;
         }
         if let Some(data) = $data.get_mut(&DataSource::ParentFiles) {
-            Self::$funtion(data, &mut $processed_data)?;
+            $self.$funtion(data, &mut $processed_data)?;
         }
         if let Some(data) = $data.get_mut(&DataSource::PackFile) {
-            Self::$funtion(data, &mut $processed_data)?;
+            $self.$funtion(data, &mut $processed_data)?;
         }
     );
-    ($funtion:ident, $data:ident, $processed_data:ident, $use_source:expr) => (
+    ($self:ident, $funtion:ident, $data:ident, $processed_data:ident, $use_source:expr) => (
         if let Some(data) = $data.get_mut(&DataSource::GameFiles) {
-            Self::$funtion(data, &mut $processed_data, DataSource::GameFiles)?;
+            $self.$funtion(data, &mut $processed_data, DataSource::GameFiles)?;
         }
         if let Some(data) = $data.get_mut(&DataSource::ParentFiles) {
-            Self::$funtion(data, &mut $processed_data, DataSource::ParentFiles)?;
+            $self.$funtion(data, &mut $processed_data, DataSource::ParentFiles)?;
         }
         if let Some(data) = $data.get_mut(&DataSource::PackFile) {
-            Self::$funtion(data, &mut $processed_data, DataSource::PackFile)?;
+            $self.$funtion(data, &mut $processed_data, DataSource::PackFile)?;
         }
     );
 }
@@ -309,7 +311,7 @@ impl Tool {
         table_name: &str,
         key_name: &str,
         linked_table: Option<(String, String)>,
-    ) -> Result<()> {
+    ) -> Result<Option<Table>> {
 
         // Prepare all the different name variations we need.
         let table_name_end_underscore = format!("{}_", table_name);
@@ -385,11 +387,13 @@ impl Tool {
                             }
                         }
                     }
+
+                    return Ok(Some(table.get_ref_table().clone()))
                 }
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
     /// This function takes care of saving a DB table in a generic way into a PackedFile.
@@ -620,6 +624,10 @@ impl Tool {
                                 match widget {
                                     Ok(widget) => {
 
+                                        // Set max and mins here, to make sure we can fit whatever data we have.
+                                        widget.set_minimum(std::i32::MIN);
+                                        widget.set_maximum(std::i32::MAX);
+
                                         // Check if we have data for the widget. If not, fill it with default data
                                         let field_key_name = format!("{}_{}", table_name, field.get_name());
                                         match data.get(&field_key_name) {
@@ -645,6 +653,10 @@ impl Tool {
                                 let widget: Result<QPtr<QDoubleSpinBox>> = self.find_widget(&widget_name);
                                 match widget {
                                     Ok(widget) => {
+
+                                        // Set max and mins here, to make sure we can fit whatever data we have.
+                                        widget.set_minimum(std::f32::MIN as f64);
+                                        widget.set_maximum(std::f32::MAX as f64);
 
                                         // Check if we have data for the widget. If not, fill it with default data
                                         let field_key_name = format!("{}_{}", table_name, field.get_name());
@@ -766,6 +778,15 @@ impl Tool {
         }
     }
 
+    /// This function tries to load data from a string into a QComboBox.
+    #[allow(dead_code)]
+    unsafe fn load_field_to_detailed_view_editor_string_combo(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
+        match processed_data.get(field_name) {
+            Some(data) => field_editor.set_current_text(&QString::from_std_str(data)),
+            None => field_editor.set_current_text(&QString::new()),
+        }
+    }
+
     /// This function tries to load data from a string into a QLabel.
     #[allow(dead_code)]
     unsafe fn load_field_to_detailed_view_editor_string_label(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QLabel>, field_name: &str) {
@@ -796,6 +817,16 @@ impl Tool {
             Some(field_name.to_owned())
         } else {
             None
+        }
+    }
+
+    /// This function populates the provided combo with the provided data.
+    #[allow(dead_code)]
+    unsafe fn load_reference_data_to_detailed_view_editor_combo(&self, column: i32, combo: &QPtr<QComboBox>, reference_data: &BTreeMap<i32, DependencyData>) {
+        if let Some(column_data) = reference_data.get(&column) {
+            for data in column_data.data.keys() {
+                combo.add_item_q_string(&QString::from_std_str(data))
+            }
         }
     }
 

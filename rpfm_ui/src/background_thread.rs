@@ -20,7 +20,7 @@ use open::that_in_background;
 use rayon::prelude::*;
 use uuid::Uuid;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -1397,6 +1397,42 @@ pub fn background_loop() {
 
                 // Return the full list of PackedFiles requested, split by source.
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapVecStringPackedFile(packed_files));
+            },
+
+            Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
+                let mut packed_files = HashMap::new();
+                let base_path = if let PathType::Folder(ref path) = path { path.to_vec() } else { unimplemented!() };
+
+                // Get PackedFiles requested from the Parent Files.
+                let mut packed_files_parent = HashSet::new();
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files_unicased(&[path.clone()]) {
+                    for packed_file in packed_files_decoded {
+                        let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
+                        packed_files_parent.insert(packed_file_path);
+                    }
+                    packed_files.insert(DataSource::ParentFiles, packed_files_parent);
+                }
+
+                // Get PackedFiles requested from the Game Files.
+                let mut packed_files_game = HashSet::new();
+                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files_unicased(&[path.clone()]) {
+                    for packed_file in packed_files_decoded {
+                        let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
+                        packed_files_game.insert(packed_file_path);
+                    }
+                    packed_files.insert(DataSource::GameFiles, packed_files_game);
+                }
+
+                // Get PackedFiles requested from the currently open PackFile, if any.
+                let mut packed_files_packfile = HashSet::new();
+                for packed_file in pack_file_decoded.get_packed_files_by_path_type_unicased(&[path]) {
+                    let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
+                    packed_files_packfile.insert(packed_file_path);
+                }
+                packed_files.insert(DataSource::PackFile, packed_files_packfile);
+
+                // Return the full list of PackedFile names requested, split by source.
+                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashSetVecString(packed_files));
             },
 
             Command::SavePackedFilesToPackFileAndClean(packed_files) => {

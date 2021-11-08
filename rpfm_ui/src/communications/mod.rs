@@ -16,7 +16,7 @@ use qt_core::QEventLoop;
 
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
@@ -326,7 +326,10 @@ pub enum Command {
     ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
 
     /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
-    SavePackedFilesToPackFileAndClean(Vec<PackedFile>)
+    SavePackedFilesToPackFileAndClean(Vec<PackedFile>),
+
+    /// This command is used to get all the file names under a path in all dependencies.
+    GetPackedFilesNamesStartingWitPathFromAllSources(PathType)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -474,6 +477,7 @@ pub enum Response {
 
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceHashMapVecStringPackedFile(HashMap<DataSource, HashMap<Vec<String>, PackedFile>>),
+    HashMapDataSourceHashSetVecString(HashMap<DataSource, HashSet<Vec<String>>>),
     Diagnostics(Diagnostics),
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
 }

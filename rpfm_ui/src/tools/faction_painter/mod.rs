@@ -261,9 +261,9 @@ impl ToolFactionPainter {
         let mut processed_data = HashMap::new();
 
         // Get the table's data.
-        get_data_from_all_sources!(get_faction_data, data, processed_data);
-        get_data_from_all_sources!(get_faction_banner_data, data, processed_data, true);
-        get_data_from_all_sources!(get_faction_uniform_data, data, processed_data, true);
+        get_data_from_all_sources!(self, get_faction_data, data, processed_data);
+        get_data_from_all_sources!(self, get_faction_banner_data, data, processed_data, true);
+        get_data_from_all_sources!(self, get_faction_uniform_data, data, processed_data, true);
 
         // Finally, grab the flag files. For that, get the paths from each faction's data, and request the flag icons.
         // These flag paths are already pre-processed to contain their full icon path, and a common slash format.
@@ -570,7 +570,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the factions table.
-    unsafe fn get_faction_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
+    unsafe fn get_faction_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
 
         // First, get the keys, names and flags from the factions tables.
         for (path, packed_file) in data.iter_mut() {
@@ -630,7 +630,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the faction_banners table.
-    unsafe fn get_faction_banner_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+    unsafe fn get_faction_banner_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_banners_tables" {
@@ -738,7 +738,7 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the faction_uniform_colours table.
-    unsafe fn get_faction_uniform_data(data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+    unsafe fn get_faction_uniform_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "faction_uniform_colours_tables" {
