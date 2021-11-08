@@ -14,7 +14,9 @@ Module with all the code to connect `ToolUnitEditor` signals with their correspo
 This module is, and should stay, private, as it's only glue between the `ToolUnitEditor` and `ToolUnitEditorSlots` structs.
 !*/
 
-use qt_widgets::q_dialog_button_box::StandardButton;
+use qt_widgets::{QComboBox, q_dialog_button_box::StandardButton};
+
+use rpfm_error::Result;
 
 use super::{ToolUnitEditor, slots::ToolUnitEditorSlots};
 
@@ -22,13 +24,17 @@ use super::{ToolUnitEditor, slots::ToolUnitEditorSlots};
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) {
+pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) -> Result<()> {
+
     ui.unit_list_view.selection_model().selection_changed().connect(&slots.load_data_to_detailed_view);
     ui.unit_list_filter_line_edit.text_changed().connect(&slots.filter_edited);
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
-    ui.main_units_caste_combobox.current_index_changed().connect(&slots.change_caste);
+    ui.tool.find_widget::<QComboBox>("main_units_caste_combobox")?.current_index_changed().connect(&slots.change_caste);
     ui.unit_icon_key_combobox.current_index_changed().connect(&slots.change_icon);
 
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
     ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
+    ui.copy_button.released().connect(&slots.copy_unit);
+
+    Ok(())
 }

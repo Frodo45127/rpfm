@@ -1101,3 +1101,4 @@ tools_unit_editor_requirements = Requirements
 tools_unit_editor_campaign = Campaign
 tools_unit_editor_ui = UI
 tools_unit_editor_audio = Audio
+copy_unit = Copy Unit

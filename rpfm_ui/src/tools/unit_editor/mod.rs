@@ -14,12 +14,15 @@ Module with all the code for managing the Unit Editor tool.
 This tool is a dialog where you can pick a unit from a list, and edit its values in an easy-to-use way.
 !*/
 
+use qt_widgets::q_dialog_button_box::ButtonRole;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
+use qt_widgets::QPushButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTextEdit;
+use qt_widgets::QToolButton;
 
 use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
@@ -39,7 +42,6 @@ use qt_core::QVariant;
 use cpp_core::Ref;
 
 use itertools::Itertools;
-use qt_widgets::QToolButton;
 
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -62,6 +64,10 @@ mod slots;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_unit_editor.ui";
+
+/// Copy Unit's ui template path.
+const COPY_UNIT_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor_copy_unit.ui";
+const COPY_UNIT_VIEW_RELEASE: &str = "ui/tool_unit_editor_copy_unit.ui";
 
 /// List of games this tool supports.
 const TOOL_SUPPORTED_GAMES: [&str; 1] = [
@@ -88,10 +94,8 @@ const LAND_UNITS_CUSTOM_FIELDS: [&str; 3] = [
 ];
 
 /// List of fields tht require special treatment from main_units_tables.
-const MAIN_UNITS_CUSTOM_FIELDS: [&str; 3] = [
+const MAIN_UNITS_CUSTOM_FIELDS: [&str; 1] = [
     "land_unit",
-    "naval_unit",
-    "caste"
 ];
 
 /// List of loc keys used by this tool.
@@ -122,17 +126,18 @@ pub struct ToolUnitEditor {
     unit_list_filter_line_edit: QPtr<QLineEdit>,
 
     detailed_view_tab_widget: QPtr<QTabWidget>,
+
     unit_icon_label: QPtr<QLabel>,
     unit_icon_key_label: QPtr<QLabel>,
+    unit_icon_key_combobox: QPtr<QComboBox>,
+    unit_icon_key_tool_button: QPtr<QToolButton>,
 
     packed_file_name_label: QPtr<QLabel>,
     packed_file_name_line_edit: QPtr<QLineEdit>,
+    copy_button: QPtr<QPushButton>,
 
     unit_caste_previous: Rc<RwLock<String>>,
     unit_type_dependant_widgets: HashMap<String, Vec<QPtr<QWidget>>>,
-
-    unit_icon_key_combobox: QPtr<QComboBox>,
-    unit_icon_key_tool_button: QPtr<QToolButton>,
 
     //-----------------------------------------------------------------------//
     // Main tab groupboxes.
@@ -142,14 +147,6 @@ pub struct ToolUnitEditor {
     unit_editor_campaign_groupbox: QPtr<QGroupBox>,
     unit_editor_ui_groupbox: QPtr<QGroupBox>,
     unit_editor_audio_groupbox: QPtr<QGroupBox>,
-
-    //-----------------------------------------------------------------------//
-    // main_units_tables
-    //-----------------------------------------------------------------------//
-    main_units_caste_label: QPtr<QLabel>,
-    main_units_caste_combobox: QPtr<QComboBox>,
-    main_units_unit_label: QPtr<QLabel>,
-    main_units_unit_line_edit: QPtr<QLineEdit>,
 
     //-----------------------------------------------------------------------//
     // Loc fields.
@@ -218,11 +215,16 @@ impl ToolUnitEditor {
         // Icon stuff.
         let unit_icon_label: QPtr<QLabel> = tool.find_widget("unit_icon_label")?;
         let unit_icon_key_label: QPtr<QLabel> = tool.find_widget("unit_icon_key_label")?;
+        let unit_icon_key_combobox: QPtr<QComboBox> = tool.find_widget("unit_icon_key_combobox")?;
+        let unit_icon_key_tool_button: QPtr<QToolButton> = tool.find_widget("unit_icon_key_tool_button")?;
 
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
         let packed_file_name_line_edit: QPtr<QLineEdit> = tool.find_widget("packed_file_name_line_edit")?;
         packed_file_name_line_edit.set_text(&QString::from_std_str(DEFAULT_FILENAME));
+
+        let copy_button = tool.find_widget::<QDialogButtonBox>("button_box")?.add_button_q_string_button_role(&qtr("copy_unit"), ButtonRole::ActionRole);
+        copy_button.set_enabled(false);
 
         // Extra stuff.
         let detailed_view_tab_widget: QPtr<QTabWidget> = tool.find_widget("detailed_view_tab_widget")?;
@@ -236,18 +238,6 @@ impl ToolUnitEditor {
         let unit_editor_campaign_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_campaign_groupbox")?;
         let unit_editor_ui_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_ui_groupbox")?;
         let unit_editor_audio_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_audio_groupbox")?;
-
-        let unit_icon_key_combobox: QPtr<QComboBox> = tool.find_widget("unit_icon_key_combobox")?;
-        let unit_icon_key_tool_button: QPtr<QToolButton> = tool.find_widget("unit_icon_key_tool_button")?;
-
-        //-----------------------------------------------------------------------//
-        // main_units_tables
-        //-----------------------------------------------------------------------//
-
-        let main_units_caste_label: QPtr<QLabel> = tool.find_widget("main_units_caste_label")?;
-        let main_units_caste_combobox: QPtr<QComboBox> = tool.find_widget("main_units_caste_combobox")?;
-        let main_units_unit_label: QPtr<QLabel> = tool.find_widget("main_units_unit_label")?;
-        let main_units_unit_line_edit: QPtr<QLineEdit> = tool.find_widget("main_units_unit_line_edit")?;
 
         //-----------------------------------------------------------------------//
         // Loc fields.
@@ -283,11 +273,15 @@ impl ToolUnitEditor {
             unit_list_filter_line_edit,
 
             detailed_view_tab_widget,
+
             unit_icon_label,
             unit_icon_key_label,
+            unit_icon_key_combobox,
+            unit_icon_key_tool_button,
 
             packed_file_name_label,
             packed_file_name_line_edit,
+            copy_button,
 
             unit_caste_previous,
             unit_type_dependant_widgets,
@@ -300,17 +294,6 @@ impl ToolUnitEditor {
             unit_editor_campaign_groupbox,
             unit_editor_ui_groupbox,
             unit_editor_audio_groupbox,
-
-            unit_icon_key_combobox,
-            unit_icon_key_tool_button,
-
-            //-----------------------------------------------------------------------//
-            // main_units_tables
-            //-----------------------------------------------------------------------//
-            main_units_caste_label,
-            main_units_caste_combobox,
-            main_units_unit_label,
-            main_units_unit_line_edit,
 
             //-----------------------------------------------------------------------//
             // Loc fields.
@@ -331,7 +314,7 @@ impl ToolUnitEditor {
 
         // Build the slots and connect them to the view.
         let slots = ToolUnitEditorSlots::new(&view);
-        connections::set_connections(&view, &slots);
+        connections::set_connections(&view, &slots)?;
 
         // Setup text translations.
         view.setup_translations();
@@ -428,7 +411,7 @@ impl ToolUnitEditor {
         let unit_description_historical_texts_packed_file = self.save_unit_description_historical_texts_tables_data(&data_to_save)?;
         let unit_description_short_texts_packed_file = self.save_unit_description_short_texts_tables_data(&data_to_save)?;
         let unit_description_strengths_weaknesses_texts_packed_file = self.save_unit_description_strengths_weaknesses_texts_tables_data(&data_to_save)?;
-        let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
+        //let unit_variants_packed_file = self.save_unit_variants_tables_data(&data_to_save)?;
 
         let loc_packed_file = self.save_loc_data(&data_to_save)?;
 
@@ -439,7 +422,7 @@ impl ToolUnitEditor {
             unit_description_historical_texts_packed_file,
             unit_description_short_texts_packed_file,
             unit_description_strengths_weaknesses_texts_packed_file,
-            unit_variants_packed_file,
+            //unit_variants_packed_file,
 
             loc_packed_file
         ])
@@ -454,27 +437,25 @@ impl ToolUnitEditor {
         }
 
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+        let mut errors = vec![];
 
         // Log in debug mode, for debugging.
         if cfg!(debug_assertions) {
-            log::info!("{:?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
+            log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
         //-----------------------------------------------------------------------//
         // land_units_tables
         //-----------------------------------------------------------------------//
         if let Err(error) = self.tool.load_definition_to_detailed_view_editor(&data, "land_units", &LAND_UNITS_CUSTOM_FIELDS) {
-            show_message_warning(&self.tool.message_widget, error);
+            errors.push(error.to_string());
         }
 
         //-----------------------------------------------------------------------//
         // main_units_tables
         //-----------------------------------------------------------------------//
-        self.tool.load_field_to_detailed_view_editor_string_short(&data, &self.main_units_unit_line_edit, "main_units_unit");
-        self.tool.load_field_to_detailed_view_editor_string_combo(&data, &self.main_units_caste_combobox, "main_units_caste");
-
         if let Err(error) = self.tool.load_definition_to_detailed_view_editor(&data, "main_units", &MAIN_UNITS_CUSTOM_FIELDS) {
-            show_message_warning(&self.tool.message_widget, error);
+            errors.push(error.to_string());
         }
 
         //-----------------------------------------------------------------------//
@@ -492,6 +473,10 @@ impl ToolUnitEditor {
 
         // The icon needs to be pulled up from the dependencies cache on load.
         self.load_unit_icon(&data, None);
+
+        if !errors.is_empty() {
+            show_message_warning(&self.tool.message_widget, errors.join("\n"));
+        }
     }
 
     /// This function loads the unit icon into the tool. If provided with a key, it uses it. If not, it uses whatever key the unit has.
@@ -546,26 +531,26 @@ impl ToolUnitEditor {
     /// This function saves the data of the detailed view to its item in the faction list.
     pub unsafe fn save_from_detailed_view(&self, index: Ref<QModelIndex>) {
         let mut data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+        let mut errors = vec![];
 
         //-----------------------------------------------------------------------//
         // land_units_tables
         //-----------------------------------------------------------------------//
         if let Err(error) = self.tool.save_definition_from_detailed_view_editor(&mut data, "land_units", &LAND_UNITS_CUSTOM_FIELDS) {
-            show_message_warning(&self.tool.message_widget, error);
+            errors.push(error.to_string());
         }
 
         //-----------------------------------------------------------------------//
         // main_units_tables
         //-----------------------------------------------------------------------//
-        data.insert("main_units_unit".to_owned(), self.main_units_unit_line_edit.text().to_std_string());
         if let Err(error) = self.tool.save_definition_from_detailed_view_editor(&mut data, "main_units", &MAIN_UNITS_CUSTOM_FIELDS) {
-            show_message_warning(&self.tool.message_widget, error);
+            errors.push(error.to_string());
         }
 
         //-----------------------------------------------------------------------//
         // unit_variants_tables
         //-----------------------------------------------------------------------//
-        //data.insert("unit_variants_unit_card".to_owned(), self.unit_icon_key_line_edit.text().to_std_string());
+        //data.insert("unit_variants_unit_card".to_owned(), self.unit_icon_key_combobox.current_text().to_std_string());
 
         //-----------------------------------------------------------------------//
         // Loc data
@@ -577,6 +562,11 @@ impl ToolUnitEditor {
 
         // Update all the referenced keys in our data.
         self.update_keys(&mut data);
+
+        if !errors.is_empty() {
+            show_message_warning(&self.tool.message_widget, errors.join("\n"));
+        }
+
         if cfg!(debug_assertions) {
             log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
@@ -613,12 +603,6 @@ impl ToolUnitEditor {
         self.unit_editor_audio_groupbox.set_title(&qtr("tools_unit_editor_audio"));
 
         //-----------------------------------------------------------------------//
-        // main_units_tables
-        //-----------------------------------------------------------------------//
-        self.main_units_unit_label.set_text(&QString::from_std_str(&clean_column_names("main_units_unit")));
-        self.main_units_caste_label.set_text(&QString::from_std_str(&clean_column_names("main_units_caste")));
-
-        //-----------------------------------------------------------------------//
         // unit_variants_tables
         //-----------------------------------------------------------------------//
         self.unit_icon_key_label.set_text(&QString::from_std_str(clean_column_names("unit_variants_unit_card")));
@@ -640,7 +624,31 @@ impl ToolUnitEditor {
 
     /// This function gets the data needed for the tool from the land_units table.
     unsafe fn get_land_units_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>) -> Result<()> {
-        Tool::get_table_data(data, processed_data, "land_units", "key", Some(("main_units".to_owned(), "land_unit".to_owned())))?;
+        if let Some(table) = Tool::get_table_data(data, processed_data, "land_units", "key", Some(("main_units".to_owned(), "land_unit".to_owned())))? {
+            let reference_data = get_reference_data("land_units_tables", table.get_ref_definition())?;
+
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("ai_usage_group")? as i32, &self.tool.find_widget("land_units_ai_usage_group_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("animal")? as i32, &self.tool.find_widget("land_units_animal_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("armour")? as i32, &self.tool.find_widget("land_units_armour_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("articulated_record")? as i32, &self.tool.find_widget("land_units_articulated_record_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("attribute_group")? as i32, &self.tool.find_widget("land_units_attribute_group_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("category")? as i32, &self.tool.find_widget("land_units_category_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("class")? as i32, &self.tool.find_widget("land_units_class_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("engine")? as i32, &self.tool.find_widget("land_units_engine_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("ground_stat_effect_group")? as i32, &self.tool.find_widget("land_units_ground_stat_effect_group_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("man_animation")? as i32, &self.tool.find_widget("land_units_man_animation_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("man_entity")? as i32, &self.tool.find_widget("land_units_man_entity_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("mount")? as i32, &self.tool.find_widget("land_units_mount_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("officers")? as i32, &self.tool.find_widget("land_units_officers_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("primary_melee_weapon")? as i32, &self.tool.find_widget("land_units_primary_melee_weapon_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("primary_missile_weapon")? as i32, &self.tool.find_widget("land_units_primary_missile_weapon_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("selection_vo")? as i32, &self.tool.find_widget("land_units_selection_vo_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("selected_vo_secondary")? as i32, &self.tool.find_widget("land_units_selected_vo_secondary_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("selected_vo_tertiary")? as i32, &self.tool.find_widget("land_units_selected_vo_tertiary_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("shield")? as i32, &self.tool.find_widget("land_units_shield_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("spacing")? as i32, &self.tool.find_widget("land_units_spacing_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("training_level")? as i32, &self.tool.find_widget("land_units_training_level_combobox")?, &reference_data);
+        }
         Ok(())
     }
 
@@ -649,7 +657,20 @@ impl ToolUnitEditor {
         if let Some(table) = Tool::get_table_data(data, processed_data, "main_units", "unit", None)? {
             let reference_data = get_reference_data("main_units_tables", table.get_ref_definition())?;
 
-            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("caste")? as i32, &self.main_units_caste_combobox, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("additional_building_requirement")? as i32, &self.tool.find_widget("main_units_additional_building_requirement_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("audio_voiceover_actor_group")? as i32, &self.tool.find_widget("main_units_audio_voiceover_actor_group_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("audio_voiceover_culture")? as i32, &self.tool.find_widget("main_units_audio_voiceover_culture_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("audio_voiceover_culture_override")? as i32, &self.tool.find_widget("main_units_audio_voiceover_culture_override_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("caste")? as i32, &self.tool.find_widget("main_units_caste_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("mount")? as i32, &self.tool.find_widget("main_units_mount_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("naval_unit")? as i32, &self.tool.find_widget("main_units_naval_unit_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("porthole_camera")? as i32, &self.tool.find_widget("main_units_porthole_camera_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("region_unit_resource_requirement")? as i32, &self.tool.find_widget("main_units_region_unit_resource_requirement_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("religion_requirement")? as i32, &self.tool.find_widget("main_units_religion_requirement_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("resource_requirement")? as i32, &self.tool.find_widget("main_units_resource_requirement_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("ui_unit_group_land")? as i32, &self.tool.find_widget("main_units_ui_unit_group_land_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("ui_unit_group_naval")? as i32, &self.tool.find_widget("main_units_ui_unit_group_naval_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(table.get_column_position_by_name("weight")? as i32, &self.tool.find_widget("main_units_weight_combobox")?, &reference_data);
         }
 
         Ok(())

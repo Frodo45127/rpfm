@@ -33,6 +33,7 @@ pub struct ToolUnitEditorSlots {
     pub filter_edited: QBox<SlotNoArgs>,
     pub change_caste: QBox<SlotNoArgs>,
     pub change_icon: QBox<SlotNoArgs>,
+    pub copy_unit: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,6 +60,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = before.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
+                    ui.copy_button.set_enabled(false);
                 }
 
                 // Load the new data.
@@ -66,6 +68,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = after.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
+                    ui.copy_button.set_enabled(true);
                 }
             }
         ));
@@ -85,7 +88,7 @@ impl ToolUnitEditorSlots {
                 }
 
                 // Then enable the new widgets and change the previous type.
-                let unit_type = ui.main_units_caste_combobox.current_text().to_std_string();
+                let unit_type = ui.tool.find_widget::<QComboBox>("main_units_caste_combobox").unwrap().current_text().to_std_string();
                 if let Some(widgets) = ui.unit_type_dependant_widgets.get(&unit_type) {
                     widgets.iter().for_each(|x| x.set_enabled(true));
                 }
@@ -101,12 +104,15 @@ impl ToolUnitEditorSlots {
             }
         ));
 
+        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), move || {});
+
         ToolUnitEditorSlots {
             delayed_updates,
             load_data_to_detailed_view,
             filter_edited,
             change_caste,
             change_icon,
+            copy_unit,
         }
     }
 }
