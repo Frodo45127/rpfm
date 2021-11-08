@@ -389,7 +389,14 @@ impl DB {
             .collect::<HashSet<String>>();
 
         // Remove ITM and ITNR entries, sort the remaining ones by keys, and dedup them.
-        let new_row = self.get_new_row();
+        let new_row = self.get_new_row().iter().map(|data|
+            if let DecodedData::F32(value) = data {
+                DecodedData::StringU8(format!("{:.4}", value))
+            } else {
+                data.to_owned()
+            }
+        ).collect::<Vec<DecodedData>>();
+
         entries.retain(|entry| {
             let entry_json = entry.iter().map(|data|
                 if let DecodedData::F32(value) = data {
