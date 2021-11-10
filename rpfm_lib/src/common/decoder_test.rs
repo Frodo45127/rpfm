@@ -220,6 +220,13 @@ fn test_decode_string_u8_0terminated() {
         assert_eq!(result.0, "Waha�hahaha".to_owned());
         assert_eq!(result.1, 11);
     }
+
+    // Check to avoid a regression.
+    {
+        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 6).unwrap();
+        assert_eq!(result.0, "ahaha".to_owned());
+        assert_eq!(result.1, 5);
+    }
 }
 
 /// Test to make sure the u16 string decoder (`decode_string_u16()`) works and fails properly.
