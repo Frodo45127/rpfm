@@ -25,6 +25,8 @@ use qt_core::QPtr;
 use std::sync::Arc;
 
 use rpfm_error::{Result, ErrorKind};
+use rpfm_macros::*;
+
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
@@ -39,6 +41,7 @@ use crate::packedfile_views::{PackedFileView, View, ViewType};
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of a RigidModel PackedFile.
+#[derive(GetRef)]
 pub struct PackedFileRigidModelView {
     editor: QBox<QWidget>,
 }
@@ -68,13 +71,7 @@ impl PackedFileRigidModelView {
         // Create the new view and populate it.
         let data = QByteArray::from_slice(&rigid_model.data);
         let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
-        if set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr()).is_err() {
-            match get_last_rigid_model_error(&editor.as_ptr().static_upcast()) {
-                Ok(error) => Err(error)?,
-                Err(error) => Err(error)?,
-            }
-        }
-
+        set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
@@ -90,14 +87,12 @@ impl PackedFileRigidModelView {
     }
 
     /// Function to save the view and encode it into a RigidModel struct.
-    ///
-    /// FIXME: there is a rare chance this fails.
-    pub unsafe fn save_view(&self) -> RigidModel {
-        let qdata = get_rigid_model_from_view_safe(&self.editor).unwrap();
+    pub unsafe fn save_view(&self) -> Result<RigidModel> {
+        let qdata = get_rigid_model_from_view_safe(&self.editor)?;
         let data = std::slice::from_raw_parts(qdata.data_mut() as *mut u8, qdata.length() as usize).to_vec();
-        RigidModel {
+        Ok(RigidModel {
             data
-        }
+        })
     }
 
     /// Function to reload the data of the view without having to delete the view itself.

@@ -328,7 +328,7 @@ impl PackedFileView {
                             #[cfg(feature = "support_rigidmodel")]
                             PackedFileType::RigidModel => {
                                 if let View::RigidModel(view) = view {
-                                    let data = view.save_view();
+                                    let data = view.save_view()?;
                                     DecodedPackedFile::RigidModel(data)
                                 } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                             }

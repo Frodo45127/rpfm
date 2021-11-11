@@ -322,7 +322,7 @@ pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<Q
         if getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr()) {
             Ok(data)
         } else {
-           Err(ErrorKind::RigidModelParseError.into())
+            Err(ErrorKind::GenericHTMLError(get_last_rigid_model_error(&parent.as_ptr())?).into())
         }
     }
 }
@@ -335,7 +335,7 @@ pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) 
     if unsafe { setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) } {
         Ok(())
     } else {
-        Err(ErrorKind::RigidModelParseError.into())
+        Err(ErrorKind::GenericHTMLError(get_last_rigid_model_error(parent)?).into())
     }
 }
 
@@ -353,8 +353,6 @@ pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
         }
     }
 }
-
-
 
 //---------------------------------------------------------------------------//
 // Special functions.
