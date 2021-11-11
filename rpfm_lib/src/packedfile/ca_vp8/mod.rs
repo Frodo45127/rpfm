@@ -173,7 +173,7 @@ impl CaVp8 {
         let mut frame_data = vec![];
 
         for _ in 0..num_frames {
-            let _frame_offset_real = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+            let frame_offset_real = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
             let frame = Frame {
                 offset: frame_offset,
                 size: packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?,
@@ -185,7 +185,13 @@ impl CaVp8 {
 
             frame_offset += frame.size;
             frame_table.push(frame);
-            frame_data.extend_from_slice(&packed_file_data[_frame_offset_real as usize..(_frame_offset_real + frame.size) as usize]);
+
+            let frame_offset_real_end = frame_offset_real + frame.size;
+            if frame_offset_real_end as usize > packed_file_data.len() {
+                return Err(ErrorKind::CaVp8Decode("Incorrect/Unknown Frame size.".to_string()).into());
+            }
+
+            frame_data.extend_from_slice(&packed_file_data[frame_offset_real as usize..frame_offset_real_end as usize]);
         }
 
         Ok(Self {
