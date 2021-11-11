@@ -322,7 +322,9 @@ pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<Q
         if getRMV2Data(parent.as_mut_raw_ptr(), data.as_mut_raw_ptr()) {
             Ok(data)
         } else {
-            Err(ErrorKind::GenericHTMLError(get_last_rigid_model_error(&parent.as_ptr())?).into())
+            let error = get_last_rigid_model_error(&parent.as_ptr())?;
+            log::warn!("Error setting rigid data: {:?}:", error);
+            Err(ErrorKind::GenericHTMLError(error).into())
         }
     }
 }
@@ -332,10 +334,14 @@ pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<Q
 extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray) -> bool; }
 #[cfg(feature = "support_rigidmodel")]
 pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) -> Result<()> {
-    if unsafe { setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) } {
-        Ok(())
-    } else {
-        Err(ErrorKind::GenericHTMLError(get_last_rigid_model_error(parent)?).into())
+    unsafe {
+        if setRMV2Data(parent.as_mut_raw_ptr(), data.as_raw_ptr()) {
+            Ok(())
+        } else {
+            let error = get_last_rigid_model_error(parent)?;
+            log::warn!("Error setting rigid data: {:?}:", error);
+            Err(ErrorKind::GenericHTMLError(error).into())
+        }
     }
 }
 
