@@ -24,6 +24,8 @@ use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 use qt_core::QSignalBlocker;
 use qt_core::QObject;
 
+use log::info;
+
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -126,6 +128,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+            info!("PackedFile opened as Preview By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, true, false, DataSource::PackFile);
         }));
 
@@ -136,6 +139,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+            info!("PackedFile opened as Full By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, false, DataSource::PackFile);
         }));
 
@@ -434,6 +438,7 @@ impl PackFileContentsSlots {
         let contextual_menu_add_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Add File` By Slot");
 
                 // Create the FileDialog to get the file/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -525,6 +530,7 @@ impl PackFileContentsSlots {
         let contextual_menu_add_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Add Folder` By Slot");
 
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -627,6 +633,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |_| {
+                info!("Triggering `Add From PackFile` By Slot");
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -665,6 +672,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
+                    info!("Triggering `Delete` By Slot");
 
                     let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                     let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
@@ -713,6 +721,7 @@ impl PackFileContentsSlots {
         let contextual_menu_extract = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Extract` By Slot");
                 PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, false);
             }
         ));
@@ -722,6 +731,7 @@ impl PackFileContentsSlots {
         let contextual_menu_rename = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Rename` By Slot");
 
                 // First, check if it's yet another idiot trying to rename the db folders, and give him a warning.
                 let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
@@ -836,6 +846,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_anim_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `New AnimPack` By Slot");
             AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::AnimPack);
         }));
 
@@ -843,6 +854,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_db = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `New DB` By Slot");
             AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::DB);
         }));
 
@@ -850,6 +862,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_loc = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `New Loc` By Slot");
             AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::Loc);
         }));
 
@@ -857,6 +870,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_text = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `New Text` By Slot");
             AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::Text(TextType::Plain));
         }));
 
@@ -867,6 +881,7 @@ impl PackFileContentsSlots {
 
                 // Create the "New Folder" dialog and wait for a new name (or a cancellation).
                 if let Some(new_folder_name) = AppUI::new_folder_dialog(&app_ui) {
+                    info!("Triggering `New Folder` By Slot");
 
                     // Get the currently selected paths, and only continue if there is only one.
                     let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
@@ -895,6 +910,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_queek_packed_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `New Queek File` By Slot");
             AppUI::new_queek_packed_file(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -902,6 +918,7 @@ impl PackFileContentsSlots {
         let contextual_menu_open_decoder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Open Decoder` By Slot");
             AppUI::open_decoder(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -912,6 +929,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |_| {
+            info!("Triggering `Open Dependency Manager` By Slot");
             AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
         }));
 
@@ -934,12 +952,14 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |_| {
+            info!("Triggering `Open In External Program` By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, true, DataSource::PackFile);
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Open PackFile Settings` By Slot");
             AppUI::open_packfile_settings(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -950,6 +970,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |_| {
+            info!("Triggering `Open Notes` By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
         }));
 
@@ -957,6 +978,7 @@ impl PackFileContentsSlots {
         let contextual_menu_tables_merge_tables = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Merge Tables` By Slot");
 
             // Get the currently selected paths, and get how many we have of each type.
             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
@@ -1057,6 +1079,8 @@ impl PackFileContentsSlots {
         let contextual_menu_tables_update_table = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Update Table` By Slot");
+
             let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
@@ -1100,9 +1124,7 @@ impl PackFileContentsSlots {
         let contextual_menu_mass_import_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-
-                // Don't do anything if there is a PackedFile open. This fixes the situation where you could overwrite data already in the UI.
-                //if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+                info!("Triggering `Mass-Import TSV` By Slot");
 
                 // Create the "Mass-Import TSV" dialog and wait for his data (or a cancellation).
                 if let Some(data) = PackFileContentsUI::create_mass_import_tsv_dialog(&app_ui) {
@@ -1149,6 +1171,7 @@ impl PackFileContentsSlots {
         let contextual_menu_mass_export_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Mass-Export TSV` By Slot");
 
                 // Get a "Folder-only" FileDialog.
                 let export_path = QFileDialog::get_existing_directory_2a(

@@ -15,6 +15,8 @@ Module with all the code related to the main `GlobalSearchSlots`.
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 
+use log::info;
+
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
@@ -64,6 +66,7 @@ impl GlobalSearchSlots {
         let global_search_search = SlotNoArgs::new(&global_search_ui.global_search_dock_widget, clone!(
             pack_file_contents_ui,
             global_search_ui => move || {
+            info!("Triggering `Global Search` By Slot");
             GlobalSearchUI::search(&pack_file_contents_ui, &global_search_ui);
         }));
 
@@ -78,6 +81,7 @@ impl GlobalSearchSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move || {
+            info!("Triggering `Global Replace (current)` By Slot");
             GlobalSearchUI::replace_current(&app_ui, &pack_file_contents_ui, &global_search_ui);
         }));
 
@@ -86,6 +90,7 @@ impl GlobalSearchSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move || {
+            info!("Triggering `Global Replace (all)` By Slot");
             GlobalSearchUI::replace_all(&app_ui, &pack_file_contents_ui, &global_search_ui);
         }));
 
@@ -114,6 +119,7 @@ impl GlobalSearchSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |model_index_filter| {
+            info!("Triggering `Open Global Search Match` By Slot");
             GlobalSearchUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, model_index_filter.as_ptr());
         }));
 

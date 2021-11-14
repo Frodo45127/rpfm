@@ -26,6 +26,8 @@ use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QUrl;
 
+use log::info;
+
 use std::collections::BTreeMap;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
@@ -196,6 +198,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move || {
+                info!("Triggering `Open PackFile Menu` By Slot");
                 AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
@@ -210,6 +213,7 @@ impl AppUISlots {
 
                 // Check first if there has been changes in the PackFile.
                 if AppUI::are_you_sure(&app_ui, false) {
+                    info!("Triggering `New PackFile` By Slot");
                     AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
                 }
             }
@@ -223,6 +227,7 @@ impl AppUISlots {
 
                 // Check first if there has been changes in the PackFile.
                 if AppUI::are_you_sure(&app_ui, false) {
+                    info!("Triggering `Open PackFile` By Slot");
 
                     // Create the FileDialog to get the PackFile to open and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -259,6 +264,7 @@ impl AppUISlots {
         let packfile_save_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Save PackFile` By Slot");
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
@@ -269,6 +275,7 @@ impl AppUISlots {
         let packfile_save_packfile_as = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Save PackFile As` By Slot");
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, true) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
@@ -279,6 +286,7 @@ impl AppUISlots {
         let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Install` By Slot");
 
                 // Save before installing, to ensure we always have the latest data on install.
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
@@ -343,6 +351,7 @@ impl AppUISlots {
         // This slot is used for the "Uninstall" action.
         let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                info!("Triggering `Uninstall` By Slot");
 
                 // Get the current path of the PackFile.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
@@ -399,6 +408,7 @@ impl AppUISlots {
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
             if AppUI::are_you_sure(&app_ui, false) {
+                info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
                 let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
@@ -479,6 +489,7 @@ impl AppUISlots {
         let packfile_change_packfile_type = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+                info!("Triggering `Change PackFile Type` By Slot");
 
                 // Get the currently selected PackFile's Type.
                 let packfile_type = match &*(app_ui.change_packfile_type_group
@@ -523,6 +534,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
+                info!("Triggering `Preferences Dialog` By Slot");
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
                 let old_settings = SETTINGS.read().unwrap().clone();
@@ -582,6 +594,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             diagnostics_ui,
             global_search_ui => move || {
+                info!("Triggering `Open MyMod Menu` By Slot");
                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
             }
         ));
@@ -601,6 +614,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
+                info!("Triggering `New MyMod` By Slot");
 
                 // Trigger the `New MyMod` Dialog, and get the result.
                 if let Some((mod_name, mod_game)) = MyModUI::new(&app_ui) {
@@ -713,6 +727,7 @@ impl AppUISlots {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
                 if AppUI::are_you_sure(&app_ui, true) {
+                    info!("Triggering `Delete MyMod` By Slot");
 
                     // We want to keep our "MyMod" name for the success message, so we store it here.
                     let old_mod_name: String;
@@ -785,12 +800,14 @@ impl AppUISlots {
         let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Import MyMod` By Slot");
             AppUI::import_mymod(&app_ui, &pack_file_contents_ui);
         }));
 
         let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
+            info!("Triggering `Export MyMod` By Slot");
             AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
         }));
 
@@ -888,6 +905,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move |_| {
+                info!("Triggering `Change Game Selected` By Slot");
                 AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
             }
         ));
@@ -900,8 +918,9 @@ impl AppUISlots {
         let special_stuff_generate_dependencies_cache = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             dependencies_ui => move |_| {
-
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
+                    info!("Triggering `Generate Dependencies Cache` By Slot");
+
                     let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
                     let asskit_path = match GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path() {
                         Ok(path) => Some(path),
@@ -950,6 +969,7 @@ impl AppUISlots {
             global_search_ui => move |_| {
 
                 if AppUI::are_you_sure_edition(&app_ui, "optimize_packfile_are_you_sure") {
+                    info!("Triggering `Optimize PackFile` By Slot");
 
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
@@ -984,6 +1004,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move |_| {
+                info!("Triggering `Patch SiegeAI` By Slot");
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 app_ui.main_window.set_enabled(false);
@@ -1019,6 +1040,8 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
+                    info!("Triggering `Rescue PackFile` By Slot");
+
                     app_ui.main_window.set_enabled(false);
 
                     // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
@@ -1079,6 +1102,8 @@ impl AppUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+                info!("Triggering `Faction Painter Tool` By Slot");
+
                 app_ui.main_window.set_enabled(false);
                 if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
@@ -1093,6 +1118,8 @@ impl AppUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+                info!("Triggering `Unit Editor Tool` By Slot");
+
                 app_ui.main_window.set_enabled(false);
                 if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
@@ -1189,6 +1216,7 @@ impl AppUISlots {
         // What happens when we trigger the "Check Update" action.
         let about_check_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                info!("Triggering `Check Updates` By Slot");
                 AppUI::check_updates(&app_ui, true);
             }
         ));
@@ -1196,6 +1224,7 @@ impl AppUISlots {
         // What happens when we trigger the "Check Schema Update" action.
         let about_check_schema_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                info!("Triggering `Check Schema Updates` By Slot");
                 AppUI::check_schema_updates(&app_ui, true);
             }
         ));
@@ -1203,6 +1232,7 @@ impl AppUISlots {
         // What happens when we trigger the "Update from AssKit" action.
         let debug_update_current_schema_from_asskit = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                info!("Triggering `Update Current Schema from AssKit` By Slot");
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                 let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
@@ -1309,6 +1339,8 @@ impl AppUISlots {
         // Autosave slot.
         let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
+                info!("Triggering `Autosave` By Slot");
+
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(true));
                 let response = CentralCommand::recv_try(&receiver);
                 let settings = match response {
@@ -1320,17 +1352,6 @@ impl AppUISlots {
                     if !disable_autosaves {
                         let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
                         log_to_status_bar(&tr("autosaving"));
-                        //app_ui.main_window.set_enabled(false);
-                        //let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
-                        //match response {
-                        //    Response::Success => log_to_status_bar(&tr("autosaved")),
-                        //    Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
-                        //        log_to_status_bar(&tr("error_autosave_non_editable"))
-                        //    } else { log_to_status_bar(&error.to_terminal()) },
-                        //    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        //}
-                        //app_ui.main_window.set_enabled(true);
-
                         // Reset the timer.
                         let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
                         if timer > 0 {
@@ -1423,6 +1444,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move || {
+                info!("Triggering `Import from Dependencies` By Slot");
 
                 // Only allow importing if we currently have a PackFile open.
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {

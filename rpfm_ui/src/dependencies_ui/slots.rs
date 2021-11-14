@@ -20,6 +20,8 @@ use qt_gui::QGuiApplication;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
+use log::info;
+
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
@@ -80,6 +82,7 @@ impl DependenciesUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+            info!("Triggering `Open Dependency PackedFile (Preview)` By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, true, false, DataSource::GameFiles);
         }));
 
@@ -90,6 +93,7 @@ impl DependenciesUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
+            info!("Triggering `Open Dependency PackedFile (Full)` By Slot");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, false, DataSource::GameFiles);
         }));
 
@@ -171,6 +175,8 @@ impl DependenciesUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move |_| {
+                info!("Triggering `Import Dependencies` from context menu By Slot");
+
                 let paths = dependencies_ui.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
                 let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
                 let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();

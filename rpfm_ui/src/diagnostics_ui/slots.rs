@@ -17,6 +17,8 @@ use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
+use log::info;
+
 use std::rc::Rc;
 
 use rpfm_lib::packfile::PathType;
@@ -63,6 +65,8 @@ impl DiagnosticsUISlots {
         let diagnostics_check_packfile = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             app_ui,
             diagnostics_ui => move || {
+                info!("Triggering `Check PackFile (Diags)` By Slot");
+
                 app_ui.main_window.set_disabled(true);
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 app_ui.main_window.set_disabled(false);
@@ -73,6 +77,8 @@ impl DiagnosticsUISlots {
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                info!("Triggering `Check Open PackedFiles (Diag)` By Slot");
+
                 app_ui.main_window.set_disabled(true);
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| PathType::File(x.get_ref_path().to_vec())).collect::<Vec<PathType>>();
@@ -88,6 +94,7 @@ impl DiagnosticsUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move |model_index_filter| {
+                info!("Triggering `Open Diagnostic Match` By Slot");
                 DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, model_index_filter.as_ptr());
             }
         ));
