@@ -147,6 +147,7 @@ pub struct ToolUnitEditor {
     unit_editor_campaign_groupbox: QPtr<QGroupBox>,
     unit_editor_ui_groupbox: QPtr<QGroupBox>,
     unit_editor_audio_groupbox: QPtr<QGroupBox>,
+    unit_editor_battle_visibility_groupbox: QPtr<QGroupBox>,
 
     //-----------------------------------------------------------------------//
     // Loc fields.
@@ -181,7 +182,7 @@ impl ToolUnitEditor {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         let paths = vec![
-            PathType::Folder(vec!["db".to_owned(), "battle_set_piece_armies_characters_tables".to_owned()]),
+            //PathType::Folder(vec!["db".to_owned(), "battle_set_piece_armies_characters_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "land_units_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "main_units_tables".to_owned()]),
             PathType::Folder(vec!["db".to_owned(), "unit_description_historical_texts_tables".to_owned()]),
@@ -238,6 +239,7 @@ impl ToolUnitEditor {
         let unit_editor_campaign_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_campaign_groupbox")?;
         let unit_editor_ui_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_ui_groupbox")?;
         let unit_editor_audio_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_audio_groupbox")?;
+        let unit_editor_battle_visibility_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_battle_visibility_groupbox")?;
 
         //-----------------------------------------------------------------------//
         // Loc fields.
@@ -294,6 +296,7 @@ impl ToolUnitEditor {
             unit_editor_campaign_groupbox,
             unit_editor_ui_groupbox,
             unit_editor_audio_groupbox,
+            unit_editor_battle_visibility_groupbox,
 
             //-----------------------------------------------------------------------//
             // Loc fields.
@@ -601,6 +604,7 @@ impl ToolUnitEditor {
         self.unit_editor_campaign_groupbox.set_title(&qtr("tools_unit_editor_campaign"));
         self.unit_editor_ui_groupbox.set_title(&qtr("tools_unit_editor_ui"));
         self.unit_editor_audio_groupbox.set_title(&qtr("tools_unit_editor_audio"));
+        self.unit_editor_battle_visibility_groupbox.set_title(&qtr("tools_unit_battle_visibility"));
 
         //-----------------------------------------------------------------------//
         // unit_variants_tables

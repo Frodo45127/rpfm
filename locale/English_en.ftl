@@ -1101,4 +1101,7 @@ tools_unit_editor_requirements = Requirements
 tools_unit_editor_campaign = Campaign
 tools_unit_editor_ui = UI
 tools_unit_editor_audio = Audio
+tools_unit_battle_visibility = Battle Visibility
+tools_unit_multiplayer = Multiplayer
+tools_unit_extra_data = Extra Data
 copy_unit = Copy Unit
