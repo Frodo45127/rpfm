@@ -39,7 +39,10 @@ fn main() {
 
             #[cfg(feature = "strict_subclasses_compilation")] {
                 if !output.stderr.is_empty() {
-                    println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
+                    let error = String::from_utf8_lossy(&output.stderr);
+                    error.lines().filter(|line| !line.is_empty()).for_each(|line| {
+                        println!("cargo:warning={:?}", line);
+                    });
                     exit(98)
                 }
             }
@@ -137,9 +140,14 @@ fn common_config() {
             stdout().write_all(&output.stdout).unwrap();
             stderr().write_all(&output.stderr).unwrap();
 
-            if !output.stderr.is_empty() {
-                println!("cargo:warning={:?}", String::from_utf8(output.stderr.to_vec()).unwrap());
-                exit(98)
+            #[cfg(feature = "strict_subclasses_compilation")] {
+                if !output.stderr.is_empty() {
+                    let error = String::from_utf8_lossy(&output.stderr);
+                    error.lines().filter(|line| !line.is_empty()).for_each(|line| {
+                        println!("cargo:warning={:?}", line);
+                    });
+                    exit(98)
+                }
             }
         }
         Err(error) => {

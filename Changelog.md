@@ -6,6 +6,27 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [2.6.4]
+### Changed
+- Optimizer now also removes ANY unchanged file (relative to Parent/Vanilla Packs).
+- Unit editor can now save data.
+
+### Fixed
+- Fixed CTD when hitting `Launch Game Selected` with Troy as Game Selected.
+- Fixed CTD when a rare read IO error is detected while trying to import files.
+- Fixed CTD (AGAIN, this time properly) when executing a global replace.
+- Fixed CTD (hopefully, I didn't managed to reproduce this one) when starting the program.
+- Fixed CTD when there are wrongly named files in the locale folder.
+- Fixed CTD when the autosave folder is missing/not readable.
+- Fixed CTD when trying to decode a string with very specific caracteristics.
+- Fixed CTD when decoding a CA_VP8 fails.
+- Fixed CTD when saving certain rigids fails.
+- Fixed CTD when, trying to import a MyMod, reading the MyMod folder fails.
+- Fixed CTD when trying to optimize a PackFile and RPFM was in russian (by [@im-mortal](https://github.com/im-mortal)).
+- Fixed optimizer failing to optimize away certain rows.
+- Fixed a lot of typos (by [@im-mortal](https://github.com/im-mortal)).
+
+
 ## [2.6.3]
 ### Added
 - Added russian localisation (by [@im-mortal](https://github.com/im-mortal)).
@@ -532,7 +553,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.4...HEAD
+[2.6.3]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...v2.6.4
 [2.6.3]: https://github.com/Frodo45127/rpfm/compare/v2.6.2...v2.6.3
 [2.6.2]: https://github.com/Frodo45127/rpfm/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/Frodo45127/rpfm/compare/v2.6.0...v2.6.1
