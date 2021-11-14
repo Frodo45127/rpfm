@@ -2476,50 +2476,50 @@ optimize_packfile_are_you_sure =
     <p>Вот, что произойдёт:</p>
     <ul>
         <li>
-            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут отсортированы по своему первому «ключевому» полю или столбцу</b>
-            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи таблиц (db) будут отсортированы по своему первому «ключевому» полю или столбцу</b>
+            (если таблица не замещает оригинальные данные).
         </li>
         <li>
-            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут отсортированы по своему «ключу»</b>
-            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи файлов локализации (loc) будут отсортированы по своему «ключу»</b>
+            (если файл локализации не замещает оригинальные данные).
         </li>
         <li>
-            <b>Дублирующиеся записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>
-            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Дублирующиеся записи таблиц (db) будут удалены</b>
+            (если таблица не замещает оригинальные данные).
         </li>
         <li>
-            <b>Дублирующиеся записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>
-            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Дублирующиеся записи файлов локализации (loc) будут удалены</b>
+            (если файл локализации не замещает оригинальные данные).
         </li>
         <li>
-            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, данные в которых идентичны их значениям по умолчанию, будут удалены</b>
-            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи таблиц (db), данные в которых идентичны их значениям по умолчанию, будут удалены</b>
+            (если таблица не замещает оригинальные данные).
         </li>
         <li>
-            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, данные в которых идентичны их значениям по умолчанию, будут удалены</b>
-            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи файлов локализации (loc), данные в которых идентичны их значениям по умолчанию, будут удалены</b>
+            (если файл локализации не замещает оригинальные данные).
         </li>
         <li>
-            <b>Записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
-            (если { -db(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи таблиц (db), идентичные оригинальным в игре, будут удалены</b>
+            (если таблица не замещает оригинальные данные).
         </li>
         <li>
-            <b>Записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") }, идентичные оригинальным в игре, будут удалены</b>
-            (если { -loc(capitalization: "lower") } не замещает оригинальные данные).
+            <b>Записи файлов локализации (loc), идентичные оригинальным в игре, будут удалены</b>
+            (если файл локализации не замещает оригинальные данные).
         </li>
         <li>
-            <b>Пустые записи { -db(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
+            <b>Пустые записи таблиц (db) будут удалены</b>.
         </li>
         <li>
-            <b>Пустые записи { -loc(case: "genitive", number: "other", capitalization: "lower", includeOriginalText: "true") } будут удалены</b>.
+            <b>Пустые записи файлов локализации (loc) будут удалены</b>.
         </li>
         <li>
-            <b>Ненужные { -packedfiles(number: "other", capitalization: "lower") } XML комплектов карт</b>,
+            <b>Ненужные запакованные файлы XML комплектов карт</b>,
             являющиеся побочным продуктом работы BOB из { -AssemblyKit(case: "genitive") },
             <b>будут удалены</b>.
         </li>
         <li>
-            <b>ЛЮБЫЕ { -packedfiles(number: "other", capitalization: "lower") }, идентичные оригинальным игровым, 
+            <b>ЛЮБЫЕ запакованные файлы, идентичные оригинальным игровым, 
             будут удалены</b>.
         </li>
     </ul>
