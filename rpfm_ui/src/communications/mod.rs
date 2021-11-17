@@ -126,8 +126,8 @@ pub enum Command {
     SetPackFileType(PFHFileType),
 
     /// This command is used when we want to generate the dependencies cache for a game. It contains the path of the
-    /// source raw db files and the `Raw DB Version` of the currently selected game.
-    GenerateDependenciesCache(Option<PathBuf>, i16),
+    /// source raw db files, the `Raw DB Version` of the currently selected game, and if we should has the files or not.
+    GenerateDependenciesCache(Option<PathBuf>, i16, bool),
 
     /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
     /// It contains the path of the source files, if needed.

@@ -876,6 +876,37 @@ impl RawOnDisk {
     }
 }
 
+impl CachedPackedFile {
+
+    /// This function is used to create a cached version of a PackedFile.
+    pub fn new_from_packed_file(packed_file: &PackedFile, hash: bool) -> Result<Self> {
+        if let PackedFileData::OnDisk(data) = packed_file.get_ref_raw_inner_data() {
+
+            // Read to ensure the hash has been generated.
+            let hash = if hash {
+                data.read()?;
+                *data.get_ref_hash().lock().unwrap()
+            } else { 0 };
+
+            Ok(Self {
+                pack_file_path: data.reader.lock().unwrap().get_ref().path()?.to_string_lossy().to_string(),
+                packed_file_path: packed_file.get_path().join("/"),
+                data_start: data.start,
+                data_size: data.size,
+                is_compressed: data.is_compressed,
+                is_encrypted: data.is_encrypted,
+                last_modified_date_pack: data.last_modified_date_pack,
+                hash,
+            })
+        }
+
+        // If this fails, it means the PackedFile has been already loaded to memory.
+        else {
+            Err(ErrorKind::Generic.into())
+        }
+    }
+}
+
 /// Implementation of `PartialEq` for `PackedFileData`.
 impl PartialEq for PackedFileData {
     fn eq(&self, other: &PackedFileData) -> bool {
@@ -930,35 +961,6 @@ impl From<&AnimPacked> for PackedFile {
         let mut packed_file = Self::new(anim_packed.get_ref_path().to_owned(), String::new());
         packed_file.set_raw_data(anim_packed.get_ref_data());
         packed_file
-    }
-}
-
-/// Implementation to try to create a `CachedPackedFile` from a `PackedFile`.
-impl TryFrom<&PackedFile> for CachedPackedFile {
-    type Error = Error;
-    fn try_from(packed_file: &PackedFile) -> Result<Self> {
-        if let PackedFileData::OnDisk(data) = packed_file.get_ref_raw_inner_data() {
-
-            // Read to ensure the hash has been generated.
-            data.read()?;
-            let hash = data.get_ref_hash().lock().unwrap();
-
-            Ok(Self {
-                pack_file_path: data.reader.lock().unwrap().get_ref().path()?.to_string_lossy().to_string(),
-                packed_file_path: packed_file.get_path().join("/"),
-                data_start: data.start,
-                data_size: data.size,
-                is_compressed: data.is_compressed,
-                is_encrypted: data.is_encrypted,
-                last_modified_date_pack: data.last_modified_date_pack,
-                hash: *hash
-            })
-        }
-
-        // If this fails, it means the PackedFile has been already loaded to memory.
-        else {
-            Err(ErrorKind::Generic.into())
-        }
     }
 }
 

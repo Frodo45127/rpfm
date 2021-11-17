@@ -28,7 +28,6 @@ use rayon::prelude::*;
 use unicase::UniCase;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
@@ -2441,6 +2440,7 @@ impl PackFile {
         already_loaded_dependencies: &mut Vec<String>,
         data_paths: &Option<Vec<PathBuf>>,
         contents_paths: &Option<Vec<PathBuf>>,
+        hash: bool,
     ) {
         // Do not process already processed packfiles.
         if !already_loaded_dependencies.contains(&packfile_name.to_owned()) {
@@ -2452,13 +2452,13 @@ impl PackFile {
 
                         // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
                         already_loaded_dependencies.push(packfile_name.to_owned());
-                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths, hash));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
                             packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
-                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                            if let Ok(cached_packed_file) = CachedPackedFile::new_from_packed_file(packed_file, hash) {
                                 cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
@@ -2473,13 +2473,13 @@ impl PackFile {
 
                         // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
                         already_loaded_dependencies.push(packfile_name.to_owned());
-                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, already_loaded_dependencies, data_paths, contents_paths, hash));
                         for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
                             packed_files.insert(packed_file.get_path().join("/"), packed_file.clone());
                         }
 
                         for packed_file in pack_file.get_ref_packed_files_all() {
-                            if let Ok(cached_packed_file) = CachedPackedFile::try_from(packed_file) {
+                            if let Ok(cached_packed_file) = CachedPackedFile::new_from_packed_file(packed_file, hash) {
                                 cached_packed_files.insert(cached_packed_file.get_ref_packed_file_path().to_owned(), cached_packed_file);
                             }
                         }
@@ -2499,13 +2499,14 @@ impl PackFile {
         packed_files: &mut HashMap<String, PackedFile>,
         cached_packed_files: &mut HashMap<String, CachedPackedFile>,
         pack_file_names: &[String],
+        hash: bool,
     ) {
 
         let data_packs_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths();
         let content_packs_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths();
         let mut loaded_packfiles = vec![];
 
-        pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
+        pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, cached_packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths, hash));
     }
 
     /// This function allows you to open all CA PackFiles as one for the currently selected Game.
