@@ -139,6 +139,10 @@ pub fn command_schema(config: &Config, matches: &ArgMatches) -> Result<()> {
         schema::to_json(config)
     }
 
+    else if matches.is_present("to-xml") {
+        schema::to_xml(config)
+    }
+
 	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }
 

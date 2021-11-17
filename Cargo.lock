@@ -1617,6 +1617,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8533f14c8382aaad0d592c812ac3b826162128b65662331e1127b45c3d18536b"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1873,6 +1883,7 @@ dependencies = [
  "git2",
  "lazy_static",
  "log",
+ "quick-xml 0.22.0",
  "ron",
  "self_update",
  "serde",
@@ -1906,6 +1917,7 @@ dependencies = [
  "log",
  "os_info",
  "pelite",
+ "quick-xml 0.22.0",
  "rayon",
  "regex",
  "reqwest",
@@ -2071,7 +2083,7 @@ dependencies = [
  "hyper",
  "indicatif",
  "log",
- "quick-xml",
+ "quick-xml 0.20.0",
  "regex",
  "reqwest",
  "semver 0.11.0",

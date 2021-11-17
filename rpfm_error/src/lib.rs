@@ -1147,6 +1147,13 @@ impl From<serde_xml_rs::Error> for Error {
     }
 }
 
+/// Implementation to create an `Error` from a `quick_xml::DeError`.
+impl From<quick_xml::DeError> for Error {
+    fn from(_: quick_xml::DeError) -> Self {
+        Self::from(ErrorKind::XMLDeserializerError)
+    }
+}
+
 /// Implementation to create an `Error` from a `Box<bincode::ErrorKind>`.
 impl From<Box<bincode::ErrorKind>> for Error {
     fn from(_: Box<bincode::ErrorKind>) -> Self {

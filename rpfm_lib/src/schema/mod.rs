@@ -575,6 +575,23 @@ impl Schema {
         Ok(())
     }
 
+    /// This function exports all the schema files from the `schemas/` folder to `.xml`.
+    ///
+    /// For compatibility purposes.
+    pub fn export_to_xml() -> Result<()> {
+        for schema_file in SUPPORTED_GAMES.get_games().iter().map(|x| x.get_schema_name()) {
+            let schema = Schema::load(schema_file)?;
+
+            let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+            file_path.push(schema_file);
+            file_path.set_extension("xml");
+
+            let mut file = File::create(&file_path)?;
+            file.write_all(quick_xml::se::to_string(&schema)?.as_bytes())?;
+        }
+        Ok(())
+    }
+
     /// This function allow us to update all Schemas from any legacy version into the current one.
     ///
     /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.

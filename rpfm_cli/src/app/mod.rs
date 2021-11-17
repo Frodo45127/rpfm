@@ -186,15 +186,21 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
 
         // `Schema` Subcommand. Basically, here goes commands destined to keep schemas up-to-date.
         .subcommand(SubCommand::with_name("schema")
-            .about("Allows you to keep your schemas up-to-date.")
+            .about("Allows you to perform certain operations with schemas.")
             .arg(Arg::with_name("update")
+                .help("Allows you to keep your schemas up-to-date.")
                 .short("u")
                 .long("update")
                 .takes_value(false))
-            .about("Allows you to convert all schemas from Ron to Json.")
             .arg(Arg::with_name("to-json")
+                .help("Allows you to convert all schemas from Ron to Json.")
                 .short("j")
                 .long("json")
+                .takes_value(false))
+            .arg(Arg::with_name("to-xml")
+                .help("Allows you to convert all schemas from Ron to XML.")
+                .short("x")
+                .long("xml")
                 .takes_value(false)))
 
 }

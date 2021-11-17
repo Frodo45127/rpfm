@@ -43,3 +43,16 @@ pub fn to_json(config: &Config) -> Result<()> {
     }
     result
 }
+
+pub fn to_xml(config: &Config) -> Result<()> {
+    if config.verbosity_level > 0 {
+        info!("Converting schemas to XML…");
+    }
+
+
+    let result = Schema::export_to_xml();
+    if config.verbosity_level > 0 {
+        info!("Schemas converted to XML.");
+    }
+    result
+}
