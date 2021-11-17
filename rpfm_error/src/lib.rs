@@ -753,7 +753,7 @@ impl Display for ErrorKind {
             ErrorKind::RonSerializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::RonDeserializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::XMLDeserializerError => write!(f, "<p>This should never happen.</p>"),
-            ErrorKind::BincodeSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::BincodeSerializerError => write!(f, "<p>Error while reading or writing a bincoded file. This means the file is not of the format we expected.</p>"),
             ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
             ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
             ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
