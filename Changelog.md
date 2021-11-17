@@ -11,7 +11,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - RPFM CLI can now export schemas to XML.
 
 ### Changed
-- Generating Dependencies' Cache hashes is now optional.
+- Replaced hashing dependencies with a more performance-friendly option.
 - Dependencies Cache load error is now more... less horrifing.
 
 ## [2.6.4]
