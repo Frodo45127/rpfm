@@ -1106,17 +1106,3 @@ tools_unit_multiplayer = Multiplayer
 tools_unit_extra_data = Extra Data
 copy_unit = Copy Unit
 generate_dependencies_cache_in_progress_message = Generating Dependencies Cache... this may take a while.
-generate_dependencies_cache_hashing_message = <h3>Do you want to perform a hashing pass?</h3>
-
-    <p>
-        This may be required for certain tools to work, and without it the optimizer will only optimize tables, locs, and very specific files.
-        The caveat is that the hashing pass may take a lot of time do to, depening on your computer:
-    </p>
-    <ul>
-        <li>4Gen NVME with 32GB of RAM: 10-60 seconds, depending on how many cores your CPU has.</li>
-        <li>SSD with 8GB of RAM: A few minutes, depending how old your SSD is.</li>
-        <li>HDD: Go to the closer computer store, buy an SSD/NVME, go back home, turn off your computer, install it, turn on your computer, format it, install the game to it, configure the new path in RPFM, then generate it. It'll take you less time to do that than performing it over an HDD.</li>
-    </ul>
-    <p>
-        Also, if you do it under Windows, you may see RAM usage skyrocket. It's not RPFM, it's windows caching a ton of data just to uncache it shortly after. Ignore it.
-    </p>

@@ -921,21 +921,6 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
-                    let hash_dialog_answer = QMessageBox::from_2_q_string_icon3_int_q_widget(
-                        &qtr("rpfm_title"),
-                        &qtr("generate_dependencies_cache_hashing_message"),
-                        q_message_box::Icon::Warning,
-                        65536, // No
-                        16384, // Yes
-                        262144, // Abort
-                        &app_ui.main_window,
-                    ).exec();
-
-                    if hash_dialog_answer == 262144 {
-                        return;
-                    }
-
-                    let hash = hash_dialog_answer == 16384;
                     let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
                     let asskit_path = match GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path() {
                         Ok(path) => Some(path),
@@ -945,7 +930,6 @@ impl AppUISlots {
                             None
                         }
                     };
-
 
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
@@ -962,7 +946,7 @@ impl AppUISlots {
                     wait_dialog.set_standard_buttons(QFlags::from(0));
                     wait_dialog.show();
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache(asskit_path, version, hash));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache(asskit_path, version));
                     let response = CentralCommand::recv_try(&receiver);
 
                     match response {

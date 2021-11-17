@@ -67,7 +67,7 @@ pub fn check(
 
                 let version = game_selected.get_raw_db_version();
 
-                dependencies.generate_dependencies_cache(&asskit_path, version, false)?;
+                dependencies.generate_dependencies_cache(&asskit_path, version)?;
                 dependencies.save_to_binary()?;
                 dependencies.rebuild(&[], false)?;
             }

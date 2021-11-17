@@ -259,8 +259,8 @@ pub fn background_loop() {
             }
 
             // In case we want to generate the dependencies cache for our Game Selected...
-            Command::GenerateDependenciesCache(path, version, hash) => {
-                match dependencies.generate_dependencies_cache(&path, version, hash) {
+            Command::GenerateDependenciesCache(path, version) => {
+                match dependencies.generate_dependencies_cache(&path, version) {
                     Ok(mut cache) => match cache.save_to_binary() {
                         Ok(_) => {
                             let _ = dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false);
