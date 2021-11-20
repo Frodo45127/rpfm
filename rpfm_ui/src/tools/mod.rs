@@ -159,12 +159,7 @@ impl Tool {
         }
 
         // Load the UI Template.
-        let mut data = vec!();
-        let mut file = BufReader::new(File::open(template_path)?);
-        file.read_to_end(&mut data)?;
-
-        let ui_loader = QUiLoader::new_0a();
-        let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
+        let main_widget = Self::load_template(parent, template_path)?;
 
         // Get the common widgets for all tools.
         let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
@@ -288,6 +283,18 @@ impl Tool {
     /// It's an utility function for tools.
     pub fn get_row_by_column_index(row: &[DecodedData], index: usize) -> Result<&DecodedData> {
         row.get(index).ok_or_else(|| ErrorKind::ToolTableColumnNotFound.into())
+    }
+
+    /// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
+    pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
+        let mut data = vec!();
+        let mut file = BufReader::new(File::open(path)?);
+        file.read_to_end(&mut data)?;
+
+        let ui_loader = QUiLoader::new_0a();
+        let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
+
+        Ok(main_widget)
     }
 
     /// This function returns the a widget from the view if it exits, and an error if it doesn't.
@@ -991,7 +998,7 @@ impl Tool {
             } else { None })
             .collect::<HashMap<String, Definition>>();
 
-        // Then go, definition by definition, searching source values within our data, and updating out data from them.
+        // Then go, definition by definition, searching source values within our data, and updating our data from them.
         for (table_name, definition) in &mut definitions {
             let table_name = table_name.replace("_definition", "");
             definition.get_fields_processed()

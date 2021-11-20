@@ -14,6 +14,7 @@ Module with all the code for managing the Unit Editor tool.
 This tool is a dialog where you can pick a unit from a list, and edit its values in an easy-to-use way.
 !*/
 
+use qt_widgets::q_dialog_button_box;
 use qt_widgets::q_dialog_button_box::ButtonRole;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
@@ -38,6 +39,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QTimer;
 use qt_core::QVariant;
+use qt_core::SortOrder;
 
 use cpp_core::Ref;
 
@@ -140,6 +142,16 @@ pub struct ToolUnitEditor {
     unit_type_dependant_widgets: HashMap<String, Vec<QPtr<QWidget>>>,
 
     //-----------------------------------------------------------------------//
+    // Copy unit dialog.
+    //-----------------------------------------------------------------------//
+    copy_unit_widget: QBox<QWidget>,
+    copy_unit_button_box: QPtr<QDialogButtonBox>,
+    copy_unit_instructions_label: QPtr<QLabel>,
+    copy_unit_new_unit_name_label: QPtr<QLabel>,
+    copy_unit_new_unit_name_combobox: QPtr<QComboBox>,
+    copy_unit_new_unit_name_combobox_model: QBox<QStandardItemModel>,
+
+    //-----------------------------------------------------------------------//
     // Main tab groupboxes.
     //-----------------------------------------------------------------------//
     unit_editor_key_loc_data_groupbox: QPtr<QGroupBox>,
@@ -232,6 +244,19 @@ impl ToolUnitEditor {
         detailed_view_tab_widget.set_enabled(false);
 
         //-----------------------------------------------------------------------//
+        // Copy unit dialog.
+        //-----------------------------------------------------------------------//
+        let copy_unit_view = if cfg!(debug_assertions) { COPY_UNIT_VIEW_DEBUG } else { COPY_UNIT_VIEW_RELEASE };
+        let copy_unit_widget = Tool::load_template(&tool.main_widget, copy_unit_view)?;
+
+        let copy_unit_button_box: QPtr<QDialogButtonBox> = tool.find_widget("copy_unit_button_box")?;
+        let copy_unit_instructions_label: QPtr<QLabel> = tool.find_widget("copy_unit_instructions_label")?;
+        let copy_unit_new_unit_name_label: QPtr<QLabel> = tool.find_widget("copy_unit_new_unit_name_label")?;
+        let copy_unit_new_unit_name_combobox: QPtr<QComboBox> = tool.find_widget("copy_unit_new_unit_name_combobox")?;
+        let copy_unit_new_unit_name_combobox_model = QStandardItemModel::new_1a(&copy_unit_new_unit_name_combobox);
+        copy_unit_new_unit_name_combobox.set_model(&copy_unit_new_unit_name_combobox_model);
+
+        //-----------------------------------------------------------------------//
         // Main tab groupboxes.
         //-----------------------------------------------------------------------//
         let unit_editor_key_loc_data_groupbox: QPtr<QGroupBox> = tool.find_widget("unit_key_loc_data_groupbox")?;
@@ -287,6 +312,16 @@ impl ToolUnitEditor {
 
             unit_caste_previous,
             unit_type_dependant_widgets,
+
+            //-----------------------------------------------------------------------//
+            // Copy unit dialog.
+            //-----------------------------------------------------------------------//
+            copy_unit_widget,
+            copy_unit_button_box,
+            copy_unit_instructions_label,
+            copy_unit_new_unit_name_label,
+            copy_unit_new_unit_name_combobox,
+            copy_unit_new_unit_name_combobox_model,
 
             //-----------------------------------------------------------------------//
             // Main tab groupboxes.
@@ -597,6 +632,12 @@ impl ToolUnitEditor {
         self.detailed_view_tab_widget.set_tab_text(2, &qtr("tools_unit_editor_variantmeshes_tab_title"));
 
         //-----------------------------------------------------------------------//
+        // Copy unit dialog.
+        //-----------------------------------------------------------------------//
+        self.copy_unit_instructions_label.set_text(&qtr("copy_unit_instructions"));
+        self.copy_unit_new_unit_name_label.set_text(&qtr("copy_unit_new_unit_name"));
+
+        //-----------------------------------------------------------------------//
         // Main tab groupboxes.
         //-----------------------------------------------------------------------//
         self.unit_editor_key_loc_data_groupbox.set_title(&qtr("tools_unit_editor_key_loc_data"));
@@ -772,5 +813,57 @@ impl ToolUnitEditor {
         let mut widgets_naval_unit = vec![];
         self.unit_type_dependant_widgets.insert(UnitType::NavalUnit, widgets_naval_unit);
         */
+    }
+
+    /// Function to load the `Copy Unit` dialog.
+    pub unsafe fn load_copy_unit_dialog(&self) -> Result<()> {
+        let source_unit = self.unit_list_view.selection_model().selection();
+        if source_unit.count_0a() != 1 {
+            return Err(ErrorKind::GenericHTMLError("No unit selected".to_string()).into());
+        }
+
+        let source_unit_real = self.get_ref_unit_list_filter().map_to_source(&source_unit.take_at(0).indexes().take_at(0));
+        let source_unit_name = self.get_ref_unit_list_model().item_from_index(&source_unit_real).text();
+        self.copy_unit_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+
+        // Copy the model of the unit list and sort it, because here we don't use an intermediate filter.
+        self.copy_unit_new_unit_name_combobox_model.clear();
+
+        for row in 0..self.unit_list_model.row_count_0a() {
+            let item = QStandardItem::from_q_string(&self.unit_list_model.item_1a(row).text());
+            self.copy_unit_new_unit_name_combobox_model.append_row_q_standard_item(item.into_ptr());
+        }
+
+        self.copy_unit_new_unit_name_combobox_model.sort_2a(0, SortOrder::AscendingOrder);
+        self.copy_unit_new_unit_name_combobox.set_current_text(&source_unit_name);
+
+        let dialog: QPtr<QDialog> = self.copy_unit_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save the source unit.
+            self.save_from_detailed_view(source_unit_real.as_ref());
+
+            // Clone the source unit, updating its relevant keys in the process.
+            let new_item = (*self.unit_list_model.item_from_index(&source_unit_real)).clone();
+            let new_unit_name = self.copy_unit_new_unit_name_combobox.current_text();
+            new_item.set_text(&new_unit_name);
+
+            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+            data.insert("main_units_unit".to_owned(), new_unit_name.to_std_string());
+            data.insert("land_units_key".to_owned(), new_unit_name.to_std_string());
+            self.update_keys(&mut data);
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            self.unit_list_model.append_row_q_standard_item(new_item);
+            let new_index = self.unit_list_model.index_from_item(new_item);
+
+            // Clear the filters (just in case) and open the new unit.
+            self.get_ref_unit_list_filter_line_edit().clear();
+            self.get_ref_unit_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.get_ref_unit_list_view().set_current_index(&self.get_ref_unit_list_filter().map_from_source(&new_index));
+        }
+
+        Ok(())
+
     }
 }

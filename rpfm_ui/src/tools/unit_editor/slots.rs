@@ -15,6 +15,7 @@ Module with all the code related to `ToolUnitEditorSlots`.
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 use qt_core::SlotOfQItemSelectionQItemSelection;
+use qt_core::SlotOfQString;
 
 use std::rc::Rc;
 
@@ -34,6 +35,7 @@ pub struct ToolUnitEditorSlots {
     pub change_caste: QBox<SlotNoArgs>,
     pub change_icon: QBox<SlotNoArgs>,
     pub copy_unit: QBox<SlotNoArgs>,
+    pub copy_unit_check: QBox<SlotOfQString>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,7 +106,21 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), move || {});
+        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+            ui => move || {
+                if let Err(error) = ui.load_copy_unit_dialog() {
+                    show_message_warning(&ui.tool.message_widget, error);
+                }
+            }
+        ));
+
+        let copy_unit_check = SlotOfQString::new(&ui.copy_unit_widget, clone!(
+            ui => move |value| {
+                let model: QPtr<QStandardItemModel> = ui.copy_unit_new_unit_name_combobox.model().static_downcast();
+                let ok_button = ui.copy_unit_button_box.button(q_dialog_button_box::StandardButton::Ok);
+                ok_button.set_enabled(model.find_items_1a(value).is_empty());
+            }
+        ));
 
         ToolUnitEditorSlots {
             delayed_updates,
@@ -113,6 +129,7 @@ impl ToolUnitEditorSlots {
             change_caste,
             change_icon,
             copy_unit,
+            copy_unit_check
         }
     }
 }

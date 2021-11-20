@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>452</width>
+    <height>102</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,6 +25,9 @@
      <property name="editable">
       <bool>true</bool>
      </property>
+     <property name="trapReturnKey">
+      <bool>true</bool>
+     </property>
     </widget>
    </item>
    <item row="1" column="0">
@@ -35,7 +38,7 @@
     </widget>
    </item>
    <item row="2" column="0" colspan="3">
-    <widget class="QDialogButtonBox" name="buttonBox">
+    <widget class="QDialogButtonBox" name="copy_unit_button_box">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -63,7 +66,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>buttonBox</sender>
+   <sender>copy_unit_button_box</sender>
    <signal>accepted()</signal>
    <receiver>Dialog</receiver>
    <slot>accept()</slot>
@@ -79,7 +82,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>buttonBox</sender>
+   <sender>copy_unit_button_box</sender>
    <signal>rejected()</signal>
    <receiver>Dialog</receiver>
    <slot>reject()</slot>

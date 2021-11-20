@@ -1106,3 +1106,10 @@ tools_unit_multiplayer = Multiplayer
 tools_unit_extra_data = Extra Data
 copy_unit = Copy Unit
 generate_dependencies_cache_in_progress_message = Generating Dependencies Cache... this may take a while.
+copy_unit_instructions = <p>Write the new unit's key in the input field, and hit accept. Also, note:</p>
+    <ul>
+        <li>Existing unit keys are not valid.</li>
+        <li>Certain keys will be changed in the copied unit to match the unit key.</li>
+    </ul>
+
+copy_unit_new_unit_name = Unit Key
