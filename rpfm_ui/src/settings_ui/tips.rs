@@ -62,6 +62,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let extra_packfile_optimize_not_renamed_packedfiles_tip = qtr("tt_extra_packfile_optimize_not_renamed_packedfiles_tip");
     let extra_packfile_use_lazy_loading_tip = qtr("tt_extra_packfile_use_lazy_loading_tip");
     let extra_disable_uuid_regeneration_on_db_tables_label_tip = qtr("tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
+    let extra_packfile_disable_file_previews_tip = qtr("tt_settings_disable_file_previews_tip");
 
     settings_ui.extra_packfile_autosave_amount_label.set_tool_tip(&autosave_amount_tip);
     settings_ui.extra_packfile_autosave_amount_spinbox.set_tool_tip(&autosave_amount_tip);
@@ -78,6 +79,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.extra_packfile_use_lazy_loading_checkbox.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_label.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
     settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
+    settings_ui.extra_packfile_disable_file_previews_label.set_tool_tip(&extra_packfile_disable_file_previews_tip);
+    settings_ui.extra_packfile_disable_file_previews_checkbox.set_tool_tip(&extra_packfile_disable_file_previews_tip);
 
     //-----------------------------------------------//
     // `Debug` tips.

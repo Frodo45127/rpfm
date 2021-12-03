@@ -1113,3 +1113,5 @@ copy_unit_instructions = <p>Write the new unit's key in the input field, and hit
     </ul>
 
 copy_unit_new_unit_name = Unit Key
+settings_disable_file_previews = Disable PackedFile Previews
+tt_settings_disable_file_previews_tip = Check this to make RPFM always open PackedFiles as non-preview, so they'll not get closed when opening another PackedFile.
