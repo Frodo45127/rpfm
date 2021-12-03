@@ -105,13 +105,13 @@ impl Settings {
         // UI Settings.
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("use_dark_theme".to_owned(), false);
-        settings_bool.insert("hide_background_icon".to_owned(), false);
+        settings_bool.insert("hide_background_icon".to_owned(), true);
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
-        settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
+        settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), true);
         settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), false);
         settings_bool.insert("expand_treeview_when_adding_items".to_owned(), true);
         settings_bool.insert("use_right_size_markers".to_owned(), false);
