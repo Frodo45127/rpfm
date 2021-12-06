@@ -77,7 +77,7 @@ use std::{fmt, fmt::Display};
 use std::io::{BufReader, Write};
 use std::process::Command as SystemCommand;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
@@ -974,6 +974,14 @@ impl Definition {
             else { a.get_ca_order().cmp(&b.get_ca_order()) }
         });
         fields
+    }
+
+    /// This function returns the position of a column in a definition, or an error if the column is not found.
+    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
+        self.get_fields_processed()
+            .iter()
+            .position(|x| x.get_name() == column_name)
+            .ok_or_else(|| Error::from(ErrorKind::ColumnNotFoundInTable(column_name.to_owned())))
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.

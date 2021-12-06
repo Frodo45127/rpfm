@@ -346,11 +346,7 @@ impl Table {
 
     /// This function returns the position of a column in a definition, or an error if the column is not found.
     pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
-        self.get_ref_definition()
-            .get_fields_processed()
-            .iter()
-            .position(|x| x.get_name() == column_name)
-            .ok_or_else(|| Error::from(ErrorKind::ColumnNotFoundInTable(column_name.to_owned())))
+        self.get_ref_definition().get_column_position_by_name(column_name)
     }
 
     /// This function returns the amount of entries in this Table.
