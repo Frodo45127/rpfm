@@ -41,6 +41,12 @@ package() {
         cp -R $locale "$pkgdir/usr/share/$_programname/locale/"
     done
 
+    # The UI files.
+    mkdir -p "$pkgdir/usr/share/$_programname/ui"
+    for image in "$srcdir/$_programname/ui/."; do
+        cp -R $image "$pkgdir/usr/share/$_programname/ui/"
+    done
+
     # Shortcuts.
     install -D -m644 "$srcdir/$_programname/install/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
 
