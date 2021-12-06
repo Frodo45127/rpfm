@@ -33,7 +33,6 @@ pub struct ToolUnitEditorSlots {
     pub load_data_to_detailed_view: QBox<SlotOfQItemSelectionQItemSelection>,
     pub filter_edited: QBox<SlotNoArgs>,
     pub change_caste: QBox<SlotNoArgs>,
-    pub change_icon: QBox<SlotNoArgs>,
     pub copy_unit: QBox<SlotNoArgs>,
     pub copy_unit_check: QBox<SlotOfQString>,
     pub open_variant_editor: QBox<SlotNoArgs>,
@@ -102,13 +101,6 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let change_icon = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
-            ui => move || {
-                let key = ui.unit_icon_key_combobox.current_text().to_std_string();
-                ui.load_unit_icon(&HashMap::new(), Some(key));
-            }
-        ));
-
         let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_copy_unit_dialog() {
@@ -138,7 +130,6 @@ impl ToolUnitEditorSlots {
             load_data_to_detailed_view,
             filter_edited,
             change_caste,
-            change_icon,
             copy_unit,
             copy_unit_check,
             open_variant_editor

@@ -133,7 +133,7 @@ impl SubToolVariantUnitEditor {
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let tool = Tool::new(parent, &[], &TOOL_SUPPORTED_GAMES, view)?;
 
-        tool.set_title(&tr("unit_editor_title"));
+        tool.set_title(&tr("variant_editor_title"));
 
         // ListView.
         let faction_list_view: QPtr<QListView> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(), "faction_list_view")?;
@@ -705,6 +705,15 @@ impl SubToolVariantUnitEditor {
     pub unsafe fn setup_translations(&self) -> Result<()> {
         self.tool.find_widget::<QGroupBox>("variants_mesh_editor_groupbox")?.set_title(&qtr("variants_mesh_editor_title"));
         self.tool.find_widget::<QGroupBox>("unit_variants_colours_groupbox")?.set_title(&qtr("unit_variants_colours_title"));
+        self.tool.find_widget::<QLabel>("unit_variants_unit_card_label")?.set_text(&qtr("unit_variants_unit_card"));
+        self.tool.find_widget::<QLabel>("variants_variant_filename_label")?.set_text(&qtr("variants_variant_filename"));
+
+        self.tool.find_widget::<QLabel>("unit_variants_colours_primary_colour_label")?.set_text(&qtr("unit_variants_colours_primary_colour"));
+        self.tool.find_widget::<QLabel>("unit_variants_colours_secondary_colour_label")?.set_text(&qtr("unit_variants_colours_secondary_colour"));
+        self.tool.find_widget::<QLabel>("unit_variants_colours_tertiary_colour_label")?.set_text(&qtr("unit_variants_colours_tertiary_colour"));
+
+        self.tool.find_widget::<QLabel>("faction_list_label")?.set_text(&qtr("faction_list_title"));
+        self.tool.find_widget::<QLabel>("unit_variants_colours_list_label")?.set_text(&qtr("unit_variants_colours_list_title"));
 
         Ok(())
     }

@@ -14,6 +14,7 @@ Module with all the code for managing the Unit Editor tool.
 This tool is a dialog where you can pick a unit from a list, and edit its values in an easy-to-use way.
 !*/
 
+use qt_widgets::QGridLayout;
 use qt_widgets::q_dialog_button_box;
 use qt_widgets::q_dialog_button_box::ButtonRole;
 use qt_widgets::QGroupBox;
@@ -29,9 +30,11 @@ use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::AlignmentFlag;
 use qt_core::CaseSensitivity;
 use qt_core::QBox;
 use qt_core::QByteArray;
+use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
@@ -92,9 +95,6 @@ const UNIT_DATA: i32 = 60;
 /// Key under which variantmeshes data is saved.
 const VARIANT_MESH_DATA: &str = "variants_variant_mesh_data";
 
-/// Path where all the unit info pictures (icons are too small) are located.
-const UNIT_INFOPICS_PATH: &str = "ui/units/infopics/";
-
 /// Path where all the unit icon pictures (for backup) are located.
 const UNIT_ICONS_PATH: &str = "ui/units/icons/";
 
@@ -147,9 +147,7 @@ pub struct ToolUnitEditor {
 
     detailed_view_tab_widget: QPtr<QTabWidget>,
 
-    unit_icon_label: QPtr<QLabel>,
-    unit_icon_key_label: QPtr<QLabel>,
-    unit_icon_key_combobox: QPtr<QComboBox>,
+    unit_icon_label_preview_widget: QPtr<QWidget>,
     variant_editor_tool_button: QPtr<QToolButton>,
 
     packed_file_name_label: QPtr<QLabel>,
@@ -246,10 +244,9 @@ impl ToolUnitEditor {
         timer_delayed_updates.set_single_shot(true);
 
         // Icon stuff.
-        let unit_icon_label: QPtr<QLabel> = tool.find_widget("unit_icon_label")?;
-        let unit_icon_key_label: QPtr<QLabel> = tool.find_widget("unit_icon_key_label")?;
-        let unit_icon_key_combobox: QPtr<QComboBox> = tool.find_widget("unit_icon_key_combobox")?;
+        let unit_icon_label_preview_widget: QPtr<QWidget> = tool.find_widget("unit_icon_label_preview_widget")?;
         let variant_editor_tool_button: QPtr<QToolButton> = tool.find_widget("variant_editor_tool_button")?;
+        create_grid_layout(unit_icon_label_preview_widget.static_upcast());
 
         // File name and button box.
         let packed_file_name_label: QPtr<QLabel> = tool.find_widget("packed_file_name_label")?;
@@ -321,9 +318,7 @@ impl ToolUnitEditor {
 
             detailed_view_tab_widget,
 
-            unit_icon_label,
-            unit_icon_key_label,
-            unit_icon_key_combobox,
+            unit_icon_label_preview_widget,
             variant_editor_tool_button,
 
             packed_file_name_label,
@@ -416,25 +411,6 @@ impl ToolUnitEditor {
             let item = QStandardItem::from_q_string(&QString::from_std_str(&key)).into_ptr();
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), UNIT_DATA);
             self.unit_list_model.append_row_q_standard_item(item);
-        }
-
-        // Then, build the combos lists with dependencies data.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(PathType::Folder(UNIT_ICONS_PATH.split("/").map(|x| x.to_owned()).collect())));
-        let response = CentralCommand::recv(&receiver);
-        let icon_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-        let icon_keys_sorted = icon_keys.values()
-            .map(|paths|
-                paths.par_iter()
-                .map(|path| path.join("/"))
-                .collect::<Vec<String>>()
-            )
-            .flatten()
-            .sorted()
-            .collect::<Vec<String>>();
-
-        for icon_key in &icon_keys_sorted {
-            let name_without_extension = icon_key.split('.').collect::<Vec<&str>>()[0];
-            self.unit_icon_key_combobox.add_item_q_string(&QString::from_std_str(name_without_extension));
         }
 
         // Store the PackedFiles for use when saving.
@@ -539,7 +515,7 @@ impl ToolUnitEditor {
         self.tool.load_field_to_detailed_view_editor_string_long(&data, &self.loc_unit_description_strengths_weaknesses_texts_text_ktexteditor, "loc_unit_description_strengths_weaknesses_texts_text");
 
         // The icon needs to be pulled up from the dependencies cache on load.
-        self.load_unit_icon(&data, None);
+        self.load_unit_icons(&data);
 
         if !errors.is_empty() {
             show_message_warning(&self.tool.message_widget, errors.join("\n"));
@@ -547,51 +523,55 @@ impl ToolUnitEditor {
     }
 
     /// This function loads the unit icon into the tool. If provided with a key, it uses it. If not, it uses whatever key the unit has.
-    pub unsafe fn load_unit_icon(&self, data: &HashMap<String, String>, key: Option<String>) {
-        let unit_card = if let Some(unit_card) = key { Some(unit_card.to_owned()) }
-        else if let Some(unit_card) = data.get("unit_variants_unit_card") { Some(unit_card.to_owned()) }
-        else { None };
+    pub unsafe fn load_unit_icons(&self, data: &HashMap<String, String>) {
 
-        // The icon needs to be pulled up from the dependencies cache on load.
-        if let Some(unit_card) = unit_card {
-            let icon_path_png = format!("{}{}.png", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_tga = format!("{}{}.tga", UNIT_INFOPICS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_png_lowres = format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+        // Clear the current layout.
+        clear_layout(&self.unit_icon_label_preview_widget);
+        let layout: QPtr<QGridLayout> = self.unit_icon_label_preview_widget.layout().static_downcast();
 
-            let icon_paths = vec![
-                PathType::File(icon_path_png.to_vec()),
-                PathType::File(icon_path_tga.to_vec()),
-                PathType::File(icon_path_png_lowres.to_vec()),
-                PathType::File(icon_path_tga_lowres.to_vec()),
-            ];
+        let unit_cards = data.iter().filter_map(|(key, value)| if key.starts_with("unit_variants_unit_card") { Some(value) } else { None }).collect::<Vec<&String>>();
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths));
+        // The icons needs to be pulled up from the dependencies cache on load.
+        if !unit_cards.is_empty() {
+            let mut icon_paths = vec![];
+            for unit_card in unit_cards {
+                let icon_path_png = PathType::File(format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+                let icon_path_tga = PathType::File(format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+
+                if !icon_paths.contains(&icon_path_png) {
+                    icon_paths.push(icon_path_png);
+                }
+
+                if !icon_paths.contains(&icon_path_tga) {
+                    icon_paths.push(icon_path_tga);
+                }
+            }
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths.to_vec()));
             let response = CentralCommand::recv(&receiver);
             let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-            let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
-                Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) {
-                Some(image_file)
-            } else {
-                None
-            };
 
-            if let Some(image_file) = image_file {
-                let image_data = image_file.get_raw_data().unwrap();
+            let images_files = icon_paths.iter().filter_map(|path_type| {
+                if let PathType::File(path) = path_type {
+                    Tool::get_most_relevant_file(&images_data, &path)
+                } else { None }
+            }).collect::<Vec<PackedFile>>();
+
+            for (column, images_file) in images_files.iter().enumerate() {
+                let image_data = images_file.get_raw_data().unwrap();
                 let byte_array = QByteArray::from_slice(&image_data);
                 let image = QPixmap::new();
+                let label = QLabel::from_q_widget(&self.unit_icon_label_preview_widget);
                 image.load_from_data_q_byte_array(&byte_array);
-                self.unit_icon_label.set_pixmap(&image);
-            } else {
-                self.unit_icon_label.set_text(&QString::from_std_str("No image available"));
+                label.set_alignment(QFlags::from(AlignmentFlag::AlignHCenter | AlignmentFlag::AlignVCenter));
+                label.set_pixmap(&image);
+                layout.add_widget_3a(&label, 0, column as i32);
             }
         } else {
-            self.unit_icon_label.set_text(&QString::from_std_str("No image available"));
+            let label = QLabel::from_q_widget(&self.unit_icon_label_preview_widget);
+            label.set_alignment(QFlags::from(AlignmentFlag::AlignHCenter | AlignmentFlag::AlignVCenter));
+            label.set_text(&QString::from_std_str("No image available"));
+            layout.add_widget_3a(&label, 0, 0);
         }
     }
 
@@ -643,8 +623,15 @@ impl ToolUnitEditor {
 
     /// Function to filter the faction list.
     pub unsafe fn filter_list(&self) {
+
+        // So, funny bug: if we "hide" with a filter the open item, the entire thing crashes. Not sure why.
+        // So we have to "unselect" it, filter, then check if it's still visible, and select it again.
+        self.unit_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+
         self.unit_list_filter.set_filter_case_sensitivity(CaseSensitivity::CaseInsensitive);
         self.unit_list_filter.set_filter_regular_expression_q_string(&self.unit_list_filter_line_edit.text());
+
+        self.unit_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
     }
 
     /// Function to setup all the translations of this view.
@@ -670,11 +657,6 @@ impl ToolUnitEditor {
         self.unit_editor_ui_groupbox.set_title(&qtr("tools_unit_editor_ui"));
         self.unit_editor_audio_groupbox.set_title(&qtr("tools_unit_editor_audio"));
         self.unit_editor_battle_visibility_groupbox.set_title(&qtr("tools_unit_battle_visibility"));
-
-        //-----------------------------------------------------------------------//
-        // unit_variants_tables
-        //-----------------------------------------------------------------------//
-        self.unit_icon_key_label.set_text(&QString::from_std_str(clean_column_names("unit_variants_unit_card")));
 
         //-----------------------------------------------------------------------//
         // Loc data

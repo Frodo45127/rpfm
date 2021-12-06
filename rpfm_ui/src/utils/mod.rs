@@ -263,6 +263,16 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     dialog.exec();
 }
 
+/// This function deletes all widgets from a widget's layout.
+pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
+    let layout = widget.layout();
+    while !layout.is_empty() {
+        let item = layout.take_at(0);
+        item.widget().delete();
+        item.delete();
+    }
+}
+
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
 pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
     let widget_layout = QGridLayout::new_1a(&widget);
