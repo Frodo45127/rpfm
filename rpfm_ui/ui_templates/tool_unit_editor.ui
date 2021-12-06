@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1080</width>
-    <height>850</height>
+    <width>1383</width>
+    <height>1085</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -75,6 +75,16 @@
        <property name="bottomMargin">
         <number>9</number>
        </property>
+       <item row="6" column="2">
+        <widget class="QDialogButtonBox" name="button_box">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="standardButtons">
+          <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+         </property>
+        </widget>
+       </item>
        <item row="6" column="1">
         <widget class="QLineEdit" name="packed_file_name_line_edit"/>
        </item>
@@ -95,16 +105,6 @@
         <widget class="QLabel" name="packed_file_name_label">
          <property name="text">
           <string>TextLabel</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="2">
-        <widget class="QDialogButtonBox" name="button_box">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="standardButtons">
-          <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
          </property>
         </widget>
        </item>
@@ -179,7 +179,7 @@
                </widget>
               </item>
               <item row="2" column="3">
-               <widget class="QToolButton" name="unit_icon_key_tool_button">
+               <widget class="QToolButton" name="variant_editor_tool_button">
                 <property name="text">
                  <string>...</string>
                 </property>
@@ -501,8 +501,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>651</width>
-                   <height>292</height>
+                   <width>886</width>
+                   <height>360</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_24">
@@ -828,15 +828,79 @@
               <string>GroupBox</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_22">
-              <item row="8" column="1">
-               <widget class="QLabel" name="main_units_upkeep_cost_label">
+              <item row="16" column="4">
+               <widget class="QLabel" name="main_units_missile_cp_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
               </item>
+              <item row="5" column="7">
+               <widget class="QSpinBox" name="main_units_multiplayer_cost_spinbox"/>
+              </item>
+              <item row="18" column="1">
+               <widget class="QLabel" name="main_units_can_siege_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="3">
+               <widget class="QSpinBox" name="main_units_recruitment_cost_spinbox"/>
+              </item>
+              <item row="21" column="1">
+               <widget class="QLabel" name="main_units_mount_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="19" column="3">
+               <widget class="QCheckBox" name="main_units_use_hitpoints_in_campaign_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="3">
+               <widget class="QSpinBox" name="main_units_campaign_cap_spinbox"/>
+              </item>
+              <item row="0" column="5" colspan="3">
+               <widget class="QSpinBox" name="main_units_create_time_spinbox"/>
+              </item>
               <item row="5" column="4">
                <widget class="QLabel" name="main_units_food_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="19" column="4">
+               <widget class="QLabel" name="main_units_unit_scaling_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="4">
+               <widget class="QLabel" name="land_units_campaign_action_points_label">
+                <property name="text">
+                 <string>Campaign Action Points</string>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="5">
+               <widget class="QSpinBox" name="main_units_food_cost_spinbox">
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="6">
+               <widget class="QLabel" name="main_units_multiplayer_cost_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
@@ -849,8 +913,22 @@
                 </property>
                </widget>
               </item>
-              <item row="16" column="3">
-               <widget class="QDoubleSpinBox" name="main_units_melee_cp_double_spinbox">
+              <item row="19" column="5">
+               <widget class="QCheckBox" name="main_units_unit_scaling_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="QLabel" name="main_units_campaign_cap_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="5" colspan="3">
+               <widget class="QSpinBox" name="land_units_campaign_action_points_spinbox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
                   <horstretch>0</horstretch>
@@ -866,132 +944,12 @@
                 </property>
                </widget>
               </item>
-              <item row="16" column="4">
-               <widget class="QLabel" name="main_units_missile_cp_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="3">
-               <widget class="QSpinBox" name="main_units_campaign_cap_spinbox"/>
-              </item>
-              <item row="18" column="3">
-               <widget class="QCheckBox" name="main_units_can_siege_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="4">
-               <widget class="QLabel" name="main_units_unit_scaling_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
               <item row="5" column="1">
                <widget class="QLabel" name="main_units_recruitment_cost_label">
                 <property name="text">
                  <string>TextLabel</string>
                 </property>
                </widget>
-              </item>
-              <item row="22" column="1">
-               <widget class="QLabel" name="main_units_weight_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="6">
-               <widget class="QLabel" name="main_units_multiplayer_cost_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="3">
-               <widget class="QSpinBox" name="main_units_upkeep_cost_spinbox"/>
-              </item>
-              <item row="19" column="5">
-               <widget class="QCheckBox" name="main_units_unit_scaling_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="19" column="3">
-               <widget class="QCheckBox" name="main_units_use_hitpoints_in_campaign_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="16" column="1">
-               <widget class="QLabel" name="main_units_melee_cp_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="18" column="1">
-               <widget class="QLabel" name="main_units_can_siege_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="3">
-               <widget class="QSpinBox" name="main_units_recruitment_cost_spinbox"/>
-              </item>
-              <item row="8" column="4">
-               <widget class="QLabel" name="land_units_campaign_action_points_label">
-                <property name="text">
-                 <string>Campaign Action Points</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QLabel" name="main_units_campaign_cap_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="21" column="1">
-               <widget class="QLabel" name="main_units_mount_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="5">
-               <widget class="QSpinBox" name="main_units_food_cost_spinbox">
-                <property name="minimumSize">
-                 <size>
-                  <width>50</width>
-                  <height>0</height>
-                 </size>
-                </property>
-               </widget>
-              </item>
-              <item row="18" column="4">
-               <widget class="QLabel" name="main_units_restrict_xp_gain_in_campaign_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="18" column="5">
-               <widget class="QCheckBox" name="main_units_restrict_xp_gain_in_campaign_checkbox">
-                <property name="text">
-                 <string/>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="7">
-               <widget class="QSpinBox" name="main_units_multiplayer_cost_spinbox"/>
               </item>
               <item row="23" column="1" colspan="7">
                <widget class="QGroupBox" name="unit_requirements_groupbox">
@@ -1025,10 +983,58 @@
                 </layout>
                </widget>
               </item>
-              <item row="22" column="3" colspan="5">
-               <widget class="QComboBox" name="main_units_weight_combobox"/>
+              <item row="16" column="5" colspan="3">
+               <widget class="QDoubleSpinBox" name="main_units_missile_cp_double_spinbox"/>
               </item>
-              <item row="21" column="3" colspan="5">
+              <item row="8" column="3">
+               <widget class="QSpinBox" name="main_units_upkeep_cost_spinbox"/>
+              </item>
+              <item row="18" column="3">
+               <widget class="QCheckBox" name="main_units_can_siege_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="18" column="5">
+               <widget class="QCheckBox" name="main_units_restrict_xp_gain_in_campaign_checkbox">
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
+              </item>
+              <item row="16" column="3">
+               <widget class="QDoubleSpinBox" name="main_units_melee_cp_double_spinbox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="18" column="4">
+               <widget class="QLabel" name="main_units_restrict_xp_gain_in_campaign_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="8" column="1">
+               <widget class="QLabel" name="main_units_upkeep_cost_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="16" column="1">
+               <widget class="QLabel" name="main_units_melee_cp_label">
+                <property name="text">
+                 <string>TextLabel</string>
+                </property>
+               </widget>
+              </item>
+              <item row="21" column="3">
                <widget class="QComboBox" name="main_units_mount_combobox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -1038,21 +1044,15 @@
                 </property>
                </widget>
               </item>
-              <item row="16" column="5" colspan="3">
-               <widget class="QDoubleSpinBox" name="main_units_missile_cp_double_spinbox"/>
-              </item>
-              <item row="8" column="5" colspan="3">
-               <widget class="QSpinBox" name="land_units_campaign_action_points_spinbox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
+              <item row="21" column="4">
+               <widget class="QLabel" name="main_units_weight_label">
+                <property name="text">
+                 <string>TextLabel</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="5" colspan="3">
-               <widget class="QSpinBox" name="main_units_create_time_spinbox"/>
+              <item row="21" column="5" colspan="3">
+               <widget class="QComboBox" name="main_units_weight_combobox"/>
               </item>
              </layout>
             </widget>
@@ -1135,8 +1135,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>668</width>
-                   <height>115</height>
+                   <width>907</width>
+                   <height>146</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_6">
@@ -1878,53 +1878,6 @@
            </item>
           </layout>
          </widget>
-         <widget class="QWidget" name="variantmesh_tab">
-          <attribute name="title">
-           <string>Tab 2</string>
-          </attribute>
-          <layout class="QGridLayout" name="gridLayout_18">
-           <item row="1" column="1">
-            <widget class="QWidget" name="variantmesh_details_widget" native="true">
-             <layout class="QFormLayout" name="formLayout">
-              <item row="0" column="0">
-               <widget class="QLabel" name="variantmesh_list_label">
-                <property name="text">
-                 <string>TextLabel</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="KComboBox" name="variantmesh_list_combobox">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QToolButton" name="variantmesh_check_button">
-             <property name="text">
-              <string>...</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0" colspan="2">
-            <widget class="KTextEdit" name="variantmesh_text_edit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-               <horstretch>0</horstretch>
-               <verstretch>1</verstretch>
-              </sizepolicy>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
         </widget>
        </item>
       </layout>
@@ -1935,6 +1888,11 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>KTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header>ktextedit.h</header>
+  </customwidget>
+  <customwidget>
    <class>KCollapsibleGroupBox</class>
    <extends>QWidget</extends>
    <header>kcollapsiblegroupbox.h</header>
@@ -1944,16 +1902,6 @@
    <class>KMessageWidget</class>
    <extends>QFrame</extends>
    <header>kmessagewidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KComboBox</class>
-   <extends>QComboBox</extends>
-   <header>kcombobox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>KTextEdit</class>
-   <extends>QTextEdit</extends>
-   <header>ktextedit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

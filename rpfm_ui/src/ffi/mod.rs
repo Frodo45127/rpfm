@@ -217,7 +217,7 @@ pub fn get_text_safe(document: &QBox<QWidget>) -> Ptr<QString> {
 
 /// This function allow us to set the text of the provided KTextEditor.
 extern "C" { fn set_text(document: *mut QWidget, string: *mut QString, highlighting_mode: *mut QString); }
-pub fn set_text_safe(document: &QBox<QWidget>, string: &Ptr<QString>, highlighting_mode: &Ptr<QString>) {
+pub fn set_text_safe(document: &QPtr<QWidget>, string: &Ptr<QString>, highlighting_mode: &Ptr<QString>) {
     unsafe { set_text(document.as_mut_raw_ptr(), string.as_mut_raw_ptr(), highlighting_mode.as_mut_raw_ptr()) }
 }
 

@@ -97,7 +97,7 @@ impl PackedFileTextView {
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 
-        set_text_safe(&editor, &QString::from_std_str(text.get_ref_contents()).as_ptr(), &highlighting_mode.as_ptr());
+        set_text_safe(&editor.static_upcast(), &QString::from_std_str(text.get_ref_contents()).as_ptr(), &highlighting_mode.as_ptr());
 
         let packed_file_text_view = Arc::new(PackedFileTextView {editor, _path: packed_file_view.get_path_raw() });
         //let packed_file_text_view_slots = PackedFileTextViewSlots::new(&packed_file_text_view, app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
@@ -127,6 +127,6 @@ impl PackedFileTextView {
             TextType::Json => QString::from_std_str(JSON),
         };
 
-        set_text_safe(&self.editor, &QString::from_std_str(data.get_ref_contents()).as_ptr(), &highlighting_mode.as_ptr());
+        set_text_safe(&self.editor.static_upcast(), &QString::from_std_str(data.get_ref_contents()).as_ptr(), &highlighting_mode.as_ptr());
     }
 }

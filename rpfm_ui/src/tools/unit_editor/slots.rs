@@ -36,6 +36,7 @@ pub struct ToolUnitEditorSlots {
     pub change_icon: QBox<SlotNoArgs>,
     pub copy_unit: QBox<SlotNoArgs>,
     pub copy_unit_check: QBox<SlotOfQString>,
+    pub open_variant_editor: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -62,6 +63,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = before.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
+                    ui.detailed_view_tab_widget.set_enabled(false);
                     ui.copy_button.set_enabled(false);
                 }
 
@@ -70,6 +72,7 @@ impl ToolUnitEditorSlots {
                     let filter_index = after.take_at(0).indexes().take_at(0);
                     let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
+                    ui.detailed_view_tab_widget.set_enabled(true);
                     ui.copy_button.set_enabled(true);
                 }
             }
@@ -122,6 +125,14 @@ impl ToolUnitEditorSlots {
             }
         ));
 
+        let open_variant_editor = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+            ui => move || {
+                if let Err(error) = ui.open_variant_editor() {
+                    show_message_error(&ui.tool.message_widget, error);
+                }
+            }
+        ));
+
         ToolUnitEditorSlots {
             delayed_updates,
             load_data_to_detailed_view,
@@ -129,7 +140,8 @@ impl ToolUnitEditorSlots {
             change_caste,
             change_icon,
             copy_unit,
-            copy_unit_check
+            copy_unit_check,
+            open_variant_editor
         }
     }
 }

@@ -76,7 +76,7 @@ impl DebugView {
             _ => unimplemented!(),
         };
 
-        set_text_safe(&editor, &QString::from_std_str(text).as_ptr(), &QString::from_std_str(JSON).as_ptr());
+        set_text_safe(&editor.static_upcast(), &QString::from_std_str(text).as_ptr(), &QString::from_std_str(JSON).as_ptr());
 
         let packed_file_debug_view = Arc::new(Self {
             editor,
@@ -107,7 +107,7 @@ impl DebugView {
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &str) {
         let highlighting_mode = QString::from_std_str(JSON);
-        set_text_safe(&self.editor, &QString::from_std_str(data).as_ptr(), &highlighting_mode.as_ptr());
+        set_text_safe(&self.editor.static_upcast(), &QString::from_std_str(data).as_ptr(), &highlighting_mode.as_ptr());
     }
 
     /// This function returns a copy of the path of this `DebugView`.

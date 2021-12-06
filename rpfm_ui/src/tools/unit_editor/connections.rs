@@ -34,6 +34,8 @@ pub unsafe fn set_connections(ui: &ToolUnitEditor, slots: &ToolUnitEditorSlots) 
 
     ui.copy_unit_new_unit_name_combobox.current_text_changed().connect(&slots.copy_unit_check);
 
+    ui.variant_editor_tool_button.released().connect(&slots.open_variant_editor);
+
     ui.tool.button_box.button(StandardButton::Cancel).released().connect(ui.tool.get_ref_dialog().slot_close());
     ui.tool.button_box.button(StandardButton::Ok).released().connect(ui.tool.get_ref_dialog().slot_accept());
     ui.copy_button.released().connect(&slots.copy_unit);

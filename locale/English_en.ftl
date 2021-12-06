@@ -1115,3 +1115,5 @@ copy_unit_instructions = <p>Write the new unit's key in the input field, and hit
 copy_unit_new_unit_name = Unit Key
 settings_disable_file_previews = Disable PackedFile Previews
 tt_settings_disable_file_previews_tip = Check this to make RPFM always open PackedFiles as non-preview, so they'll not get closed when opening another PackedFile.
+variants_mesh_editor_title = Variant Mesh Editor
+unit_variants_colours_title = Variant Colours

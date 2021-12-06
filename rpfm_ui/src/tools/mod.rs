@@ -60,6 +60,7 @@ use rpfm_lib::SCHEMA;
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::AppUI;
+use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::dependencies_ui::DependenciesUI;
@@ -159,7 +160,8 @@ impl Tool {
         }
 
         // Load the UI Template.
-        let main_widget = Self::load_template(parent, template_path)?;
+        let template_path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), template_path);
+        let main_widget = Self::load_template(parent, &template_path)?;
 
         // Get the common widgets for all tools.
         let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
@@ -318,7 +320,7 @@ impl Tool {
         data: &mut HashMap<Vec<String>, PackedFile>,
         processed_data: &mut HashMap<String, HashMap<String, String>>,
         table_name: &str,
-        key_name: &str,
+        key_names: &[&str],
         linked_table: Option<(String, String)>,
     ) -> Result<Option<Table>> {
 
@@ -333,8 +335,16 @@ impl Tool {
             if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == table_name_end_tables {
                 if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
 
-                    // First, get the key column.
-                    let key_column = table.get_column_position_by_name(key_name)?;
+                    // If we have only one key, we expect one line per table.
+                    // If we have multiple keys, it means the table has multiple entries per key combination.
+                    let mut append_keys = vec![];
+                    for (index, key_name) in key_names.iter().enumerate() {
+                        if index != 0 {
+                            append_keys.push(key_name.to_owned());
+                        }
+                    }
+
+                    let key_column = table.get_column_position_by_name(key_names[0])?;
                     let fields = table.get_ref_definition().get_fields_processed();
 
                     // Depending of if it's a linked table or not, we get it as full new entries, or filling existing entries.
@@ -342,27 +352,56 @@ impl Tool {
                         Some(ref linked_key_name) => {
 
                             // If it's a linked table, we iterate over our current data, and for each of our entries, find the equivalent entry on this table.
-                            // If no link is found, skip the entry.
+                            // If no link is found, skip the entry. Multiple entries may be found.
+                            let linked_key_name_and_bar = linked_key_name.to_owned() + "|";
                             for values in processed_data.values_mut() {
-                                let linked_key = if let Some(linked_key) = values.get(linked_key_name) { linked_key.to_owned() } else { continue };
-                                let row = table.get_ref_table_data().par_iter().find_first(|row| {
+                                let (linked_key, linked_value) = if let Some((key, value)) = values.iter().find(|x| x.0 == linked_key_name || x.0.starts_with(&linked_key_name_and_bar)) {
+                                    let linked_split = key.split('|').collect::<Vec<&str>>();
+                                    if linked_split.len() == 1 {
+                                        (value.to_owned(), "".to_owned())
+                                    } else {
+                                        (value.to_owned(), linked_split[1..].join("|").to_owned())
+                                    }
+                                } else { continue };
+
+                                let rows = table.get_ref_table_data().par_iter().filter_map(|row| {
                                     match Tool::get_row_by_column_index(row, key_column) {
                                         Ok(data) => match data {
                                             DecodedData::StringU8(data) |
                                             DecodedData::StringU16(data) |
                                             DecodedData::OptionalStringU8(data) |
-                                            DecodedData::OptionalStringU16(data) => data == &linked_key,
-                                            _ => false,
+                                            DecodedData::OptionalStringU16(data) => if data == &linked_key { Some(row.to_vec()) } else { None },
+                                            _ => None,
                                         },
-                                        Err(_) => false,
+                                        Err(_) => None,
                                     }
-                                });
+                                }).collect::<Vec<Vec<DecodedData>>>();
 
                                 // If it has data, add it of the rest of the fields.
-                                if let Some(row) = row {
+                                let append_key_indexes = append_keys.iter().map(|key_name| table.get_column_position_by_name(key_name)).collect::<Result<Vec<usize>>>()?;
+
+                                for row in rows {
+                                    let mut append_key = String::new();
+
+                                    for index in &append_key_indexes {
+                                        let mut key = Tool::get_row_by_column_index(&row, *index)?.data_to_string();
+
+                                        append_key.push('|');
+                                        if key.is_empty() {
+                                            key.push('*');
+                                        }
+
+                                        append_key.push_str(&key);
+                                    }
+
+                                    if !linked_value.is_empty() {
+                                        append_key.push('|');
+                                        append_key.push_str(&linked_value);
+                                    }
+
                                     for (index, cell) in row.iter().enumerate() {
                                         let cell_data = cell.data_to_string();
-                                        let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name();
+                                        let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name() + &append_key;
                                         values.insert(cell_name, cell_data);
                                     }
                                 }
@@ -377,13 +416,26 @@ impl Tool {
                         None => {
 
                             // If it's not a linked table... just add each row to our data.
+                            let append_key_indexes = append_keys.iter().map(|key_name| table.get_column_position_by_name(key_name)).collect::<Result<Vec<usize>>>()?;
                             for row in table.get_ref_table_data() {
                                 let mut data = HashMap::new();
                                 let key = Tool::get_row_by_column_index(row, key_column)?.data_to_string();
 
+                                let mut append_key = String::new();
+                                for index in &append_key_indexes {
+                                    let mut key = Tool::get_row_by_column_index(row, *index)?.data_to_string();
+
+                                    append_key.push('|');
+                                    if key.is_empty() {
+                                        key.push('*');
+                                    }
+
+                                    append_key.push_str(&key);
+                                }
+
                                 for (index, cell) in row.iter().enumerate() {
                                     let cell_data = cell.data_to_string();
-                                    let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name();
+                                    let cell_name = table_name_end_underscore.to_owned() + fields[index].get_name() + &append_key;
                                     data.insert(cell_name, cell_data);
                                 }
 
@@ -406,12 +458,12 @@ impl Tool {
         Ok(table_to_return)
     }
 
-    /// This function takes care of saving a DB table in a generic way into a PackedFile.
+    /// This function takes care of saving a DB table in a generic way into a PackedFile.wh_main_teb_cha_captain_0
     ///
     /// Useful for tables of which we can modify any of its columns. If you need to only change some of their columns, use a custom function.
     ///
-    /// TODO: Make this work for tables that admit multiple rows per relation.
-    unsafe fn save_table_data(&self, data: &[HashMap<String, String>], table_name: &str, file_name: &str) -> Result<PackedFile> {
+    /// keys are the column names we need to check to see if we need to generate a row for an unit or not.
+    unsafe fn save_table_data(&self, data: &[HashMap<String, String>], table_name: &str, file_name: &str, keys: &[&str]) -> Result<PackedFile> {
 
         // Prepare all the different name variations we need.
         let table_name_end_tables = format!("{}_tables", table_name);
@@ -426,28 +478,95 @@ impl Tool {
                 let table_fields = table.get_ref_definition().get_fields_processed();
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
-                        let mut row = table.get_new_row();
-                        for (index, field) in table_fields.iter().enumerate() {
 
-                            // For each field, check if we have data for it, and replace the "empty" row's data with it. Skip invalid values
-                            if let Some(value) = row_data.get(&format!("{}_{}", table_name, field.get_name())) {
-                                row[index] = match field.get_field_type() {
-                                    FieldType::Boolean => DecodedData::Boolean(value.parse().ok()?),
-                                    FieldType::F32 => DecodedData::F32(value.parse().ok()?),
-                                    FieldType::I16 => DecodedData::I16(value.parse().ok()?),
-                                    FieldType::I32 => DecodedData::I32(value.parse().ok()?),
-                                    FieldType::I64 => DecodedData::I64(value.parse().ok()?),
-                                    FieldType::StringU8 => DecodedData::StringU8(value.parse().ok()?),
-                                    FieldType::StringU16 => DecodedData::StringU16(value.parse().ok()?),
-                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(value.parse().ok()?),
-                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(value.parse().ok()?),
-                                    _ => unimplemented!()
-                                };
+                        // Try to search for the key value for our table.
+                        let row_key_name = format!("{}_{}", table_name, keys[0]);
+                        match row_data.get(&row_key_name) {
+                            Some(row_key) => {
+
+                                // If found but empty, ignore the entire row.
+                                if row_key.is_empty() {
+                                    return None;
+                                }
+
+                                let mut row = table.get_new_row();
+                                for (index, field) in table_fields.iter().enumerate() {
+
+                                    // For each field, check if we have data for it, and replace the "empty" row's data with it. Skip invalid values
+                                    if let Some(value) = row_data.get(&format!("{}_{}", table_name, field.get_name())) {
+                                        row[index] = match field.get_field_type() {
+                                            FieldType::Boolean => DecodedData::Boolean(value.parse().ok()?),
+                                            FieldType::F32 => DecodedData::F32(value.parse().ok()?),
+                                            FieldType::I16 => DecodedData::I16(value.parse().ok()?),
+                                            FieldType::I32 => DecodedData::I32(value.parse().ok()?),
+                                            FieldType::I64 => DecodedData::I64(value.parse().ok()?),
+                                            FieldType::StringU8 => DecodedData::StringU8(value.to_owned()),
+                                            FieldType::StringU16 => DecodedData::StringU16(value.to_owned()),
+                                            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(value.to_owned()),
+                                            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(value.to_owned()),
+                                            _ => unimplemented!()
+                                        };
+                                    }
+                                }
+
+                                Some(vec![row])
+                            }
+
+                            // If not found, it may be a 1-many relation. Look for keys beginning with it.
+                            None => {
+                                let mut rows = vec![];
+                                let row_key_name_with_bar = format!("{}|", row_key_name);
+                                let keys = row_data.iter().filter_map(|(key, _)|
+
+                                    // We need to get the subkey from the key, not from the value!!!
+                                    if key.starts_with(&row_key_name_with_bar) {
+                                        let subkeys = key.split('|').collect::<Vec<&str>>();
+                                        if subkeys.len() > 1 {
+                                            Some(subkeys[1..].join("|"))
+                                        }
+
+                                        // This is really an error.
+                                        else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }).collect::<Vec<String>>();
+
+                                for key in &keys {
+                                    let mut row = table.get_new_row();
+                                    for (index, field) in table_fields.iter().enumerate() {
+
+                                        // For each field, check if we have data for it, and replace the "empty" row's data with it. Skip invalid values
+                                        let row_data_key_name = format!("{}_{}|{}", table_name, field.get_name(), key);
+                                        if let Some(value) = row_data.iter().find_map(|(key, value)| if key.starts_with(&row_data_key_name) { Some(value) } else { None }) {
+
+                                            // If our key is "*" and we're on the key field, use an empty value.
+                                            let value = if field.get_name() == keys[0] && value == "*" { "".to_owned() } else { value.to_owned() };
+
+                                            row[index] = match field.get_field_type() {
+                                                FieldType::Boolean => DecodedData::Boolean(value.parse().ok()?),
+                                                FieldType::F32 => DecodedData::F32(value.parse().ok()?),
+                                                FieldType::I16 => DecodedData::I16(value.parse().ok()?),
+                                                FieldType::I32 => DecodedData::I32(value.parse().ok()?),
+                                                FieldType::I64 => DecodedData::I64(value.parse().ok()?),
+                                                FieldType::StringU8 => DecodedData::StringU8(value),
+                                                FieldType::StringU16 => DecodedData::StringU16(value),
+                                                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(value),
+                                                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(value),
+                                                _ => unimplemented!()
+                                            };
+                                        }
+                                    }
+                                    rows.push(row);
+                                }
+
+                                Some(rows)
                             }
                         }
-
-                        Some(row)
-                    }).collect::<Vec<Vec<DecodedData>>>();
+                    })
+                    .flatten()
+                    .collect::<Vec<Vec<DecodedData>>>();
 
                 table.set_table_data(&table_data)?;
                 let path = vec!["db".to_owned(), table_name_end_tables.to_owned(), file_name.to_owned()];
@@ -871,6 +990,64 @@ impl Tool {
         }
     }
 
+    /// This function tries to load data from three R,G,B fields into a KColorCombo.
+    ///
+    /// Note: This can fail if the colour is not found in the list, in which case we use 0,0,0, and report it as an error.
+    #[allow(dead_code)]
+    unsafe fn load_fields_to_detailed_view_editor_combo_color_split(&self, processed_data: &HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name_r: &str, field_name_g: &str, field_name_b: &str) -> Option<String> {
+        let mut failed = false;
+
+        let r = match processed_data.get(field_name_r) {
+            Some(value) => match value.parse::<i32>() {
+                Ok(value) => value,
+                Err(_) => {
+                    failed = true;
+                    0
+                }
+            }
+            None => {
+                failed = true;
+                0
+            }
+        };
+
+        let g = match processed_data.get(field_name_g) {
+            Some(value) => match value.parse::<i32>() {
+                Ok(value) => value,
+                Err(_) => {
+                    failed = true;
+                    0
+                }
+            }
+            None => {
+                failed = true;
+                0
+            }
+        };
+
+        let b = match processed_data.get(field_name_b) {
+            Some(value) => match value.parse::<i32>() {
+                Ok(value) => value,
+                Err(_) => {
+                    failed = true;
+                    0
+                }
+            }
+            None => {
+                failed = true;
+                0
+            }
+        };
+
+        set_color_safe(&field_editor.as_ptr().static_upcast(), &QColor::from_rgb_3a(r, g, b).as_ptr());
+
+        if failed {
+            Some(field_name_r.to_owned() + "," + field_name_g + "," + field_name_b)
+        } else {
+            None
+        }
+    }
+
     //-------------------------------------------------------------------------------//
     //                               Data retrievers
     //-------------------------------------------------------------------------------//
@@ -984,23 +1161,39 @@ impl Tool {
         data.insert(field_name.to_owned(), format!("{},{},{}", colour.red(), colour.green(), colour.blue()));
     }
 
+    /// This function tries to save data from a KColorCombo into three R,G,B fields.
+    #[allow(dead_code)]
+    unsafe fn save_fields_from_detailed_view_editor_combo_color_split(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name_r: &str, field_name_g: &str, field_name_b: &str) {
+        let colour = get_color_safe(&field_editor.as_ptr().static_upcast());
+        data.insert(field_name_r.to_owned(), colour.red().to_string());
+        data.insert(field_name_g.to_owned(), colour.green().to_string());
+        data.insert(field_name_b.to_owned(), colour.blue().to_string());
+    }
+
+    /// This function tries to save data from a QComboBox into our data.
+    #[allow(dead_code)]
+    unsafe fn save_field_from_detailed_view_editor_combo(&self, data: &mut HashMap<String, String>, field_editor: &QPtr<QComboBox>, field_name: &str) {
+        data.insert(field_name.to_owned(), field_editor.current_text().to_std_string());
+    }
+
     //-------------------------------------------------------------------------------//
     //                              Misc data functions
     //-------------------------------------------------------------------------------//
 
     /// This function updates the reference keys in all values of an entry.
+    ///
+    /// NOTE: This only works on 1-many relations up to the first level.
     unsafe fn update_keys(&self, data: &mut HashMap<String, String>) {
 
         // First, get all our definitions together.
         let mut definitions = data.iter()
             .filter_map(|(key, value)| if key.ends_with("_definition") {
-                Some((key.to_owned(), serde_json::from_str(value).unwrap()))
+                Some((key.replace("_definition", ""), serde_json::from_str(value).unwrap()))
             } else { None })
             .collect::<HashMap<String, Definition>>();
 
         // Then go, definition by definition, searching source values within our data, and updating our data from them.
         for (table_name, definition) in &mut definitions {
-            let table_name = table_name.replace("_definition", "");
             definition.get_fields_processed()
                 .iter()
                 .for_each(|field| {
@@ -1008,9 +1201,16 @@ impl Tool {
                     // Try to get its source data and, if found, replace ours.
                     if let Some((table_name_source, field_name_source)) = field.get_is_reference() {
                         let full_name_source = format!("{}_{}", table_name_source, field_name_source);
+
+                        // If our entry is a 1-many table relation, we need to update all the relations.
                         if let Some(source_key) = data.get(&full_name_source).cloned() {
                             let full_name_reference = format!("{}_{}", table_name, field.get_name());
-                            data.insert(full_name_reference, source_key.to_owned());
+                            let full_name_reference_with_bar = format!("{}|", full_name_reference);
+                            data.iter_mut().for_each(|(key, value)| {
+                                if key == &full_name_reference || key.starts_with(&full_name_reference_with_bar) {
+                                    *value = source_key.to_owned();
+                                }
+                            });
                         }
                     }
                 }
