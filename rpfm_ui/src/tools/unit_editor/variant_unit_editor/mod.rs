@@ -14,9 +14,11 @@ Module with all the code for managing the Variant Editor subtool of the Unit Edi
 This tool is a dialog where you can configure the variant used by a specific unit.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
+use qt_widgets::QMenu;
 
 use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
@@ -56,6 +58,14 @@ mod slots;
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor_variant_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_unit_editor_variant_editor.ui";
 
+/// Add faction's dialog ui template path.
+const ADD_FACTION_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor_variant_editor_add_faction.ui";
+const ADD_FACTION_VIEW_RELEASE: &str = "ui/tool_unit_editor_variant_editor_add_faction.ui";
+
+/// Add colour variant's dialog ui template path.
+const ADD_COLOUR_VARIANT_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_editor_variant_editor_add_colour_variant.ui";
+const ADD_COLOUR_VARIANT_VIEW_RELEASE: &str = "ui/tool_unit_editor_variant_editor_add_colour_variant.ui";
+
 /// List of fields tht require special treatment from unit_variants_colours_tables.
 const UNIT_VARIANTS_COLOURS_CUSTOM_FIELDS: [&str; 11] = [
     "key",
@@ -93,6 +103,28 @@ pub struct SubToolVariantUnitEditor {
     faction_list_filter: QBox<QSortFilterProxyModel>,
     faction_list_model: QBox<QStandardItemModel>,
     faction_list_filter_line_edit: QPtr<QLineEdit>,
+
+    new_faction_widget: QBox<QWidget>,
+    new_faction_button_box: QPtr<QDialogButtonBox>,
+    new_faction_instructions_label: QPtr<QLabel>,
+    new_faction_name_label: QPtr<QLabel>,
+    new_faction_name_combobox: QPtr<QComboBox>,
+
+    new_colour_variant_widget: QBox<QWidget>,
+    new_colour_variant_button_box: QPtr<QDialogButtonBox>,
+    new_colour_variant_instructions_label: QPtr<QLabel>,
+    new_colour_variant_name_label: QPtr<QLabel>,
+    new_colour_variant_name_combobox: QPtr<QComboBox>,
+
+    faction_list_context_menu: QBox<QMenu>,
+    faction_list_add_faction: QPtr<QAction>,
+    faction_list_clone_faction: QPtr<QAction>,
+    faction_list_delete_faction: QPtr<QAction>,
+
+    unit_variants_colours_list_context_menu: QBox<QMenu>,
+    unit_variants_colours_list_add_colour_variant: QPtr<QAction>,
+    unit_variants_colours_list_clone_colour_variant: QPtr<QAction>,
+    unit_variants_colours_list_delete_colour_variant: QPtr<QAction>,
 
     unit_variants_colours_list_view: QPtr<QListView>,
     unit_variants_colours_list_filter: QBox<QSortFilterProxyModel>,
@@ -153,6 +185,24 @@ impl SubToolVariantUnitEditor {
         let timer_delayed_updates = QTimer::new_1a(tool.get_ref_main_widget());
         timer_delayed_updates.set_single_shot(true);
 
+        // Copy faction dialog.
+        let new_faction_view = if cfg!(debug_assertions) { ADD_FACTION_VIEW_DEBUG } else { ADD_FACTION_VIEW_RELEASE };
+        let new_faction_widget = Tool::load_template(&tool.main_widget, new_faction_view)?;
+
+        let new_faction_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_faction_button_box")?;
+        let new_faction_instructions_label: QPtr<QLabel> = tool.find_widget("new_faction_instructions_label")?;
+        let new_faction_name_label: QPtr<QLabel> = tool.find_widget("new_faction_name_label")?;
+        let new_faction_name_combobox: QPtr<QComboBox> = tool.find_widget("new_faction_name_combobox")?;
+
+        // Copy colour variant dialog.
+        let new_colour_variant_view = if cfg!(debug_assertions) { ADD_COLOUR_VARIANT_VIEW_DEBUG } else { ADD_COLOUR_VARIANT_VIEW_RELEASE };
+        let new_colour_variant_widget = Tool::load_template(&tool.main_widget, new_colour_variant_view)?;
+
+        let new_colour_variant_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_colour_variant_button_box")?;
+        let new_colour_variant_instructions_label: QPtr<QLabel> = tool.find_widget("new_colour_variant_instructions_label")?;
+        let new_colour_variant_name_label: QPtr<QLabel> = tool.find_widget("new_colour_variant_name_label")?;
+        let new_colour_variant_name_combobox: QPtr<QComboBox> = tool.find_widget("new_colour_variant_name_combobox")?;
+
         // Icon stuff.
         let unit_variants_unit_card_preview_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"unit_variants_unit_card_preview_label")?;
         let unit_variants_unit_card_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"unit_variants_unit_card_label")?;
@@ -177,6 +227,21 @@ impl SubToolVariantUnitEditor {
         let detailed_view_widget: QPtr<QWidget> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"detailed_view_widget")?;
         let unit_variants_colours_widget: QPtr<QWidget> = tool.find_widget("unit_variants_colours_widget")?;
 
+        let faction_list_context_menu = QMenu::from_q_widget(&faction_list_view);
+        let faction_list_add_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_add_faction"));
+        let faction_list_clone_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_clone_faction"));
+        let faction_list_delete_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_delete_faction"));
+        faction_list_add_faction.set_enabled(false);
+        faction_list_clone_faction.set_enabled(false);
+        faction_list_delete_faction.set_enabled(false);
+
+        let unit_variants_colours_list_context_menu = QMenu::from_q_widget(&unit_variants_colours_list_view);
+        let unit_variants_colours_list_add_colour_variant = unit_variants_colours_list_context_menu.add_action_q_string(&qtr("context_menu_add_colour_variant"));
+        let unit_variants_colours_list_clone_colour_variant = unit_variants_colours_list_context_menu.add_action_q_string(&qtr("context_menu_clone_colour_variant"));
+        let unit_variants_colours_list_delete_colour_variant = unit_variants_colours_list_context_menu.add_action_q_string(&qtr("context_menu_delete_colour_variant"));
+        unit_variants_colours_list_clone_colour_variant.set_enabled(false);
+        unit_variants_colours_list_delete_colour_variant.set_enabled(false);
+
         // Build the view itself.
         let view = Self {
             tool,
@@ -186,6 +251,28 @@ impl SubToolVariantUnitEditor {
             faction_list_filter,
             faction_list_model,
             faction_list_filter_line_edit,
+
+            faction_list_context_menu,
+            faction_list_add_faction,
+            faction_list_clone_faction,
+            faction_list_delete_faction,
+
+            new_faction_widget,
+            new_faction_button_box,
+            new_faction_instructions_label,
+            new_faction_name_label,
+            new_faction_name_combobox,
+
+            new_colour_variant_widget,
+            new_colour_variant_button_box,
+            new_colour_variant_instructions_label,
+            new_colour_variant_name_label,
+            new_colour_variant_name_combobox,
+
+            unit_variants_colours_list_context_menu,
+            unit_variants_colours_list_add_colour_variant,
+            unit_variants_colours_list_clone_colour_variant,
+            unit_variants_colours_list_delete_colour_variant,
 
             unit_variants_colours_list_view,
             unit_variants_colours_list_filter,
@@ -629,7 +716,7 @@ impl SubToolVariantUnitEditor {
 
         // Get the new entries from the ListView.
         let mut new_entries = HashMap::new();
-
+        dbg!(self.unit_variants_colours_list_model.row_count_0a());
         for index in 0..self.unit_variants_colours_list_model.row_count_0a() {
             let index = self.unit_variants_colours_list_model.index_2a(index, 0);
             let mut entry_data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
@@ -714,6 +801,138 @@ impl SubToolVariantUnitEditor {
 
         self.tool.find_widget::<QLabel>("faction_list_label")?.set_text(&qtr("faction_list_title"));
         self.tool.find_widget::<QLabel>("unit_variants_colours_list_label")?.set_text(&qtr("unit_variants_colours_list_title"));
+
+        self.new_faction_widget.static_downcast::<QDialog>().set_window_title(&qtr("new_faction_title"));
+        self.new_faction_name_label.set_text(&qtr("new_faction_name"));
+        self.new_faction_instructions_label.set_text(&qtr("new_faction_instructions"));
+
+        self.new_colour_variant_widget.static_downcast::<QDialog>().set_window_title(&qtr("new_colour_variant_title"));
+        self.new_colour_variant_name_label.set_text(&qtr("new_colour_variant_name"));
+        self.new_colour_variant_instructions_label.set_text(&qtr("new_colour_variant_instructions"));
+
+        Ok(())
+    }
+
+    /// Function to load the `Add Faction` dialog.
+    pub unsafe fn load_add_faction_dialog(&self, clone: bool) -> Result<()> {
+        let source_selection = self.faction_list_view.selection_model().selection();
+        let source_indexes = source_selection.indexes();
+
+        if source_indexes.is_empty() {
+            return Err(ErrorKind::GenericHTMLError("No faction selected".to_string()).into());
+        }
+
+        let source_model_index = self.faction_list_filter.map_to_source(source_indexes.at(0));
+        let source_faction_name = self.faction_list_model.item_from_index(&source_model_index).text();
+        self.new_faction_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+
+        // Trick: get the model from another faction combo, and reuse it here.
+        self.new_faction_name_combobox.set_model(&self.unit_variants_colours_faction_combobox.model());
+        self.new_faction_name_combobox.set_current_text(&source_faction_name);
+
+        let dialog: QPtr<QDialog> = self.new_faction_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save the source faction. Do it through selection to avoid double saving breaking things.
+            self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+
+            // Clone the source faction, updating its relevant keys in the process.
+            let new_faction_name = self.new_faction_name_combobox.current_text();
+            let new_item = (*self.faction_list_model.item_from_index(&source_model_index)).clone();
+            new_item.set_text(&new_faction_name);
+
+            // Perform the needed edits to the data, so it uses the new faction key.
+            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+
+            if !clone {
+                data.retain(|key, _| key.ends_with("_definition"));
+            }
+
+            //data.insert("main_units_unit".to_owned(), new_faction_name.to_std_string());
+            //data.insert("land_units_key".to_owned(), new_faction_name.to_std_string());
+
+            self.update_keys(&mut data);
+
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            // Append the new item.
+            self.faction_list_model.append_row_q_standard_item(new_item);
+            let new_index = self.faction_list_model.index_from_item(new_item);
+
+            // Clear the filters (just in case) and open the new faction.
+            self.get_ref_faction_list_filter_line_edit().clear();
+            self.get_ref_faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.get_ref_faction_list_view().set_current_index(&self.get_ref_faction_list_filter().map_from_source(&new_index));
+        }
+
+        Ok(())
+    }
+
+    /// Function to load the `Add Faction` dialog.
+    pub unsafe fn load_add_colour_variant_dialog(&self, clone: bool) -> Result<()> {
+        let source_selection = self.unit_variants_colours_list_view.selection_model().selection();
+        let source_indexes = source_selection.indexes();
+
+        if source_indexes.is_empty() {
+            return Err(ErrorKind::GenericHTMLError("No colour variant selected".to_string()).into());
+        }
+
+        let source_model_index = self.unit_variants_colours_list_filter.map_to_source(source_indexes.at(0));
+        self.new_colour_variant_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+
+        let dialog: QPtr<QDialog> = self.new_colour_variant_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save the source colour variant.
+            self.save_unit_variants_colours_from_detailed_view(source_model_index.as_ref());
+
+            // Clone the source colour variant, updating its relevant keys in the process.
+            let new_colour_variant_name = self.new_colour_variant_name_combobox.current_text();
+            let new_item = (*self.unit_variants_colours_list_model.item_from_index(source_model_index.as_ref())).clone();
+            new_item.set_text(&new_colour_variant_name);
+
+            // Perform the needed edits to the data, so it uses the new faction key.
+            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+
+            if !clone {
+                data.retain(|key, _| key.ends_with("_definition"));
+            }
+
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            // Append the new item.
+            self.unit_variants_colours_list_model.append_row_q_standard_item(new_item);
+        }
+
+        Ok(())
+    }
+
+    /// Function to delete a faction from the faction list.
+    pub unsafe fn delete_faction(&self) -> Result<()> {
+        let source_faction = self.faction_list_view.selection_model().selection();
+        if source_faction.count_0a() != 1 {
+            return Err(ErrorKind::GenericHTMLError("No faction selected".to_string()).into());
+        }
+
+        // Unselect the item, then delete it.
+        self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+        let source_faction_real = self.get_ref_faction_list_filter().map_to_source(&source_faction.take_at(0).indexes().take_at(0));
+        self.get_ref_faction_list_model().remove_row_1a(source_faction_real.row());
+
+        Ok(())
+    }
+
+    /// Function to delete a colour variant from the colour variant list.
+    pub unsafe fn delete_colour_variant(&self) -> Result<()> {
+        let source_variant = self.unit_variants_colours_list_view.selection_model().selection();
+        if source_variant.count_0a() != 1 {
+            return Err(ErrorKind::GenericHTMLError("No colour variant selected".to_string()).into());
+        }
+
+        // Unselect the item, then delete it.
+        self.unit_variants_colours_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_variants_colours_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+        let source_variant_real = self.get_ref_unit_variants_colours_list_filter().map_to_source(&source_variant.take_at(0).indexes().take_at(0));
+        self.get_ref_unit_variants_colours_list_model().remove_row_1a(source_variant_real.row());
 
         Ok(())
     }
