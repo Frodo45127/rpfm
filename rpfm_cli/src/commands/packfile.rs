@@ -77,13 +77,12 @@ pub fn add_folders(
     let destination_path = if destination_path == "." { vec![] } else { destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>() };
     let folder_paths = folder_paths.iter()
         .map(|x| {
-            let mut full_path = destination_path.to_vec();
-            full_path.append(&mut x.split('/').map(|x| x.to_owned()).collect());
+            let full_path = destination_path.to_vec();
             (PathBuf::from(x), full_path)
         })
         .collect::<Vec<(PathBuf, Vec<String>)>>();
-
-	packfile.add_from_folders(&folder_paths, &None, true, false)?;
+    dbg!(&folder_paths);
+	packfile.add_from_folders(&folder_paths, &None, true, true)?;
 	let result = packfile.save(None);
 
     if config.verbosity_level > 0 {
