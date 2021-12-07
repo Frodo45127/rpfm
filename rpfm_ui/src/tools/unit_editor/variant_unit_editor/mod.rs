@@ -716,7 +716,6 @@ impl SubToolVariantUnitEditor {
 
         // Get the new entries from the ListView.
         let mut new_entries = HashMap::new();
-        dbg!(self.unit_variants_colours_list_model.row_count_0a());
         for index in 0..self.unit_variants_colours_list_model.row_count_0a() {
             let index = self.unit_variants_colours_list_model.index_2a(index, 0);
             let mut entry_data: HashMap<String, String> = serde_json::from_str(&index.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
