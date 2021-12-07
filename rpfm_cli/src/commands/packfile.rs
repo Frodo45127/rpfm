@@ -81,7 +81,7 @@ pub fn add_folders(
             (PathBuf::from(x), full_path)
         })
         .collect::<Vec<(PathBuf, Vec<String>)>>();
-    dbg!(&folder_paths);
+
 	packfile.add_from_folders(&folder_paths, &None, true, true)?;
 	let result = packfile.save(None);
 
