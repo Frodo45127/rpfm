@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_mod_checker"
-version = "2.6.5"
+version = "2.6.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A simple tool to quickly find out what files are causing your game to be modded."
 edition = "2021"

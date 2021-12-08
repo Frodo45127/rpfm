@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui"
-version = "2.6.5"
+version = "2.6.6"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
