@@ -758,6 +758,8 @@ impl SubToolVariantUnitEditor {
         self.tool.save_fields_from_detailed_view_editor_combo_color_split(&mut data, &self.unit_variants_colours_secondary_colour_combobox, "unit_variants_colours_secondary_colour_r", "unit_variants_colours_secondary_colour_g", "unit_variants_colours_secondary_colour_b");
         self.tool.save_fields_from_detailed_view_editor_combo_color_split(&mut data, &self.unit_variants_colours_tertiary_colour_combobox, "unit_variants_colours_tertiary_colour_r", "unit_variants_colours_tertiary_colour_g", "unit_variants_colours_tertiary_colour_b");
 
+        data.insert("unit_variants_colours_key".to_owned(), index.data_0a().to_string().to_std_string());
+
         // If we have any errors, show them here.
         if !errors.is_empty() {
             show_message_warning(&self.tool.message_widget, errors.join("\n"));
