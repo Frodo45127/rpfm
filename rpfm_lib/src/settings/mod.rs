@@ -123,7 +123,7 @@ impl Settings {
         settings_bool.insert("disable_combos_on_tables".to_owned(), false);
         settings_bool.insert("tight_table_mode".to_owned(), false);
         settings_bool.insert("table_resize_on_edit".to_owned(), false);
-        settings_bool.insert("tables_use_old_column_order".to_owned(), false);
+        settings_bool.insert("tables_use_old_column_order".to_owned(), true);
 
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
