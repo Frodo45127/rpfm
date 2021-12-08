@@ -825,7 +825,13 @@ impl AppUI {
                             }
 
                             if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                app_ui.menu_bar_packfile.set_enabled(false);
+
                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                app_ui.menu_bar_packfile.set_enabled(true);
                             }
                         }
                     }));
@@ -859,7 +865,13 @@ impl AppUI {
                         }
 
                         if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                            app_ui.menu_bar_packfile.set_enabled(false);
+
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                            app_ui.menu_bar_packfile.set_enabled(true);
                         }
                     }
                 }));
@@ -892,7 +904,13 @@ impl AppUI {
                         }
 
                         if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                            app_ui.menu_bar_packfile.set_enabled(false);
+
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                            app_ui.menu_bar_packfile.set_enabled(true);
                         }
                     }
                 }));
@@ -925,7 +943,13 @@ impl AppUI {
                             }
 
                             if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                app_ui.menu_bar_packfile.set_enabled(false);
+
                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                app_ui.menu_bar_packfile.set_enabled(true);
                             }
                         }
                     }));
@@ -1021,7 +1045,13 @@ impl AppUI {
                                                 }
 
                                                 if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+
+                                                    // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                                    app_ui.menu_bar_mymod.set_enabled(false);
+
                                                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                                    app_ui.menu_bar_mymod.set_enabled(true);
                                                 }
                                             }
                                         }));
