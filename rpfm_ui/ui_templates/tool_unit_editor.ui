@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1401</width>
-    <height>1085</height>
+    <width>1164</width>
+    <height>825</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -111,7 +111,7 @@
        <item row="0" column="0" colspan="3">
         <widget class="QTabWidget" name="detailed_view_tab_widget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="initial_tab">
           <attribute name="title">
@@ -462,8 +462,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>892</width>
-                   <height>360</height>
+                   <width>710</width>
+                   <height>292</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_24">
@@ -1096,8 +1096,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>920</width>
-                   <height>146</height>
+                   <width>894</width>
+                   <height>115</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_6">
@@ -1849,11 +1849,6 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>KTextEdit</class>
-   <extends>QTextEdit</extends>
-   <header>ktextedit.h</header>
-  </customwidget>
-  <customwidget>
    <class>KCollapsibleGroupBox</class>
    <extends>QWidget</extends>
    <header>kcollapsiblegroupbox.h</header>
@@ -1863,6 +1858,11 @@
    <class>KMessageWidget</class>
    <extends>QFrame</extends>
    <header>kmessagewidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>KTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header>ktextedit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
