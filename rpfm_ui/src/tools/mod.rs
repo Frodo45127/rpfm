@@ -152,7 +152,7 @@ impl Tool {
             return Err(ErrorKind::SchemaNotFound.into());
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+        let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(true));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::Bool(it_is) => if !it_is { return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into()); },

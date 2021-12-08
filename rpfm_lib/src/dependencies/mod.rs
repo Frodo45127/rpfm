@@ -321,8 +321,12 @@ impl Dependencies {
     /// This function checks if the current Game Selected has the vanilla data loaded in the dependencies.
     ///
     /// TODO: rework this to use the build date, so it's more accurate.
-    pub fn game_has_vanilla_data_loaded(&self) -> bool {
-        !self.vanilla_packed_files_cache.read().unwrap().is_empty()
+    pub fn game_has_vanilla_data_loaded(&self, include_asskit: bool) -> bool {
+        if include_asskit {
+            !self.vanilla_packed_files_cache.read().unwrap().is_empty() && self.game_has_asskit_data_loaded()
+        } else {
+            !self.vanilla_packed_files_cache.read().unwrap().is_empty()
+        }
     }
 
     /// This function checks if the current Game Selected has the asskit data loaded in the dependencies.

@@ -316,7 +316,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CentralCommand::send_back(&sender, Response::Bool(dependencies.game_has_vanilla_data_loaded())),
+            Command::IsThereADependencyDatabase(include_asskit) => CentralCommand::send_back(&sender, Response::Bool(dependencies.game_has_vanilla_data_loaded(include_asskit))),
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {

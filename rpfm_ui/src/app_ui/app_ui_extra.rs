@@ -1843,7 +1843,7 @@ impl AppUI {
                 return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
             }
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+            let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false); },

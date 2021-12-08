@@ -2018,7 +2018,7 @@ impl PackFile {
     pub fn optimize(&mut self, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
 
         // We can only optimize if we have vanilla data available.
-        if !dependencies.game_has_vanilla_data_loaded() {
+        if !dependencies.game_has_vanilla_data_loaded(true) {
             return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
         }
 

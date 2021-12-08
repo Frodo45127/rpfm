@@ -161,7 +161,9 @@ pub enum Command {
     UpdateSchemas,
 
     /// This command is used when we want to know if there is a Dependency Database loaded in memory.
-    IsThereADependencyDatabase,
+    ///
+    /// Pass true if you want to ensure the dependencies were built with the AssKit.
+    IsThereADependencyDatabase(bool),
 
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///

@@ -418,7 +418,7 @@ impl PackFileContentsSlots {
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
-                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase);
+                let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
                 let response = CentralCommand::recv(&receiver);
                 let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,

@@ -770,7 +770,7 @@ impl Display for ErrorKind {
             ErrorKind::InitializingLoggerError => write!(f, "<p>Error while trying to initialize the logger.</p>"),
             //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
             ErrorKind::NotABooleanValue => write!(f, "<p>Error while trying to parse something as a bool.</p>"),
-            ErrorKind::DependenciesCacheNotGeneratedorOutOfDate => write!(f, "<p>The dependencies cache for the Game Selected is either missing or outdated. Please, re-generate it and try again.</p>"),
+            ErrorKind::DependenciesCacheNotGeneratedorOutOfDate => write!(f, "<p>The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
