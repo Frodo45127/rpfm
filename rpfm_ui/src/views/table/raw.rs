@@ -203,6 +203,9 @@ impl TableView {
 
         // Filter whatever it's in that column by the text we got.
         trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity, &show_blank_cells, &match_groups);
+
+        // Update the line count.
+        self.update_line_counter();
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
@@ -828,6 +831,7 @@ impl TableView {
         }
 
         self.start_delayed_updates_timer();
+        self.update_line_counter();
     }
 
     /// This function returns the provided indexes's data as a LUA table.
@@ -1022,6 +1026,7 @@ impl TableView {
         self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
+        self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
@@ -1090,6 +1095,7 @@ impl TableView {
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
+        self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
     }
 

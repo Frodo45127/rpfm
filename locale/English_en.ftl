@@ -1149,3 +1149,4 @@ new_colour_variant_instructions = <p>Write the new colour variant key in the inp
 
 new_colour_variant_name = Colour Variant Key
 
+line_counter = Rows On Filter / On Table: {"{"}{"}"} / {"{"}{"}"}

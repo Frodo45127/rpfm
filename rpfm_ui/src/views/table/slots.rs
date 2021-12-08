@@ -466,6 +466,7 @@ impl TableViewSlots {
 
                                 // Prepare the diagnostic pass.
                                 view.start_delayed_updates_timer();
+                                view.update_line_counter();
 
                                 let table_name = match data {
                                     TableType::DB(_) => packed_file_path.read().unwrap().get(1).cloned(),

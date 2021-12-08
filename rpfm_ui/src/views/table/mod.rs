@@ -224,6 +224,9 @@ pub struct TableView {
     search_case_sensitive_button: QBox<QPushButton>,
     search_data: Arc<RwLock<TableSearch>>,
 
+    _table_status_bar: QBox<QWidget>,
+    table_status_bar_line_counter_label: QBox<QLabel>,
+
     table_name: Option<String>,
     table_uuid: Option<String>,
     data_source: Arc<RwLock<DataSource>>,
@@ -341,8 +344,14 @@ impl TableView {
             warning_message.set_visible(false);
         }
 
+        let table_status_bar = QWidget::new_1a(parent);
+        let table_status_bar_grid = create_grid_layout(table_status_bar.static_upcast());
+        let table_status_bar_line_counter_label = QLabel::from_q_string_q_widget(&qtre("line_counter", &["0", "0"]), &table_status_bar);
+        table_status_bar_grid.add_widget_5a(&table_status_bar_line_counter_label, 0, 0, 1, 1);
+
         layout.add_widget_5a(&table_view_primary, 1, 0, 1, 1);
-        layout.add_widget_5a(&filter_base_widget, 3, 0, 1, 2);
+        layout.add_widget_5a(&table_status_bar, 2, 0, 1, 2);
+        layout.add_widget_5a(&filter_base_widget, 4, 0, 1, 2);
 
         // Action to make the delete button delete contents.
         let smart_delete = QAction::from_q_object(&table_view_primary);
@@ -401,7 +410,6 @@ impl TableView {
         context_menu.insert_separator(&context_menu_search);
         context_menu.insert_separator(&context_menu_undo);
 
-
         //--------------------------------------------------//
         // Search Section.
         //--------------------------------------------------//
@@ -458,7 +466,7 @@ impl TableView {
         search_grid.add_widget_5a(&search_column_selector, 2, 2, 1, 1);
         search_grid.add_widget_5a(&search_case_sensitive_button, 2, 3, 1, 1);
 
-        layout.add_widget_5a(&search_widget, 2, 0, 1, 2);
+        layout.add_widget_5a(&search_widget, 3, 0, 1, 2);
         layout.set_column_stretch(0, 10);
         search_widget.hide();
 
@@ -520,7 +528,7 @@ impl TableView {
         }
 
         // Add all the stuff to the main grid and hide the search widget.
-        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 4, 1);
+        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 5, 1);
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
@@ -588,6 +596,9 @@ impl TableView {
             sidebar_scroll_area,
             search_widget,
 
+            _table_status_bar: table_status_bar,
+            table_status_bar_line_counter_label,
+
             table_name,
             table_uuid,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
@@ -651,6 +662,9 @@ impl TableView {
         shortcuts::set_shortcuts(&packed_file_table_view);
         tips::set_tips(&packed_file_table_view);
 
+        // Update the line counter.
+        packed_file_table_view.update_line_counter();
+
         Ok(packed_file_table_view)
     }
 
@@ -692,6 +706,7 @@ impl TableView {
 
         // Prepare the diagnostic pass.
         self.start_delayed_updates_timer();
+        self.update_line_counter();
 
         // Reset the undo model and the undo/redo history.
         update_undo_model(&model, undo_model);
@@ -993,6 +1008,12 @@ impl TableView {
     pub unsafe fn start_delayed_updates_timer(&self) {
         self.timer_delayed_updates.set_interval(1500);
         self.timer_delayed_updates.start_0a();
+    }
+
+    pub unsafe fn update_line_counter(&self) {
+        let rows_on_filter = self.table_filter.row_count_0a().to_string();
+        let rows_on_model = self.table_model.row_count_0a().to_string();
+        self.table_status_bar_line_counter_label.set_text(&qtre("line_counter", &[&rows_on_filter, &rows_on_model]));
     }
 }
 
