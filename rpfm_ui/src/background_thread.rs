@@ -733,6 +733,16 @@ pub fn background_loop() {
                 } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
+            // In case we want to get the definition of an specific table from the dependency database...
+            Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                        Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+            }
+
             // In case we want to merge DB or Loc Tables from a PackFile...
             Command::MergeTables(paths, name, delete_source_files) => {
                 match pack_file_decoded.merge_tables(&paths, &name, delete_source_files) {

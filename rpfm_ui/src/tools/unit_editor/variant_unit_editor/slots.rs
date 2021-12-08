@@ -129,7 +129,6 @@ impl SubToolVariantUnitEditorSlots {
         let faction_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move |after, _| {
                 let enabled = after.count_0a() == 1;
-                ui.faction_list_add_faction.set_enabled(enabled);
                 ui.faction_list_clone_faction.set_enabled(enabled);
 
                 if enabled && after.at(0).indexes().take_at(0).data_0a().to_string().to_std_string() == "*" {
@@ -142,7 +141,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_add_faction = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
-                if let Err(error) = ui.load_add_faction_dialog(false) {
+                if let Err(error) = ui.load_add_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
             }
@@ -150,7 +149,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_clone_faction = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
-                if let Err(error) = ui.load_add_faction_dialog(true) {
+                if let Err(error) = ui.load_clone_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
             }
@@ -179,7 +178,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_add_colour_variant = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
-                if let Err(error) = ui.load_add_colour_variant_dialog(false) {
+                if let Err(error) = ui.load_add_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
             }
@@ -187,7 +186,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_clone_colour_variant = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
             ui => move || {
-                if let Err(error) = ui.load_add_colour_variant_dialog(true) {
+                if let Err(error) = ui.load_clone_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
             }

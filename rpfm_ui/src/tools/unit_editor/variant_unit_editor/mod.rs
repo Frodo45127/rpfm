@@ -41,6 +41,7 @@ use itertools::Itertools;
 
 use std::collections::HashMap;
 
+use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::PathType;
 use rpfm_macros::*;
 
@@ -231,7 +232,6 @@ impl SubToolVariantUnitEditor {
         let faction_list_add_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_add_faction"));
         let faction_list_clone_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_clone_faction"));
         let faction_list_delete_faction = faction_list_context_menu.add_action_q_string(&qtr("context_menu_delete_faction"));
-        faction_list_add_faction.set_enabled(false);
         faction_list_clone_faction.set_enabled(false);
         faction_list_delete_faction.set_enabled(false);
 
@@ -813,7 +813,76 @@ impl SubToolVariantUnitEditor {
     }
 
     /// Function to load the `Add Faction` dialog.
-    pub unsafe fn load_add_faction_dialog(&self, clone: bool) -> Result<()> {
+    pub unsafe fn load_add_faction_dialog(&self) -> Result<()> {
+        self.new_faction_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+        self.new_faction_name_combobox.set_model(&self.unit_variants_colours_faction_combobox.model());
+
+        let dialog: QPtr<QDialog> = self.new_faction_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save whatever is selected. Do it through selection to avoid double saving breaking things.
+            self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+
+            // Clone the source faction, updating its relevant keys in the process.
+            let new_faction_name = self.new_faction_name_combobox.current_text();
+            let new_item = QStandardItem::from_q_string(&new_faction_name).into_ptr();
+
+            // Perform the needed edits to the data, so it uses the new faction key.
+            let mut data: HashMap<String, String> = HashMap::new();
+
+            let unit_variants_colours_definition = Tool::get_table_definition("unit_variants_colours_tables")?;
+            let unit_variants_definition = Tool::get_table_definition("unit_variants_tables")?;
+            let variants_definition = Tool::get_table_definition("variants_tables")?;
+
+            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition).unwrap());
+            data.insert("unit_variants_definition".to_owned(), serde_json::to_string(&unit_variants_definition).unwrap());
+            data.insert("variants_definition".to_owned(), serde_json::to_string(&variants_definition).unwrap());
+
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            // Append the new item.
+            self.faction_list_model.append_row_q_standard_item(new_item);
+            let new_index = self.faction_list_model.index_from_item(new_item);
+
+            // Clear the filters (just in case) and open the new faction.
+            self.get_ref_faction_list_filter_line_edit().clear();
+            self.get_ref_faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.get_ref_faction_list_view().set_current_index(&self.get_ref_faction_list_filter().map_from_source(&new_index));
+        }
+
+        Ok(())
+    }
+
+    /// Function to load the `Add Colour Variant` dialog.
+    pub unsafe fn load_add_colour_variant_dialog(&self) -> Result<()> {
+        self.new_colour_variant_button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
+        let dialog: QPtr<QDialog> = self.new_colour_variant_widget.static_downcast();
+        if dialog.exec() == 1 {
+
+            // Save whatever is selected. Do it through selection to avoid double saving breaking things.
+            self.unit_variants_colours_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_variants_colours_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
+
+            // Clone the source colour variant, updating its relevant keys in the process.
+            let new_colour_variant_name = self.new_colour_variant_name_combobox.current_text();
+            let new_item = QStandardItem::from_q_string(&new_colour_variant_name).into_ptr();
+
+            // Perform the needed edits to the data, so it uses the new faction key.
+            let mut data: HashMap<String, String> = HashMap::new();
+
+            let unit_variants_colours_definition = Tool::get_table_definition("unit_variants_colours_tables")?;
+            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition).unwrap());
+
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+
+            // Append the new item.
+            self.unit_variants_colours_list_model.append_row_q_standard_item(new_item);
+        }
+
+        Ok(())
+    }
+
+    /// Function to load the `Clone Faction` dialog.
+    pub unsafe fn load_clone_faction_dialog(&self) -> Result<()> {
         let source_selection = self.faction_list_view.selection_model().selection();
         let source_indexes = source_selection.indexes();
 
@@ -841,18 +910,8 @@ impl SubToolVariantUnitEditor {
             new_item.set_text(&new_faction_name);
 
             // Perform the needed edits to the data, so it uses the new faction key.
-            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
-
-            if !clone {
-                data.retain(|key, _| key.ends_with("_definition"));
-            }
-
-            //data.insert("main_units_unit".to_owned(), new_faction_name.to_std_string());
-            //data.insert("land_units_key".to_owned(), new_faction_name.to_std_string());
-
-            self.update_keys(&mut data);
-
-            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+            //let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+            //new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
 
             // Append the new item.
             self.faction_list_model.append_row_q_standard_item(new_item);
@@ -867,8 +926,8 @@ impl SubToolVariantUnitEditor {
         Ok(())
     }
 
-    /// Function to load the `Add Faction` dialog.
-    pub unsafe fn load_add_colour_variant_dialog(&self, clone: bool) -> Result<()> {
+    /// Function to load the `Clone Colour Variant` dialog.
+    pub unsafe fn load_clone_colour_variant_dialog(&self) -> Result<()> {
         let source_selection = self.unit_variants_colours_list_view.selection_model().selection();
         let source_indexes = source_selection.indexes();
 
@@ -891,13 +950,8 @@ impl SubToolVariantUnitEditor {
             new_item.set_text(&new_colour_variant_name);
 
             // Perform the needed edits to the data, so it uses the new faction key.
-            let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
-
-            if !clone {
-                data.retain(|key, _| key.ends_with("_definition"));
-            }
-
-            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+            //let mut data: HashMap<String, String> = serde_json::from_str(&new_item.data_1a(UNIT_DATA).to_string().to_std_string()).unwrap();
+            //new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
 
             // Append the new item.
             self.unit_variants_colours_list_model.append_row_q_standard_item(new_item);

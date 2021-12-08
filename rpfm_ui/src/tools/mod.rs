@@ -1217,4 +1217,18 @@ impl Tool {
             );
         }
     }
+
+    /// This function returns the last compatible definition for the provided table.
+    pub fn get_table_definition(table_name: &str) -> Result<Definition> {
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()));
+        let response = CentralCommand::recv(&receiver);
+        let definition = match response {
+            Response::Definition(data) => data,
+            Response::Error(error) => return Err(error),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        };
+
+        Ok(definition)
+    }
+
 }
