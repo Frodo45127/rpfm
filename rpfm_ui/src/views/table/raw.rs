@@ -309,9 +309,9 @@ impl TableView {
                     let item = self.table_model.item_from_index(&self.table_filter.map_to_source(*index));
                     let column = horizontal_header.visual_index(index.column());
                     let current_value = item.text().to_std_string();
-                    let new_value = value.replace("{x}", &current_value)
-                        .replace("{y}", &column.to_string())
-                        .replace("{z}", &row.to_string());
+                    let new_value = value.replace("{x}", &current_value).replace("{X}", &current_value)
+                        .replace("{y}", &column.to_string()).replace("{Y}", &column.to_string())
+                        .replace("{z}", &row.to_string()).replace("{Z}", &row.to_string());
 
                     let text = if is_math_operation {
                          if let Ok(result) = meval::eval_str(&new_value) {
