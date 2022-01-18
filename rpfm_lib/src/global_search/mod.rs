@@ -185,8 +185,8 @@ impl GlobalSearch {
                         let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
                         self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                             let path = packed_file.get_path().to_vec();
-                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                Some(self.search_on_text(&path, data, &matching_mode))
+                            if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                Some(self.search_on_text(&path, &data, &matching_mode))
                             } else { None }
                         }).collect();
                     }
@@ -218,8 +218,8 @@ impl GlobalSearch {
                         if let Ok(mut packed_files) = dependencies.get_packedfiles_from_parent_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
                             self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                                 let path = packed_file.get_path().to_vec();
-                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                    Some(self.search_on_text(&path, &data, &matching_mode))
                                 } else { None }
                             }).collect();
                         }
@@ -252,8 +252,8 @@ impl GlobalSearch {
                         if let Ok(mut packed_files) = dependencies.get_packedfiles_from_game_files_by_types(&[PackedFileType::Text(TextType::Plain)], false) {
                             self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                                 let path = packed_file.get_path().to_vec();
-                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_locks(schema) {
-                                    Some(self.search_on_text(&path, data, &matching_mode))
+                                if let Ok(DecodedPackedFile::Text(data)) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
+                                    Some(self.search_on_text(&path, &data, &matching_mode))
                                 } else { None }
                             }).collect();
                         }
