@@ -1705,7 +1705,31 @@ impl TableView {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
-                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
+                        match data_source {
+                            DataSource::PackFile => {
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.static_upcast::<QObject>());
+                                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::ParentFiles |
+                            DataSource::AssKitFiles |
+                            DataSource::GameFiles => {
+                                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::GameFiles);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
+                                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::ExternalFile => {},
+                        }
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
@@ -1792,7 +1816,31 @@ impl TableView {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
-                        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
+                        match data_source {
+                            DataSource::PackFile => {
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.static_upcast::<QObject>());
+                                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::ParentFiles |
+                            DataSource::AssKitFiles |
+                            DataSource::GameFiles => {
+                                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::GameFiles);
+                                if let Some(ref tree_index) = tree_index {
+                                    if tree_index.is_valid() {
+                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
+                                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
+                                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                }
+                            },
+                            DataSource::ExternalFile => {},
+                        }
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
