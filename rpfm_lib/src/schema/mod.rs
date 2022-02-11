@@ -66,7 +66,7 @@ Inside the schema there are `VersionedFile` variants of different types, with a 
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 use itertools::Itertools;
 use rayon::prelude::*;
-use ron::de::from_reader;
+use ron::de::from_bytes;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
@@ -74,7 +74,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
-use std::io::{BufReader, Write};
+use std::io::{BufReader, Read, Write};
 use std::process::Command as SystemCommand;
 
 use rpfm_error::{Error, ErrorKind, Result};
@@ -446,8 +446,10 @@ impl Schema {
         let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
         file_path.push(schema_file);
 
-        let file = BufReader::new(File::open(&file_path)?);
-        from_reader(file).map_err(From::from)
+        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        from_bytes(&data).map_err(From::from)
     }
 
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
@@ -487,8 +489,10 @@ impl Schema {
         file_path.push(schema_file);
         file_path.set_extension(BINARY_EXTENSION);
 
-        let file = BufReader::new(File::open(&file_path)?);
-        bincode::deserialize_from(file).map_err(From::from)
+        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        bincode::deserialize(&data).map_err(From::from)
     }
 
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
