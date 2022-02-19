@@ -86,3 +86,6 @@ shortcuts.ron
 
 # Secret tokens.
 gh-token
+
+# Tips folder.
+/tips/
