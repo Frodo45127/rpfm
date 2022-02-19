@@ -66,10 +66,10 @@ fn main() {
 
     // If we reached here, execute the commands.
     let result = match matches.subcommand() {
-        ("diagnostic", Some(matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
-        ("packfile", Some(matches)) => commands::command_packfile(&config, matches, packfile),
-        ("table", Some(matches)) => commands::command_table(&config, matches, packfile),
-        ("schema", Some(matches)) => commands::command_schema(&config, matches),
+        Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
+        Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
+        Some(("table", matches)) => commands::command_table(&config, matches, packfile),
+        Some(("schema", matches)) => commands::command_schema(&config, matches),
         _ => { Ok(()) }
     };
 

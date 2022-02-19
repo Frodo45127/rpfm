@@ -13,14 +13,14 @@ rpfm_error = { path = "../rpfm_error" }
 rpfm_lib = { path = "../rpfm_lib" }
 
 # CLI parsing, formatting and color support.
-clap = "^2.33"
+clap = "^3.1"
 colored = "^2.0"
 prettytable-rs = "^0.8"
 bytesize = "^1.0"
 
 # Logging support.
 log = "^0.4"
-simplelog = "^0.10"
+simplelog = "^0.11"
 
 # Serialize support
 serde_json = "^1.0"
