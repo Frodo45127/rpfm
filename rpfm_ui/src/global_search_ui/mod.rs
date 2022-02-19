@@ -77,7 +77,7 @@ pub mod tips;
 /// This struct contains all the pointers we need to access the widgets in the Global Search panel.
 pub struct GlobalSearchUI {
     pub global_search_dock_widget: QBox<QDockWidget>,
-    pub global_search_search_line_edit: QBox<QLineEdit>,
+    pub global_search_search_combobox: QBox<QComboBox>,
     pub global_search_search_button: QBox<QPushButton>,
 
     pub global_search_replace_line_edit: QBox<QLineEdit>,
@@ -155,8 +155,9 @@ impl GlobalSearchUI {
         let global_search_search_frame = QGroupBox::from_q_string_q_widget(&qtr("global_search_info"), &global_search_dock_inner_widget);
         let global_search_search_grid = create_grid_layout(global_search_search_frame.static_upcast());
 
-        let global_search_search_line_edit = QLineEdit::from_q_widget(&global_search_search_frame);
+        let global_search_search_combobox = QComboBox::new_1a(&global_search_search_frame);
         let global_search_search_button = QPushButton::from_q_string_q_widget(&qtr("global_search_search"), &global_search_search_frame);
+        global_search_search_combobox.set_editable(true);
 
         let global_search_replace_line_edit = QLineEdit::from_q_widget(&global_search_search_frame);
         let global_search_replace_button = QPushButton::from_q_string_q_widget(&qtr("global_search_replace"), &global_search_search_frame);
@@ -192,7 +193,7 @@ impl GlobalSearchUI {
         global_search_search_grid.set_column_stretch(0, 10);
 
         // Add everything to the Matches's Dock Layout.
-        global_search_search_grid.add_widget_5a(&global_search_search_line_edit, 0, 0, 1, 2);
+        global_search_search_grid.add_widget_5a(&global_search_search_combobox, 0, 0, 1, 2);
         global_search_search_grid.add_widget_5a(&global_search_replace_line_edit, 1, 0, 1, 2);
         global_search_search_grid.add_widget_5a(&global_search_search_button, 0, 2, 1, 1);
         global_search_search_grid.add_widget_5a(&global_search_replace_button, 1, 2, 1, 1);
@@ -365,7 +366,7 @@ impl GlobalSearchUI {
         // Create ***Da monsta***.
         Self {
             global_search_dock_widget,
-            global_search_search_line_edit,
+            global_search_search_combobox,
             global_search_search_button,
 
             global_search_replace_line_edit,
@@ -429,7 +430,7 @@ impl GlobalSearchUI {
 
         // Create the global search and populate it with all the settings for the search.
         let mut global_search = GlobalSearch {
-            pattern: global_search_ui.global_search_search_line_edit.text().to_std_string(),
+            pattern: global_search_ui.global_search_search_combobox.current_text().to_std_string(),
             case_sensitive: global_search_ui.global_search_case_sensitive_checkbox.is_checked(),
             use_regex: global_search_ui.global_search_use_regex_checkbox.is_checked(),
             ..Default::default()
@@ -514,7 +515,7 @@ impl GlobalSearchUI {
             return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
         }
 
-        global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
+        global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
         global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
         global_search.use_regex = global_search_ui.global_search_use_regex_checkbox.is_checked();
@@ -587,7 +588,7 @@ impl GlobalSearchUI {
             return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
         }
 
-        global_search.pattern = global_search_ui.global_search_search_line_edit.text().to_std_string();
+        global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
         global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
         global_search.use_regex = global_search_ui.global_search_use_regex_checkbox.is_checked();
