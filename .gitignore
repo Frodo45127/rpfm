@@ -83,3 +83,6 @@ shortcuts.ron
 /test_files/PFH4_test_encode.pack
 /test_files/PFH5_test_encode.pack
 /test_files/PFH6_test_encode.pack
+
+# Secret tokens.
+gh-token
