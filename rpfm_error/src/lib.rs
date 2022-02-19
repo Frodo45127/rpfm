@@ -704,6 +704,18 @@ pub enum ErrorKind {
 
     /// It says it all.
     Impossibru,
+
+    /// Error for when a message update fails.
+    MessagesUpdateError,
+
+    /// Error for when there are no message updates available.
+    NoMessagesUpdatesAvailable,
+
+    /// Error for when a tip is not found in the local tips.
+    LocalTipNotFound,
+
+    /// Error for when trying to publish a tip without a token.
+    TipPublishUnsupported,
 }
 
 /// Implementation of `Error`.
@@ -1057,6 +1069,10 @@ impl Display for ErrorKind {
             ErrorKind::ToolTableColumnNotOfTypeWeExpected => write!(f, "<p>One of the columns we need is not of the type we expected. This means either the tool needs updating, or you have some weird tables there.</p>"),
             ErrorKind::ToolEntryDataNotFound(value_names) => write!(f, "<p>The following values hasn't been found for this entry: {}.</p>", value_names),
             ErrorKind::Impossibru => write!(f, "<p>I am quite interested in knowing how the hell did you managed to trigger this message, because this is a theoretically impossible situation. Feel free to tell me (the author of RPFM) about it so I can fix it.</p>"),
+            ErrorKind::MessagesUpdateError => write!(f, "<p>There was an error while downloading the messages. Please, try again later.</p>"),
+            ErrorKind::NoMessagesUpdatesAvailable => write!(f, "<p>No message updates available</p>"),
+            ErrorKind::LocalTipNotFound => write!(f, "<p>Message not found in the backend. This is a bug, pls report it.</p>"),
+            ErrorKind::TipPublishUnsupported => write!(f, "<p>This version of RPFM doesn't have support for uploading messages.</p>"),
         }
     }
 }

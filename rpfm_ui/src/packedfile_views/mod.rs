@@ -53,6 +53,7 @@ use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
+use self::tips::TipsView;
 
 #[cfg(feature = "support_rigidmodel")]
 use self::rigidmodel::PackedFileRigidModelView;
@@ -76,6 +77,7 @@ pub mod packfile_settings;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
+pub mod tips;
 
 #[cfg(feature = "support_uic")]
 pub mod uic;
@@ -90,7 +92,9 @@ pub mod utils;
 /// This struct contains the widget of the view of a PackedFile and his info.
 pub struct PackedFileView {
     path: Arc<RwLock<Vec<String>>>,
-    widget: Arc<QBox<QWidget>>,
+    main_widget: Arc<QBox<QWidget>>,
+    tips_widget: Arc<QBox<QWidget>>,
+    tips_view: Arc<TipsView>,
     is_preview: AtomicBool,
     is_read_only: AtomicBool,
     data_source: Arc<RwLock<DataSource>>,
@@ -159,9 +163,20 @@ pub enum View {
 impl Default for PackedFileView {
     fn default() -> Self {
         let path = Arc::new(RwLock::new(vec![]));
-        let widget_ptr = unsafe { QWidget::new_0a() };
-        unsafe { create_grid_layout(widget_ptr.static_upcast()); }
-        let widget = Arc::new(widget_ptr);
+
+        let main_widget_ptr = unsafe { QWidget::new_0a() };
+        let main_layout = unsafe { create_grid_layout(main_widget_ptr.static_upcast()) };
+        let main_widget = Arc::new(main_widget_ptr);
+
+        let tips_widget_ptr = unsafe { QWidget::new_0a() };
+        unsafe { create_grid_layout(tips_widget_ptr.static_upcast()); }
+        unsafe { main_layout.add_widget_5a(&tips_widget_ptr, 0, 99, 99, 1); }
+        let tips_widget = Arc::new(tips_widget_ptr);
+        let tips_view = unsafe { TipsView::new_view(&tips_widget, &[]) };
+
+        // Hide it by default.
+        unsafe { tips_widget.set_visible(false) };
+
         let is_preview = AtomicBool::new(false);
         let is_read_only = AtomicBool::new(false);
         let data_source = Arc::new(RwLock::new(DataSource::PackFile));
@@ -169,7 +184,9 @@ impl Default for PackedFileView {
         let packed_file_type = PackedFileType::Unknown;
         Self {
             path,
-            widget,
+            main_widget,
+            tips_widget,
+            tips_view,
             is_preview,
             is_read_only,
             data_source,
@@ -204,11 +221,17 @@ impl PackedFileView {
     /// This function allows you to set a `PackedFileView` as a preview or normal view.
     pub fn set_path(&self, path: &[String]) {
         *self.path.write().unwrap() = path.to_vec();
+        unsafe { self.tips_view.load_data(path) };
     }
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
     pub fn get_mut_widget(&self) -> &QBox<QWidget> {
-        &self.widget
+        &self.main_widget
+    }
+
+    /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
+    pub fn get_tips_widget(&self) -> &QBox<QWidget> {
+        &self.tips_widget
     }
 
     /// This function returns if the `PackedFileView` is a preview or not.

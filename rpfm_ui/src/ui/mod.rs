@@ -181,6 +181,11 @@ impl UI {
         let mut colour_dark_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_warning")).to_string());
         let mut colour_dark_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_info")).to_string());
 
+        let mut colour_light_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_local_tip")).to_string());
+        let mut colour_light_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_remote_tip")).to_string());
+        let mut colour_dark_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_local_tip")).to_string());
+        let mut colour_dark_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_remote_tip")).to_string());
+
         if !colour_light_table_added.is_valid() {
             colour_light_table_added = QColor::from_q_string(&QString::from_std_str("#87ca00"));
             q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&colour_light_table_added.name_1a(NameFormat::HexArgb)));
@@ -238,6 +243,30 @@ impl UI {
         if !colour_dark_diagnostic_info.is_valid() {
             colour_dark_diagnostic_info = QColor::from_q_string(&QString::from_std_str("#55aaff"));
             q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_local_tip.is_valid() {
+            colour_light_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
+            q_settings.set_value(&QString::from_std_str("colour_light_local_tip"), &QVariant::from_q_string(&colour_light_local_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_light_remote_tip.is_valid() {
+            colour_light_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
+            q_settings.set_value(&QString::from_std_str("colour_light_remote_tip"), &QVariant::from_q_string(&colour_light_remote_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_local_tip.is_valid() {
+            colour_dark_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
+            q_settings.set_value(&QString::from_std_str("colour_dark_local_tip"), &QVariant::from_q_string(&colour_dark_local_tip.name_1a(NameFormat::HexArgb)));
+            sync_needed = true;
+        }
+
+        if !colour_dark_remote_tip.is_valid() {
+            colour_dark_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
+            q_settings.set_value(&QString::from_std_str("colour_dark_remote_tip"), &QVariant::from_q_string(&colour_dark_remote_tip.name_1a(NameFormat::HexArgb)));
             sync_needed = true;
         }
 
@@ -342,6 +371,9 @@ impl UI {
 
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
+
+        // TODO: Put this behind a setting.
+        AppUI::check_message_updates(&app_ui, false);
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {

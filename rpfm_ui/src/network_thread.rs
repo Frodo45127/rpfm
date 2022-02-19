@@ -18,6 +18,7 @@ use crossbeam::channel::Sender;
 use log::info;
 
 use rpfm_lib::schema::Schema;
+use rpfm_lib::tips::Tips;
 use rpfm_lib::updater;
 
 use crate::CENTRAL_COMMAND;
@@ -54,6 +55,14 @@ pub fn network_loop() {
             Command::CheckSchemaUpdates => {
                 match Schema::check_update() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseSchema(response)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            // When we want to check if there is a message update available...
+            Command::CheckMessageUpdates => {
+                match Tips::check_update() {
+                    Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseTips(response)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }

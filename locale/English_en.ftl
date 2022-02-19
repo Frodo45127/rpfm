@@ -1150,3 +1150,29 @@ new_colour_variant_instructions = <p>Write the new colour variant key in the inp
 new_colour_variant_name = Colour Variant Key
 
 line_counter = Rows On Filter / On Table: {"{"}{"}"} / {"{"}{"}"}
+new_tip_user = User:
+new_tip_tip = Message:
+new_tip_path = Path:
+new_tip_link = Link:
+new_tip_dialog = New Message
+tip_id = Id:
+tip_author = Author:
+tip_link = Link:
+new_tip = New Message
+tip_edit = Edit Message
+tip_delete = Delete Message
+tip_publish = Publish Message
+toggle_tips = Toggle Messages
+about_check_message_updates = Check Message Updates
+update_messages_checker = Update Message Checker
+messages_new_update = <h4>New messages update available</h4> <p>Do you want to update the messages?</p>
+messages_no_update = <h4>No new message updates available</h4> <p>More luck next time :)</p>
+update_no_local_messages = <p>No downloaded messages found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Messages are little notes beside any file to remember things. They're fully optional, and the downloaded ones may contain tips relative to certain files people discovered that may help you.</p>
+messages_update_success = <h4>Messages updated. New messages may not appear until you restart RPFM.</h4><p>You can continue using RPFM now.</p>
+message_uploaded_correctly = Message uploaded successfully and awaiting moderation.
+
+debug_colour_light_label = Ligh Theme
+debug_colour_dark_label = Dark Theme
+
+debug_colour_local_tip_label = Local
+debug_colour_remote_tip_label = Remote

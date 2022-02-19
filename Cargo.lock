@@ -1918,6 +1918,7 @@ dependencies = [
  "os_info",
  "pelite",
  "quick-xml 0.22.0",
+ "rand",
  "rayon",
  "regex",
  "reqwest",

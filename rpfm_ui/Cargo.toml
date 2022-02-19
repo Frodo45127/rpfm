@@ -11,6 +11,7 @@ rust-version = "1.56"
 strict_subclasses_compilation = []
 support_rigidmodel = ["rpfm_lib/support_rigidmodel"]
 support_modern_dds = []
+support_tip_uploads = ["rpfm_lib/support_tip_uploads"]
 support_uic = ["rpfm_lib/support_uic"]
 only_for_the_brave = []
 

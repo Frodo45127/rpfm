@@ -45,6 +45,7 @@ use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::tips::Tips;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
@@ -71,6 +72,9 @@ pub fn background_loop() {
 
     // Preload the default game's dependencies.
     let mut dependencies = Dependencies::default();
+
+    // Load all the tips we have.
+    let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -1089,6 +1093,16 @@ pub fn background_loop() {
                 }
             }
 
+            // When we want to update our messages...
+            Command::UpdateMessages => {
+
+                // TODO: Properly reload all loaded tips.
+                match Tips::update_from_repo() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
             // When we want to update our program...
             Command::UpdateMainProgram => {
                 match rpfm_lib::updater::update_main_program() {
@@ -1466,8 +1480,37 @@ pub fn background_loop() {
                 }
             },
 
+            Command::GetTipsForPath(path) => {
+                let local_tips = tips.get_local_tips_for_path(&path);
+                let remote_tips = tips.get_remote_tips_for_path(&path);
+                CentralCommand::send_back(&sender, Response::VecTipVecTip(local_tips, remote_tips));
+            }
+
+            Command::AddTipToLocalTips(tip) => {
+                tips.add_tip_to_local_tips(tip);
+                match tips.save() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::DeleteTipById(id) => {
+                tips.delete_tip_by_id(id);
+                match tips.save() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::PublishTipById(id) => {
+                match tips.publish_tip_by_id(id) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 }

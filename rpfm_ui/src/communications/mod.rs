@@ -38,6 +38,7 @@ use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
+use rpfm_lib::tips::{APIResponseTips, Tip};
 use rpfm_lib::updater::APIResponse;
 
 use crate::app_ui::NewPackedFile;
@@ -334,7 +335,25 @@ pub enum Command {
     SavePackedFilesToPackFileAndClean(Vec<PackedFile>),
 
     /// This command is used to get all the file names under a path in all dependencies.
-    GetPackedFilesNamesStartingWitPathFromAllSources(PathType)
+    GetPackedFilesNamesStartingWitPathFromAllSources(PathType),
+
+    /// This command is used to request all tips under a path, no matter their source.
+    GetTipsForPath(Vec<String>),
+
+    /// This command is used to add a tip to the list of local tips.
+    AddTipToLocalTips(Tip),
+
+    /// This command is used to delete a tip with an specific id.
+    DeleteTipById(u64),
+
+    /// This command is used to check if there are message updates available.
+    CheckMessageUpdates,
+
+    /// This command is used to download new message updates.
+    UpdateMessages,
+
+    /// This command is used to publish a tip to github.
+    PublishTipById(u64),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -393,6 +412,9 @@ pub enum Response {
 
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
+
+    /// Response to return `APIResponseTips`.
+    APIResponseTips(APIResponseTips),
 
     /// Response to return `(AnimFragment, PackedFileInfo)`.
     AnimFragmentPackedFileInfo((AnimFragment, PackedFileInfo)),
@@ -485,7 +507,8 @@ pub enum Response {
     HashMapDataSourceHashSetVecString(HashMap<DataSource, HashSet<Vec<String>>>),
     Diagnostics(Diagnostics),
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
-    Definition(Definition)
+    Definition(Definition),
+    VecTipVecTip(Vec<Tip>, Vec<Tip>),
 }
 
 //-------------------------------------------------------------------------------//

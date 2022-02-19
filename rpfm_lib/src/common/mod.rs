@@ -27,7 +27,7 @@ use std::fs::{File, read_dir};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::schema;
+use crate::{schema, tips};
 use crate::settings::get_config_path;
 use crate::games::supported_games::KEY_TROY;
 use crate::GAME_SELECTED;
@@ -150,6 +150,12 @@ pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<
 #[allow(dead_code)]
 pub fn get_schemas_path() -> Result<PathBuf> {
     Ok(get_config_path()?.join(schema::SCHEMA_FOLDER))
+}
+
+/// This function returns the remote tips path.
+#[allow(dead_code)]
+pub fn get_remote_tips_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(tips::TIPS_REMOTE_FOLDER))
 }
 
 /// This function returns the autosave path.

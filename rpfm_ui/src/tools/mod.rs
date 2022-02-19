@@ -310,7 +310,7 @@ impl Tool {
     /// For local use when no Tool has yet been created.
     unsafe fn find_widget_no_tool<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
         where QObject: DynamicCast<T> {
-        main_widget.find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
+        crate::utils::find_widget(main_widget, widget_name)
     }
 
     /// This function gets the data needed for the tool from a DB table in a generic way.

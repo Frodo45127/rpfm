@@ -142,6 +142,7 @@ pub struct AppUISlots {
     pub about_patreon_link: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
+    pub about_check_message_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -168,6 +169,7 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_toggle_tips: QBox<SlotNoArgs>,
 }
 
 pub struct AppUITempSlots {}
@@ -1246,6 +1248,14 @@ impl AppUISlots {
             }
         ));
 
+        // What happens when we trigger the "Check Schema Update" action.
+        let about_check_message_updates = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+                info!("Triggering `Check Schema Updates` By Slot");
+                AppUI::check_message_updates(&app_ui, true);
+            }
+        ));
+
         // What happens when we trigger the "Update from AssKit" action.
         let debug_update_current_schema_from_asskit = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
@@ -1518,6 +1528,21 @@ impl AppUISlots {
             }
         ));
 
+        let tab_bar_packed_file_toggle_tips = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                let index = app_ui.tab_bar_packed_file.current_index();
+                if index == -1 { return; }
+
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let widget = packed_file_view.get_mut_widget();
+                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                        packed_file_view.get_tips_widget().set_visible(!packed_file_view.get_tips_widget().is_visible());
+                        break;
+                    }
+                }
+            }
+        ));
+
         // And here... we return all the slots.
 		Self {
 
@@ -1589,6 +1614,7 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+            about_check_message_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.
@@ -1614,7 +1640,8 @@ impl AppUISlots {
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
-            tab_bar_packed_file_import_from_dependencies
+            tab_bar_packed_file_import_from_dependencies,
+            tab_bar_packed_file_toggle_tips,
 		}
 	}
 }

@@ -188,6 +188,11 @@ pub struct SettingsUI {
     pub debug_enable_unit_editor_label: QBox<QLabel>,
     pub debug_enable_unit_editor_checkbox: QBox<QCheckBox>,
 
+    pub debug_colour_light_local_tip_button: QBox<QPushButton>,
+    pub debug_colour_light_remote_tip_button: QBox<QPushButton>,
+    pub debug_colour_dark_local_tip_button: QBox<QPushButton>,
+    pub debug_colour_dark_remote_tip_button: QBox<QPushButton>,
+
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
     pub debug_clear_layout_settings_button: QBox<QPushButton>,
@@ -631,30 +636,57 @@ impl SettingsUI {
         let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
         let debug_clear_layout_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_layout_settings"), &debug_frame);
 
-        debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 1, 1, 1);
+        let debug_colour_light_label = QLabel::from_q_string_q_widget(&qtr("debug_colour_light_label"), &debug_frame);
+        let debug_colour_dark_label = QLabel::from_q_string_q_widget(&qtr("debug_colour_dark_label"), &debug_frame);
 
-        debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
+        let debug_colour_local_tip_label = QLabel::from_q_string_q_widget(&qtr("debug_colour_local_tip_label"), &debug_frame);
+        let debug_colour_remote_tip_label = QLabel::from_q_string_q_widget(&qtr("debug_colour_remote_tip_label"), &debug_frame);
+        debug_colour_local_tip_label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
+        debug_colour_remote_tip_label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
 
-        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 1, 1, 1);
+        let debug_colour_light_local_tip_button = QPushButton::from_q_widget(&debug_frame);
+        let debug_colour_light_remote_tip_button = QPushButton::from_q_widget(&debug_frame);
+        let debug_colour_dark_local_tip_button = QPushButton::from_q_widget(&debug_frame);
+        let debug_colour_dark_remote_tip_button = QPushButton::from_q_widget(&debug_frame);
+        debug_colour_light_local_tip_button.set_auto_fill_background(true);
+        debug_colour_light_remote_tip_button.set_auto_fill_background(true);
+        debug_colour_dark_local_tip_button.set_auto_fill_background(true);
+        debug_colour_dark_remote_tip_button.set_auto_fill_background(true);
 
-        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_label, 3, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_checkbox, 3, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 2, 1, 1);
 
-        debug_grid.add_widget_5a(&debug_enable_esf_editor_label, 4, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_enable_esf_editor_checkbox, 4, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 2, 1, 1);
 
-        debug_grid.add_widget_5a(&debug_enable_unit_editor_label, 5, 0, 1, 1);
-        debug_grid.add_widget_5a(&debug_enable_unit_editor_checkbox, 5, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 2, 1, 1);
 
-        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 11, 0, 1, 1);
-        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 11, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_label, 3, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_enable_rigidmodel_editor_checkbox, 3, 2, 1, 1);
 
-        debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 85, 0, 1, 2);
-        debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 86, 0, 1, 2);
-        debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 87, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_enable_esf_editor_label, 4, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_enable_esf_editor_checkbox, 4, 2, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_enable_unit_editor_label, 5, 0, 1, 2);
+        debug_grid.add_widget_5a(&debug_enable_unit_editor_checkbox, 5, 2, 1, 1);
+
+        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 11, 0, 1, 2);
+        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 11, 2, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_colour_light_label, 70, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_dark_label, 70, 2, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_local_tip_label, 71, 1, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_remote_tip_label, 72, 1, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_colour_light_local_tip_button, 71, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_light_remote_tip_button, 72, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_dark_local_tip_button, 71, 2, 1, 1);
+        debug_grid.add_widget_5a(&debug_colour_dark_remote_tip_button, 72, 2, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 85, 0, 1, 3);
+        debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 86, 0, 1, 3);
+        debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 87, 0, 1, 3);
 
         settings_grid.add_widget_5a(&debug_frame, 2, 2, 1, 1);
 
@@ -828,6 +860,11 @@ impl SettingsUI {
             debug_enable_unit_editor_label,
             debug_enable_unit_editor_checkbox,
 
+            debug_colour_light_local_tip_button,
+            debug_colour_light_remote_tip_button,
+            debug_colour_dark_local_tip_button,
+            debug_colour_dark_remote_tip_button,
+
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
             debug_clear_layout_settings_button,
@@ -977,6 +1014,23 @@ impl SettingsUI {
         self.debug_enable_esf_editor_checkbox.set_checked(settings.settings_bool["enable_esf_editor"]);
         self.debug_enable_unit_editor_checkbox.set_checked(settings.settings_bool["enable_unit_editor"]);
 
+        let colour_light_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_local_tip")).to_string());
+        let colour_light_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_remote_tip")).to_string());
+        let colour_dark_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_local_tip")).to_string());
+        let colour_dark_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_remote_tip")).to_string());
+
+        self.debug_colour_light_local_tip_button.set_palette(&QPalette::from_q_color(&colour_light_local_tip));
+        self.debug_colour_light_remote_tip_button.set_palette(&QPalette::from_q_color(&colour_light_remote_tip));
+        self.debug_colour_dark_local_tip_button.set_palette(&QPalette::from_q_color(&colour_dark_local_tip));
+        self.debug_colour_dark_remote_tip_button.set_palette(&QPalette::from_q_color(&colour_dark_remote_tip));
+
+        if cfg!(target_os = "windows") {
+            self.debug_colour_light_local_tip_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.debug_colour_light_remote_tip_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_light_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.debug_colour_dark_local_tip_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_local_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+            self.debug_colour_dark_remote_tip_button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", colour_dark_remote_tip.name_1a(NameFormat::HexArgb).to_std_string())));
+        }
+
         // Load the Diagnostics Stuff.
         self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
         self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
@@ -1067,6 +1121,11 @@ impl SettingsUI {
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_error_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_warning_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_info_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
+
+        q_settings.set_value(&QString::from_std_str("colour_light_local_tip"), &QVariant::from_q_string(&self.debug_colour_light_local_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_remote_tip"), &QVariant::from_q_string(&self.debug_colour_light_remote_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_local_tip"), &QVariant::from_q_string(&self.debug_colour_dark_local_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_remote_tip"), &QVariant::from_q_string(&self.debug_colour_dark_remote_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
 
         q_settings.sync();
 

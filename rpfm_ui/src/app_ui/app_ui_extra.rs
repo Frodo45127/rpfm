@@ -57,6 +57,7 @@ use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::MYMOD_BASE_PATH;
+use rpfm_lib::tips::APIResponseTips;
 use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 
 use super::AppUI;
@@ -80,7 +81,7 @@ use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
-use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button};
+use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button, log_to_status_bar};
 
 #[cfg(feature = "support_rigidmodel")]
 use crate::packedfile_views::rigidmodel::*;
@@ -1237,6 +1238,92 @@ impl AppUI {
                     dialog.set_text(&QString::from_std_str(&error.to_string()));
                     close_button.set_enabled(true);
                 }
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+    }
+
+    /// This function checks if there is any newer version of RPFM's messages released.
+    ///
+    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
+    pub unsafe fn check_message_updates(app_ui: &Rc<Self>, use_dialog: bool) {
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckMessageUpdates);
+
+        // Create the dialog to show the response and configure it.
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_messages_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            &app_ui.main_window,
+        );
+
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
+        if use_dialog {
+            dialog.show();
+        }
+
+        // When we get a response, act depending on the kind of response we got.
+        let response_thread = CentralCommand::recv_try(&receiver);
+        let message = match response_thread {
+            Response::APIResponseTips(ref response) => {
+                match response {
+                    APIResponseTips::NewUpdate => {
+                        update_button.set_enabled(true);
+                        qtr("messages_new_update")
+                    }
+                    APIResponseTips::NoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("messages_no_update")
+                    }
+                    APIResponseTips::NoLocalFiles => {
+                        update_button.set_enabled(true);
+                        qtr("update_no_local_messages")
+                    }
+                }
+            }
+
+            Response::Error(error) => {
+                if !use_dialog { return; }
+                qtre("api_response_error", &[&error.to_string()])
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+        };
+
+        // If we hit "Update", try to update the messages.
+        if use_dialog {
+            dialog.set_text(&message);
+            if dialog.exec() == 0 {
+                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
+
+                dialog.show();
+                dialog.set_text(&qtr("update_in_prog"));
+                update_button.set_enabled(false);
+                close_button.set_enabled(false);
+
+                let response = CentralCommand::recv_try(&receiver);
+                match response {
+                    Response::Success => {
+                        dialog.set_text(&qtr("messages_update_success"));
+                        close_button.set_enabled(true);
+                    },
+                    Response::Error(error) => {
+                        dialog.set_text(&QString::from_std_str(&error.to_string()));
+                        close_button.set_enabled(true);
+                    }
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+            }
+        } else {
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
+            let response = CentralCommand::recv_try(&receiver);
+            match response {
+                Response::Success => log_to_status_bar("messages_update_success"),
+                Response::Error(error) => log_to_status_bar(&error.to_string()),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }

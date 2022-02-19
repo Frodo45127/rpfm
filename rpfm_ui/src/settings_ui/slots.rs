@@ -78,6 +78,11 @@ pub struct SettingsUISlots {
     pub select_colour_dark_diagnostic_error: QBox<SlotNoArgs>,
     pub select_colour_dark_diagnostic_warning: QBox<SlotNoArgs>,
     pub select_colour_dark_diagnostic_info: QBox<SlotNoArgs>,
+
+    pub select_colour_light_local_tip: QBox<SlotNoArgs>,
+    pub select_colour_light_remote_tip: QBox<SlotNoArgs>,
+    pub select_colour_dark_local_tip: QBox<SlotNoArgs>,
+    pub select_colour_dark_remote_tip: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -270,6 +275,26 @@ impl SettingsUISlots {
                 change_colour(&ui.ui_table_colour_dark_diagnostic_info_button);
         }));
 
+        let select_colour_light_local_tip = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.debug_colour_light_local_tip_button);
+        }));
+
+        let select_colour_light_remote_tip = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.debug_colour_light_remote_tip_button);
+        }));
+
+        let select_colour_dark_local_tip = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.debug_colour_dark_local_tip_button);
+        }));
+
+        let select_colour_dark_remote_tip = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                change_colour(&ui.debug_colour_dark_remote_tip_button);
+        }));
+
         // And here... we return all the slots.
 		Self {
             restore_default,
@@ -293,6 +318,11 @@ impl SettingsUISlots {
             select_colour_dark_diagnostic_error,
             select_colour_dark_diagnostic_warning,
             select_colour_dark_diagnostic_info,
+
+            select_colour_light_local_tip,
+            select_colour_light_remote_tip,
+            select_colour_dark_local_tip,
+            select_colour_dark_remote_tip,
 		}
 	}
 }

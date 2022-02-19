@@ -234,6 +234,7 @@ pub struct AppUI {
     pub about_patreon_link: QPtr<QAction>,
     pub about_check_updates: QPtr<QAction>,
     pub about_check_schema_updates: QPtr<QAction>,
+    pub about_check_message_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -253,6 +254,7 @@ pub struct AppUI {
     pub tab_bar_packed_file_prev: QPtr<QAction>,
     pub tab_bar_packed_file_next: QPtr<QAction>,
     pub tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
+    pub tab_bar_packed_file_toggle_tips: QPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -310,6 +312,7 @@ impl AppUI {
         let tab_bar_packed_file_prev = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("prev_tab"));
         let tab_bar_packed_file_next = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("next_tab"));
         let tab_bar_packed_file_import_from_dependencies = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("import_from_dependencies"));
+        let tab_bar_packed_file_toggle_tips = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("toggle_tips"));
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -318,6 +321,7 @@ impl AppUI {
         tab_bar_packed_file_prev.set_enabled(true);
         tab_bar_packed_file_next.set_enabled(true);
         tab_bar_packed_file_import_from_dependencies.set_enabled(true);
+        tab_bar_packed_file_toggle_tips.set_enabled(true);
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);
@@ -603,6 +607,7 @@ impl AppUI {
         let about_patreon_link = menu_bar_about.add_action_q_string(&qtr("about_patreon_link"));
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
+        let about_check_message_updates = menu_bar_about.add_action_q_string(&qtr("about_check_message_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -794,6 +799,7 @@ impl AppUI {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+            about_check_message_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.
@@ -812,7 +818,8 @@ impl AppUI {
             tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
-            tab_bar_packed_file_import_from_dependencies
+            tab_bar_packed_file_import_from_dependencies,
+            tab_bar_packed_file_toggle_tips
         }
     }
 }

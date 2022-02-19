@@ -41,6 +41,7 @@ pub mod packedfile;
 pub mod packfile;
 pub mod schema;
 pub mod settings;
+pub mod tips;
 pub mod updater;
 
 // Statics, so we don't need to pass them everywhere to use them.

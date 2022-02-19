@@ -10,6 +10,7 @@ rust-version = "1.56"
 [features]
 support_rigidmodel = []
 support_uic = []
+support_tip_uploads = []
 
 default = []
 
@@ -83,6 +84,9 @@ pelite = "^0.9"
 
 # Caseless matching.
 unicase = "^2.6"
+
+# RNG support.
+rand = "^0.8"
 
 # Logging support.
 backtrace = "^0.3"
