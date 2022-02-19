@@ -11,7 +11,7 @@
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
 #endif
-#include <QWidget>
+#include <QLineEdit>
 
 // This one is needed for the save fix.
 #include <KActionCollection>
@@ -23,5 +23,7 @@ extern "C" QString* get_text(QWidget* parent = nullptr);
 extern "C" void set_text(QWidget* view = nullptr, QString* text = nullptr, QString* highlighting_mode = nullptr);
 
 extern "C" void open_text_editor_config(QWidget* parent);
+
+extern "C" QLineEdit* get_text_changed_dummy_widget(QWidget* view = nullptr);
 
 #endif // TEXT_EDITOR_H

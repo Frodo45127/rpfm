@@ -1507,7 +1507,7 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

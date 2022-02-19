@@ -14,6 +14,7 @@ Module containing the ffi functions used for custom widgets.
 
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
+use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
@@ -225,6 +226,12 @@ pub fn set_text_safe(document: &QPtr<QWidget>, string: &Ptr<QString>, highlighti
 extern "C" { fn open_text_editor_config(parent: *mut QWidget); }
 pub fn open_text_editor_config_safe(parent: &Ptr<QWidget>) {
     unsafe { open_text_editor_config(parent.as_mut_raw_ptr()) }
+}
+
+/// This function triggers the config dialog for the KTextEditor.
+extern "C" { fn get_text_changed_dummy_widget(parent: *mut QWidget) -> *mut QLineEdit; }
+pub fn get_text_changed_dummy_widget_safe<'a>(parent: &Ptr<QWidget>) -> Ptr<QLineEdit> {
+    unsafe { Ptr::from_raw(get_text_changed_dummy_widget(parent.as_mut_raw_ptr())) }
 }
 
 //---------------------------------------------------------------------------//

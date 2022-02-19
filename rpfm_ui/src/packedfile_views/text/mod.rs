@@ -17,6 +17,7 @@ use qt_widgets::QWidget;
 
 use qt_core::QBox;
 use qt_core::QPtr;
+use qt_core::QString;
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -28,13 +29,14 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::*;
 use crate::ffi::{new_text_editor_safe, set_text_safe};
-use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
-use crate::QString;
+use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
+use crate::packedfile_views::text::slots::PackedFileTextViewSlots;
+
+mod connections;
+mod slots;
 
 const CPP: &str = "C++";
 const HTML: &str = "HTML";
@@ -51,7 +53,8 @@ const JSON: &str = "JSON";
 /// This struct contains the view of a Text PackedFile.
 pub struct PackedFileTextView {
     editor: QBox<QWidget>,
-    _path: Arc<RwLock<Vec<String>>>,
+    packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+    data_source: Arc<RwLock<DataSource>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -64,10 +67,8 @@ impl PackedFileTextView {
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        _app_ui: &Rc<AppUI>,
-        _global_search_ui: &Rc<GlobalSearchUI>,
-        _pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        _diagnostics_ui: &Rc<DiagnosticsUI>,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
         // Get the decoded Text.
@@ -99,11 +100,17 @@ impl PackedFileTextView {
 
         set_text_safe(&editor.static_upcast(), &QString::from_std_str(text.get_ref_contents()).as_ptr(), &highlighting_mode.as_ptr());
 
-        let packed_file_text_view = Arc::new(PackedFileTextView {editor, _path: packed_file_view.get_path_raw() });
-        //let packed_file_text_view_slots = PackedFileTextViewSlots::new(&packed_file_text_view, app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
+        let view = Arc::new(PackedFileTextView {
+            editor,
+            packed_file_path: Some(packed_file_view.get_path_raw()),
+            data_source: Arc::new(RwLock::new(packed_file_view.get_data_source())),
+        });
+
+        let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);
+        connections::set_connections(&view, &slots);
 
         packed_file_view.packed_file_type = PackedFileType::Text(text.get_text_type());
-        packed_file_view.view = ViewType::Internal(View::Text(packed_file_text_view));
+        packed_file_view.view = ViewType::Internal(View::Text(view));
 
         // Return success.
         Ok(packed_file_info)

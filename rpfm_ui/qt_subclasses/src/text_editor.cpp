@@ -14,6 +14,10 @@ extern "C" QWidget* new_text_editor(QWidget* parent) {
     actions->removeAction(actions->action("file_save"));
     actions->removeAction(actions->action("file_save_as"));
 
+    QLineEdit* dummy = new QLineEdit(view);
+    dummy->setObjectName("Dummy");
+    dummy->setVisible(false);
+
     // Return the view widget, so we can access it later.
     return dynamic_cast<QWidget*>(view);
 }
@@ -37,6 +41,21 @@ extern "C" void set_text(QWidget* view, QString* text, QString* highlighting_mod
     QString text_object = *text;
     doc->setText(text_object);
 
+    // This fixes the "modified" state due to setting the text for the first time.
+    // IF you hit Ctrl+Z it still removes the text, but at least we can now keep track of when a file has been modified.
+    doc->setModified(false);
+    doc_view->setCursorPosition(KTextEditor::Cursor::start());
+
+    QLineEdit* dummy = doc_view->findChild<QLineEdit*>("Dummy");
+    QObject::connect(
+        doc,
+        &KTextEditor::Document::textChanged,
+        dummy,
+        [dummy] {
+            emit dummy->textChanged(nullptr);
+        }
+    );
+
     QString highlight_mode = *highlighting_mode;
     doc->setHighlightingMode(highlight_mode);
 }
@@ -48,3 +67,10 @@ extern "C" void open_text_editor_config(QWidget* parent) {
     editor->configDialog(parent);
 }
 
+// Function to return the dummy widget of the Text Editor, for notifications.
+extern "C" QLineEdit* get_text_changed_dummy_widget(QWidget* view) {
+
+    KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
+    QLineEdit* dummy = doc_view->findChild<QLineEdit*>("Dummy");
+    return dummy;
+}
