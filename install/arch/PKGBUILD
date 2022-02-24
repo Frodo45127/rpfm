@@ -43,8 +43,8 @@ package() {
 
     # The UI files.
     mkdir -p "$pkgdir/usr/share/$_programname/ui"
-    for image in "$srcdir/$_programname/ui/."; do
-        cp -R $image "$pkgdir/usr/share/$_programname/ui/"
+    for ui_template in "$srcdir/$_programname/rpfm_ui/ui_templates/."; do
+        cp -R $ui_template "$pkgdir/usr/share/$_programname/ui/"
     done
 
     # Shortcuts.
