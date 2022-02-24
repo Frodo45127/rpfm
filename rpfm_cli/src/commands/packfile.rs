@@ -162,7 +162,7 @@ pub fn extract_files(
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
 	let result = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
-        .try_for_each(|x| packfile.extract_packed_file_by_path(&x, &destination_path, false));
+        .try_for_each(|x| packfile.extract_packed_file_by_path(&x, &destination_path, true));
 
     if config.verbosity_level > 0 {
         info!("Files successfully extracted from the PackFile.");
@@ -192,7 +192,7 @@ pub fn extract_folders(
     let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
     let paths = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()).map(PathType::Folder).collect::<Vec<PathType>>();
-    packfile.extract_packed_files_by_type(&paths, &destination_path, false)?;
+    packfile.extract_packed_files_by_type(&paths, &destination_path, true)?;
 
     if config.verbosity_level > 0 {
         info!("Folders successfully extracted from the PackFile.");
