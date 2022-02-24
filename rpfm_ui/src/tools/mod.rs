@@ -160,7 +160,6 @@ impl Tool {
         }
 
         // Load the UI Template.
-        let template_path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), template_path);
         let main_widget = Self::load_template(parent, &template_path)?;
 
         // Get the common widgets for all tools.
@@ -289,8 +288,9 @@ impl Tool {
 
     /// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
     pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
+        let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
         let mut data = vec!();
-        let mut file = BufReader::new(File::open(path)?);
+        let mut file = BufReader::new(File::open(&path)?);
         file.read_to_end(&mut data)?;
 
         let ui_loader = QUiLoader::new_0a();
