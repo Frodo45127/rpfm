@@ -14,7 +14,6 @@ Module with all the code for managing the UI.
 This module contains the code to manage the main UI and store all his slots.
 !*/
 
-use qt_gui::q_color::NameFormat;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialogButtonBox;
@@ -27,6 +26,7 @@ use qt_widgets::QTextEdit;
 use qt_widgets::QWidget;
 
 use qt_gui::QColor;
+use qt_gui::q_color::NameFormat;
 
 use qt_core::QBox;
 use qt_core::QObject;
