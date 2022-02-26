@@ -76,11 +76,11 @@ use crate::settings::get_config_path;
 use crate::schema::SCHEMA_FOLDER;
 use crate::SUPPORTED_GAMES;
 
-use crate::schema::Schema as SchemaV3;
-use crate::schema::VersionedFile as VersionedFileV3;
-use crate::schema::Definition as DefinitionV3;
-use crate::schema::FieldType as FieldTypeV3;
-use crate::schema::Field as FieldV3;
+use crate::schema::v3::SchemaV3;
+use crate::schema::v3::VersionedFileV3;
+use crate::schema::v3::DefinitionV3;
+use crate::schema::v3::FieldTypeV3;
+use crate::schema::v3::FieldV3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -316,7 +316,7 @@ impl Default for FieldV2 {
 impl From<&SchemaV2> for SchemaV3 {
     fn from(legacy_schema: &SchemaV2) -> Self {
         let mut schema = Self::default();
-        legacy_schema.versioned_files.iter().map(From::from).for_each(|x| schema.versioned_files.push(x));
+        legacy_schema.versioned_files.iter().map(From::from).for_each(|x| schema.add_versioned_file(&x));
         schema
     }
 }
@@ -334,8 +334,8 @@ impl From<&VersionedFileV2> for VersionedFileV3 {
 impl From<&DefinitionV2> for DefinitionV3 {
     fn from(legacy_table_definition: &DefinitionV2) -> Self {
         let mut definition = Self::new(legacy_table_definition.version);
-        legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.fields.push(x));
-        legacy_table_definition.localised_fields.iter().map(From::from).for_each(|x| definition.localised_fields.push(x));
+        legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.get_ref_mut_fields().push(x));
+        legacy_table_definition.localised_fields.iter().map(From::from).for_each(|x| definition.get_ref_mut_localised_fields().push(x));
         definition
     }
 }

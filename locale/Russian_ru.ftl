@@ -1245,6 +1245,7 @@ tt_game_selected_open_config_folder = { -tries_to } открыть папку с
 -tt_game_selected =
     Устанавливает «Total War: {$game}» в качестве { -game_selected(case: "genitive", capitalization: "lower") }
 
+tt_game_selected_warhammer_3 = { -tt_game_selected(game: "Warhammer 3") }.
 tt_game_selected_troy = { -tt_game_selected(game: "Troy") }.
 tt_game_selected_three_kingdoms = { -tt_game_selected(game: "Three Kingdoms") }.
 tt_game_selected_warhammer_2 = { -tt_game_selected(game: "Warhammer 2") }.

@@ -152,6 +152,16 @@ fn test_encode_float_f64() {
     assert_eq!(data, vec![102, 102, 102, 102, 102, 102, 36, 192]);
 }
 
+/// Test to make sure the u32 integer encoder (`encode_integer_colour_rgb()`) works properly.
+#[test]
+fn test_encode_integer_colour_rgb() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_colour_rgb(75392);
+    assert_eq!(data, vec![0x00, 0x80, 0x26, 0x01]);
+}
+
 /// Test to make sure the u8 string encoder (`encode_string_u8()`) works properly.
 #[test]
 fn test_encode_string_u8() {

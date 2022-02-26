@@ -18,6 +18,7 @@ extern "C" void new_generic_item_delegate(QObject *parent, const int column, QTi
 // Constructor of QExtendedStyledItemDelegate. We use it to store the integer type of the value in the delegate.
 QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer* timer, bool is_dark_theme_enabled, bool has_filter, bool right_side_mark): QStyledItemDelegate(parent)
 {
+    skipTextPainting = false;
     diag_timer = timer;
     dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
@@ -53,7 +54,9 @@ QWidget* QExtendedStyledItemDelegate::createEditor(QWidget *parent, const QStyle
 
 // Function for the delegate to showup properly.
 void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
-    QStyledItemDelegate::paint( painter, option, index );
+    if (!skipTextPainting) {
+        QStyledItemDelegate::paint( painter, option, index );
+    }
 
     if (use_filter && index.isValid()) {
         const QSortFilterProxyModel* filterModel = dynamic_cast<const QSortFilterProxyModel*>(index.model());

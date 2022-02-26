@@ -66,9 +66,11 @@ pub struct PackedFileDecoderViewSlots {
 
     pub use_this_bool: QBox<SlotNoArgs>,
     pub use_this_f32: QBox<SlotNoArgs>,
+    pub use_this_f64: QBox<SlotNoArgs>,
     pub use_this_i16: QBox<SlotNoArgs>,
     pub use_this_i32: QBox<SlotNoArgs>,
     pub use_this_i64: QBox<SlotNoArgs>,
+    pub use_this_colour_rgb: QBox<SlotNoArgs>,
     pub use_this_string_u8: QBox<SlotNoArgs>,
     pub use_this_string_u16: QBox<SlotNoArgs>,
     pub use_this_optional_string_u8: QBox<SlotNoArgs>,
@@ -147,6 +149,13 @@ impl PackedFileDecoderViewSlots {
             let _ = view.use_this(FieldType::F32, &mut mutable_data.index.lock().unwrap());
         }));
 
+        // Slot to use a long float value.
+        let use_this_f64 = SlotNoArgs::new(&view.table_view, clone!(
+            mut mutable_data,
+            mut view => move || {
+            let _ = view.use_this(FieldType::F64, &mut mutable_data.index.lock().unwrap());
+        }));
+
         // Slot to use an integer value.
         let use_this_i16 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
@@ -166,6 +175,13 @@ impl PackedFileDecoderViewSlots {
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::I64, &mut mutable_data.index.lock().unwrap());
+        }));
+
+        // Slot to use a 4byte colour value.
+        let use_this_colour_rgb = SlotNoArgs::new(&view.table_view, clone!(
+            mut mutable_data,
+            mut view => move || {
+            let _ = view.use_this(FieldType::ColourRGB, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a string u8 value.
@@ -543,9 +559,11 @@ impl PackedFileDecoderViewSlots {
                     PackedFileType::AnimTable => match AnimTable::read(&view.packed_file_data, &schema, true) {
                         Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
-                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
+                            } else {
+                                show_dialog(&app_ui.main_window, error, true);
                             }
                         }
                     }
@@ -553,9 +571,11 @@ impl PackedFileDecoderViewSlots {
                     PackedFileType::AnimFragment => match AnimFragment::read(&view.packed_file_data, &schema, true) {
                         Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
-                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
+                            } else {
+                                show_dialog(&app_ui.main_window, error, true);
                             }
                         }
                     }
@@ -563,9 +583,11 @@ impl PackedFileDecoderViewSlots {
                     PackedFileType::DB => match DB::read(&view.packed_file_data, &view.packed_file_path[1], &schema, true) {
                         Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
-                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
+                            } else {
+                                show_dialog(&app_ui.main_window, error, true);
                             }
                         }
                     }
@@ -573,9 +595,11 @@ impl PackedFileDecoderViewSlots {
                     PackedFileType::Loc => match Loc::read(&view.packed_file_data, &schema, true) {
                         Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
-                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
+                            } else {
+                                show_dialog(&app_ui.main_window, error, true);
                             }
                         }
                     }
@@ -583,9 +607,11 @@ impl PackedFileDecoderViewSlots {
                    PackedFileType::MatchedCombat => match MatchedCombat::read(&view.packed_file_data, &schema, true) {
                         Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
-                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
+                            } else {
+                                show_dialog(&app_ui.main_window, error, true);
                             }
                         }
                     }
@@ -656,9 +682,11 @@ impl PackedFileDecoderViewSlots {
 
             use_this_bool,
             use_this_f32,
+            use_this_f64,
             use_this_i16,
             use_this_i32,
             use_this_i64,
+            use_this_colour_rgb,
             use_this_string_u8,
             use_this_string_u16,
             use_this_optional_string_u8,

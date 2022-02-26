@@ -160,7 +160,11 @@ impl TipsView {
             remote_tips.iter().for_each(|tip| self.add_item_to_tip_list(tip, true));
             local_tips.iter().for_each(|tip| self.add_item_to_tip_list(tip, false));
 
-            self.list.parent().static_downcast::<QWidget>().set_visible(true);
+            let parent = self.list.parent().static_downcast::<QWidget>();
+            let grandparent = parent.parent().static_downcast::<QWidget>();
+            let layout = grandparent.layout().static_downcast::<QGridLayout>();
+            parent.set_visible(true);
+            layout.add_widget_5a(parent, 0, 99, layout.row_count(), 1);
         }
     }
 

@@ -234,6 +234,25 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_float(data), 2);
             item
         },
+        FieldType::F64 => {
+            let item = QStandardItem::new();
+            let data = if let Some(default_value) = field.get_default_value() {
+                if let Ok(default_value) = default_value.parse::<f64>() {
+                    default_value
+                } else {
+                    0.0f64
+                }
+            } else {
+                0.0f64
+            };
+
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_double(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_double(data), 2);
+            item
+        },
         FieldType::I16 => {
             let item = QStandardItem::new();
             let data = if let Some(default_value) = field.get_default_value() {
@@ -286,6 +305,23 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_i64(data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_i64(data), 2);
+            item
+        },
+        FieldType::ColourRGB => {
+            let text = if let Some(default_value) = field.get_default_value() {
+                if u32::from_str_radix(&default_value, 16).is_ok() {
+                    default_value.to_owned()
+                } else {
+                    "000000".to_owned()
+                }
+            } else {
+                "000000".to_owned()
+            };
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&text));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&text])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&text)), ITEM_SOURCE_VALUE);
             item
         },
         FieldType::StringU8 |
@@ -452,6 +488,26 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_float(data), 2);
             item
         },
+
+        DecodedData::F64(ref data) => {
+            let data = {
+                let data_str = format!("{}", data);
+                if let Some(position) = data_str.find('.') {
+                    let decimals = &data_str[position..].len();
+                    if *decimals > 3 { format!("{:.3}", data).parse::<f64>().unwrap() }
+                    else { *data }
+                }
+                else { *data }
+            };
+
+            let item = QStandardItem::new();
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_double(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_double(data), 2);
+            item
+        },
         DecodedData::I16(ref data) => {
             let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
@@ -479,6 +535,17 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_i64(*data), 2);
             item
         },
+
+        DecodedData::ColourRGB(_) => {
+            let data = data.data_to_string();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&data));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+            item
+        },
+
         // All these are Strings, so it can be together,
         DecodedData::StringU8(ref data) |
         DecodedData::StringU16(ref data) |
@@ -539,9 +606,11 @@ pub unsafe fn build_columns(
             match field.get_ref_field_type() {
                 FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
                 FieldType::F32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::F64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::ColourRGB => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
@@ -776,8 +845,8 @@ pub unsafe fn setup_item_delegates(
                 field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr(), true);
-            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length(), &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
         }
 
         else {
@@ -787,6 +856,10 @@ pub unsafe fn setup_item_delegates(
                     new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                 },
                 FieldType::F32 => {
+                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                },
+                FieldType::F64 => {
                     new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                     new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                 },
@@ -804,12 +877,16 @@ pub unsafe fn setup_item_delegates(
                     new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
                     new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
                 },
+                FieldType::ColourRGB => {
+                    new_colour_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_colour_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                },
                 FieldType::StringU8 |
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
                 FieldType::OptionalStringU16 => {
-                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr(), true);
-                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, field.get_max_length(), &timer.as_ptr(), true);
+                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
+                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                 },
                 FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {
                     new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
@@ -869,9 +946,13 @@ pub unsafe fn get_table_from_view(
 
                 // Numbers need parsing, and this can fail.
                 FieldType::F32 => DecodedData::F32(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
+                FieldType::F64 => DecodedData::F64(model.item_2a(row as i32, column as i32).data_1a(2).to_double_0a()),
                 FieldType::I16 => DecodedData::I16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
                 FieldType::I32 => DecodedData::I32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
                 FieldType::I64 => DecodedData::I64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
+
+                // Colours need parsing to turn them into integers.
+                FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(&model.item_2a(row as i32, column as i32).text().to_std_string(), 16).unwrap()),
 
                 // All these are just normal Strings.
                 FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),

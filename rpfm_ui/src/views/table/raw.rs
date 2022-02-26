@@ -65,103 +65,79 @@ impl TableView {
     /// This function updates the state of the actions in the context menu.
     pub unsafe fn context_menu_update(&self) {
 
-        if let DataSource::PackFile = self.get_data_source() {
+        // Disable everything, just in case.
+        self.context_menu_add_rows.set_enabled(false);
+        self.context_menu_insert_rows.set_enabled(false);
+        self.context_menu_clone_and_append.set_enabled(false);
+        self.context_menu_clone_and_insert.set_enabled(false);
+        self.context_menu_delete_rows.set_enabled(false);
+        self.context_menu_delete_rows_not_in_filter.set_enabled(false);
+        self.context_menu_paste.set_enabled(false);
+        self.context_menu_paste_as_new_row.set_enabled(false);
+        self.context_menu_rewrite_selection.set_enabled(false);
+        self.context_menu_generate_ids.set_enabled(false);
+        self.context_menu_undo.set_enabled(false);
+        self.context_menu_redo.set_enabled(false);
+        self.context_menu_import_tsv.set_enabled(false);
+        self.context_menu_cascade_edition.set_enabled(false);
+        self.smart_delete.set_enabled(false);
 
-            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
-            let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
+        // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
+        let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
 
-            // If we have something selected, enable these actions.
-            if indexes.count_0a() > 0 {
-                self.context_menu_clone_and_append.set_enabled(true);
-                self.context_menu_clone_and_insert.set_enabled(true);
-                self.context_menu_copy.set_enabled(true);
-                self.context_menu_copy_as_lua_table.set_enabled(true);
-                self.context_menu_delete_rows.set_enabled(true);
-                self.context_menu_generate_ids.set_enabled(true);
-                self.context_menu_rewrite_selection.set_enabled(true);
-                self.context_menu_cascade_edition.set_enabled(true);
+        // If we have something selected, enable these actions.
+        if indexes.count_0a() > 0 {
+            self.context_menu_copy.set_enabled(true);
+            self.context_menu_copy_as_lua_table.set_enabled(true);
 
-                if *self.packed_file_type == PackedFileType::DB {
-                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
-                } else {
-                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
-                }
-
-                if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
-                    self.context_menu_go_to_definition.set_enabled(true);
-                } else {
-                    self.context_menu_go_to_definition.set_enabled(false);
-                }
-
-            }
-
-            // Otherwise, disable them.
-            else {
-                self.context_menu_generate_ids.set_enabled(false);
-                self.context_menu_rewrite_selection.set_enabled(false);
-                self.context_menu_clone_and_append.set_enabled(false);
-                self.context_menu_clone_and_insert.set_enabled(false);
-                self.context_menu_copy.set_enabled(false);
-                self.context_menu_copy_as_lua_table.set_enabled(false);
-                self.context_menu_delete_rows.set_enabled(false);
-                self.context_menu_cascade_edition.set_enabled(false);
-                self.context_menu_go_to_definition.set_enabled(false);
+            if *self.packed_file_type == PackedFileType::DB {
+                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
+            } else {
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
             }
 
-            if !self.undo_lock.load(Ordering::SeqCst) {
-                self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
-                self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
+            if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
+                self.context_menu_go_to_definition.set_enabled(true);
+            } else {
+                self.context_menu_go_to_definition.set_enabled(false);
             }
         }
 
-        // Tables from out of our mod should not be able to edit anything.
+        // Otherwise, disable them.
         else {
+            self.context_menu_copy.set_enabled(false);
+            self.context_menu_copy_as_lua_table.set_enabled(false);
+            self.context_menu_go_to_definition.set_enabled(false);
+            self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+        }
 
-            self.context_menu_add_rows.set_enabled(false);
-            self.context_menu_insert_rows.set_enabled(false);
-            self.context_menu_clone_and_append.set_enabled(false);
-            self.context_menu_clone_and_insert.set_enabled(false);
-            self.context_menu_delete_rows.set_enabled(false);
-            self.context_menu_delete_rows_not_in_filter.set_enabled(false);
-            self.context_menu_paste.set_enabled(false);
-            self.context_menu_paste_as_new_row.set_enabled(false);
-            self.context_menu_rewrite_selection.set_enabled(false);
-            self.context_menu_generate_ids.set_enabled(false);
-            self.context_menu_undo.set_enabled(false);
-            self.context_menu_redo.set_enabled(false);
-            self.context_menu_import_tsv.set_enabled(false);
-            self.context_menu_cascade_edition.set_enabled(false);
-            self.smart_delete.set_enabled(false);
+        // Only enable editing if the table is ours and not banned.
+        if let DataSource::PackFile = self.get_data_source() {
+            if !self.banned_table {
 
-            // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
-            let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
+                // These ones are always enabled if the table is editable.
+                self.context_menu_add_rows.set_enabled(true);
+                self.context_menu_insert_rows.set_enabled(true);
+                self.context_menu_delete_rows_not_in_filter.set_enabled(true);
+                self.context_menu_paste_as_new_row.set_enabled(true);
+                self.context_menu_import_tsv.set_enabled(true);
+                self.smart_delete.set_enabled(true);
 
-            // If we have something selected, enable these actions.
-            if indexes.count_0a() > 0 {
-                self.context_menu_copy.set_enabled(true);
-                self.context_menu_copy_as_lua_table.set_enabled(true);
-
-                if *self.packed_file_type == PackedFileType::DB {
-                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
-                } else {
-                    self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
+                // If we have something selected, enable these actions.
+                if indexes.count_0a() > 0 {
+                    self.context_menu_clone_and_append.set_enabled(true);
+                    self.context_menu_clone_and_insert.set_enabled(true);
+                    self.context_menu_delete_rows.set_enabled(true);
+                    self.context_menu_paste.set_enabled(true);
+                    self.context_menu_rewrite_selection.set_enabled(true);
+                    self.context_menu_generate_ids.set_enabled(true);
+                    self.context_menu_cascade_edition.set_enabled(true);
                 }
 
-                if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
-                    self.context_menu_go_to_definition.set_enabled(true);
-                } else {
-                    self.context_menu_go_to_definition.set_enabled(false);
+                if !self.undo_lock.load(Ordering::SeqCst) {
+                    self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
+                    self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
                 }
-
-            }
-
-            // Otherwise, disable them.
-            else {
-                self.context_menu_copy.set_enabled(false);
-                self.context_menu_copy_as_lua_table.set_enabled(false);
-                self.context_menu_go_to_definition.set_enabled(false);
-                self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
             }
         }
     }
@@ -609,9 +585,11 @@ impl TableView {
                     let is_valid_data = match field.get_ref_field_type() {
                         FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
                         FieldType::F32 => text.parse::<f32>().is_ok(),
+                        FieldType::F64 => text.parse::<f64>().is_ok(),
                         FieldType::I16 => text.parse::<i16>().is_ok() || text.parse::<f32>().is_ok(),
                         FieldType::I32 => text.parse::<i32>().is_ok() || text.parse::<f32>().is_ok(),
                         FieldType::I64 => text.parse::<i64>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::ColourRGB => u32::from_str_radix(text, 16).is_ok(),
 
                         // All these are Strings, so we can skip their checks....
                         FieldType::StringU8 |
@@ -947,9 +925,23 @@ impl TableView {
                 }
                 else { data_str }
             },
+
+            // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
+            FieldType::F64 => {
+                let data_str = format!("{}", item.data_1a(2).to_float_0a());
+
+                // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
+                if let Some(position) = data_str.find('.') {
+                    let decimals = &data_str[position..].len();
+                    if *decimals > 3 { format!("{}", format!("{:.3}", item.data_1a(2).to_double_0a()).parse::<f64>().unwrap()) }
+                    else { data_str }
+                }
+                else { data_str }
+            },
             FieldType::I16 |
             FieldType::I32 |
             FieldType::I64 => format!("{}", item.data_1a(2).to_long_long_0a()),
+            FieldType::ColourRGB => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
 
             // All these are Strings, so they need to escape certain chars and include commas in Lua.
             FieldType::StringU8 |
@@ -1250,8 +1242,10 @@ impl TableView {
 
             let default_str = "".to_owned();
             let default_f32 = "0.0".to_owned();
+            let default_f64 = "0.0".to_owned();
             let default_i32 = "0".to_owned();
             let default_bool = "false".to_owned();
+            let default_colour_rgb = "000000".to_owned();
 
             let mut real_cells = vec![];
             let mut values = vec![];
@@ -1262,9 +1256,11 @@ impl TableView {
                         match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
                             FieldType::F32 => values.push(&*default_f32),
+                            FieldType::F64 => values.push(&*default_f64),
                             FieldType::I16 |
                             FieldType::I32 |
                             FieldType::I64 => values.push(&*default_i32),
+                            FieldType::ColourRGB => values.push(&*default_colour_rgb),
                             FieldType::StringU8 |
                             FieldType::StringU16 |
                             FieldType::OptionalStringU8 |
@@ -1328,6 +1324,19 @@ impl TableView {
                             let new_value_txt = format!("{:.3}", new_value);
                             if current_value != new_value_txt {
                                 self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
+                                changed_cells += 1;
+                                self.process_edition(self.table_model.item_from_index(real_cell));
+                            }
+                        }
+                    },
+
+                    // Same thing as with F32.
+                    FieldType::F64 => {
+                        let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_double_0a());
+                        if let Ok(new_value) = text.parse::<f64>() {
+                            let new_value_txt = format!("{:.3}", new_value);
+                            if current_value != new_value_txt {
+                                self.table_model.set_data_3a(real_cell, &QVariant::from_double(new_value), 2);
                                 changed_cells += 1;
                                 self.process_edition(self.table_model.item_from_index(real_cell));
                             }

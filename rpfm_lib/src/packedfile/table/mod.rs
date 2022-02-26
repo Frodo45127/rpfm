@@ -58,13 +58,15 @@ pub struct Table {
 ///
 /// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
 /// inside a single field. Used, for example, in certain model tables.
-#[derive(Clone, Debug, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialOrd, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     F32(f32),
+    F64(f64),
     I16(i16),
     I32(i32),
     I64(i64),
+    ColourRGB(u32),
     StringU8(String),
     StringU16(String),
     OptionalStringU8(String),
@@ -97,9 +99,11 @@ impl Display for DecodedData {
         match self {
             DecodedData::Boolean(_) => write!(f, "Boolean"),
             DecodedData::F32(_) => write!(f, "F32"),
+            DecodedData::F64(_) => write!(f, "F64"),
             DecodedData::I16(_) => write!(f, "I16"),
             DecodedData::I32(_) => write!(f, "I32"),
             DecodedData::I64(_) => write!(f, "I64"),
+            DecodedData::ColourRGB(_) => write!(f, "ColourRGB"),
             DecodedData::StringU8(_) => write!(f, "StringU8"),
             DecodedData::StringU16(_) => write!(f, "StringU16"),
             DecodedData::OptionalStringU8(_) => write!(f, "OptionalStringU8"),
@@ -116,9 +120,11 @@ impl PartialEq for DecodedData {
         match (self, other) {
             (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
             (DecodedData::F32(x), DecodedData::F32(y)) => float_eq::float_eq!(x, y, abs <= 0.001),
+            (DecodedData::F64(x), DecodedData::F64(y)) => float_eq::float_eq!(x, y, abs <= 0.001),
             (DecodedData::I16(x), DecodedData::I16(y)) => x == y,
             (DecodedData::I32(x), DecodedData::I32(y)) => x == y,
             (DecodedData::I64(x), DecodedData::I64(y)) => x == y,
+            (DecodedData::ColourRGB(x), DecodedData::ColourRGB(y)) => x == y,
             (DecodedData::StringU8(x), DecodedData::StringU8(y)) => x == y,
             (DecodedData::StringU16(x), DecodedData::StringU16(y)) => x == y,
             (DecodedData::OptionalStringU8(x), DecodedData::OptionalStringU8(y)) => x == y,
@@ -139,9 +145,11 @@ impl DecodedData {
             Some(default_value) => match field_type {
                 FieldType::Boolean => if let Ok(value) = parse_str_as_bool(default_value) { DecodedData::Boolean(value) } else { DecodedData::Boolean(false) },
                 FieldType::F32 => if let Ok(value) = default_value.parse::<f32>() { DecodedData::F32(value) } else { DecodedData::F32(0.0) },
+                FieldType::F64 => if let Ok(value) = default_value.parse::<f64>() { DecodedData::F64(value) } else { DecodedData::F64(0.0) },
                 FieldType::I16 => if let Ok(value) = default_value.parse::<i16>() { DecodedData::I16(value) } else { DecodedData::I16(0) },
                 FieldType::I32 => if let Ok(value) = default_value.parse::<i32>() { DecodedData::I32(value) } else { DecodedData::I32(0) },
                 FieldType::I64 => if let Ok(value) = default_value.parse::<i64>() { DecodedData::I64(value) } else { DecodedData::I64(0) },
+                FieldType::ColourRGB => if let Ok(value) = default_value.parse::<u32>() { DecodedData::ColourRGB(value) } else { DecodedData::ColourRGB(0) },
                 FieldType::StringU8 => DecodedData::StringU8(default_value.to_owned()),
                 FieldType::StringU16 => DecodedData::StringU16(default_value.to_owned()),
                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(default_value.to_owned()),
@@ -154,9 +162,11 @@ impl DecodedData {
             None => match field_type {
                 FieldType::Boolean => DecodedData::Boolean(false),
                 FieldType::F32 => DecodedData::F32(0.0),
+                FieldType::F64 => DecodedData::F64(0.0),
                 FieldType::I16 => DecodedData::I16(0),
                 FieldType::I32 => DecodedData::I32(0),
                 FieldType::I64 => DecodedData::I64(0),
+                FieldType::ColourRGB => DecodedData::ColourRGB(0),
                 FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
                 FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
@@ -172,9 +182,11 @@ impl DecodedData {
         match self {
             DecodedData::Boolean(_) => field_type == &FieldType::Boolean,
             DecodedData::F32(_) => field_type == &FieldType::F32,
+            DecodedData::F64(_) => field_type == &FieldType::F64,
             DecodedData::I16(_) => field_type == &FieldType::I16,
             DecodedData::I32(_) => field_type == &FieldType::I32,
             DecodedData::I64(_) => field_type == &FieldType::I64,
+            DecodedData::ColourRGB(_) => field_type == &FieldType::ColourRGB,
             DecodedData::StringU8(_) => field_type == &FieldType::StringU8,
             DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
             DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
@@ -192,9 +204,11 @@ impl DecodedData {
             Self::Boolean(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(self.clone()),
                 FieldType::F32 => Ok(Self::F32(if *data { 1.0 } else { 0.0 })),
+                FieldType::F64 => Ok(Self::F64(if *data { 1.0 } else { 0.0 })),
                 FieldType::I16 => Ok(Self::I16(if *data { 1 } else { 0 })),
                 FieldType::I32 => Ok(Self::I32(if *data { 1 } else { 0 })),
                 FieldType::I64 => Ok(Self::I64(if *data { 1 } else { 0 })),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(if *data { 1 } else { 0 })),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
@@ -206,9 +220,27 @@ impl DecodedData {
             Self::F32(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(Self::Boolean(data > &1.0)),
                 FieldType::F32 => Ok(self.clone()),
+                FieldType::F64 => Ok(Self::F64(*data as f64)),
                 FieldType::I16 => Ok(Self::I16(*data as i16)),
                 FieldType::I32 => Ok(Self::I32(*data as i32)),
                 FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(*data as u32)),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::F64(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1.0)),
+                FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::F64 => Ok(self.clone()),
+                FieldType::I16 => Ok(Self::I16(*data as i16)),
+                FieldType::I32 => Ok(Self::I32(*data as i32)),
+                FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(*data as u32)),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
@@ -220,9 +252,11 @@ impl DecodedData {
             Self::I16(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(Self::Boolean(data > &1)),
                 FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::F64 => Ok(Self::F64(*data as f64)),
                 FieldType::I16 => Ok(self.clone()),
                 FieldType::I32 => Ok(Self::I32(*data as i32)),
                 FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(*data as u32)),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
@@ -234,9 +268,11 @@ impl DecodedData {
             Self::I32(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(Self::Boolean(data > &1)),
                 FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::F64 => Ok(Self::F64(*data as f64)),
                 FieldType::I16 => Ok(Self::I16(*data as i16)),
                 FieldType::I32 => Ok(self.clone()),
                 FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(*data as u32)),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
@@ -248,13 +284,31 @@ impl DecodedData {
             Self::I64(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(Self::Boolean(data > &1)),
                 FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::F64 => Ok(Self::F64(*data as f64)),
                 FieldType::I16 => Ok(Self::I16(*data as i16)),
                 FieldType::I32 => Ok(Self::I32(*data as i32)),
                 FieldType::I64 => Ok(self.clone()),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(*data as u32)),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
                 FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::ColourRGB(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1)),
+                FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::F64 => Ok(Self::F64(*data as f64)),
+                FieldType::I16 => Ok(Self::I16(*data as i16)),
+                FieldType::I32 => Ok(Self::I32(*data as i32)),
+                FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::ColourRGB => Ok(self.clone()),
+                FieldType::StringU8 => Ok(Self::StringU8(self.data_to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(self.data_to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(self.data_to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(self.data_to_string())),
                 FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
                 FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
             }
@@ -265,9 +319,11 @@ impl DecodedData {
             Self::OptionalStringU16(ref data) => match new_field_type {
                 FieldType::Boolean => Ok(Self::Boolean(parse_str_as_bool(data)?)),
                 FieldType::F32 => Ok(Self::F32(data.parse::<f32>()?)),
+                FieldType::F64 => Ok(Self::F64(data.parse::<f64>()?)),
                 FieldType::I16 => Ok(Self::I16(data.parse::<i16>()?)),
                 FieldType::I32 => Ok(Self::I32(data.parse::<i32>()?)),
                 FieldType::I64 => Ok(Self::I64(data.parse::<i64>()?)),
+                FieldType::ColourRGB => Ok(Self::ColourRGB(u32::from_str_radix(data, 16)?)),
                 FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
                 FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
                 FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
@@ -275,6 +331,7 @@ impl DecodedData {
                 FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
                 FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
             }
+
             /*
             Self::SequenceU16(ref data) => match new_field_type {
                 FieldType::SequenceU16(ref definition) => Ok(self.clone()),
@@ -296,9 +353,20 @@ impl DecodedData {
         match self {
             DecodedData::Boolean(data) => data.to_string(),
             DecodedData::F32(data) => format!("{:.3}", data),
+            DecodedData::F64(data) => format!("{:.3}", data),
             DecodedData::I16(data) => data.to_string(),
             DecodedData::I32(data) => data.to_string(),
             DecodedData::I64(data) => data.to_string(),
+
+            // Special case: we need to convert this into the hex representation of its bytes.
+            DecodedData::ColourRGB(data) => {
+                let mut encoded = Vec::with_capacity(4);
+                encoded.encode_integer_colour_rgb(*data);
+                match encoded.decode_string_colour_rgb(0) {
+                    Ok(data) => data,
+                    Err(_) => "000000".to_owned(),
+                }
+            },
             DecodedData::StringU8(data) |
             DecodedData::StringU16(data) |
             DecodedData::OptionalStringU8(data) |
@@ -447,6 +515,7 @@ impl Table {
         self.entries = vec![];
         for row in 0..entry_count {
             let mut decoded_row = Vec::with_capacity(self.definition.get_ref_fields().len());
+            let mut split_colour_fields: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
             for column in 0..self.definition.get_ref_fields().len() {
                 let field = &self.definition.get_ref_fields()[column];
                 let decoded_cell = match field.get_ref_field_type() {
@@ -457,6 +526,10 @@ impl Table {
                     FieldType::F32 => {
                         if let Ok(data) = data.decode_packedfile_float_f32(*index, &mut index) { Ok(DecodedData::F32(data)) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1))) }
+                    }
+                    FieldType::F64 => {
+                        if let Ok(data) = data.decode_packedfile_float_f64(*index, &mut index) { Ok(DecodedData::F64(data)) }
+                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F64</b></i> value: the value is not a valid F64, or there are insufficient bytes left to decode it as a F64 value.</p>", row + 1, column + 1))) }
                     }
                     FieldType::I16 => {
                         if let Ok(data) = data.decode_packedfile_integer_i16(*index, &mut index) { Ok(DecodedData::I16(data)) }
@@ -469,6 +542,10 @@ impl Table {
                     FieldType::I64 => {
                         if let Ok(data) = data.decode_packedfile_integer_i64(*index, &mut index) { Ok(DecodedData::I64(data)) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1))) }
+                    }
+                    FieldType::ColourRGB => {
+                        if let Ok(data) = data.decode_packedfile_integer_colour_rgb(*index, &mut index) { Ok(DecodedData::ColourRGB(data)) }
+                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Colour RGB</b></i> value: the value is not a valid RGB value, or there are insufficient bytes left to decode it as an RGB value.</p>", row + 1, column + 1))) }
                     }
                     FieldType::StringU8 => {
                         if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
@@ -538,6 +615,30 @@ impl Table {
                             }
                         }
 
+                        // If the field is part of an split colour field group, don't add it. We'll separate it from the rest, then merge them into a ColourRGB field.
+                        else if let Some(colour_index) = field.get_is_part_of_colour() {
+                            let data = match data {
+                                DecodedData::I16(ref data) => *data as u8,
+                                DecodedData::I32(ref data) => *data as u8,
+                                DecodedData::I64(ref data) => *data as u8,
+                                DecodedData::F32(ref data) => *data as u8,
+                                DecodedData::F64(ref data) => *data as u8,
+                                _ => return Err(ErrorKind::Generic.into())
+                            };
+
+                            // This can be r, g, b, red, green, blue.
+                            let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
+                            let colour_channel = colour_split[0].to_lowercase();
+                            match split_colour_fields.get_mut(&colour_index) {
+                                Some(colour_pack) => { colour_pack.insert(colour_channel, data); }
+                                None => {
+                                    let mut colour_pack = HashMap::new();
+                                    colour_pack.insert(colour_channel, data);
+                                    split_colour_fields.insert(colour_index, colour_pack);
+                                }
+                            }
+                        }
+
                         else {
                             decoded_row.push(data);
                         }
@@ -546,6 +647,40 @@ impl Table {
                     else { return Err(error.into()) }
                 }
             }
+
+            for split_colour in split_colour_fields.values() {
+                let mut colour_hex = "".to_owned();
+                if let Some(r) = split_colour.get("r") {
+                    colour_hex.push_str(&format!("{:02X?}", r));
+                }
+
+                if let Some(r) = split_colour.get("red") {
+                    colour_hex.push_str(&format!("{:02X?}", r));
+                }
+
+                if let Some(g) = split_colour.get("g") {
+                    colour_hex.push_str(&format!("{:02X?}", g));
+                }
+
+                if let Some(g) = split_colour.get("green") {
+                    colour_hex.push_str(&format!("{:02X?}", g));
+                }
+
+                if let Some(b) = split_colour.get("b") {
+                    colour_hex.push_str(&format!("{:02X?}", b));
+                }
+
+                if let Some(b) = split_colour.get("blue") {
+                    colour_hex.push_str(&format!("{:02X?}", b));
+                }
+
+                if let Ok(value) = u32::from_str_radix(&colour_hex, 16) {
+                    decoded_row.push(DecodedData::ColourRGB(value));
+                } else {
+                    return Err(ErrorKind::Generic.into());
+                }
+            }
+
             self.entries.push(decoded_row);
         }
         Ok(())
@@ -560,9 +695,48 @@ impl Table {
             // First, we need to make sure all rows we're going to encode are exactly what we expect.
             if row.len() != fields_processed.len() { return Err(ErrorKind::TableRowWrongFieldCount(fields_processed.len() as u32, row.len() as u32).into()) }
             let mut data_column = 0;
-            for field in fields {
 
-                if field.get_is_bitwise() > 1 {
+            let combined_colour_positions = fields.iter().filter_map(|field| {
+                if field.get_is_part_of_colour().is_some() {
+                    let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
+                    let colour_field_name: String = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+
+                    self.definition.get_column_position_by_name(&colour_field_name).ok().map(|x| (colour_field_name, x))
+                } else { None }
+            }).collect::<HashMap<String, usize>>();
+
+            for field in fields {
+                if field.get_is_part_of_colour().is_some() {
+                    let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
+                    let colour_channel = colour_split[0].to_lowercase();
+                    let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+
+                    if let Some(data_column) = combined_colour_positions.get(&colour_field_name) {
+                        match row[*data_column] {
+                            DecodedData::ColourRGB(data) => {
+                                let mut encoded = vec![];
+                                encoded.encode_integer_u32(data);
+                                let data = if colour_channel == "r" || colour_channel == "red" { encoded[2] }
+                                else if colour_channel == "g" || colour_channel == "green" { encoded[1] }
+                                else if colour_channel == "b" || colour_channel == "blue" { encoded[0] }
+                                else { 0 };
+
+                                match field.get_field_type() {
+                                    FieldType::I16 => packed_file.encode_integer_i16(data as i16),
+                                    FieldType::I32 => packed_file.encode_integer_i32(data as i32),
+                                    FieldType::I64 => packed_file.encode_integer_i64(data as i64),
+                                    FieldType::F32 => packed_file.encode_float_f32(data as f32),
+                                    FieldType::F64 => packed_file.encode_float_f64(data as f64),
+                                    _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[*data_column]), format!("{}", field.get_ref_field_type())).into())
+                                }
+
+                            },
+                            _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[*data_column]), format!("{}", field.get_ref_field_type())).into())
+                        }
+                    }
+                }
+
+                else if field.get_is_bitwise() > 1 {
                     let mut data: i64 = 0;
                     for bitwise_column in 0..field.get_is_bitwise() {
                         if let DecodedData::Boolean(boolean) = row[data_column] {
@@ -592,9 +766,11 @@ impl Table {
                     match row[data_column] {
                         DecodedData::Boolean(data) => packed_file.encode_bool(data),
                         DecodedData::F32(data) => packed_file.encode_float_f32(data),
+                        DecodedData::F64(data) => packed_file.encode_float_f64(data),
                         DecodedData::I16(data) => packed_file.encode_integer_i16(data),
                         DecodedData::I32(data) => packed_file.encode_integer_i32(data),
                         DecodedData::I64(data) => packed_file.encode_integer_i64(data),
+                        DecodedData::ColourRGB(data) => packed_file.encode_integer_colour_rgb(data),
                         DecodedData::StringU8(ref data) |
                         DecodedData::StringU16(ref data) |
                         DecodedData::OptionalStringU8(ref data) |
@@ -663,7 +839,7 @@ impl Table {
 
     /// This function returns a new empty row for the provided definition.
     pub fn get_new_row(definition: &Definition) -> Vec<DecodedData> {
-        definition.get_ref_fields().iter()
+        definition.get_fields_processed().iter()
             .map(|field|
                 match field.get_ref_field_type() {
                     FieldType::Boolean => {
@@ -688,11 +864,19 @@ impl Table {
                             vec![DecodedData::F32(0.0); 1]
                         }
                     },
-                    FieldType::I16 => {
-                        if field.get_is_bitwise() > 1 {
-                            vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
+                    FieldType::F64 => {
+                        if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<f64>() {
+                                vec![DecodedData::F64(default_value); 1]
+                            } else {
+                                vec![DecodedData::F64(0.0); 1]
+                            }
+                        } else {
+                            vec![DecodedData::F64(0.0); 1]
                         }
-                        else if let Some(default_value) = field.get_default_value() {
+                    },
+                    FieldType::I16 => {
+                        if let Some(default_value) = field.get_default_value() {
                             if let Ok(default_value) = default_value.parse::<i16>() {
                                 vec![DecodedData::I16(default_value); 1]
                             } else {
@@ -703,10 +887,7 @@ impl Table {
                         }
                     },
                     FieldType::I32 => {
-                        if field.get_is_bitwise() > 1 {
-                            vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
-                        }
-                        else if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value() {
                             if let Ok(default_value) = default_value.parse::<i32>() {
                                 vec![DecodedData::I32(default_value); 1]
                             } else {
@@ -717,10 +898,7 @@ impl Table {
                         }
                     },
                     FieldType::I64 => {
-                        if field.get_is_bitwise() > 1 {
-                            vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
-                        }
-                        else if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value() {
                             if let Ok(default_value) = default_value.parse::<i64>() {
                                 vec![DecodedData::I64(default_value); 1]
                             } else {
@@ -728,6 +906,19 @@ impl Table {
                             }
                         } else {
                             vec![DecodedData::I64(0); 1]
+                        }
+                    },
+
+                    // TODO: make this take a string as default value.
+                    FieldType::ColourRGB => {
+                        if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = u32::from_str_radix(default_value, 16) {
+                                vec![DecodedData::ColourRGB(default_value); 1]
+                            } else {
+                                vec![DecodedData::ColourRGB(0); 1]
+                            }
+                        } else {
+                            vec![DecodedData::ColourRGB(0); 1]
                         }
                     },
                     FieldType::StringU8 => {
@@ -930,9 +1121,11 @@ impl Table {
                                         else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
                                     }
                                     FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(field, 16).map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
                                     FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
                                     FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
@@ -1034,9 +1227,11 @@ impl Table {
                                         else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
                                     }
                                     FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                    FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(field, 16).map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
                                     FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
                                     FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
                                     FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
@@ -1207,9 +1402,11 @@ impl From<&RawTable> for Table {
                             entry.push(match field_def.get_ref_field_type() {
                                 FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
                                 FieldType::F32 => DecodedData::F32(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
+                                FieldType::F64 => DecodedData::F64(if let Ok(data) = field.field_data.parse::<f64>() { data } else { 0.0 }),
                                 FieldType::I16 => DecodedData::I16(if let Ok(data) = field.field_data.parse::<i16>() { data } else { 0 }),
                                 FieldType::I32 => DecodedData::I32(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
                                 FieldType::I64 => DecodedData::I64(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
+                                FieldType::ColourRGB => DecodedData::ColourRGB(if let Ok(data) = u32::from_str_radix(&field.field_data, 16) { data } else { 0 }),
                                 FieldType::StringU8 => DecodedData::StringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                 FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
@@ -1233,6 +1430,30 @@ impl From<&RawTable> for Table {
         }
         else {
             Self::new(&Definition::new(-100))
+        }
+    }
+}
+
+/// Custom serialize impl for DecodedData.
+impl serde::ser::Serialize for DecodedData {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        match self {
+            DecodedData::Boolean(data) => serializer.serialize_bool(*data),
+            DecodedData::F32(data) => serializer.serialize_f32(*data),
+            DecodedData::F64(data) => serializer.serialize_f64(*data),
+            DecodedData::I16(data) => serializer.serialize_i16(*data),
+            DecodedData::I32(data) => serializer.serialize_i32(*data),
+            DecodedData::I64(data) => serializer.serialize_i64(*data),
+            DecodedData::ColourRGB(_) => serializer.serialize_str(&self.data_to_string()),
+            DecodedData::StringU8(data) => serializer.serialize_str(data),
+            DecodedData::StringU16(data) => serializer.serialize_str(data),
+            DecodedData::OptionalStringU8(data) => serializer.serialize_str(data),
+            DecodedData::OptionalStringU16(data) => serializer.serialize_str(data),
+            DecodedData::SequenceU16(data) => serializer.serialize_some(data),
+            DecodedData::SequenceU32(data) => serializer.serialize_some(data),
         }
     }
 }

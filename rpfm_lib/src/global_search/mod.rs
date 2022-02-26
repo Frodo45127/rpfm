@@ -538,6 +538,11 @@ impl GlobalSearch {
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<f32>()?;
                     }
+                    DecodedData::F64(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<f64>()?;
+                    }
                     DecodedData::I16(ref mut field) => {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
@@ -552,6 +557,11 @@ impl GlobalSearch {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<i64>()?;
+                    }
+                    DecodedData::ColourRGB(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<u32>()?;
                     }
                     DecodedData::StringU8(ref mut field) |
                     DecodedData::StringU16(ref mut field) |
@@ -605,9 +615,11 @@ impl GlobalSearch {
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
                     DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::ColourRGB(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |
@@ -633,9 +645,11 @@ impl GlobalSearch {
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
                     DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
                     DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::ColourRGB(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |

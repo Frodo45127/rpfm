@@ -68,6 +68,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
 use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
 use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
 use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
@@ -122,6 +123,7 @@ pub struct PackedFileDecoderView {
 
     bool_line_edit: QBox<QLineEdit>,
     f32_line_edit: QBox<QLineEdit>,
+    f64_line_edit: QBox<QLineEdit>,
     i16_line_edit: QBox<QLineEdit>,
     i32_line_edit: QBox<QLineEdit>,
     i64_line_edit: QBox<QLineEdit>,
@@ -129,10 +131,12 @@ pub struct PackedFileDecoderView {
     string_u16_line_edit: QBox<QLineEdit>,
     optional_string_u8_line_edit: QBox<QLineEdit>,
     optional_string_u16_line_edit: QBox<QLineEdit>,
+    colour_rgb_line_edit: QBox<QLineEdit>,
     sequence_u32_line_edit: QBox<QLineEdit>,
 
     bool_button: QBox<QPushButton>,
     f32_button: QBox<QPushButton>,
+    f64_button: QBox<QPushButton>,
     i16_button: QBox<QPushButton>,
     i32_button: QBox<QPushButton>,
     i64_button: QBox<QPushButton>,
@@ -140,6 +144,7 @@ pub struct PackedFileDecoderView {
     string_u16_button: QBox<QPushButton>,
     optional_string_u8_button: QBox<QPushButton>,
     optional_string_u16_button: QBox<QPushButton>,
+    colour_rgb_button: QBox<QPushButton>,
     sequence_u32_button: QBox<QPushButton>,
 
     packed_file_info_version_decoded_spinbox: QBox<QSpinBox>,
@@ -265,6 +270,7 @@ impl PackedFileDecoderView {
         // Create the stuff for the decoded fields.
         let bool_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Bool\":"), &decoded_fields_frame);
         let f32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"F32\":"), &decoded_fields_frame);
+        let f64_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"F64\":"), &decoded_fields_frame);
         let i16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I16\":"), &decoded_fields_frame);
         let i32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I32\":"), &decoded_fields_frame);
         let i64_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I64\":"), &decoded_fields_frame);
@@ -272,10 +278,12 @@ impl PackedFileDecoderView {
         let string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"String U16\":"), &decoded_fields_frame);
         let optional_string_u8_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U8\":"), &decoded_fields_frame);
         let optional_string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U16\":"), &decoded_fields_frame);
+        let colour_rgb_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Colour (RGB)\":"), &decoded_fields_frame);
         let sequence_u32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"SequenceU32\":"), &decoded_fields_frame);
 
         let bool_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let f32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let f64_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let i16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let i32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let i64_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
@@ -283,10 +291,12 @@ impl PackedFileDecoderView {
         let string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let optional_string_u8_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let optional_string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let colour_rgb_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let sequence_u32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
 
         let bool_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let f32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let f64_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let i16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let i32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let i64_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
@@ -294,40 +304,47 @@ impl PackedFileDecoderView {
         let string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let optional_string_u8_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let optional_string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let colour_rgb_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let sequence_u32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
 
         decoded_fields_layout.add_widget_5a(&bool_label, 0, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_label, 1, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i16_label, 2, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i32_label, 3, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i64_label, 4, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_label, 5, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_label, 6, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_label, 7, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_label, 8, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_label, 9, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f64_label, 2, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_label, 3, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_label, 4, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_label, 5, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_label, 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_label, 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_label, 8, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_label, 9, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_label, 10, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_label, 11, 0, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&bool_line_edit, 0, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_line_edit, 1, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i16_line_edit, 2, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i32_line_edit, 3, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i64_line_edit, 4, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_line_edit, 5, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_line_edit, 6, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_line_edit, 7, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_line_edit, 8, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_line_edit, 9, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f64_line_edit, 2, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_line_edit, 3, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_line_edit, 4, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_line_edit, 5, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_line_edit, 8, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_line_edit, 9, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_line_edit, 10, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_line_edit, 11, 1, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&bool_button, 0, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_button, 1, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i16_button, 2, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i32_button, 3, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&i64_button, 4, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_button, 5, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_button, 6, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_button, 7, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 8, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_button, 9, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f64_button, 2, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_button, 3, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_button, 4, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_button, 5, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_button, 8, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_button, 9, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 10, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_button, 11, 2, 1, 1);
 
         layout.add_widget_5a(&decoded_fields_frame, 1, 1, 3, 1);
 
@@ -431,6 +448,7 @@ impl PackedFileDecoderView {
 
             bool_line_edit,
             f32_line_edit,
+            f64_line_edit,
             i16_line_edit,
             i32_line_edit,
             i64_line_edit,
@@ -438,10 +456,12 @@ impl PackedFileDecoderView {
             string_u16_line_edit,
             optional_string_u8_line_edit,
             optional_string_u16_line_edit,
+            colour_rgb_line_edit,
             sequence_u32_line_edit,
 
             bool_button,
             f32_button,
+            f64_button,
             i16_button,
             i32_button,
             i64_button,
@@ -449,6 +469,7 @@ impl PackedFileDecoderView {
             string_u16_button,
             optional_string_u8_button,
             optional_string_u16_button,
+            colour_rgb_button,
             sequence_u32_button,
 
             packed_file_info_version_decoded_spinbox,
@@ -667,6 +688,10 @@ impl PackedFileDecoderView {
         &self.f32_button
     }
 
+    fn get_mut_ptr_f64_button(&self) -> &QBox<QPushButton> {
+        &self.f64_button
+    }
+
     fn get_mut_ptr_i16_button(&self) -> &QBox<QPushButton> {
         &self.i16_button
     }
@@ -677,6 +702,10 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_i64_button(&self) -> &QBox<QPushButton> {
         &self.i64_button
+    }
+
+    fn get_mut_ptr_colour_rgb_button(&self) -> &QBox<QPushButton> {
+        &self.colour_rgb_button
     }
 
     fn get_mut_ptr_string_u8_button(&self) -> &QBox<QPushButton> {
@@ -837,9 +866,11 @@ impl PackedFileDecoderView {
 
         let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
         let decoded_f32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F32, &mut index.clone());
+        let decoded_f64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F64, &mut index.clone());
         let decoded_i16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I16, &mut index.clone());
         let decoded_i32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I32, &mut index.clone());
         let decoded_i64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I64, &mut index.clone());
+        let decoded_colour_rgb = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::ColourRGB, &mut index.clone());
         let decoded_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU8, &mut index.clone());
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
@@ -849,9 +880,11 @@ impl PackedFileDecoderView {
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
         self.f32_line_edit.set_text(&QString::from_std_str(decoded_f32));
+        self.f64_line_edit.set_text(&QString::from_std_str(decoded_f64));
         self.i16_line_edit.set_text(&QString::from_std_str(decoded_i16));
         self.i32_line_edit.set_text(&QString::from_std_str(decoded_i32));
         self.i64_line_edit.set_text(&QString::from_std_str(decoded_i64));
+        self.colour_rgb_line_edit.set_text(&QString::from_std_str(decoded_colour_rgb));
         self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
         self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
         self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
@@ -989,9 +1022,11 @@ impl PackedFileDecoderView {
         let field_type = match field.get_ref_field_type() {
             FieldType::Boolean => "Bool",
             FieldType::F32 => "F32",
+            FieldType::F64 => "F64",
             FieldType::I16 => "I16",
             FieldType::I32 => "I32",
             FieldType::I64 => "I64",
+            FieldType::ColourRGB => "ColourRGB",
             FieldType::StringU8 => "StringU8",
             FieldType::StringU16 => "StringU16",
             FieldType::OptionalStringU8 => "OptionalStringU8",
@@ -1026,7 +1061,6 @@ impl PackedFileDecoderView {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 
-        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_max_length())));
         let field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
@@ -1046,6 +1080,11 @@ impl PackedFileDecoderView {
         let field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
         field_number.set_editable(false);
 
+        let field_is_part_of_colour = QStandardItem::new();
+        if let Some(ref is_part_of_colour) = field.get_is_part_of_colour() {
+            field_is_part_of_colour.set_data_2a(&QVariant::from_uint(*is_part_of_colour as u32), 2);
+        }
+
         // The first one is the row number, to be updated later.
         qlist.append_q_standard_item(&field_number.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_name.into_ptr().as_mut_raw_ptr());
@@ -1056,13 +1095,13 @@ impl PackedFileDecoderView {
         qlist.append_q_standard_item(&field_reference_field.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_lookup_columns.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_default_value.into_ptr().as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_max_length.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_is_filename.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_filename_relative_path.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_ca_order.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_description.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_is_bitwise.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&field_enum_values.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_part_of_colour.into_ptr().as_mut_raw_ptr());
 
         // If it's the initial load, insert them recursively.
         if is_initial_load {
@@ -1140,6 +1179,12 @@ impl PackedFileDecoderView {
                     Err(_) => "Error".to_owned(),
                 }
             },
+            FieldType::F64 => {
+                match packed_file_data.decode_packedfile_float_f64(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
             FieldType::I16 => {
                 match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
                     Ok(result) => result.to_string(),
@@ -1154,6 +1199,12 @@ impl PackedFileDecoderView {
             },
             FieldType::I64 => {
                 match packed_file_data.decode_packedfile_integer_i64(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::ColourRGB => {
+                match packed_file_data.decode_packedfile_string_colour_rgb(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
@@ -1237,9 +1288,11 @@ impl PackedFileDecoderView {
                     let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
                         "Bool" => FieldType::Boolean,
                         "F32" => FieldType::F32,
+                        "F64" => FieldType::F64,
                         "I16" => FieldType::I16,
                         "I32" => FieldType::I32,
                         "I64" => FieldType::I64,
+                        "ColourRGB" => FieldType::ColourRGB,
                         "StringU8" => FieldType::StringU8,
                         "StringU16" => FieldType::StringU16,
                         "OptionalStringU8" => FieldType::OptionalStringU8,
@@ -1348,22 +1401,22 @@ impl PackedFileDecoderView {
                 let ref_column = self.table_model.item_from_index(model_index.sibling_at_column(6).as_ref()).text().to_std_string();
                 let field_lookup = self.table_model.item_from_index(model_index.sibling_at_column(7).as_ref()).text().to_std_string();
                 let field_default_value = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
-                let field_max_length = self.table_model.item_from_index(model_index.sibling_at_column(9).as_ref()).text().to_std_string().parse::<i32>().unwrap();
-                let field_is_filename = self.table_model.item_from_index(model_index.sibling_at_column(10).as_ref()).check_state() == CheckState::Checked;
-                let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string();
-                let field_ca_order = self.table_model.item_from_index(model_index.sibling_at_column(12).as_ref()).text().to_std_string().parse::<i16>().unwrap();
-                let field_description = self.table_model.item_from_index(model_index.sibling_at_column(13).as_ref()).text().to_std_string();
-                let field_is_bitwise = self.table_model.item_from_index(model_index.sibling_at_column(14).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+                let field_is_filename = self.table_model.item_from_index(model_index.sibling_at_column(9).as_ref()).check_state() == CheckState::Checked;
+                let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(10).as_ref()).text().to_std_string();
+                let field_ca_order = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string().parse::<i16>().unwrap();
+                let field_description = self.table_model.item_from_index(model_index.sibling_at_column(12).as_ref()).text().to_std_string();
+                let field_is_bitwise = self.table_model.item_from_index(model_index.sibling_at_column(13).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+                let field_is_part_of_colour = self.table_model.item_from_index(model_index.sibling_at_column(15).as_ref()).text().to_std_string().parse::<u8>().ok();
 
                 let mut field_enum_values = BTreeMap::new();
-                let enmu_types = self.table_model.item_from_index(model_index.sibling_at_column(15).as_ref())
+                let enum_types = self.table_model.item_from_index(model_index.sibling_at_column(14).as_ref())
                     .text()
                     .to_std_string()
                     .split(';')
                     .map(|x| x.to_owned())
                     .collect::<Vec<String>>();
 
-                for enum_type in &enmu_types {
+                for enum_type in &enum_types {
                     let enum_values = enum_type.split(',').collect::<Vec<&str>>();
 
                     if enum_values.len() == 2 {
@@ -1378,9 +1431,11 @@ impl PackedFileDecoderView {
                 let field_type = match &*field_type {
                     "Bool" => FieldType::Boolean,
                     "F32" => FieldType::F32,
+                    "F64" => FieldType::F64,
                     "I16" => FieldType::I16,
                     "I32" => FieldType::I32,
                     "I64" => FieldType::I64,
+                    "ColourRGB" => FieldType::ColourRGB,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
@@ -1408,7 +1463,6 @@ impl PackedFileDecoderView {
                         field_type,
                         field_is_key,
                         if field_default_value.is_empty() { None } else { Some(field_default_value) },
-                        field_max_length,
                         field_is_filename,
                         if field_filename_relative_path.is_empty() { None } else { Some(field_filename_relative_path) },
                         field_is_reference,
@@ -1416,7 +1470,8 @@ impl PackedFileDecoderView {
                         field_description,
                         field_ca_order,
                         field_is_bitwise,
-                        field_enum_values
+                        field_enum_values,
+                        field_is_part_of_colour
                     )
                 );
             }
@@ -1507,6 +1562,11 @@ impl PackedFileDecoderView {
             }
         }
 
+        if imported_table.get_ref_table_data().is_empty() {
+            return Err(ErrorKind::TableEmptyWithNoDefinition.into());
+        }
+
+        let imported_first_row = &imported_table.get_ref_table_data()[0];
         let packed_file_data = &self.packed_file_data;
         let path = &self.packed_file_path[1];
 
@@ -1516,98 +1576,210 @@ impl PackedFileDecoderView {
         let data = &packed_file_data[header.4..];
         let index = 0;
 
+        let expected_cells_bool = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::Boolean = x.get_field_type() { true } else { false }).count();
+        let expected_cells_f32 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::F32 = x.get_field_type() { true } else { false }).count();
+        let expected_cells_f64 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::F64 = x.get_field_type() { true } else { false }).count();
+        let expected_cells_i32 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::I32 = x.get_field_type() { true } else { false }).count();
+        let expected_cells_i64 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::I64 = x.get_field_type() { true } else { false }).count();
+        let expected_cells_colour_rgb = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::ColourRGB = x.get_field_type() { true } else { false }).count();
+        let expected_cells_string_u8 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::StringU8 = x.get_field_type() { true } else if let FieldType::OptionalStringU8 = x.get_field_type() { true } else { false }).count();
+
         // First check is done here, to initialize the possible schemas.
         if definitions_possible.is_empty() {
-            if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                if (number < 60000.0 && number > -60000.0 && (!(-0.001..=0.001).contains(&number) || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
-                    definitions_possible.push(vec![FieldType::F32]);
-                }
+            if data.decode_packedfile_float_f32(index, &mut index.clone()).is_ok() {
+                definitions_possible.push(vec![FieldType::F32]);
             }
-            if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
-                if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
-                    definitions_possible.push(vec![FieldType::I32]);
-                }
+            if data.decode_packedfile_float_f64(index, &mut index.clone()).is_ok() {
+                definitions_possible.push(vec![FieldType::F64]);
             }
-            if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
-                if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
-                    definitions_possible.push(vec![FieldType::I64]);
-                }
+            if data.decode_packedfile_integer_i32(index, &mut index.clone()).is_ok() {
+                definitions_possible.push(vec![FieldType::I32]);
             }
+            if data.decode_packedfile_integer_i64(index, &mut index.clone()).is_ok() {
+                definitions_possible.push(vec![FieldType::I64]);
+            }
+            if data.decode_packedfile_integer_u32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::ColourRGB]); }
             if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
-            if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::StringU8]); }
-            if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::OptionalStringU8]); }
+
+            if let Ok(data) = data.decode_packedfile_string_u8(index, &mut index.clone()) {
+                if imported_first_row.iter().any(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }) {
+                    definitions_possible.push(vec![FieldType::StringU8]);
+                }
+            }
+
+            if let Ok(data) = data.decode_packedfile_optional_string_u8(index, &mut index.clone()) {
+                if imported_first_row.iter().any(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }) {
+                    definitions_possible.push(vec![FieldType::OptionalStringU8]);
+                }
+            }
         }
 
         // All the other checks are done here.
-        for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields).len() - 1 {
+        for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields, &raw_table.rows[0]).len() - 1 {
             println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
-            definitions_possible = definitions_possible.par_iter().map(|base| {
-                let mut elements = vec![];
-                let mut index = 0;
-                for field_type in base {
-                    match field_type {
-                        FieldType::Boolean => { let _ = data.decode_packedfile_bool(index, &mut index); },
-                        FieldType::F32 => { let _ = data.decode_packedfile_float_f32(index, &mut index); },
-                        FieldType::I32 => { let _ = data.decode_packedfile_integer_i32(index, &mut index); },
-                        FieldType::I64 => { let _ = data.decode_packedfile_integer_i64(index, &mut index); },
-                        FieldType::StringU8 => { let _ = data.decode_packedfile_string_u8(index, &mut index); },
-                        FieldType::OptionalStringU8 => { let _ = data.decode_packedfile_optional_string_u8(index, &mut index); },
-                        _ => unimplemented!()
+            if definitions_possible.is_empty() {
+                break;
+            }
+
+            else {
+                definitions_possible = definitions_possible.par_iter().filter_map(|base| {
+                    let mut values_position = Vec::with_capacity(base.len());
+                    let mut elements = vec![];
+                    let mut index = 0;
+                    for field_type in base {
+                        match field_type {
+                            FieldType::Boolean => {
+                                let value = data.decode_packedfile_bool(index, &mut index).unwrap();
+                                values_position.push(DecodedData::Boolean(value));
+                            },
+                            FieldType::F32 => {
+                                let value = data.decode_packedfile_float_f32(index, &mut index).unwrap();
+                                values_position.push(DecodedData::F32(value));
+                            },
+                            FieldType::F64 => {
+                                let value = data.decode_packedfile_float_f64(index, &mut index).unwrap();
+                                values_position.push(DecodedData::F64(value));
+                            },
+                            FieldType::I32 => {
+                                let value = data.decode_packedfile_integer_i32(index, &mut index).unwrap();
+                                values_position.push(DecodedData::I32(value));
+                            },
+                            FieldType::I64 => {
+                                let value = data.decode_packedfile_integer_i64(index, &mut index).unwrap();
+                                values_position.push(DecodedData::I64(value));
+                            },
+                            FieldType::ColourRGB => {
+                                let value = data.decode_packedfile_integer_u32(index, &mut index).unwrap();
+                                values_position.push(DecodedData::ColourRGB(value));
+                            },
+                            FieldType::StringU8 => {
+                                let value = data.decode_packedfile_string_u8(index, &mut index).unwrap();
+                                values_position.push(DecodedData::StringU8(value));
+                            },
+                            FieldType::OptionalStringU8 => {
+                                let value = data.decode_packedfile_optional_string_u8(index, &mut index).unwrap();
+                                values_position.push(DecodedData::OptionalStringU8(value));
+                            },
+                            _ => unimplemented!()
+                        }
                     }
-                }
 
-                if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() {
-                    let mut def = base.to_vec();
-                    def.push(FieldType::Boolean);
-                    elements.push(def);
-                }
-
-                if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
-                    if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
-                        let mut def = base.to_vec();
-                        def.push(FieldType::I32);
-                        elements.push(def);
+                    if base.iter().filter(|x| if let FieldType::Boolean = x { true } else { false }).count() < expected_cells_bool {
+                        if let Ok(data) = data.decode_packedfile_bool(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::Boolean);
+                                elements.push(def);
+                            }
+                        }
                     }
-                }
 
-                if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                    if (number < 60000.0 && number > -60000.0 && (!(-0.001..=0.001).contains(&number) || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
-                        let mut def = base.to_vec();
-                        def.push(FieldType::F32);
-                        elements.push(def);
+                    if base.iter().filter(|x| if let FieldType::I32 = x { true } else { false }).count() < expected_cells_i32 {
+                        if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::I32);
+                                elements.push(def);
+                            }
+                        }
                     }
-                }
 
-                if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
-                    if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
-                        let mut def = base.to_vec();
-                        def.push(FieldType::I64);
-                        elements.push(def);
+                    if base.iter().filter(|x| if let FieldType::F32 = x { true } else { false }).count() < expected_cells_f32 {
+                        if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::F32);
+                                elements.push(def);
+                            }
+                        }
                     }
-                }
-                if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() {
-                    let mut def = base.to_vec();
-                    def.push(FieldType::StringU8);
-                    elements.push(def);
-                }
-                if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() {
-                    let mut def = base.to_vec();
-                    def.push(FieldType::OptionalStringU8);
-                    elements.push(def);
-                }
 
-                elements
-            }).flatten().collect::<Vec<Vec<FieldType>>>();
+                    if base.iter().filter(|x| if let FieldType::F64 = x { true } else { false }).count() < expected_cells_f64 {
+                        if let Ok(number) = data.decode_packedfile_float_f64(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::F64);
+                                elements.push(def);
+                            }
+                        }
+                    }
+
+                    if base.iter().filter(|x| if let FieldType::I64 = x { true } else { false }).count() < expected_cells_i64 {
+                        if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::I64);
+                                elements.push(def);
+                            }
+                        }
+                    }
+                    if base.iter().filter(|x| if let FieldType::ColourRGB = x { true } else { false }).count() < expected_cells_colour_rgb {
+                        if let Ok(number) = data.decode_packedfile_integer_u32(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &number } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &number } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::ColourRGB);
+                                elements.push(def);
+                            }
+                        }
+                    }
+                    if base.iter().filter(|x| if let FieldType::StringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
+                        if let Ok(data) = data.decode_packedfile_string_u8(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::StringU8);
+                                elements.push(def);
+                            }
+                        }
+                    }
+                    if base.iter().filter(|x| if let FieldType::OptionalStringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
+                        if let Ok(data) = data.decode_packedfile_optional_string_u8(index, &mut index.clone()) {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
+                            if duplicate_values_count < duplicate_values_count_expected {
+                                let mut def = base.to_vec();
+                                def.push(FieldType::OptionalStringU8);
+                                elements.push(def);
+                            }
+                        }
+                    }
+
+                    if elements.is_empty() {
+                        None
+                    } else {
+                        Some(elements)
+                    }
+                }).flatten().collect::<Vec<Vec<FieldType>>>();
+            }
         }
 
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
         Ok(definitions_possible.par_iter().filter_map(|x| {
-            let field_list = x.iter().map(|x| { let mut field = Field::default(); field.set_field_type(x.clone()); field }).collect::<Vec<Field>>();
+            let field_list = x.iter().map(|x| {
+                let mut field = Field::default();
+                field.set_field_type(x.clone());
+                field
+            }).collect::<Vec<Field>>();
+
             if let Ok(table) = DB::read_with_fields(packed_file_data, path, &field_list, false) {
                 if !table.get_ref_table_data().is_empty() {
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];
 
+                    // Organized in columns, not in rows, so we can match by columns.
                     for row in table.get_ref_table_data() {
                         for (index, field) in row.iter().enumerate() {
                             match decoded_columns.get_mut(index) {
@@ -1617,9 +1789,13 @@ impl PackedFileDecoderView {
                         }
                     }
 
+                    let mut already_matched_columns = vec![];
                     for (index, column) in decoded_columns.iter().enumerate() {
-                        match raw_columns.iter().position(|x| x == column) {
-                            Some(raw_column) => { mapper.insert(index, raw_column); },
+                        match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
+                            Some(raw_column) => {
+                                mapper.insert(index, raw_column);
+                                already_matched_columns.push(raw_column);
+                            },
 
                             // If no equivalent has been found, drop the definition.
                             None => return None,
@@ -1705,13 +1881,13 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
     table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
     table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
-    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Length")));
-    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
-    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
-    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
-    table_model.set_header_data_3a(13, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
-    table_model.set_header_data_3a(14, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Bitwise Fields")));
-    table_model.set_header_data_3a(15, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Enum Data")));
+    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
+    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
+    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
+    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
+    table_model.set_header_data_3a(13, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Bitwise Fields")));
+    table_model.set_header_data_3a(14, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Enum Data")));
+    table_model.set_header_data_3a(15, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Part of Colour")));
     table_view.header().set_stretch_last_section(true);
     table_view.header().resize_sections(ResizeMode::ResizeToContents);
 
@@ -1719,19 +1895,21 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     let list = QStringList::new();
     list.append_q_string(&QString::from_std_str("Bool"));
     list.append_q_string(&QString::from_std_str("F32"));
+    list.append_q_string(&QString::from_std_str("F64"));
     list.append_q_string(&QString::from_std_str("I16"));
     list.append_q_string(&QString::from_std_str("I32"));
     list.append_q_string(&QString::from_std_str("I64"));
+    list.append_q_string(&QString::from_std_str("ColourRGB"));
     list.append_q_string(&QString::from_std_str("StringU8"));
     list.append_q_string(&QString::from_std_str("StringU16"));
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, 0, &QTimer::new_0a().into_ptr(), false);
+    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, &QTimer::new_0a().into_ptr(), false);
 
-    // Fields Max length and CA Order must be numeric.
-    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 9, 32, &QTimer::new_0a().into_ptr(), false);
-    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 12, 16, &QTimer::new_0a().into_ptr(), false);
-    new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 65535, &QTimer::new_0a().into_ptr(), false);
+    // Fields that need special code.
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 11, 16, &QTimer::new_0a().into_ptr(), false);
+    new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 14, &QTimer::new_0a().into_ptr(), false);
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 32, &QTimer::new_0a().into_ptr(), false);
 }

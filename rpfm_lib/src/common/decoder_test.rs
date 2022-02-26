@@ -164,6 +164,17 @@ fn test_decode_float_f64() {
     assert_eq!(Decoder::decode_float_f64([0, 0, 0, 0, 36, 64].as_ref(), 0).is_err(), true);
 }
 
+/// Test to make sure the rgb colour decoder (`decode_integer_colour_rgb()`) works and fails properly.
+#[test]
+fn test_decode_integer_colour_rgb() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(Decoder::decode_integer_colour_rgb([0x00, 0xFF, 0x04, 0x05].as_ref(), 0).unwrap(), 328959);
+
+    // Check the decoder returns an error for a slice shorter than expected.
+    assert_eq!(Decoder::decode_integer_colour_rgb([0x87, 0x97].as_ref(), 0).is_err(), true);
+}
+
 /// Test to make sure the u8 string decoder (`decode_string_u8()`) works and fails properly.
 #[test]
 fn test_decode_string_u8() {
@@ -255,6 +266,17 @@ fn test_decode_string_u16_0padded() {
     // Check the decoder returns the full string if no zeros have been found before the end of the slice.
     assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0].as_ref(), 0, 20).unwrap().0, "Wahahahaha");
     assert_eq!(Decoder::decode_string_u16_0padded([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0].as_ref(), 0, 20).unwrap().1, 20);
+}
+
+/// Test to make sure the rgb colour decoder (`decode_string_colour_rgb()`) works and fails properly.
+#[test]
+fn test_decode_string_colour_rgb() {
+
+    // Check the decoding works for a proper encoded string.
+    assert_eq!(Decoder::decode_string_colour_rgb([0x00, 0xFF, 0x04, 0x05].as_ref(), 0).unwrap(), "0504FF");
+
+    // Check the decoder returns an error for a slice shorter than expected.
+    assert_eq!(Decoder::decode_string_colour_rgb([0x87, 0x97].as_ref(), 0).is_err(), true);
 }
 
 //---------------------------------------------------------------------------//
@@ -698,6 +720,26 @@ fn test_decode_packedfile_optional_string_u16() {
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_optional_string_u16([1, 4, 0, 87, 0, 97, 0, 1, 216, 97, 0].as_ref(), 0, &mut index).is_err(), true);
+        assert_eq!(index, 0);
+    }
+}
+
+/// Test to make sure the RGB decoder (`decode_packedfile_string_colour_rgb()`) works and fails properly.
+#[test]
+fn test_decode_packedfile_string_colour_rgb() {
+
+    // Check the decoding works for a proper value.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_string_colour_rgb([0x00, 0x06, 0xFF, 0xAB].as_ref(), 0, &mut index).unwrap(), "ABFF06");
+        assert_eq!(index, 4);
+    }
+
+
+    // Check the decoder returns an error for a slice whose length is smaller than 4.
+    {
+        let mut index = 0;
+        assert_eq!(Decoder::decode_packedfile_string_colour_rgb([10, 0].as_ref(), 0, &mut index).is_err(), true);
         assert_eq!(index, 0);
     }
 }

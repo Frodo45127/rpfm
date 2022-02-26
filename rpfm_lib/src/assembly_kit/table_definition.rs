@@ -39,6 +39,7 @@ use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::dependencies::Dependencies;
 use crate::packedfile::DecodedPackedFile;
 use super::*;
+use super::table_data::RawTableRow;
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit Schema Files into.
@@ -152,7 +153,7 @@ impl RawDefinition {
     }
 
     /// This function returns the fields without the localisable ones.
-    pub fn get_non_localisable_fields(&self, raw_localisable_fields: &[RawLocalisableField]) -> Vec<Field> {
+    pub fn get_non_localisable_fields(&self, raw_localisable_fields: &[RawLocalisableField], test_row: &RawTableRow) -> Vec<Field> {
         let raw_table_name = &self.name.as_ref().unwrap()[..self.name.as_ref().unwrap().len() - 4];
         let localisable_fields_names = raw_localisable_fields.iter()
             .filter(|x| x.table_name == raw_table_name)
@@ -160,6 +161,7 @@ impl RawDefinition {
             .collect::<Vec<&str>>();
 
         self.fields.iter()
+            .filter(|x| test_row.fields.iter().find(|y| x.name == y.field_name).unwrap().state.is_none())
             .filter(|x| !localisable_fields_names.contains(&&*x.name))
             .map(From::from)
             .collect::<Vec<Field>>()

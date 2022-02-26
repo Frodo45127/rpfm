@@ -60,6 +60,7 @@ pub enum TableDiagnosticReportType {
     TableNameHasSpace,
     TableIsDataCoring,
     FieldWithPathNotFound,
+    BannedTable,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -107,6 +108,7 @@ impl Display for TableDiagnosticReportType {
             Self::TableNameHasSpace => "TableNameHasSpace",
             Self::TableIsDataCoring => "TableIsDataCoring",
             Self::FieldWithPathNotFound => "FieldWithPathNotFound",
+            Self::BannedTable => "BannedTable",
         }, f)
     }
 }

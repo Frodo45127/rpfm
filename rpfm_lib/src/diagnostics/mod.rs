@@ -391,6 +391,18 @@ impl Diagnostics {
                 }
             }
 
+            // Check if it's one of the banned tables for the game selected.
+            if !Self::ignore_diagnostic(None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if GAME_SELECTED.read().unwrap().is_packedfile_banned(&["db".to_owned(), table.get_table_name()]) {
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                        cells_affected: vec![],
+                        message: "Banned table.".to_owned(),
+                        report_type: TableDiagnosticReportType::BannedTable,
+                        level: DiagnosticLevel::Error,
+                    });
+                }
+            }
+
             // Check if the table name has a number at the end, which causes very annoying bugs.
             if let Some(name) = path.last() {
                 if !Self::ignore_diagnostic(None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {

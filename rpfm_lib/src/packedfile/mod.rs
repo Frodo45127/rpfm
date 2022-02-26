@@ -422,10 +422,6 @@ impl PackedFileType {
                 return Self::RigidModel
             }
 
-            if packedfile_name.ends_with(table::anim_fragment::EXTENSION) {
-                return Self::AnimFragment;
-            }
-
             if packedfile_name.ends_with(animpack::EXTENSION) {
                 return Self::AnimPack
             }
@@ -452,12 +448,16 @@ impl PackedFileType {
 
             // If that failed, try types that need to be in a specific path.
             let path_str = path.iter().map(String::as_str).collect::<Vec<&str>>();
-            if packedfile_name.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
+            if path_str.starts_with(&table::matched_combat::BASE_PATH) && packedfile_name.ends_with(table::matched_combat::EXTENSION) {
                 return Self::MatchedCombat;
             }
 
-            if packedfile_name.ends_with(table::animtable::EXTENSION) && path_str.starts_with(&table::animtable::BASE_PATH) {
+            if path_str.starts_with(&table::animtable::BASE_PATH) && packedfile_name.ends_with(table::animtable::EXTENSION) {
                 return Self::AnimTable;
+            }
+
+            if path_str.starts_with(&table::anim_fragment::BASE_PATH) && table::anim_fragment::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(*x)) {
+                return Self::AnimFragment;
             }
 
             // If that failed, check if it's in a folder which is known to only have specific files.
@@ -518,10 +518,6 @@ impl PackedFileType {
             return Self::RigidModel
         }
 
-        if path.ends_with(table::anim_fragment::EXTENSION) {
-            return Self::AnimFragment;
-        }
-
         if path.ends_with(animpack::EXTENSION) {
             return Self::AnimPack
         }
@@ -554,6 +550,10 @@ impl PackedFileType {
 
         if path.ends_with(table::animtable::EXTENSION) && path_str.starts_with(&table::animtable::BASE_PATH) {
             return Self::AnimTable;
+        }
+
+        if path_str.starts_with(&table::anim_fragment::BASE_PATH) && table::anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+            return Self::AnimFragment;
         }
 
         // If that failed, check if it's in a folder which is known to only have specific files.

@@ -218,6 +218,7 @@ tt_game_selected_open_game_data_folder = Tries to open the currently selected ga
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
 tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
+tt_game_selected_warhammer_3 = Sets 'TW:Warhammer 3' as 'Game Selected'.
 tt_game_selected_troy = Sets 'TW:Troy' as 'Game Selected'.
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
 tt_game_selected_warhammer_2 = Sets 'TW:Warhammer 2' as 'Game Selected'.
@@ -1176,3 +1177,9 @@ debug_colour_dark_label = Dark Theme
 
 debug_colour_local_tip_label = Local
 debug_colour_remote_tip_label = Remote
+banned_tables_warning = <p><b style="color:red;">WARNING: This table is actively check by the game, and changes to it will cause the game to crash. RPFM will not save any edit you make to it, and if you have it edited in your PackFile, it's recomended you delete it</b></p><p></p>
+label_banned_table = Banned Table detected:
+banned_table_explanation = Banned Tables are tables actively check by the game to ensure they haven't been altered. Altering them means your game will crash. Which means... there's not really an use for them on the modding side of things, other than being informative.
+    RPFM can read these tables, but it will not save any editions made to them, and if you have one of them in your PackFile, it's better to just delete them to avoid crashes.
+
+settings_check_message_updates_on_start = Check Message Updates on Start:

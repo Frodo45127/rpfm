@@ -23,6 +23,8 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QPtr;
+use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::games::supported_games::KEY_WARHAMMER_2;
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -43,6 +45,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::views::debug::DebugView;
 use crate::views::table::{TableView, TableType};
 use crate::views::table::utils::get_table_from_view;
 
@@ -67,6 +70,11 @@ pub struct PackedFileAnimFragmentView {
     definition: Arc<RwLock<Definition>>,
     packed_file_path: Arc<RwLock<Vec<String>>>,
     data_source: Arc<RwLock<DataSource>>,
+}
+
+/// This struct contains the debug view of an AnimFragment PackedFile.
+pub struct PackedFileAnimFragmentDebugView {
+    debug_view: Arc<DebugView>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -98,89 +106,113 @@ impl PackedFileAnimFragmentView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        // For any other game, use the debug view.
+        if GAME_SELECTED.read().unwrap().get_game_key_name() != KEY_WARHAMMER_2 {
 
-        let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
-        let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
+            // For now just build a debug view.
+            let debug_view = DebugView::new_view(
+                packed_file_view.get_mut_widget(),
+                DecodedPackedFile::AnimFragment(data),
+                packed_file_view.get_path_raw(),
+            )?;
 
-        let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()), packed_file_view.get_mut_widget());
-        let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()), packed_file_view.get_mut_widget());
+            let packed_file_debug_view = PackedFileAnimFragmentDebugView {
+                debug_view,
+            };
 
-        let table_1 = QWidget::new_1a(packed_file_view.get_mut_widget());
-        let table_2 = QWidget::new_1a(packed_file_view.get_mut_widget());
-        let layout_1 = QGridLayout::new_1a(&table_1);
-        let layout_2 = QGridLayout::new_1a(&table_2);
-        table_1.set_layout(&layout_1);
-        table_2.set_layout(&layout_2);
+            packed_file_view.view = ViewType::Internal(View::AnimFragmentDebug(Arc::new(packed_file_debug_view)));
+            packed_file_view.packed_file_type = PackedFileType::AnimFragment;
 
-        layout.add_widget_5a(&i1_label, 0, 0, 1, 1);
-        layout.add_widget_5a(&i2_label, 1, 0, 1, 1);
+            // Return success.
+            Ok(packed_file_info)
+        }
 
-        layout.add_widget_5a(&i1_line_edit, 0, 1, 1, 1);
-        layout.add_widget_5a(&i2_line_edit, 1, 1, 1, 1);
+        // For Wh2, use the fancy view.
+        else {
+            let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-        layout.add_widget_5a(&table_1, 0, 2, 2, 1);
-        layout.add_widget_5a(&table_2, 2, 0, 1, 3);
+            let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
+            let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
 
-        let table_data = data.get_ref_table_data().get(0).unwrap();
-        let table_data_1 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(0) {
-            data.clone()
-        } else { unimplemented!() };
+            let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()), packed_file_view.get_mut_widget());
+            let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()), packed_file_view.get_mut_widget());
 
-        let table_data_2 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(3) {
-            data.clone()
-        } else { unimplemented!() };
+            let table_1 = QWidget::new_1a(packed_file_view.get_mut_widget());
+            let table_2 = QWidget::new_1a(packed_file_view.get_mut_widget());
+            let layout_1 = QGridLayout::new_1a(&table_1);
+            let layout_2 = QGridLayout::new_1a(&table_2);
+            table_1.set_layout(&layout_1);
+            table_2.set_layout(&layout_2);
 
-        let table_view_1 = TableView::new_view(
-            &table_1,
-            app_ui,
-            global_search_ui,
-            pack_file_contents_ui,
-            diagnostics_ui,
-            dependencies_ui,
-            TableType::AnimFragment(From::from(table_data_1)),
-            None,
-            packed_file_view.data_source.clone()
-        )?;
+            layout.add_widget_5a(&i1_label, 0, 0, 1, 1);
+            layout.add_widget_5a(&i2_label, 1, 0, 1, 1);
 
-        let table_view_2 = TableView::new_view(
-            &table_2,
-            app_ui,
-            global_search_ui,
-            pack_file_contents_ui,
-            diagnostics_ui,
-            dependencies_ui,
-            TableType::AnimFragment(From::from(table_data_2)),
-            None,
-            packed_file_view.data_source.clone()
-        )?;
+            layout.add_widget_5a(&i1_line_edit, 0, 1, 1, 1);
+            layout.add_widget_5a(&i2_line_edit, 1, 1, 1, 1);
 
-        let packed_file_table_view = Arc::new(Self {
-            table_view_1,
-            table_view_2,
-            integer_label_1: i1_label,
-            integer_label_2: i2_label,
-            integer_1: i1_line_edit,
-            integer_2: i2_line_edit,
+            layout.add_widget_5a(&table_1, 0, 2, 2, 1);
+            layout.add_widget_5a(&table_2, 2, 0, 1, 3);
 
-            definition: Arc::new(RwLock::new(data.get_definition())),
-            packed_file_path: packed_file_view.get_path_raw(),
-            data_source: packed_file_view.data_source.clone(),
-        });
+            let table_data = data.get_ref_table_data().get(0).unwrap();
+            let table_data_1 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(0) {
+                data.clone()
+            } else { unimplemented!() };
 
-        let packed_file_anim_fragment_view_slots = PackedFileAnimFragmentViewSlots::new(
-            &packed_file_table_view,
-            app_ui,
-            pack_file_contents_ui,
-            diagnostics_ui
-        );
+            let table_data_2 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(3) {
+                data.clone()
+            } else { unimplemented!() };
 
-        connections::set_connections(&packed_file_table_view, &packed_file_anim_fragment_view_slots);
-        packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_table_view));
-        packed_file_view.packed_file_type = PackedFileType::AnimFragment;
+            let table_view_1 = TableView::new_view(
+                &table_1,
+                app_ui,
+                global_search_ui,
+                pack_file_contents_ui,
+                diagnostics_ui,
+                dependencies_ui,
+                TableType::AnimFragment(From::from(table_data_1)),
+                None,
+                packed_file_view.data_source.clone()
+            )?;
 
-        // Return success.
-        Ok(packed_file_info)
+            let table_view_2 = TableView::new_view(
+                &table_2,
+                app_ui,
+                global_search_ui,
+                pack_file_contents_ui,
+                diagnostics_ui,
+                dependencies_ui,
+                TableType::AnimFragment(From::from(table_data_2)),
+                None,
+                packed_file_view.data_source.clone()
+            )?;
+
+            let packed_file_table_view = Arc::new(Self {
+                table_view_1,
+                table_view_2,
+                integer_label_1: i1_label,
+                integer_label_2: i2_label,
+                integer_1: i1_line_edit,
+                integer_2: i2_line_edit,
+
+                definition: Arc::new(RwLock::new(data.get_definition())),
+                packed_file_path: packed_file_view.get_path_raw(),
+                data_source: packed_file_view.data_source.clone(),
+            });
+
+            let packed_file_anim_fragment_view_slots = PackedFileAnimFragmentViewSlots::new(
+                &packed_file_table_view,
+                app_ui,
+                pack_file_contents_ui,
+                diagnostics_ui
+            );
+
+            connections::set_connections(&packed_file_table_view, &packed_file_anim_fragment_view_slots);
+            packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_table_view));
+            packed_file_view.packed_file_type = PackedFileType::AnimFragment;
+
+            // Return success.
+            Ok(packed_file_info)
+        }
     }
 
     /// Function to reload the data of the view without having to delete the view itself.

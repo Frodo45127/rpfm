@@ -21,6 +21,7 @@ public:
 signals:
 
 protected:
+    bool skipTextPainting;
     bool dark_theme;
     bool use_filter;
     bool use_right_side_mark;

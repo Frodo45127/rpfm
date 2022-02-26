@@ -81,6 +81,9 @@ pub trait Decoder {
     /// This function allows us to decode a f64 float from raw data.
     fn decode_float_f64(&self, offset: usize) -> Result<f64>;
 
+    /// This function allows us to decode a u32 encoded colour from raw data.
+    fn decode_integer_colour_rgb(&self, offset: usize) -> Result<u32>;
+
     /// This function allows us to decode an UTF-8 String  from raw data.
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String>;
 
@@ -108,6 +111,9 @@ pub trait Decoder {
     /// We return the decoded String and his full size when encoded (string + zeros).
     fn decode_string_u16_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)>;
 
+    /// This function allows us to decode an encoded RGB colour as a String from raw data.
+    fn decode_string_colour_rgb(&self, offset: usize) -> Result<String>;
+
     /// This function allows us to decode a boolean from a byte, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_bool(&self, offset: usize, index: &mut usize) -> Result<bool>;
 
@@ -121,7 +127,7 @@ pub trait Decoder {
     fn decode_packedfile_integer_u24(&self, offset: usize, index: &mut usize) -> Result<u32>;
 
     /// This function allows us to decode an u32 encoded integer from raw data, moving the provided index to the byte where the next data starts.
-    fn decode_packedfile_integer_u32(&self, offset: usize, index: &mut usize) -> Result<u32> ;
+    fn decode_packedfile_integer_u32(&self, offset: usize, index: &mut usize) -> Result<u32>;
 
     /// This function allows us to decode an u64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u64(&self, offset: usize, index: &mut usize) -> Result<u64>;
@@ -142,7 +148,7 @@ pub trait Decoder {
     fn decode_packedfile_integer_i32(&self, offset: usize, index: &mut usize) -> Result<i32>;
 
     /// This function allows us to decode an i64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
-    fn decode_packedfile_integer_i64(&self, offset: usize, index: &mut usize) -> Result<i64> ;
+    fn decode_packedfile_integer_i64(&self, offset: usize, index: &mut usize) -> Result<i64>;
 
     /// This function allows us to decode an f32 encoded float from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_float_f32(&self, offset: usize, index: &mut usize) -> Result<f32>;
@@ -150,11 +156,14 @@ pub trait Decoder {
     /// This function allows us to decode an f64 encoded float from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_float_f64(&self, offset: usize, index: &mut usize) -> Result<f64>;
 
+    /// This function allows us to decode an u32 encoded colour from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<u32>;
+
     /// This function allows us to decode an UTF-8 encoded String from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_string_u8(&self, offset: usize, index: &mut usize) -> Result<String>;
 
     /// This function allows us to decode an UTF-8 0-Terminated String from raw data, moving the provided index to the byte where the next data starts.
-    fn decode_packedfile_string_u8_0terminated(&self, offset: usize, index: &mut usize) -> Result<String> ;
+    fn decode_packedfile_string_u8_0terminated(&self, offset: usize, index: &mut usize) -> Result<String>;
 
     /// This function allows us to decode an UTF-16 String from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_string_u16(&self, offset: usize, index: &mut usize) -> Result<String>;
@@ -170,6 +179,9 @@ pub trait Decoder {
     /// These Strings's first byte it's a boolean that indicates if the string has something. If false, the string it's just that byte.
     /// If true, there is a normal UTF-16 encoded String after that byte.
     fn decode_packedfile_optional_string_u16(&self, offset: usize, index: &mut usize) -> Result<String>;
+
+    /// This function allows us to decode an encoded RGB colour as a String from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_string_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<String>;
 }
 
 /// Implementation of trait `Decoder` for `&[u8]`.
@@ -270,6 +282,11 @@ impl Decoder for [u8] {
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {:?}.</li></ul>", size, offset.checked_sub(self.len()))).into()) }
     }
 
+    fn decode_integer_colour_rgb(&self, offset: usize) -> Result<u32> {
+        if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&[self[offset + 1], self[offset + 2], self[offset + 3], 0x00])) }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an RGB colour:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
+    }
+
     fn decode_string_u8_iso_8859_1(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() >= offset + size {
             ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
@@ -310,6 +327,20 @@ impl Decoder for [u8] {
             Ok((string_decoded, size))
         }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 0-Padded String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {:?}.</li></ul>", size, offset.checked_sub(self.len()))).into()) }
+    }
+
+    fn decode_string_colour_rgb(&self, offset: usize) -> Result<String> {
+        if self.len() >= offset + 4 {
+
+            // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
+            // REMEMBER, FORMAT ENCODED IS 00BBGGRR.
+            let value = format!("{:08X?}", LittleEndian::read_u32(&self[offset..]));
+            let mut chars = value.chars();
+            chars.next_back();
+            chars.next_back();
+            Ok(chars.as_str().to_owned())
+        }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an RGB colour:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }
 
     //---------------------------------------------------------------------------//
@@ -418,6 +449,12 @@ impl Decoder for [u8] {
         result
     }
 
+    fn decode_packedfile_integer_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<u32> {
+        let result = self.decode_integer_colour_rgb(offset);
+        if result.is_ok() { *index += 4; }
+        result
+    }
+
     fn decode_packedfile_string_u8(&self, offset: usize, mut index: &mut usize) -> Result<String> {
         if let Ok(size) = self.decode_packedfile_integer_u16(offset, &mut index) {
             let result = self.decode_string_u8(offset + 2, size as usize);
@@ -470,5 +507,11 @@ impl Decoder for [u8] {
             } else { Ok(String::new()) }
         }
         else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()).into()) }
+    }
+
+    fn decode_packedfile_string_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<String> {
+        let result = self.decode_string_colour_rgb(offset);
+        if result.is_ok() { *index += 4; }
+        result
     }
 }

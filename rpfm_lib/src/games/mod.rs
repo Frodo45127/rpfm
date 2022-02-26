@@ -14,7 +14,8 @@ Module that contains the GameInfo definition and stuff related with it.
 !*/
 
 use std::collections::HashMap;
-use std::fs::DirBuilder;
+use std::fs::{DirBuilder, File};
+use std::io::Read;
 use std::path::PathBuf;
 
 use rpfm_error::{Result, Error, ErrorKind};
@@ -26,6 +27,20 @@ use crate::packfile::{Manifest, PFHFileType, PFHVersion};
 use crate::SETTINGS;
 
 pub mod supported_games;
+
+const BRAZILIAN: &str = "br";
+const SIMPLIFIED_CHINESE: &str = "cn";
+const CZECH: &str = "cz";
+const ENGLISH: &str = "en";
+const FRENCH: &str = "fr";
+const GERMAN: &str = "ge";
+const ITALIAN: &str = "it";
+const KOREAN: &str = "kr";
+const POLISH: &str = "pl";
+const RUSSIAN: &str = "ru";
+const SPANISH: &str = "sp";
+const TURKISH: &str = "tr";
+const TRADITIONAL_CHINESE: &str = "zh";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -57,6 +72,12 @@ pub struct GameInfo {
     /// If the db tables should have a GUID in their headers.
     db_tables_have_guid: bool,
 
+    /// If the game has locales for all languages, and we only need to load our own locales. Contains the name of the locale file.
+    locale_file: Option<String>,
+
+    /// List of tables (table_name) which the program should NOT EDIT UNDER ANY CIRCUnSTANCE.
+    banned_packedfiles: Vec<String>,
+
     /// Name of the icon used to display the game as `Game Selected`, in an UI.
     game_selected_icon: String,
 
@@ -67,7 +88,10 @@ pub struct GameInfo {
     vanilla_db_table_name_logic: VanillaDBTableNameLogic,
 
     /// Installation-dependant data.
-    install_data: HashMap<InstallType, InstallData>
+    install_data: HashMap<InstallType, InstallData>,
+
+    /// Tool-specific vars for each game.
+    tool_vars: HashMap<String, String>,
 }
 
 /// This enum holds the info about each game approach at naming db tables.
@@ -180,6 +204,11 @@ impl GameInfo {
     /// This function returns whether this Game's tables should have a GUID in their header or not.
     pub fn get_db_tables_have_guid(&self) -> bool {
         self.db_tables_have_guid
+    }
+
+    /// This function returns the file with the language of the game, if any.
+    pub fn get_locale_file(&self) -> &Option<String> {
+        &self.locale_file
     }
 
     /// This function returns this Game's icon filename. Normal size.
@@ -369,7 +398,12 @@ impl GameInfo {
     /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
     ///
     /// If it fails to find a manifest, it falls back to all non-mod files!
+    ///
+    /// NOTE: For WH3, this is language-sensitive. Meaning, if you have the game on spanish, it'll try to load the spanish localization files ONLY.
     pub fn get_all_ca_packfiles_paths(&self) -> Result<Vec<PathBuf>> {
+
+        // Check if we have to filter by language, to avoid overwriting our language with another one.
+        let language = self.get_game_locale_from_file()?;
 
         // Check if we can use the manifest for this.
         if !self.use_manifest()? {
@@ -381,7 +415,23 @@ impl GameInfo {
                 Ok(manifest) => {
                     let pack_file_names = manifest.0.iter().filter_map(|x|
                         if x.get_ref_relative_path().ends_with(".pack") {
-                            Some(x.get_ref_relative_path().to_owned())
+                            match &language {
+                                Some(language) => {
+
+                                    // Filter out other language's packfiles.
+                                    if x.get_ref_relative_path().contains("local_") {
+                                        let language = format!("local_{}", language);
+                                        if x.get_ref_relative_path().contains(&language) {
+                                            Some(x.get_ref_relative_path().to_owned())
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        Some(x.get_ref_relative_path().to_owned())
+                                    }
+                                }
+                                None => Some(x.get_ref_relative_path().to_owned())
+                            }
                         } else { None }
                         ).collect::<Vec<String>>();
 
@@ -444,5 +494,50 @@ impl GameInfo {
         let executable_path = path.join(PathBuf::from(install_data.get_ref_executable()));
 
         Some(executable_path)
+    }
+
+    /// Check if a specific PackedFile is banned.
+    pub fn is_packedfile_banned(&self, path: &[String]) -> bool {
+        let path = path.join("/").to_lowercase();
+        self.banned_packedfiles.iter().any(|x| path.starts_with(x))
+    }
+
+    /// Tries to retrieve a tool var for the game.
+    pub fn get_tool_var(&self, var: &str) -> Option<&String> {
+        self.tool_vars.get(var)
+    }
+
+    /// This function tries to get the language of the game. Defaults to english if not found.
+    fn get_game_locale_from_file(&self) -> Result<Option<String>> {
+        match self.get_locale_file() {
+            Some(locale_file) => {
+                let data_path = self.get_data_path()?;
+                let locale_path = data_path.to_path_buf().join(locale_file);
+                let mut language = String::new();
+                let mut file = File::open(&locale_path)?;
+                file.read_to_string(&mut language)?;
+
+                let language = match &*language {
+                    "BR" => BRAZILIAN.to_owned(),
+                    "CN" => SIMPLIFIED_CHINESE.to_owned(),
+                    "CZ" => CZECH.to_owned(),
+                    "EN" => ENGLISH.to_owned(),
+                    "FR" => FRENCH.to_owned(),
+                    "DE" => GERMAN.to_owned(),
+                    "IT" => ITALIAN.to_owned(),
+                    "KR" => KOREAN.to_owned(),
+                    "PO" => POLISH.to_owned(),
+                    "RU" => RUSSIAN.to_owned(),
+                    "ES" => SPANISH.to_owned(),
+                    "TR" => TURKISH.to_owned(),
+                    "ZH" => TRADITIONAL_CHINESE.to_owned(),
+
+                    // Default to english if we can't find the proper one.
+                    _ => ENGLISH.to_owned(),
+                };
+                Ok(Some(language))
+            }
+            None => Ok(None),
+        }
     }
 }

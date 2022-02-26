@@ -62,6 +62,7 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.game_selected_open_game_assembly_kit_folder.set_status_tip(&qtr("tt_game_selected_open_game_assembly_kit_folder"));
     app_ui.game_selected_open_config_folder.set_status_tip(&qtr("tt_game_selected_open_config_folder"));
 
+    app_ui.game_selected_warhammer_3.set_status_tip(&qtr("tt_game_selected_warhammer_3"));
     app_ui.game_selected_troy.set_status_tip(&qtr("tt_game_selected_troy"));
     app_ui.game_selected_three_kingdoms.set_status_tip(&qtr("tt_game_selected_three_kingdoms"));
     app_ui.game_selected_warhammer_2.set_status_tip(&qtr("tt_game_selected_warhammer_2"));
@@ -80,6 +81,8 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     let generate_dependencies_cache = qtr("tt_generate_dependencies_cache");
     let optimize_packfile = qtr("tt_optimize_packfile");
     let patch_siege_ai_tip = qtr("tt_patch_siege_ai");
+    app_ui.special_stuff_wh3_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
+    app_ui.special_stuff_wh3_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_troy_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);
     app_ui.special_stuff_troy_optimize_packfile.set_status_tip(&optimize_packfile);
     app_ui.special_stuff_three_k_generate_dependencies_cache.set_status_tip(&generate_dependencies_cache);

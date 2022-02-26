@@ -100,6 +100,7 @@ pub struct UI {
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
 pub struct GameSelectedIcons {
+    pub warhammer_3: (AtomicPtr<QIcon>, String),
     pub troy: (AtomicPtr<QIcon>, String),
     pub three_kingdoms: (AtomicPtr<QIcon>, String),
     pub warhammer_2: (AtomicPtr<QIcon>, String),
@@ -280,6 +281,7 @@ impl UI {
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
             KEY_TROY => app_ui.game_selected_troy.set_checked(true),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
@@ -293,8 +295,8 @@ impl UI {
             KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
 
             // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
-            // So just in case, by default we use WH2.
-            _ => app_ui.game_selected_warhammer_2.set_checked(true),
+            // So just in case, by default we use WH3.
+            _ => app_ui.game_selected_warhammer_3.set_checked(true),
         }
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
         info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
@@ -426,6 +428,7 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
+            warhammer_3: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_big_file_name())),
             troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_big_file_name())),
             three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_big_file_name())),
             warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_big_file_name())),
@@ -443,6 +446,7 @@ impl GameSelectedIcons {
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
         let (icon, big_icon) = match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+            KEY_WARHAMMER_3 => &GAME_SELECTED_ICONS.warhammer_3,
             KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
             KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,

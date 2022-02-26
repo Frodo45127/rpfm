@@ -716,6 +716,9 @@ pub enum ErrorKind {
 
     /// Error for when trying to publish a tip without a token.
     TipPublishUnsupported,
+    
+    /// Error for when we cannot find a tool var for a game.
+    ToolVarNotFoundForGame(String),
 }
 
 /// Implementation of `Error`.
@@ -1073,6 +1076,7 @@ impl Display for ErrorKind {
             ErrorKind::NoMessagesUpdatesAvailable => write!(f, "<p>No message updates available</p>"),
             ErrorKind::LocalTipNotFound => write!(f, "<p>Message not found in the backend. This is a bug, pls report it.</p>"),
             ErrorKind::TipPublishUnsupported => write!(f, "<p>This version of RPFM doesn't have support for uploading messages.</p>"),
+            ErrorKind::ToolVarNotFoundForGame(var) => write!(f, "<p>The following tool variable hasn't been found for the current Game Selected: {}.</p>", var),
         }
     }
 }

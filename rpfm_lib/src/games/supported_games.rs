@@ -25,6 +25,7 @@ use crate::packfile::{PFHFileType, PFHVersion};
 use super::{GameInfo, VanillaDBTableNameLogic, InstallData, InstallType};
 
 // Display Name for all the Supported Games.
+pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
 pub const DISPLAY_NAME_TROY: &str = "Troy";
 pub const DISPLAY_NAME_THREE_KINGDOMS: &str = "Three Kingdoms";
 pub const DISPLAY_NAME_WARHAMMER_2: &str = "Warhammer 2";
@@ -38,6 +39,7 @@ pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
 // Key for all the supported games.
+pub const KEY_WARHAMMER_3: &str = "warhammer_3";
 pub const KEY_TROY: &str = "troy";
 pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";
 pub const KEY_WARHAMMER_2: &str = "warhammer_2";
@@ -79,6 +81,83 @@ impl SupportedGames {
     pub fn new() -> Self {
         let mut game_list = IndexMap::new();
 
+        // Warhammer 3
+        game_list.insert(KEY_WARHAMMER_3, GameInfo {
+            display_name: DISPLAY_NAME_WARHAMMER_3,
+            pfh_versions: {
+                let mut data = HashMap::new();
+                data.insert(PFHFileType::Boot, PFHVersion::PFH5);
+                data.insert(PFHFileType::Release, PFHVersion::PFH5);
+                data.insert(PFHFileType::Patch, PFHVersion::PFH5);
+                data.insert(PFHFileType::Mod, PFHVersion::PFH6);
+                data.insert(PFHFileType::Movie, PFHVersion::PFH5);
+                data
+            },
+            schema_file_name: "schema_wh3.ron".to_owned(),
+            dependencies_cache_file_name: "wh3.pak2".to_owned(),
+            raw_db_version: 2,
+            supports_editing: true,
+            db_tables_have_guid: true,
+            locale_file: Some("language.txt".to_owned()),
+            banned_packedfiles: vec![
+                "db/agent_subtype_ownership_content_pack_junctions_tables".to_owned(),
+                "db/allied_recruitment_unit_permissions_tables".to_owned(),
+                "db/battle_ownership_content_pack_junctions_tables".to_owned(),
+                "db/building_chain_ownership_content_pack_junctions_tables".to_owned(),
+                "db/building_level_ownership_content_pack_junctions_tables".to_owned(),
+                "db/campaign_map_playable_area_ownership_content_pack_junctions_tables".to_owned(),
+                "db/faction_ownership_content_pack_junctions_tables".to_owned(),
+                "db/loading_screen_quote_ownership_content_pack_junctions_tables".to_owned(),
+                "db/main_unit_ownership_content_pack_junctions_tables".to_owned(),
+                "db/ownership_products_tables".to_owned(),
+                "db/ownership_content_packs_tables".to_owned(),
+                "db/ownership_content_pack_required_products_tables".to_owned(),
+                "db/ownership_content_pack_requirements_tables".to_owned(),
+                "db/ritual_ownership_content_pack_junctions_tables".to_owned(),
+                "db/technology_ownership_content_pack_junctions_tables".to_owned(),
+            ],
+            game_selected_icon: "gs_wh3.png".to_owned(),
+            game_selected_big_icon: "gs_big_wh3.png".to_owned(),
+            vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
+            install_data: {
+                let mut data = HashMap::new();
+                data.insert(InstallType::WinSteam, InstallData {
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    store_id: 1_142_710,
+                    executable: "Warhammer3.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "./../../workshop/content/1142710".to_owned(),
+                });
+
+                data
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "banner_colour_primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "banner_colour_secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "banner_colour_tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "uniform_colour_primary".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "uniform_colour_secondary".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "uniform_colour_tertiary".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "faction_row".to_owned());
+                vars
+            },
+        });
+
         // Troy
         game_list.insert(KEY_TROY, GameInfo {
             display_name: DISPLAY_NAME_TROY,
@@ -96,6 +175,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: Some("language.txt".to_owned()),
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_troy.png".to_owned(),
             game_selected_big_icon: "gs_big_troy.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
@@ -122,7 +203,32 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+
+                vars
+            },
         });
 
         // Three Kingdoms
@@ -142,6 +248,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_3k.png".to_owned(),
             game_selected_big_icon: "gs_big_3k.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
@@ -221,7 +329,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
         // Warhammer 2
         game_list.insert(KEY_WARHAMMER_2, GameInfo {
@@ -240,6 +371,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_wh2.png".to_owned(),
             game_selected_big_icon: "gs_big_wh2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::DefaultName("data__".to_owned()),
@@ -396,7 +529,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
 
         // Warhammer
@@ -416,6 +572,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_wh.png".to_owned(),
             game_selected_big_icon: "gs_big_wh.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -524,7 +682,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
 
         // Thrones of Britannia
@@ -544,6 +725,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_tob.png".to_owned(),
             game_selected_big_icon: "gs_big_tob.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -600,7 +783,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
 
         // Attila
@@ -620,6 +826,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_att.png".to_owned(),
             game_selected_big_icon: "gs_big_att.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -647,7 +855,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
 
         // Rome 2
@@ -667,6 +898,8 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_rom2.png".to_owned(),
             game_selected_big_icon: "gs_big_rom2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -683,7 +916,30 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: {
+                let mut vars = HashMap::new();
+                vars.insert("faction_painter_factions_table_name".to_owned(), "factions_tables".to_owned());
+                vars.insert("faction_painter_factions_table_definition".to_owned(), "factions_definition".to_owned());
+                vars.insert("faction_painter_factions_row_key".to_owned(), "faction_row".to_owned());
+
+                vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
+                vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
+                vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
+
+                vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
+                vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
+                vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
+                vars
+            },
         });
 
         // Shogun 2
@@ -704,6 +960,8 @@ impl SupportedGames {
             raw_db_version: 1,
             supports_editing: true,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_sho2.png".to_owned(),
             game_selected_big_icon: "gs_big_sho2.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -753,7 +1011,8 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: HashMap::new(),
         });
 
         // Napoleon
@@ -773,6 +1032,8 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_nap.png".to_owned(),
             game_selected_big_icon: "gs_big_nap.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -835,7 +1096,8 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: HashMap::new(),
         });
 
         // Empire
@@ -855,6 +1117,8 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_emp.png".to_owned(),
             game_selected_big_icon: "gs_big_emp.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -993,7 +1257,8 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: HashMap::new(),
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -1015,6 +1280,8 @@ impl SupportedGames {
             raw_db_version: -1,
             supports_editing: false,
             db_tables_have_guid: true,
+            locale_file: None,
+            banned_packedfiles: vec![],
             game_selected_icon: "gs_are.png".to_owned(),
             game_selected_big_icon: "gs_big_are.png".to_owned(),
             vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
@@ -1031,7 +1298,8 @@ impl SupportedGames {
                 });
 
                 data
-            }
+            },
+            tool_vars: HashMap::new(),
         });
 
         Self {

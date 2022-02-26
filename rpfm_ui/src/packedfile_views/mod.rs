@@ -41,7 +41,7 @@ use crate::utils::show_dialog;
 use crate::UI_STATE;
 use crate::views::table::TableType;
 
-use self::anim_fragment::PackedFileAnimFragmentView;
+use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
 use self::animpack::PackedFileAnimPackView;
 use self::ca_vp8::PackedFileCaVp8View;
 use self::esf::PackedFileESFView;
@@ -135,6 +135,7 @@ pub enum DataSource {
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
     AnimFragment(Arc<PackedFileAnimFragmentView>),
+    AnimFragmentDebug(Arc<PackedFileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
     CaVp8(Arc<PackedFileCaVp8View>),
     Decoder(Arc<PackedFileDecoderView>),
@@ -170,7 +171,7 @@ impl Default for PackedFileView {
 
         let tips_widget_ptr = unsafe { QWidget::new_0a() };
         unsafe { create_grid_layout(tips_widget_ptr.static_upcast()); }
-        unsafe { main_layout.add_widget_5a(&tips_widget_ptr, 0, 99, 99, 1); }
+        unsafe { main_layout.add_widget_5a(&tips_widget_ptr, 0, 99, 1, 1); }
         let tips_widget = Arc::new(tips_widget_ptr);
         let tips_view = unsafe { TipsView::new_view(&tips_widget, &[]) };
 
@@ -335,9 +336,11 @@ impl PackedFileView {
                             PackedFileType::AnimPack => return Ok(()),
 
                             PackedFileType::AnimFragment => {
-                                if let View::AnimFragment(view) = view {
-                                    view.save_data()?
-                                } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                match view {
+                                    View::AnimFragment(view) => view.save_data()?,
+                                    View::AnimFragmentDebug(_) => return Ok(()),
+                                    _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
+                                }
                             },
 
                             // These ones are a bit special. We just need to send back the current format of the video.

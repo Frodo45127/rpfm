@@ -29,6 +29,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    src/colour_item_delegate.cpp \
     src/extended_q_styled_item_delegate.cpp \
     src/kcolor_combo.cpp \
     src/kmessage_widget.cpp \
@@ -52,6 +53,7 @@ INCLUDEPATH += include
 INCLUDEPATH += C:\CraftRoot\include
 
 HEADERS += \
+    include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
     include/kmessage_widget.h \
     include/qt_subclasses_global.h \

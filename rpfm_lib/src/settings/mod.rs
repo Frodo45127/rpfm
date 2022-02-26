@@ -28,11 +28,9 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::games::*;
 use crate::games::supported_games::*;
 use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
-use crate::settings::supported_games::KEY_THREE_KINGDOMS;
 use crate::updater::STABLE;
 
 /// Qualifier for the config folder. Only affects MacOS.
@@ -94,7 +92,7 @@ impl Settings {
         }
 
         // General Settings.
-        settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
+        settings_string.insert("default_game".to_owned(), KEY_WARHAMMER_3.to_owned());
         settings_string.insert("language".to_owned(), "English_en".to_owned());
         settings_string.insert("update_channel".to_owned(), STABLE.to_owned());
         settings_string.insert("autosave_amount".to_owned(), "10".to_owned());
@@ -109,6 +107,7 @@ impl Settings {
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
+        settings_bool.insert("check_message_updates_on_start".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), true);

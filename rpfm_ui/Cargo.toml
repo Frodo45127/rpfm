@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui"
-version = "2.6.6"
+version = "3.0.0"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
@@ -51,6 +51,9 @@ qt_ui_tools = "^0.5"
 
 # Support for formatting math operations.
 meval = "^0.2"
+
+# Float equality
+float_eq = "^0.7"
 
 # UUID Generation support.
 uuid = { version = "^0.8", features = ["v4"] }

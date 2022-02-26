@@ -202,17 +202,28 @@ impl DB {
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
         let table = if version == 0 {
             let definitions = versioned_file?.get_version_alternatives();
-            let table = definitions.iter().find_map(|definition| {
+            let table: Option<Result<Table>> = definitions.iter().find_map(|definition| {
                 let mut table = Table::new(definition);
-                if table.decode(packed_file_data, entry_count, &mut index, return_incomplete).is_ok() {
-                    Some(table)
+                let decoded_table = table.decode(packed_file_data, entry_count, &mut index, return_incomplete);
+                if decoded_table.is_ok() {
+                    Some(Ok(table))
+                } else if return_incomplete {
+                    if let Err(error) = decoded_table {
+                        if let ErrorKind::TableIncompleteError(_, _) = error.kind() {
+                            Some(Err(error))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             });
 
             match table {
-                Some(table) => table,
+                Some(table) => table?,
                 None => return Err(ErrorKind::SchemaDefinitionNotFound.into()),
             }
         }

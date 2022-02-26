@@ -27,8 +27,11 @@ use crate::schema::*;
 /// Size of the header of an AnimFragment PackedFile.
 pub const HEADER_SIZE: usize = 0;
 
+/// Base path of an animation table. This is an special type of bin, stored only in this folder.
+pub const BASE_PATH: [&str; 1] = ["animations"];
+
 /// Extension of AnimFragment PackedFiles.
-pub const EXTENSION: &str = ".frg";
+pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

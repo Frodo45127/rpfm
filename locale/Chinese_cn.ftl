@@ -173,6 +173,8 @@ tt_game_selected_open_game_data_folder = 尝试在文件管理器中打开所选
 tt_game_selected_open_game_assembly_kit_folder = 尝试在文件管理器中打开所选游戏的Assembly Kit目录(如果存在).
 tt_game_selected_open_config_folder = 打开RPFM配置目录, 即 config/schemas/ctd 所在目录.
 
+tt_game_selected_warhammer_3 = 设置 'TW:Warhammer 3' 为'选中游戏'.
+tt_game_selected_troy = 设置 'TW:Troy' 为'选中游戏'.
 tt_game_selected_three_kingdoms = 设置 'TW:Three Kingdoms' 为'选中游戏'.
 tt_game_selected_warhammer_2 = 设置 'TW:Warhammer 2' 为'选中游戏'.
 tt_game_selected_warhammer = 设置 'TW:Warhammer' 为'选中游戏'.

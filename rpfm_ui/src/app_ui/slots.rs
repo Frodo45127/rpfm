@@ -15,6 +15,7 @@ Module with all the code related to the main `AppUISlot`.
 use qt_widgets::QAction;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
 use qt_widgets::{q_message_box, QMessageBox};
+use qt_widgets::QGridLayout;
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
@@ -23,6 +24,7 @@ use qt_gui::QDesktopServices;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs};
 use qt_core::QFlags;
+use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QUrl;
 
@@ -455,6 +457,7 @@ impl AppUISlots {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                         match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+                            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
@@ -625,6 +628,7 @@ impl AppUISlots {
                     // Change the Game Selected to match the one we chose for the new "MyMod".
                     // NOTE: Arena should not be on this list.
                     match &*mod_game {
+                        KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                         KEY_TROY => app_ui.game_selected_troy.trigger(),
                         KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                         KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
@@ -1536,6 +1540,15 @@ impl AppUISlots {
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = packed_file_view.get_mut_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
+
+                        // Re-add the widget with the correct row span before making it visible.
+                        if !packed_file_view.get_tips_widget().is_visible() {
+                            let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+                            layout.add_widget_5a(packed_file_view.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            packed_file_view.get_tips_widget().set_minimum_width(350);
+                            packed_file_view.get_tips_widget().set_maximum_width(350);
+                        }
+
                         packed_file_view.get_tips_widget().set_visible(!packed_file_view.get_tips_widget().is_visible());
                         break;
                     }

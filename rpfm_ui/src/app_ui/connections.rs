@@ -78,6 +78,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.game_selected_open_game_assembly_kit_folder.triggered().connect(&slots.game_selected_open_game_assembly_kit_folder);
     app_ui.game_selected_open_config_folder.triggered().connect(&slots.game_selected_open_config_folder);
 
+    app_ui.game_selected_warhammer_3.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_troy.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_three_kingdoms.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_warhammer_2.triggered().connect(&slots.change_game_selected);
@@ -96,6 +97,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_wh2_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
     app_ui.special_stuff_wh_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
 
+    app_ui.special_stuff_wh3_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_troy_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_three_k_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_wh2_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
@@ -107,6 +109,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_nap_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_emp_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
 
+    app_ui.special_stuff_wh3_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
     app_ui.special_stuff_troy_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
     app_ui.special_stuff_three_k_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);
     app_ui.special_stuff_wh2_generate_dependencies_cache.triggered().connect(&slots.special_stuff_generate_dependencies_cache);

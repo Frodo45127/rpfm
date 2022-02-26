@@ -29,10 +29,7 @@ use crate::schema::*;
 pub const HEADER_SIZE: usize = 8;
 
 /// Base path of an animation table. This is an special type of bin, stored only in this folder.
-pub const BASE_PATH: [&str; 2] = [
-    "animations",
-    "animation_tables"
-];
+pub const BASE_PATH: [&str; 1] = ["animations"];
 
 pub const EXTENSION: &str = "_tables.bin";
 

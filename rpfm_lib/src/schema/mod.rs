@@ -27,7 +27,6 @@ The basic structure of an `Schema` is:
                         field_type: StringU8,
                         is_key: true,
                         default_value: None,
-                        max_length: 0,
                         is_filename: false,
                         filename_relative_path: None,
                         is_reference: None,
@@ -36,13 +35,13 @@ The basic structure of an `Schema` is:
                         ca_order: -1,
                         is_bitwise: 0,
                         enum_values: {},
+                        is_part_of_colour: None,
                     ),
                     (
                         name: "value",
                         field_type: F32,
                         is_key: false,
                         default_value: None,
-                        max_length: 0,
                         is_filename: false,
                         filename_relative_path: None,
                         is_reference: None,
@@ -51,6 +50,7 @@ The basic structure of an `Schema` is:
                         ca_order: -1,
                         is_bitwise: 0,
                         enum_values: {},
+                        is_part_of_colour: None,
                     ),
                 ],
                 localised_fields: [],
@@ -88,6 +88,7 @@ use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
+pub(crate) mod v3;
 pub(crate) mod v2;
 pub(crate) mod v1;
 pub(crate) mod v0;
@@ -102,7 +103,10 @@ pub const REMOTE: &str = "origin";
 pub const BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purposes.
-const CURRENT_STRUCTURAL_VERSION: u16 = 3;
+const CURRENT_STRUCTURAL_VERSION: u16 = 4;
+
+/// Name for unamed colour groups.
+pub const MERGE_COLOUR_NO_NAME: &str = "Unnamed Colour Group";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -175,9 +179,6 @@ pub struct Field {
     /// The default value of the field.
     default_value: Option<String>,
 
-    /// The max allowed length for the data in the field.
-    max_length: i32,
-
     /// If the field's data corresponds to a filename.
     is_filename: bool,
 
@@ -200,7 +201,10 @@ pub struct Field {
     is_bitwise: i32,
 
     /// Variable that specifies the "Enum" values for each value in this field.
-    enum_values: BTreeMap<i32, String>
+    enum_values: BTreeMap<i32, String>,
+
+    /// If the field is part of a 3-part RGB column set, and which one (R, G or B) it is.
+    is_part_of_colour: Option<u8>,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
@@ -208,9 +212,11 @@ pub struct Field {
 pub enum FieldType {
     Boolean,
     F32,
+    F64,
     I16,
     I32,
     I64,
+    ColourRGB,
     StringU8,
     StringU16,
     OptionalStringU8,
@@ -603,6 +609,7 @@ impl Schema {
         v0::SchemaV0::update();
         v1::SchemaV1::update();
         v2::SchemaV2::update();
+        v3::SchemaV3::update();
     }
 
     /// This function checks if there is a new schema update in the schema repo.
@@ -923,33 +930,58 @@ impl Definition {
         &self.localised_fields
     }
 
+    /// This function returns the localised fields of the provided definition
+    pub fn get_ref_mut_localised_fields(&mut self) -> &mut Vec<Field> {
+        &mut self.localised_fields
+    }
+
     /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
     pub fn get_fields_processed(&self) -> Vec<Field> {
-        self.get_ref_fields().iter()
-            .map(|x|
+        let mut split_colour_fields: BTreeMap<u8, Field> = BTreeMap::new();
+        let mut fields = self.get_ref_fields().iter()
+            .filter_map(|x|
                 if x.get_is_bitwise() > 1 {
                     let mut fields = vec![x.clone(); x.get_is_bitwise() as usize];
                     fields.iter_mut().enumerate().for_each(|(index, field)| {
                         field.set_name(&format!("{}_{}", field.get_name(), index + 1));
                         field.set_field_type(FieldType::Boolean);
                     });
-                    fields
+                    Some(fields)
                 }
 
                 else if !x.get_enum_values().is_empty() {
                     let mut field = x.clone();
                     field.set_field_type(FieldType::StringU8);
-                    vec![field; 1]
+                    Some(vec![field; 1])
                 }
 
-                else { vec![x.clone(); 1] }
+                else if let Some(colour_index) = x.get_is_part_of_colour() {
+                    if split_colour_fields.get(&colour_index).is_none() {
+                        let colour_split = x.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
+                        let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
+                        let mut field = x.clone();
+                        field.set_name(&colour_field_name);
+                        field.set_field_type(FieldType::ColourRGB);
+                        split_colour_fields.insert(colour_index, field);
+                    }
 
+                    None
+                }
+
+                else {
+                    Some(vec![x.clone(); 1])
+                }
             )
             .flatten()
-            .collect::<Vec<Field>>()
+            .collect::<Vec<Field>>();
+
+        // Second pass to add the combined colour fields.
+        fields.append(&mut split_colour_fields.values().cloned().collect::<Vec<Field>>());
+        fields
     }
 
+    /// Note, this doesn't work with combined fields.
     pub fn get_original_field_from_processed(&self, index: usize) -> Field {
         let fields = self.get_ref_fields();
         let processed = self.get_fields_processed();
@@ -1000,17 +1032,13 @@ impl Definition {
     /// - Lookup.
     /// - CA Order.
     pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition) {
+        let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
+        let mut combined_fields = BTreeMap::new();
         for (index, raw_field) in raw_definition.fields.iter().enumerate() {
             for field in &mut self.fields {
                 if field.name == raw_field.name {
                     if (raw_field.primary_key == "1" && !field.is_key) || (raw_field.primary_key == "0" && field.is_key) {
                         field.is_key = raw_field.primary_key == "1";
-                    }
-
-                    if let Some(ref length) = raw_field.max_length {
-                        if let Ok(length) = length.parse::<i32>() {
-                            field.max_length = length;
-                        }
                     }
 
                     if raw_field.default_value.is_some() {
@@ -1038,6 +1066,40 @@ impl Definition {
 
                     field.is_filename = raw_field.is_filename.is_some();
                     field.ca_order = index as i16;
+
+                    // Detect and group colour fiels.
+                    let is_numeric = if let FieldType::I16 = field.field_type { true }
+                    else if let FieldType::I32 = field.field_type { true }
+                    else if let FieldType::I64 = field.field_type { true }
+                    else { false };
+
+                    if is_numeric && raw_table_name != "factions" {
+                        if field.name.ends_with("_r") ||
+                            field.name.ends_with("_g") ||
+                            field.name.ends_with("_b") ||
+                            field.name.ends_with("_red") ||
+                            field.name.ends_with("_green") ||
+                            field.name.ends_with("_blue") ||
+                            field.name == "r" ||
+                            field.name == "g" ||
+                            field.name == "b" ||
+                            field.name == "red" ||
+                            field.name == "green" ||
+                            field.name == "blue" {
+                            let colour_split = field.name.rsplitn(2, "_").collect::<Vec<&str>>();
+                            let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+
+                            match combined_fields.get(&colour_field_name) {
+                                Some(group_key) => field.is_part_of_colour = Some(*group_key),
+                                None => {
+                                    let group_key = combined_fields.keys().len() as u8 + 1;
+                                    combined_fields.insert(colour_field_name.to_owned(), group_key);
+                                    field.is_part_of_colour = Some(group_key);
+                                }
+                            }
+
+                        }
+                    }
                     break;
                 }
             }
@@ -1169,7 +1231,6 @@ impl Field {
         field_type: FieldType,
         is_key: bool,
         default_value: Option<String>,
-        max_length: i32,
         is_filename: bool,
         filename_relative_path: Option<String>,
         is_reference: Option<(String, String)>,
@@ -1177,14 +1238,14 @@ impl Field {
         description: String,
         ca_order: i16,
         is_bitwise: i32,
-        enum_values: BTreeMap<i32, String>
+        enum_values: BTreeMap<i32, String>,
+        is_part_of_colour: Option<u8>,
     ) -> Self {
         Self {
             name,
             field_type,
             is_key,
             default_value,
-            max_length,
             is_filename,
             filename_relative_path,
             is_reference,
@@ -1192,7 +1253,8 @@ impl Field {
             description,
             ca_order,
             is_bitwise,
-            enum_values
+            enum_values,
+            is_part_of_colour
         }
     }
 
@@ -1234,11 +1296,6 @@ impl Field {
     /// Getter for the `default_value` field.
     pub fn get_default_value(&self) -> &Option<String> {
         &self.default_value
-    }
-
-    /// Getter for the `max_length` field.
-    pub fn get_max_length(&self) -> i32 {
-        self.max_length
     }
 
     /// Getter for the `is_filename` field.
@@ -1291,6 +1348,11 @@ impl Field {
     pub fn get_enum_values_to_string(&self) -> String {
         self.enum_values.iter().map(|(x, y)| format!("{},{}", x, y)).join(";")
     }
+
+    /// Getter for the `is_part_of_colour` field.
+    pub fn get_is_part_of_colour(&self) -> Option<u8> {
+        self.is_part_of_colour
+    }
 }
 
 /// Default implementation of `Schema`.
@@ -1311,7 +1373,6 @@ impl Default for Field {
             field_type: FieldType::StringU8,
             is_key: false,
             default_value: None,
-            max_length: 0,
             is_filename: false,
             filename_relative_path: None,
             is_reference: None,
@@ -1320,6 +1381,7 @@ impl Default for Field {
             ca_order: -1,
             is_bitwise: 0,
             enum_values: BTreeMap::new(),
+            is_part_of_colour: None,
         }
     }
 }
@@ -1330,9 +1392,11 @@ impl Display for FieldType {
         match self {
             FieldType::Boolean => write!(f, "Boolean"),
             FieldType::F32 => write!(f, "F32"),
+            FieldType::F64 => write!(f, "F64"),
             FieldType::I16 => write!(f, "I16"),
             FieldType::I32 => write!(f, "I32"),
             FieldType::I64 => write!(f, "I64"),
+            FieldType::ColourRGB => write!(f, "ColourRGB"),
             FieldType::StringU8 => write!(f, "StringU8"),
             FieldType::StringU16 => write!(f, "StringU16"),
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
@@ -1358,10 +1422,12 @@ impl From<&RawField> for Field {
     fn from(raw_field: &RawField) -> Self {
         let field_type = match &*raw_field.field_type {
             "yesno" => FieldType::Boolean,
-            "single" | "double" => FieldType::F32,
+            "single" => FieldType::F32,
+            "double" => FieldType::F64,
             "integer" => FieldType::I32,
             "autonumber" | "card64" => FieldType::I64,
-            "text" => {
+            "colour" => FieldType::ColourRGB,
+            "expression" | "text" => {
                 if raw_field.required == "1" {
                     FieldType::StringU8
                 }
@@ -1371,11 +1437,6 @@ impl From<&RawField> for Field {
             },
             _ => FieldType::StringU8,
         };
-
-        let max_length = if let Some(x) = &raw_field.max_length {
-            if let Ok(y) = x.parse::<i32>() { y }
-            else { 0 }
-        } else { 0 };
 
         let (is_reference, lookup) = if let Some(x) = &raw_field.column_source_table {
             if let Some(y) = &raw_field.column_source_column {
@@ -1390,7 +1451,6 @@ impl From<&RawField> for Field {
             field_type,
             is_key: raw_field.primary_key == "1",
             default_value: raw_field.default_value.clone(),
-            max_length,
             is_filename: raw_field.is_filename.is_some(),
             filename_relative_path: raw_field.filename_relative_path.clone(),
             is_reference,

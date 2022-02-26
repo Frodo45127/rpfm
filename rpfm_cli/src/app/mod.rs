@@ -55,7 +55,7 @@ pub fn initialize_app<'a>() -> Command<'a> {
             .long("game")
             .value_name("GAME")
             .help("Sets the 'Game' all the commands will be tailored to. This affects what schemas will be used when dealing with DB Tables, the format of the PackFiles… If it's not set, the default game from the settings will be used.")
-            .possible_values(&["three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])
+            .possible_values(&["warhammer_3", "troy", "three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])
             .takes_value(true))
 
         // `AssKit DB Path` flag. This is required for certain operations requiring the dependencies cache.
