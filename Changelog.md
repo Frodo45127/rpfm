@@ -6,6 +6,40 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [3.0.0]
+### Added
+- Implemented support for Warhammer 3.
+- Implemented new `Messages` feature.
+- Implemented small search history on Global Search.
+- Implemented support for F64 fields.
+- Implemented support for RGB fields.
+- Implemented support for banned tables.
+- Implemented diagnostic to detect banned tables.
+- Implemented partial support for .bin anomfragments.
+- Implemented support for grouped colour columns.
+
+### Changed
+- Rewrite selection now accepts uppercased versions of the replaced characters.
+- Schemas should load a bit faster on slow disks.
+- Extract commands of the cli now autoexport tables.
+- Updated all games icons (thanks to Jake Armitage).
+- `Dependencies` and `Load all CA PackFiles` should now only load your selected language files and ignore the rest of language files.
+- Updated schema version to v4 to support the new field types.
+- Updated faction painter to work with Warhammer 3.
+- Updated dependencies.
+
+### Fixed
+- Fixed OOM bug on Global Search related with text files.
+- Fixed `Go To` commands not expanding on the views on the left the files they open.
+- Fixed text files not being marked as modified in the TreeView.
+- Fixed text files showing the last line and not the first one on opening.
+- Fixed missing templates on linux release builds.
+- Fixed a bug on linux builds that caused the Unit Editor to not load.
+- Fixed the cli not working properly with Troy.
+- Fixed the decoder weirdly falling to report the errors on v0 tables.
+- Fixed a bug that caused weird stuff to happen in the first right-click of a table.
+- Fixed multiple issues related with read-only tables not being properly locked.
+
 ## [2.6.6]
 ### Added
 - Implemented Row Counter for tables.
@@ -579,7 +613,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v2.6.6...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/Frodo45127/rpfm/compare/v2.6.6...v3.0.0
 [2.6.6]: https://github.com/Frodo45127/rpfm/compare/v2.6.5...v2.6.6
 [2.6.5]: https://github.com/Frodo45127/rpfm/compare/v2.6.4...v2.6.5
 [2.6.4]: https://github.com/Frodo45127/rpfm/compare/v2.6.3...v2.6.4
