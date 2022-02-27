@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [3.0.1]
+### Fixed
+- Fixed incorrect game selected set when opening packfiles.
+- Fixed saving error when saving packs with specific tables.
+
 ## [3.0.0]
 ### Added
 - Implemented support for Warhammer 3.
@@ -613,7 +618,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/Frodo45127/rpfm/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/Frodo45127/rpfm/compare/v2.6.6...v3.0.0
 [2.6.6]: https://github.com/Frodo45127/rpfm/compare/v2.6.5...v2.6.6
 [2.6.5]: https://github.com/Frodo45127/rpfm/compare/v2.6.4...v2.6.5
