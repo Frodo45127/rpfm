@@ -1699,14 +1699,13 @@ impl PackFile {
     ///
     /// NOTE: This may change the PFHVersion of this PackFile too.
     pub fn set_pfh_file_type(&mut self, pfh_file_type: PFHFileType) {
+        self.pfh_file_type = pfh_file_type;
 
         // Make sure the current PFHVersion of this PackFile is compatible with the new PFHFileType.
         let pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.get_pfh_file_type());
         if pfh_version != self.get_pfh_version() {
             self.set_pfh_version(pfh_version);
         }
-
-        self.pfh_file_type = pfh_file_type;
     }
 
     /// This function returns the `Bitmask` of the provided `PackFile`.
@@ -2954,9 +2953,6 @@ impl PackFile {
 
         // Create the file to save to, and save the header and the indexes.
         let mut file = BufWriter::new(File::create(&self.file_path)?);
-
-        // Fix the PFH version.
-        self.pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.pfh_file_type);
 
         // Write the entire header.
         let mut header = vec![];
