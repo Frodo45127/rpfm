@@ -89,7 +89,7 @@ impl SupportedGames {
                 data.insert(PFHFileType::Boot, PFHVersion::PFH5);
                 data.insert(PFHFileType::Release, PFHVersion::PFH5);
                 data.insert(PFHFileType::Patch, PFHVersion::PFH5);
-                data.insert(PFHFileType::Mod, PFHVersion::PFH6);
+                data.insert(PFHFileType::Mod, PFHVersion::PFH5);
                 data.insert(PFHFileType::Movie, PFHVersion::PFH5);
                 data
             },

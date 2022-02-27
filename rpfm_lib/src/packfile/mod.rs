@@ -2955,6 +2955,9 @@ impl PackFile {
         // Create the file to save to, and save the header and the indexes.
         let mut file = BufWriter::new(File::create(&self.file_path)?);
 
+        // Fix the PFH version.
+        self.pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.pfh_file_type);
+
         // Write the entire header.
         let mut header = vec![];
         header.encode_string_u8(self.pfh_version.get_value());
