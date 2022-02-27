@@ -58,7 +58,7 @@ pub struct Table {
 ///
 /// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
 /// inside a single field. Used, for example, in certain model tables.
-#[derive(Clone, Debug, PartialOrd, Deserialize)]
+#[derive(Clone, Debug, PartialOrd, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     F32(f32),
@@ -1305,7 +1305,10 @@ impl Table {
 
         // Then we serialize each entry in the DB Table.
         for entry in &self.entries {
-            let sorted_entry = sorted_indexes.iter().map(|index| &entry[*index]).collect::<Vec<&DecodedData>>();
+            let sorted_entry = sorted_indexes.iter()
+                .map(|index| &entry[*index])
+                .map(|data| if let DecodedData::ColourRGB(_) = data { DecodedData::StringU8(data.data_to_string()) } else { data.clone() })
+                .collect::<Vec<DecodedData>>();
             writer.serialize(&sorted_entry)?;
         }
 
@@ -1358,7 +1361,10 @@ impl Table {
 
         // Then we serialize each entry in the DB Table.
         for entry in entries {
-            let sorted_entry = sorted_indexes.iter().map(|index| &entry[*index]).collect::<Vec<&DecodedData>>();
+            let sorted_entry = sorted_indexes.iter()
+                .map(|index| &entry[*index])
+                .map(|data| if let DecodedData::ColourRGB(_) = data { DecodedData::StringU8(data.data_to_string()) } else { data.clone() })
+                .collect::<Vec<DecodedData>>();
             writer.serialize(&sorted_entry)?;
         }
 
@@ -1430,30 +1436,6 @@ impl From<&RawTable> for Table {
         }
         else {
             Self::new(&Definition::new(-100))
-        }
-    }
-}
-
-/// Custom serialize impl for DecodedData.
-impl serde::ser::Serialize for DecodedData {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        match self {
-            DecodedData::Boolean(data) => serializer.serialize_bool(*data),
-            DecodedData::F32(data) => serializer.serialize_f32(*data),
-            DecodedData::F64(data) => serializer.serialize_f64(*data),
-            DecodedData::I16(data) => serializer.serialize_i16(*data),
-            DecodedData::I32(data) => serializer.serialize_i32(*data),
-            DecodedData::I64(data) => serializer.serialize_i64(*data),
-            DecodedData::ColourRGB(_) => serializer.serialize_str(&self.data_to_string()),
-            DecodedData::StringU8(data) => serializer.serialize_str(data),
-            DecodedData::StringU16(data) => serializer.serialize_str(data),
-            DecodedData::OptionalStringU8(data) => serializer.serialize_str(data),
-            DecodedData::OptionalStringU16(data) => serializer.serialize_str(data),
-            DecodedData::SequenceU16(data) => serializer.serialize_some(data),
-            DecodedData::SequenceU32(data) => serializer.serialize_some(data),
         }
     }
 }
