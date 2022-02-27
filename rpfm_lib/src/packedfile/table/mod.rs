@@ -699,7 +699,7 @@ impl Table {
             let combined_colour_positions = fields.iter().filter_map(|field| {
                 if field.get_is_part_of_colour().is_some() {
                     let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
-                    let colour_field_name: String = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                    let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                     self.definition.get_column_position_by_name(&colour_field_name).ok().map(|x| (colour_field_name, x))
                 } else { None }
@@ -709,7 +709,7 @@ impl Table {
                 if field.get_is_part_of_colour().is_some() {
                     let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
                     let colour_channel = colour_split[0].to_lowercase();
-                    let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                    let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                     if let Some(data_column) = combined_colour_positions.get(&colour_field_name) {
                         match row[*data_column] {

@@ -108,6 +108,8 @@ const CURRENT_STRUCTURAL_VERSION: u16 = 4;
 /// Name for unamed colour groups.
 pub const MERGE_COLOUR_NO_NAME: &str = "Unnamed Colour Group";
 
+pub const MERGE_COLOUR_POST: &str = "_hex";
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -958,7 +960,7 @@ impl Definition {
                 else if let Some(colour_index) = x.get_is_part_of_colour() {
                     if split_colour_fields.get(&colour_index).is_none() {
                         let colour_split = x.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
-                        let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                        let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                         let mut field = x.clone();
                         field.set_name(&colour_field_name);
@@ -1087,7 +1089,7 @@ impl Definition {
                             field.name == "green" ||
                             field.name == "blue" {
                             let colour_split = field.name.rsplitn(2, "_").collect::<Vec<&str>>();
-                            let colour_field_name = if colour_split.len() == 2 { colour_split[1].to_lowercase() } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                            let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                             match combined_fields.get(&colour_field_name) {
                                 Some(group_key) => field.is_part_of_colour = Some(*group_key),
