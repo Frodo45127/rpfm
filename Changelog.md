@@ -6,6 +6,17 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [3.0.3]
+### Changed
+- Improved error messages under certain circustances.
+- RPFM no longer adds rpfm-specific files to vanilla packs.
+- RPFM no longer adds version header to version 0 tables.
+
+### Fixed
+- Fixed a bug that caused some colour fields to be encoded incorrectly.
+- Fixed a bug that caused alternative 0 version definitions to not work.
+- Fixed a bug that caused the decoder version to not change on load.
+
 ## [3.0.2]
 ### Fixed
 - Fixed a bug that caused an incorrect PFHX version being set on PackFiles.
@@ -622,7 +633,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.3...HEAD
+[3.0.3]: https://github.com/Frodo45127/rpfm/compare/v3.0.2...v3.0.3
 [3.0.2]: https://github.com/Frodo45127/rpfm/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/Frodo45127/rpfm/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/Frodo45127/rpfm/compare/v2.6.6...v3.0.0
