@@ -2896,21 +2896,25 @@ impl PackFile {
             }
         }
 
-        // Save notes, if needed.
-        if let Some(note) = &self.notes {
+        // Only do this in non-vanilla files.
+        if self.pfh_file_type == PFHFileType::Mod || self.pfh_file_type == PFHFileType::Movie {
+
+            // Save notes, if needed.
+            if let Some(note) = &self.notes {
+                let mut data = vec![];
+                data.encode_string_u8(note);
+                let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
+                let packed_file = PackedFile::new_from_raw(&raw_data);
+                self.packed_files.push(packed_file);
+            }
+
+            // Saving PackFile settings.
             let mut data = vec![];
-            data.encode_string_u8(note);
-            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
+            data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
+            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
             let packed_file = PackedFile::new_from_raw(&raw_data);
             self.packed_files.push(packed_file);
         }
-
-        // Saving PackFile settings.
-        let mut data = vec![];
-        data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
-        let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
-        let packed_file = PackedFile::new_from_raw(&raw_data);
-        self.packed_files.push(packed_file);
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
