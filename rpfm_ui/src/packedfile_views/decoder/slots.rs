@@ -473,6 +473,9 @@ impl PackedFileDecoderViewSlots {
                 if indexes.count_0a() == 1 {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
+                    if view.get_mut_ptr_packed_file_info_version_decoded_spinbox().is_enabled() {
+                        view.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_value(version);
+                    }
 
                     // Get the new definition.
                     let definition = get_definition(
