@@ -200,10 +200,12 @@ impl DB {
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
+        let index_reset = index;
         let table = if version == 0 {
             let definitions = versioned_file?.get_version_alternatives();
             let table: Option<Result<Table>> = definitions.iter().find_map(|definition| {
                 let mut table = Table::new(definition);
+                index = index_reset;
                 let decoded_table = table.decode(packed_file_data, entry_count, &mut index, return_incomplete);
                 if decoded_table.is_ok() {
                     Some(Ok(table))
