@@ -729,22 +729,26 @@ pub fn background_loop() {
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                        Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                    }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                if dependencies.game_has_vanilla_data_loaded(false) {
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                            Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
             }
 
             // In case we want to get the definition of an specific table from the dependency database...
             Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                        Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
-                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                    }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                if dependencies.game_has_vanilla_data_loaded(false) {
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
+                            Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
+                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
             }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
