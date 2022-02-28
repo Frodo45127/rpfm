@@ -283,7 +283,7 @@ impl Decoder for [u8] {
     }
 
     fn decode_integer_colour_rgb(&self, offset: usize) -> Result<u32> {
-        if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&[self[offset + 1], self[offset + 2], self[offset + 3], 0x00])) }
+        if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an RGB colour:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }
 
@@ -333,12 +333,9 @@ impl Decoder for [u8] {
         if self.len() >= offset + 4 {
 
             // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
-            // REMEMBER, FORMAT ENCODED IS 00BBGGRR.
-            let value = format!("{:08X?}", LittleEndian::read_u32(&self[offset..]));
-            let mut chars = value.chars();
-            chars.next_back();
-            chars.next_back();
-            Ok(chars.as_str().to_owned())
+            // REMEMBER, FORMAT ENCODED IS BBGGRR00.
+            let value = format!("{:06X?}", LittleEndian::read_u32(&self[offset..]));
+            Ok(value)
         }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an RGB colour:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {:?}.</li></ul>", offset.checked_sub(self.len()))).into()) }
     }

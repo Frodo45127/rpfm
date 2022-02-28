@@ -191,10 +191,7 @@ impl Encoder for Vec<u8> {
     }
 
     fn encode_integer_colour_rgb(&mut self, integer: u32) {
-        let mut temp = Vec::with_capacity(4);
-        temp.write_u32::<LittleEndian>(integer).unwrap();
-        self.push(0);
-        self.extend_from_slice(&temp[0..3]);
+        self.write_u32::<LittleEndian>(integer).unwrap();
     }
 
     fn encode_string_u8(&mut self, string: &str) {

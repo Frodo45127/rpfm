@@ -169,7 +169,7 @@ fn test_decode_float_f64() {
 fn test_decode_integer_colour_rgb() {
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(Decoder::decode_integer_colour_rgb([0x00, 0xFF, 0x04, 0x05].as_ref(), 0).unwrap(), 328959);
+    assert_eq!(Decoder::decode_integer_colour_rgb([0xFF, 0x04, 0x05, 0x00].as_ref(), 0).unwrap(), 328959);
 
     // Check the decoder returns an error for a slice shorter than expected.
     assert_eq!(Decoder::decode_integer_colour_rgb([0x87, 0x97].as_ref(), 0).is_err(), true);
@@ -273,7 +273,7 @@ fn test_decode_string_u16_0padded() {
 fn test_decode_string_colour_rgb() {
 
     // Check the decoding works for a proper encoded string.
-    assert_eq!(Decoder::decode_string_colour_rgb([0x00, 0xFF, 0x04, 0x05].as_ref(), 0).unwrap(), "0504FF");
+    assert_eq!(Decoder::decode_string_colour_rgb([0xFF, 0x04, 0x05, 0x00].as_ref(), 0).unwrap(), "0504FF");
 
     // Check the decoder returns an error for a slice shorter than expected.
     assert_eq!(Decoder::decode_string_colour_rgb([0x87, 0x97].as_ref(), 0).is_err(), true);
@@ -731,7 +731,7 @@ fn test_decode_packedfile_string_colour_rgb() {
     // Check the decoding works for a proper value.
     {
         let mut index = 0;
-        assert_eq!(Decoder::decode_packedfile_string_colour_rgb([0x00, 0x06, 0xFF, 0xAB].as_ref(), 0, &mut index).unwrap(), "ABFF06");
+        assert_eq!(Decoder::decode_packedfile_string_colour_rgb([0x06, 0xFF, 0xAB, 0x00].as_ref(), 0, &mut index).unwrap(), "ABFF06");
         assert_eq!(index, 4);
     }
 
