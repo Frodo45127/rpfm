@@ -296,8 +296,13 @@ impl DB {
                 packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
             }
         }
-        packed_file.extend_from_slice(VERSION_MARKER);
-        packed_file.encode_integer_i32(self.table.definition.get_version());
+
+        // Only put version numbers on tables with an actual version.
+        if self.table.definition.get_version() > 0 {
+            packed_file.extend_from_slice(VERSION_MARKER);
+            packed_file.encode_integer_i32(self.table.definition.get_version());
+        }
+
         packed_file.encode_bool(self.mysterious_byte);
         packed_file.encode_integer_u32(self.table.entries.len() as u32);
 
