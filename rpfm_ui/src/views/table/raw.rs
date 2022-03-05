@@ -937,7 +937,7 @@ impl TableView {
                 // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 3 { format!("{}", format!("{:.3}", item.data_1a(2).to_float_0a()).parse::<f32>().unwrap()) }
+                    if *decimals > 4 { format!("{}", format!("{:.4}", item.data_1a(2).to_float_0a()).parse::<f32>().unwrap()) }
                     else { data_str }
                 }
                 else { data_str }
@@ -950,7 +950,7 @@ impl TableView {
                 // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 3 { format!("{}", format!("{:.3}", item.data_1a(2).to_double_0a()).parse::<f64>().unwrap()) }
+                    if *decimals > 4 { format!("{}", format!("{:.4}", item.data_1a(2).to_double_0a()).parse::<f64>().unwrap()) }
                     else { data_str }
                 }
                 else { data_str }
@@ -1336,9 +1336,9 @@ impl TableView {
 
                     // These are a bit special because we have to ignore any difference after the third decimal.
                     FieldType::F32 => {
-                        let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_float_0a());
+                        let current_value = format!("{:.4}", self.table_model.data_2a(real_cell, 2).to_float_0a());
                         if let Ok(new_value) = text.parse::<f32>() {
-                            let new_value_txt = format!("{:.3}", new_value);
+                            let new_value_txt = format!("{:.4}", new_value);
                             if current_value != new_value_txt {
                                 self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
                                 changed_cells += 1;
@@ -1349,9 +1349,9 @@ impl TableView {
 
                     // Same thing as with F32.
                     FieldType::F64 => {
-                        let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_double_0a());
+                        let current_value = format!("{:.4}", self.table_model.data_2a(real_cell, 2).to_double_0a());
                         if let Ok(new_value) = text.parse::<f64>() {
-                            let new_value_txt = format!("{:.3}", new_value);
+                            let new_value_txt = format!("{:.4}", new_value);
                             if current_value != new_value_txt {
                                 self.table_model.set_data_3a(real_cell, &QVariant::from_double(new_value), 2);
                                 changed_cells += 1;

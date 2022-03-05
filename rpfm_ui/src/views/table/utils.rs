@@ -474,7 +474,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
                 let data_str = format!("{}", data);
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                    if *decimals > 4 { format!("{:.4}", data).parse::<f32>().unwrap() }
                     else { *data }
                 }
                 else { *data }
@@ -494,7 +494,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
                 let data_str = format!("{}", data);
                 if let Some(position) = data_str.find('.') {
                     let decimals = &data_str[position..].len();
-                    if *decimals > 3 { format!("{:.3}", data).parse::<f64>().unwrap() }
+                    if *decimals > 4 { format!("{:.4}", data).parse::<f64>().unwrap() }
                     else { *data }
                 }
                 else { *data }

@@ -352,8 +352,8 @@ impl DecodedData {
     pub fn data_to_string(&self) -> String {
         match self {
             DecodedData::Boolean(data) => data.to_string(),
-            DecodedData::F32(data) => format!("{:.3}", data),
-            DecodedData::F64(data) => format!("{:.3}", data),
+            DecodedData::F32(data) => format!("{:.4}", data),
+            DecodedData::F64(data) => format!("{:.4}", data),
             DecodedData::I16(data) => data.to_string(),
             DecodedData::I32(data) => data.to_string(),
             DecodedData::I64(data) => data.to_string(),

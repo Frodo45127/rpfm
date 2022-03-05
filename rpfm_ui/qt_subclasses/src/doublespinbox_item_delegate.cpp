@@ -45,7 +45,7 @@ QWidget* QDoubleSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleO
 
     QDoubleSpinBox* spinBox = new QDoubleSpinBox(parent);
     spinBox->setRange(-3.402823e+38, 3.402823e+38);
-    spinBox->setDecimals(3);
+    spinBox->setDecimals(4);
     return spinBox;
 }
 
