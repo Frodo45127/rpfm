@@ -12,13 +12,18 @@
 Module with all the code to deal with the raw version of the tables.
 !*/
 
+use itertools::Itertools;
+
 use qt_widgets::q_abstract_item_view::ScrollHint;
+use qt_widgets::q_dialog_button_box::StandardButton;
 use qt_widgets::QDialog;
+use qt_widgets::QDialogButtonBox;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 use qt_widgets::QSpinBox;
+use qt_widgets::QTextEdit;
 use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QGuiApplication;
@@ -36,15 +41,23 @@ use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QSignalBlocker;
 use qt_core::QPtr;
 
+use qt_ui_tools::QUiLoader;
+
 use cpp_core::CppBox;
 use cpp_core::Ref;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::sync::atomic::Ordering;
+
+use rpfm_error::Error;
 
 use rpfm_lib::packedfile::table::db::CascadeEdition;
 use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::schema::patch::SchemaPatch;
 
+use crate::ASSETS_PATH;
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::*;
 use crate::locale::tr;
@@ -52,8 +65,11 @@ use crate::packedfile_views::utils::set_modified;
 use crate::packedfile_views::DataSource;
 use crate::pack_tree::*;
 use crate::UI_STATE;
-use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
+use crate::utils::{atomic_from_ptr, create_grid_layout, find_widget, log_to_status_bar};
 use super::*;
+
+const PATCH_COLUMN_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/new_schema_patch_dialog.ui";
+const PATCH_COLUMN_VIEW_RELEASE: &str = "ui/new_schema_patch_dialog.ui";
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -80,6 +96,7 @@ impl TableView {
         self.context_menu_redo.set_enabled(false);
         self.context_menu_import_tsv.set_enabled(false);
         self.context_menu_cascade_edition.set_enabled(false);
+        self.context_menu_patch_column.set_enabled(true);
         self.smart_delete.set_enabled(false);
 
         // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
@@ -607,7 +624,7 @@ impl TableView {
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.get_ref_table_definition());
+                            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
                             for index in 0..row.count_0a() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
@@ -985,7 +1002,7 @@ impl TableView {
             }
             rows
         } else {
-            let row = get_new_row(&self.get_ref_table_definition());
+            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1038,7 +1055,7 @@ impl TableView {
 
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.get_ref_table_definition());
+            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1065,7 +1082,7 @@ impl TableView {
                 }
                 qlist
             } else {
-                let row = get_new_row(&self.get_ref_table_definition());
+                let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
                 for index in 0..row.count_0a() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
@@ -1648,6 +1665,92 @@ impl TableView {
                 .collect::<Vec<(String, String, i32, i32)>>();
             if real_edits.is_empty() { None } else { Some(real_edits) }
         } else { None }
+    }
+
+    /// This function creates the "Patch Column" dialog and submits a patch of accepted.
+    pub unsafe fn patch_column(&self) -> Result<()> {
+
+        // We only want to do this for tables we can identify.
+        let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return Err(ErrorKind::DBTableIsNotADBTable.into()) };
+
+        // Get the selected indexes.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+
+        // Only works with a column selected.
+        let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();
+        if indexes.iter().map(|x| x.column()).sorted().dedup().count() != 1 {
+            return Err(ErrorKind::Generic.into())
+        }
+
+        let column_index = columns[0];
+        let field = self.get_ref_table_definition().get_fields_processed().get(column_index as usize).cloned().ok_or(Error::from(ErrorKind::Generic))?;
+
+        // Create and configure the dialog.
+        let view = if cfg!(debug_assertions) { PATCH_COLUMN_VIEW_DEBUG } else { PATCH_COLUMN_VIEW_RELEASE };
+        let template_path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), view);
+        let mut data = vec!();
+        let mut file = BufReader::new(File::open(template_path)?);
+        file.read_to_end(&mut data)?;
+
+        let ui_loader = QUiLoader::new_0a();
+        let main_widget = ui_loader.load_bytes_with_parent(&data, &self.table_view_primary);
+
+        let schema_patch_instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "schema_patch_instructions_label")?;
+        let default_value_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "default_value_label")?;
+        let not_empty_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "not_empty_label")?;
+        let explanation_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "explanation_label")?;
+
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        let default_value_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "default_value_line_edit")?;
+        let not_empty_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "not_empty_checkbox")?;
+        let explanation_text_edit: QPtr<QTextEdit> = find_widget(&main_widget.static_upcast(), "explanation_text_edit")?;
+
+        let dialog = main_widget.static_downcast::<QDialog>();
+        button_box.button(StandardButton::Cancel).released().connect(dialog.slot_close());
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        // Setup translations.
+        dialog.set_window_title(&qtr("new_schema_patch_dialog"));
+        schema_patch_instructions_label.set_text(&qtr("schema_patch_instructions"));
+        default_value_label.set_text(&qtr("default_value"));
+        not_empty_label.set_text(&qtr("not_empty"));
+        explanation_label.set_text(&qtr("explanation"));
+        explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
+
+        // Setup data.
+        if let Some(default_value) = field.get_default_value(self.get_ref_table_name().as_deref()) {
+            default_value_line_edit.set_text(&QString::from_std_str(&default_value));
+        }
+        not_empty_checkbox.set_checked(field.get_cannot_be_empty(self.get_ref_table_name().as_deref()));
+        explanation_text_edit.set_text(&QString::from_std_str(field.get_schema_patch_explanation(self.get_ref_table_name().as_deref())));
+
+        // Launch.
+        if dialog.exec() == 1 {
+            let mut column_data = HashMap::new();
+
+            column_data.insert("default_value".to_owned(), default_value_line_edit.text().to_std_string());
+            column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
+            column_data.insert("explanation".to_owned(), explanation_text_edit.to_plain_text().to_std_string());
+
+            let mut table_data = HashMap::new();
+            table_data.insert(field.get_name().to_owned(), column_data);
+
+            let mut schema_patch = SchemaPatch::default();
+            schema_patch.get_ref_mut_tables().insert(edited_table_name.to_owned(), table_data);
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::UploadSchemaPatch(schema_patch));
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::Success => show_dialog(&self.table_view_primary, tr("schema_patch_submitted_correctly"), true),
+                Response::Error(error) => return Err(error),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+
+        Ok(())
     }
 
     /// This function tries to open the source of a reference/loc key, if exits in the PackFile.

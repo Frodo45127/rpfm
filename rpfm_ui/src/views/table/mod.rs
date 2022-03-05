@@ -198,6 +198,7 @@ pub struct TableView {
     context_menu_sidebar: QPtr<QAction>,
     context_menu_search: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
+    context_menu_patch_column: QPtr<QAction>,
     smart_delete: QBox<QAction>,
 
     _context_menu_go_to: QBox<QMenu>,
@@ -394,6 +395,7 @@ impl TableView {
         let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
 
         let context_menu_cascade_edition = context_menu.add_action_q_string(&qtr("context_menu_cascade_edition"));
+        let context_menu_patch_column = context_menu.add_action_q_string(&qtr("context_menu_patch_column"));
 
         let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
@@ -576,6 +578,7 @@ impl TableView {
             context_menu_sidebar,
             context_menu_search,
             context_menu_cascade_edition,
+            context_menu_patch_column,
             smart_delete,
 
             _context_menu_go_to: context_menu_go_to,
@@ -907,6 +910,11 @@ impl TableView {
     /// This function returns a pointer to the cascade edition action.
     pub fn get_mut_ptr_context_menu_cascade_edition(&self) -> &QPtr<QAction> {
         &self.context_menu_cascade_edition
+    }
+
+    /// This function returns a pointer to the patch column action.
+    pub fn get_mut_ptr_context_menu_patch_column(&self) -> &QPtr<QAction> {
+        &self.context_menu_patch_column
     }
 
     /// This function returns a pointer to the go to definition action.

@@ -36,7 +36,7 @@ use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packedfile::uic::UIC;
 use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
-use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
+use rpfm_lib::schema::{APIResponseSchema, Definition, Schema, patch::SchemaPatch};
 use rpfm_lib::settings::*;
 use rpfm_lib::tips::{APIResponseTips, Tip};
 use rpfm_lib::updater::APIResponse;
@@ -354,6 +354,12 @@ pub enum Command {
 
     /// This command is used to publish a tip to github.
     PublishTipById(u64),
+
+    /// This command is used to upload a schema patch.
+    UploadSchemaPatch(SchemaPatch),
+
+    /// This command is used to import a schema patch in the local schema patches.
+    ImportSchemaPatch(SchemaPatch),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

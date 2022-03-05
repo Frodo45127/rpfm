@@ -131,7 +131,7 @@ impl Loc {
 
     /// This function returns a valid empty row for this table.
     pub fn get_new_row(&self) -> Vec<DecodedData> {
-        Table::get_new_row(self.get_ref_definition())
+        Table::get_new_row(self.get_ref_definition(), None)
     }
 
     /// This function creates a new `Loc` from a `Vec<u8>`.

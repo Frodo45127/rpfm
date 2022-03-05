@@ -40,14 +40,12 @@ use qt_core::QString;
 
 use lazy_static::lazy_static;
 use log::info;
-use sentry::ClientInitGuard;
 
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicPtr}};
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::thread;
 
-use rpfm_lib::logger::Logger;
-use rpfm_lib::SETTINGS;
+use rpfm_lib::{SENTRY_GUARD, SETTINGS};
 
 use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response};
@@ -270,9 +268,6 @@ lazy_static! {
 
     /// Atomic to control if we have performed the initial game selected change or not.
     static ref FIRST_GAME_CHANGE_DONE: AtomicBool = AtomicBool::new(false);
-
-    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

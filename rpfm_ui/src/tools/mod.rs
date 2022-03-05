@@ -731,7 +731,7 @@ impl Tool {
                                         match data.get(&field_key_name) {
                                             Some(data) => widget.set_current_text(&QString::from_std_str(data)),
                                             None => {
-                                                if let Some(default_value) = field.get_default_value() {
+                                                if let Some(default_value) = field.get_default_value(None) {
                                                     widget.set_current_text(&QString::from_std_str(default_value));
                                                 }
                                             }
@@ -759,7 +759,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<bool>() {
                                                                 widget.set_checked(value);
                                                             }
@@ -791,7 +791,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<i32>() {
                                                                 widget.set_value(value);
                                                             }
@@ -821,7 +821,7 @@ impl Tool {
                                                         }
                                                     },
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             if let Ok(value) = default_value.parse::<f64>() {
                                                                 widget.set_value(value);
                                                             }
@@ -846,7 +846,7 @@ impl Tool {
                                                 match data.get(&field_key_name) {
                                                     Some(data) => widget.set_text(&QString::from_std_str(data)),
                                                     None => {
-                                                        if let Some(default_value) = field.get_default_value() {
+                                                        if let Some(default_value) = field.get_default_value(None) {
                                                             widget.set_text(&QString::from_std_str(default_value));
                                                         }
                                                     }

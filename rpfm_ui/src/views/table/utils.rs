@@ -180,17 +180,17 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 }
 
 /// This function returns a new default row.
-pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
+pub unsafe fn get_new_row(table_definition: &Definition, table_name: Option<&str>) -> CppBox<QListOfQStandardItem> {
     let qlist = QListOfQStandardItem::new();
     for field in table_definition.get_fields_processed() {
-        let item = get_default_item_from_field(&field);
+        let item = get_default_item_from_field(&field, table_name);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
     qlist
 }
 
 /// This function generates a *Default* StandardItem for the provided field.
-pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
+pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str>) -> CppBox<QStandardItem> {
     let item = match field.get_ref_field_type() {
         FieldType::Boolean => {
             let item = QStandardItem::new();
@@ -199,7 +199,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
 
-            let check_state = if let Some(default_value) = field.get_default_value() {
+            let check_state = if let Some(default_value) = field.get_default_value(table_name) {
                 default_value.to_lowercase() == "true"
             } else { false };
 
@@ -217,7 +217,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         }
         FieldType::F32 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value() {
+            let data = if let Some(default_value) = field.get_default_value(table_name) {
                 if let Ok(default_value) = default_value.parse::<f32>() {
                     default_value
                 } else {
@@ -236,7 +236,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         },
         FieldType::F64 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value() {
+            let data = if let Some(default_value) = field.get_default_value(table_name) {
                 if let Ok(default_value) = default_value.parse::<f64>() {
                     default_value
                 } else {
@@ -255,7 +255,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         },
         FieldType::I16 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value() {
+            let data = if let Some(default_value) = field.get_default_value(table_name) {
                 if let Ok(default_value) = default_value.parse::<i16>() {
                     default_value as i32
                 } else {
@@ -273,7 +273,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         },
         FieldType::I32 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value() {
+            let data = if let Some(default_value) = field.get_default_value(table_name) {
                 if let Ok(default_value) = default_value.parse::<i32>() {
                     default_value
                 } else {
@@ -291,7 +291,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         },
         FieldType::I64 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value() {
+            let data = if let Some(default_value) = field.get_default_value(table_name) {
                 if let Ok(default_value) = default_value.parse::<i64>() {
                     default_value
                 } else {
@@ -308,7 +308,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item
         },
         FieldType::ColourRGB => {
-            let text = if let Some(default_value) = field.get_default_value() {
+            let text = if let Some(default_value) = field.get_default_value(table_name) {
                 if u32::from_str_radix(&default_value, 16).is_ok() {
                     default_value.to_owned()
                 } else {
@@ -328,7 +328,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
         FieldType::StringU16 |
         FieldType::OptionalStringU8 |
         FieldType::OptionalStringU16 => {
-            let text = if let Some(default_value) = field.get_default_value() {
+            let text = if let Some(default_value) = field.get_default_value(table_name) {
                 default_value.to_owned()
             } else {
                 String::new()
@@ -401,14 +401,14 @@ pub unsafe fn load_data(
     table_model.clear();
 
     // Set the right data, depending on the table type you get.
-    let data = match data {
-        TableType::AnimFragment(data) => data.get_ref_table_data(),
-        TableType::AnimTable(data) => data.get_ref_table_data(),
-        TableType::DependencyManager(data) => &**data,
-        TableType::DB(data) => data.get_ref_table_data(),
-        TableType::Loc(data) => data.get_ref_table_data(),
-        TableType::MatchedCombat(data) => data.get_ref_table_data(),
-        TableType::NormalTable(data) => data.get_ref_table_data(),
+    let (data, table_name) = match data {
+        TableType::AnimFragment(data) => (data.get_ref_table_data(), None),
+        TableType::AnimTable(data) => (data.get_ref_table_data(), None),
+        TableType::DependencyManager(data) => (&**data, None),
+        TableType::DB(data) => (data.get_ref_table_data(), Some(data.get_table_name())),
+        TableType::Loc(data) => (data.get_ref_table_data(), None),
+        TableType::MatchedCombat(data) => (data.get_ref_table_data(), None),
+        TableType::NormalTable(data) => (data.get_ref_table_data(), None),
     };
 
     if !data.is_empty() {
@@ -436,7 +436,7 @@ pub unsafe fn load_data(
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
-        let qlist = get_new_row(definition);
+        let qlist = get_new_row(definition, table_name.as_deref());
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
     }

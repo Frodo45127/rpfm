@@ -1057,7 +1057,7 @@ impl PackedFileDecoderView {
         let decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
         decoded_data.set_editable(false);
 
-        let field_default_value = if let Some(ref default_value) = field.get_default_value() {
+        let field_default_value = if let Some(ref default_value) = field.get_default_value(None) {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 

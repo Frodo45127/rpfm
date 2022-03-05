@@ -41,8 +41,9 @@ use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo, RawPackedFile}, PathType, PFHFlags, RESERVED_NAME_NOTES};
-use rpfm_lib::schema::*;
+use rpfm_lib::schema::{*, patch::SchemaPatches};
 use rpfm_lib::SCHEMA;
+use rpfm_lib::SCHEMA_PATCHES;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::tips::Tips;
@@ -75,6 +76,11 @@ pub fn background_loop() {
 
     // Load all the tips we have.
     let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
+
+    // Try to load the schema patchs. Ignore them if fails due to missing file.
+    if let Ok(schema_patches) = SchemaPatches::load() {
+        *SCHEMA_PATCHES.write().unwrap() = schema_patches;
+    }
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -1080,6 +1086,11 @@ pub fn background_loop() {
                             pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(schema); });
                         }
 
+                        // Try to reload the schema patchs. Ignore them if fails due to missing file.
+                        if let Ok(schema_patches) = SchemaPatches::load() {
+                            *SCHEMA_PATCHES.write().unwrap() = schema_patches;
+                        }
+
                         // Then rebuild the dependencies stuff.
                         if dependencies.game_has_dependencies_generated() {
                             match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
@@ -1512,6 +1523,21 @@ pub fn background_loop() {
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
+
+            Command::UploadSchemaPatch(patch) => {
+                match patch.upload() {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
+            Command::ImportSchemaPatch(patch) => {
+                match SCHEMA_PATCHES.write().unwrap().import(patch) {
+                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                }
+            }
+
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

@@ -84,7 +84,7 @@ use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
 use crate::settings::get_config_path;
-use crate::SETTINGS;
+use crate::{SETTINGS, SCHEMA_PATCHES, GAME_SELECTED};
 use crate::SUPPORTED_GAMES;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
@@ -92,6 +92,7 @@ pub(crate) mod v3;
 pub(crate) mod v2;
 pub(crate) mod v1;
 pub(crate) mod v0;
+pub mod patch;
 
 /// Name of the folder containing all the schemas.
 pub const SCHEMA_FOLDER: &str = "schemas";
@@ -1296,8 +1297,15 @@ impl Field {
     }
 
     /// Getter for the `default_value` field.
-    pub fn get_default_value(&self) -> &Option<String> {
-        &self.default_value
+    pub fn get_default_value(&self, table_name: Option<&str>) -> Option<String> {
+        if let Some(table_name) = table_name {
+            let game = GAME_SELECTED.read().unwrap().get_game_key_name();
+            if let Some(default_value) = SCHEMA_PATCHES.read().unwrap().get_data(&game, table_name, self.get_name(), "default_value") {
+                return Some(default_value);
+            }
+        }
+
+        self.default_value.clone()
     }
 
     /// Getter for the `is_filename` field.
@@ -1354,6 +1362,29 @@ impl Field {
     /// Getter for the `is_part_of_colour` field.
     pub fn get_is_part_of_colour(&self) -> Option<u8> {
         self.is_part_of_colour
+    }
+
+    /// Getter for the `cannot_be_empty` field.
+    pub fn get_cannot_be_empty(&self, table_name: Option<&str>) -> bool {
+        if let Some(table_name) = table_name {
+            let game = GAME_SELECTED.read().unwrap().get_game_key_name();
+            if let Some(cannot_be_empty) = SCHEMA_PATCHES.read().unwrap().get_data(&game, table_name, self.get_name(), "not_empty") {
+                return cannot_be_empty.parse::<bool>().unwrap_or(false);
+            }
+        }
+
+        false
+    }
+
+    /// Getter for the `explanation` field for schema patches.
+    pub fn get_schema_patch_explanation(&self, table_name: Option<&str>) -> String {
+        if let Some(table_name) = table_name {
+            let game = GAME_SELECTED.read().unwrap().get_game_key_name();
+            if let Some(explanation) = SCHEMA_PATCHES.read().unwrap().get_data(&game, table_name, self.get_name(), "explanation") {
+                return explanation;
+            }
+        }
+        String::new()
     }
 }
 

@@ -430,15 +430,18 @@ impl Table {
         // It's simple: we compare both schemas, and get the original and final positions of each column.
         // If a column is new, his original position is -1. If has been removed, his final position is -1.
         let mut positions: Vec<(i32, i32)> = vec![];
-        for (new_pos, new_field) in new_definition.get_fields_processed().iter().enumerate() {
-            if let Some(old_pos) = self.definition.get_fields_processed().iter().position(|x| x.get_name() == new_field.get_name()) {
+        let new_fields_processed = new_definition.get_fields_processed();
+        let old_fields_processed = self.definition.get_fields_processed();
+
+        for (new_pos, new_field) in new_fields_processed.iter().enumerate() {
+            if let Some(old_pos) = old_fields_processed.iter().position(|x| x.get_name() == new_field.get_name()) {
                 positions.push((old_pos as i32, new_pos as i32))
             } else { positions.push((-1, new_pos as i32)); }
         }
 
         // Then, for each field in the old definition, check if exists in the new one.
-        for (old_pos, old_field) in self.definition.get_fields_processed().iter().enumerate() {
-            if !new_definition.get_fields_processed().iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
+        for (old_pos, old_field) in old_fields_processed.iter().enumerate() {
+            if !new_fields_processed.iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
         }
 
         // We sort the columns by their destination.
@@ -455,12 +458,12 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type(), new_definition.get_fields_processed()[*new_pos as usize].get_default_value()));
+                    entry.push(DecodedData::default(new_fields_processed[*new_pos as usize].get_ref_field_type(), &new_fields_processed[*new_pos as usize].get_default_value(None)));
                 }
 
                 // Otherwise, we got a moved column. Check here if it needs type conversion.
-                else if new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type() != self.definition.get_fields_processed()[*old_pos as usize].get_ref_field_type() {
-                    entry.push(row[*old_pos as usize].convert_between_types(new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type()).unwrap());
+                else if new_fields_processed[*new_pos as usize].get_ref_field_type() != old_fields_processed[*old_pos as usize].get_ref_field_type() {
+                    entry.push(row[*old_pos as usize].convert_between_types(new_fields_processed[*new_pos as usize].get_ref_field_type()).unwrap());
                 }
 
                 // If we reach this, we just got a moved column without any extra change.
@@ -791,7 +794,7 @@ impl Table {
                                     }
                                     None => match row[data_column].convert_between_types(field.get_ref_field_type()) {
                                         Ok(data) => data,
-                                        Err(_) => DecodedData::default(field.get_ref_field_type(), field.get_default_value())
+                                        Err(_) => DecodedData::default(field.get_ref_field_type(), &field.get_default_value(None))
                                     }
                                 };
 
@@ -838,12 +841,12 @@ impl Table {
     }
 
     /// This function returns a new empty row for the provided definition.
-    pub fn get_new_row(definition: &Definition) -> Vec<DecodedData> {
+    pub fn get_new_row(definition: &Definition, table_name: Option<&str>) -> Vec<DecodedData> {
         definition.get_fields_processed().iter()
             .map(|field|
                 match field.get_ref_field_type() {
                     FieldType::Boolean => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if default_value.to_lowercase() == "true" {
                                 vec![DecodedData::Boolean(true)]
                             } else {
@@ -854,7 +857,7 @@ impl Table {
                         }
                     }
                     FieldType::F32 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if let Ok(default_value) = default_value.parse::<f32>() {
                                 vec![DecodedData::F32(default_value); 1]
                             } else {
@@ -865,7 +868,7 @@ impl Table {
                         }
                     },
                     FieldType::F64 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if let Ok(default_value) = default_value.parse::<f64>() {
                                 vec![DecodedData::F64(default_value); 1]
                             } else {
@@ -876,7 +879,7 @@ impl Table {
                         }
                     },
                     FieldType::I16 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if let Ok(default_value) = default_value.parse::<i16>() {
                                 vec![DecodedData::I16(default_value); 1]
                             } else {
@@ -887,7 +890,7 @@ impl Table {
                         }
                     },
                     FieldType::I32 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if let Ok(default_value) = default_value.parse::<i32>() {
                                 vec![DecodedData::I32(default_value); 1]
                             } else {
@@ -898,7 +901,7 @@ impl Table {
                         }
                     },
                     FieldType::I64 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             if let Ok(default_value) = default_value.parse::<i64>() {
                                 vec![DecodedData::I64(default_value); 1]
                             } else {
@@ -911,8 +914,8 @@ impl Table {
 
                     // TODO: make this take a string as default value.
                     FieldType::ColourRGB => {
-                        if let Some(default_value) = field.get_default_value() {
-                            if let Ok(default_value) = u32::from_str_radix(default_value, 16) {
+                        if let Some(default_value) = field.get_default_value(table_name) {
+                            if let Ok(default_value) = u32::from_str_radix(&default_value, 16) {
                                 vec![DecodedData::ColourRGB(default_value); 1]
                             } else {
                                 vec![DecodedData::ColourRGB(0); 1]
@@ -922,28 +925,28 @@ impl Table {
                         }
                     },
                     FieldType::StringU8 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             vec![DecodedData::StringU8(default_value.to_owned()); 1]
                         } else {
                             vec![DecodedData::StringU8(String::new()); 1]
                         }
                     }
                     FieldType::StringU16 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             vec![DecodedData::StringU16(default_value.to_owned()); 1]
                         } else {
                             vec![DecodedData::StringU16(String::new()); 1]
                         }
                     }
                     FieldType::OptionalStringU8 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             vec![DecodedData::OptionalStringU8(default_value.to_owned()); 1]
                         } else {
                             vec![DecodedData::OptionalStringU8(String::new()); 1]
                         }
                     }
                     FieldType::OptionalStringU16 => {
-                        if let Some(default_value) = field.get_default_value() {
+                        if let Some(default_value) = field.get_default_value(table_name) {
                             vec![DecodedData::OptionalStringU16(default_value.to_owned()); 1]
                         } else {
                             vec![DecodedData::OptionalStringU16(String::new()); 1]
@@ -1066,6 +1069,7 @@ impl Table {
         let mut fields_processed = vec![];
         let mut definition = Definition::new(-1);
         let mut file_path = None;
+        let mut table_type = String::new();
         for (row, record) in reader.records().enumerate() {
             if let Ok(record) = record {
 
@@ -1089,7 +1093,7 @@ impl Table {
                     };
 
                     // Get the type and version of the table, then the definition.
-                    let table_type = if let Some(table_type) = record_data.get(0) {
+                    table_type = if let Some(table_type) = record_data.get(0) {
                         let mut table_type = table_type.to_owned();
                         if table_type.starts_with("#") {
                             table_type.remove(0);
@@ -1106,7 +1110,7 @@ impl Table {
 
                 // Then read the rest of the rows as a normal TSV.
                 else {
-                    let mut entry = Self::get_new_row(&definition);
+                    let mut entry = Self::get_new_row(&definition, Some(&table_type));
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.
@@ -1212,7 +1216,7 @@ impl Table {
 
                 else {
 
-                    let mut entry = Self::get_new_row(&definition);
+                    let mut entry = Self::get_new_row(&definition, Some(&table_type));
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.

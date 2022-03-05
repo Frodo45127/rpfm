@@ -181,7 +181,7 @@ impl DB {
 
     /// This function returns a valid empty row for this table.
     pub fn get_new_row(&self) -> Vec<DecodedData> {
-        Table::get_new_row(self.get_ref_definition())
+        Table::get_new_row(self.get_ref_definition(), Some(&self.get_table_name()))
     }
 
     /// This function creates a `DB` from a `Vec<u8>`.

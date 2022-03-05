@@ -1183,3 +1183,22 @@ banned_table_explanation = Banned Tables are tables actively check by the game t
     RPFM can read these tables, but it will not save any editions made to them, and if you have one of them in your PackFile, it's better to just delete them to avoid crashes.
 
 settings_check_message_updates_on_start = Check Message Updates on Start:
+import_schema_patch = Import Schema Patch
+import_schema_patch_title = Import Schema Patch
+import_schema_patch_button = Import Patch
+import_schema_patch_success = Patch imported correctly.
+label_value_cannot_be_empty = Value Cannot be Empty:
+value_cannot_be_empty_explanation = The value of this column cannot be empty. This basically means your game may crash if you leave a value of this column empty.
+    If you think this is a false positive, feel free to submit a schema patch to fix it.
+
+context_menu_patch_column = Patch Column Definition
+new_schema_patch_dialog = Schema Patcher
+schema_patch_instructions = This allows you to submit a patch of the currently selected column in the table.
+
+    Submitted Patches are distributed (if approved) as part of a Schema update.
+
+default_value = Default Value
+not_empty = Cannot Be Empty
+explanation = Explanation
+explanation_placeholder_text = Why this patch is needed. Submissions are anonymous, so patches without explanation will probably be rejected.
+schema_patch_submitted_correctly = Schema Patch submitted correctly.

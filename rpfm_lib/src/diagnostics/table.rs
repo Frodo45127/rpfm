@@ -61,6 +61,7 @@ pub enum TableDiagnosticReportType {
     TableIsDataCoring,
     FieldWithPathNotFound,
     BannedTable,
+    ValueCannotBeEmpty,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -109,6 +110,7 @@ impl Display for TableDiagnosticReportType {
             Self::TableIsDataCoring => "TableIsDataCoring",
             Self::FieldWithPathNotFound => "FieldWithPathNotFound",
             Self::BannedTable => "BannedTable",
+            Self::ValueCannotBeEmpty => "ValueCannotBeEmpty",
         }, f)
     }
 }

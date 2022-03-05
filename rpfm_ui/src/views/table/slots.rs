@@ -84,6 +84,7 @@ pub struct TableViewSlots {
     pub sidebar: QBox<SlotOfBool>,
     pub search: QBox<SlotOfBool>,
     pub cascade_edition: QBox<SlotNoArgs>,
+    pub patch_column: QBox<SlotNoArgs>,
     pub go_to_definition: QBox<SlotNoArgs>,
     pub go_to_loc: Vec<QBox<SlotNoArgs>>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
@@ -592,6 +593,15 @@ impl TableViewSlots {
             }
         ));
 
+        let patch_column = SlotNoArgs::new(&view.table_view_primary, clone!(
+            view => move || {
+                info!("Triggering `Patch Column` By Slot");
+                if let Err(error) = view.patch_column() {
+                    show_dialog(&view.table_view_primary, error, false);
+                }
+            }
+        ));
+
         let go_to_definition = SlotNoArgs::new(&view.table_view_primary, clone!(
             view,
             app_ui,
@@ -787,6 +797,7 @@ impl TableViewSlots {
             sidebar,
             search,
             cascade_edition,
+            patch_column,
             go_to_definition,
             go_to_loc,
             hide_show_columns,

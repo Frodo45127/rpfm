@@ -609,6 +609,17 @@ impl Diagnostics {
                         }
                     }
 
+                    if !Self::ignore_diagnostic(Some(field.get_name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                        if field.get_cannot_be_empty(Some(table.get_ref_table_name())) && cell_data.is_empty() {
+                            diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
+                                cells_affected: vec![(row as i32, column as i32)],
+                                message: format!("Empty value for column \"{}\".", field.get_name()),
+                                report_type: TableDiagnosticReportType::ValueCannotBeEmpty,
+                                level: DiagnosticLevel::Error,
+                            });
+                        }
+                    }
+
                     if field.get_is_key() {
                         row_keys.insert(column as i32, cell_data);
                     }

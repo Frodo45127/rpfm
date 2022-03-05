@@ -140,6 +140,7 @@ impl DiagnosticsUISlots {
                 let _blocker_20 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_field_with_path_not_found.static_upcast::<QObject>());
                 let _blocker_21 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_incorrect_game_path.static_upcast::<QObject>());
                 let _blocker_22 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_banned_table.static_upcast::<QObject>());
+                let _blocker_23 = QSignalBlocker::from_q_object(diagnostics_ui.checkbox_value_cannot_be_empty.static_upcast::<QObject>());
 
                 diagnostics_ui.checkbox_outdated_table.toggle();
                 diagnostics_ui.checkbox_invalid_reference.toggle();
@@ -164,6 +165,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_field_with_path_not_found.toggle();
                 diagnostics_ui.checkbox_incorrect_game_path.toggle();
                 diagnostics_ui.checkbox_banned_table.toggle();
+                diagnostics_ui.checkbox_value_cannot_be_empty.toggle();
 
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
             }

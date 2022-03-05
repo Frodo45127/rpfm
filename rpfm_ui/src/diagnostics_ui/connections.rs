@@ -57,4 +57,5 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_field_with_path_not_found.toggled().connect(&slots.toggle_filters);
     ui.checkbox_incorrect_game_path.toggled().connect(&slots.toggle_filters);
     ui.checkbox_banned_table.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_value_cannot_be_empty.toggled().connect(&slots.toggle_filters);
 }

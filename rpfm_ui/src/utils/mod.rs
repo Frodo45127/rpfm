@@ -47,7 +47,7 @@ use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType};
+use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType, SENTRY_GUARD};
 
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
@@ -60,7 +60,6 @@ use crate::MEDIUM_DARKER_GREY;
 use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
-use crate::SENTRY_GUARD;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 

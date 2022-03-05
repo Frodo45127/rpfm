@@ -13,9 +13,12 @@ Module with all the code related to the main `AppUISlot`.
 !*/
 
 use qt_widgets::QAction;
+use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
-use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QGridLayout;
+use qt_widgets::{q_message_box, QMessageBox};
+use qt_widgets::QPushButton;
+use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
@@ -42,6 +45,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
+use rpfm_lib::schema::patch::SchemaPatch;
 use rpfm_lib::settings::get_config_path;
 use rpfm_lib::SETTINGS;
 
@@ -150,6 +154,7 @@ pub struct AppUISlots {
     // `Debug` menu slots.
     //-----------------------------------------------//
     pub debug_update_current_schema_from_asskit: QBox<SlotOfBool>,
+    pub debug_import_schema_patch: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `PackedFileView` slots.
@@ -1302,6 +1307,44 @@ impl AppUISlots {
             }
         ));
 
+        // What happens when we trigger the "Update from AssKit" action.
+        let debug_import_schema_patch = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                info!("Triggering `Import Schema Patch` By Slot");
+
+                // If there is no problem, ere we go.
+                app_ui.main_window.set_enabled(false);
+
+                let dialog = QDialog::new_1a(&app_ui.main_window);
+                dialog.set_window_title(&qtr("import_schema_patch_title"));
+                dialog.set_modal(true);
+
+                // Create the main Grid.
+                let main_grid = create_grid_layout(dialog.static_upcast());
+                let patch_text_edit = QTextEdit::from_q_widget(&dialog);
+                let import_button = QPushButton::from_q_string_q_widget(&qtr("import_schema_patch_button"), &dialog);
+                main_grid.add_widget_5a(&patch_text_edit, 0, 0, 1, 1);
+                main_grid.add_widget_5a(&import_button, 1, 0, 1, 1);
+                import_button.released().connect(dialog.slot_accept());
+
+                // Center it on screen.
+                dialog.resize_2a(1000, 600);
+
+                if dialog.exec() == 1 {
+                    let schema_patch = SchemaPatch::load_from_str(&patch_text_edit.to_plain_text().to_std_string()).unwrap();
+                    let receiver = CENTRAL_COMMAND.send_background(Command::ImportSchemaPatch(schema_patch));
+                    let response = CentralCommand::recv_try(&receiver);
+                    match response {
+                        Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+                }
+
+                app_ui.main_window.set_enabled(true);
+            }
+        ));
+
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
@@ -1633,6 +1676,7 @@ impl AppUISlots {
             // `Debug` menu slots.
             //-----------------------------------------------//
             debug_update_current_schema_from_asskit,
+            debug_import_schema_patch,
 
             //-----------------------------------------------//
             // `PackedFileView` slots.
