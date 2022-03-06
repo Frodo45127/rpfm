@@ -23,7 +23,7 @@ fluent = "^0.16"
 fluent-bundle = "^0.15"
 fluent-syntax = "^0.11"
 unic-langid = "^0.9"
-git2 = "^0.14"
+git2 = "^0.13"
 self_update = "^0.28"
 
 # Logging support.

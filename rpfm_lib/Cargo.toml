@@ -57,7 +57,7 @@ ron = "^0.7"
 toml = "^0.5"
 
 # Git support.
-git2 = "^0.14"
+git2 = "^0.13"
 
 # Compression support.
 xz2 = "^0.1"
