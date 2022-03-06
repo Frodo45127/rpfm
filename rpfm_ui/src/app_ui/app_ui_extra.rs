@@ -385,11 +385,10 @@ impl AppUI {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
                             match &*game_selected {
-                                KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                                 KEY_TROY => app_ui.game_selected_troy.trigger(),
                                 _ => {
-                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_3]), true);
-                                    app_ui.game_selected_warhammer_3.trigger();
+                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]), true);
+                                    app_ui.game_selected_troy.trigger();
                                 }
                             }
                         },
