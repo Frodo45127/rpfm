@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_ui"
-version = "3.0.3"
+version = "3.0.4"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
@@ -70,7 +70,7 @@ rayon = "^1.3"
 # Logging support.
 log = { version = "^0.4", features = ["std"] }
 simplelog = "^0.11"
-sentry = { version = "^0.24", features = ["log"] }
+sentry = { version = "^0.25", features = ["log"] }
 
 # Better iterator support.
 itertools = "^0.10"

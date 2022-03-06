@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_error"
-version = "3.0.3"
+version = "3.0.4"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Shared error module for RPFM."
 edition = "2021"
@@ -23,7 +23,7 @@ fluent = "^0.16"
 fluent-bundle = "^0.15"
 fluent-syntax = "^0.11"
 unic-langid = "^0.9"
-git2 = "^0.13"
+git2 = "^0.14"
 self_update = "^0.28"
 
 # Logging support.
