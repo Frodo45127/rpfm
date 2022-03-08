@@ -374,8 +374,8 @@ impl UI {
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
 
-        // TODO: Put this behind a setting.
-        AppUI::check_message_updates(&app_ui, false);
+        // If we have it enabled in the prefs, check if there are message updates.
+        if SETTINGS.read().unwrap().settings_bool["check_message_updates_on_start"] { AppUI::check_message_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
