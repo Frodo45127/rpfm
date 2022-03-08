@@ -222,10 +222,7 @@ impl TableView {
     pub unsafe fn reset_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
@@ -274,8 +271,7 @@ impl TableView {
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
-            let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
             let mut real_cells = vec![];
             let mut values = vec![];
@@ -346,8 +342,7 @@ impl TableView {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
@@ -383,10 +378,7 @@ impl TableView {
     pub unsafe fn copy_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -431,10 +423,7 @@ impl TableView {
     pub unsafe fn copy_selection_as_lua_table(&self) {
 
         // Get the selection sorted visually.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Split the indexes in two groups: those who have a key column selected and those who haven't.
         // Keep in mind this doesn't check what key column we have selected.
@@ -482,8 +471,7 @@ impl TableView {
 
         // Get the current selection and his, visually speaking, first item (top-left).
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -1216,10 +1204,7 @@ impl TableView {
     pub unsafe fn smart_delete(&self, delete_all_rows: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         if delete_all_rows {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
@@ -1518,10 +1503,7 @@ impl TableView {
         let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return };
 
         // Get the selected indexes.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
@@ -1674,10 +1656,7 @@ impl TableView {
         let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return Err(ErrorKind::DBTableIsNotADBTable.into()) };
 
         // Get the selected indexes.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Only works with a column selected.
         let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();

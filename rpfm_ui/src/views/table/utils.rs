@@ -20,6 +20,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::QListOfQModelIndex;
 use qt_core::QModelIndex;
 use qt_core::QSignalBlocker;
 use qt_core::QSortFilterProxyModel;
@@ -70,6 +71,36 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
 //----------------------------------------------------------------------------//
 //                       Index helpers for tables
 //----------------------------------------------------------------------------//
+
+/// This function returns the real indexes for the VISIBLE SELECTION of a view, sorted visually. This means all filtered out rows and hidden columns are not returned, even if selected.
+pub unsafe fn get_real_indexes_from_visible_selection_sorted(view: &QPtr<QTableView>, filter: &QPtr<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
+    let indexes = view.selection_model().selection().indexes();
+    let indexes_sorted = get_visible_selection_sorted(&indexes, view);
+    let indexes_sorted = get_real_indexes(&indexes_sorted, &filter);
+    indexes_sorted
+}
+
+/// This function returns the VISIBLE SELECTION of a view, sorted visually. This means all filtered out rows and hidden columns are not returned, even if selected.
+pub unsafe fn get_visible_selection_sorted(indexes: &CppBox<QListOfQModelIndex>, view: &QPtr<QTableView>) -> Vec<Ref<QModelIndex>> {
+    let mut indexes_sorted = get_visible_selection_unsorted(indexes, view);
+    sort_indexes_visually(&mut indexes_sorted, view);
+    indexes_sorted
+}
+
+/// This function returns the VISIBLE SELECTION of a view, unsorted. This means all filtered out rows and hidden columns are not returned, even if selected.
+pub unsafe fn get_visible_selection_unsorted(indexes: &CppBox<QListOfQModelIndex>, view: &QPtr<QTableView>) -> Vec<Ref<QModelIndex>> {
+    let hidden_columns = (0..view.model().column_count_0a()).filter(|index| view.is_column_hidden(*index)).collect::<Vec<i32>>();
+    (0..indexes.count_0a()).filter_map(|x| {
+        let filter_index = indexes.at(x);
+        if !filter_index.is_valid() {
+            None
+        } else if hidden_columns.contains(&filter_index.column()) {
+            None
+        } else {
+            Some(filter_index)
+        }
+    }).collect::<Vec<Ref<QModelIndex>>>()
+}
 
 /// This function sorts the VISUAL SELECTION. That means, the selection just as you see it on screen.
 /// This should be provided with the indexes OF THE VIEW/FILTER, NOT THE MODEL.
