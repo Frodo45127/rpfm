@@ -61,6 +61,7 @@ use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOpera
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
+use crate::references_ui::ReferencesUI;
 use crate::settings_ui::SettingsUI;
 use crate::tools::faction_painter::ToolFactionPainter;
 use crate::tools::unit_editor::ToolUnitEditor;
@@ -115,6 +116,7 @@ pub struct AppUISlots {
     pub view_toggle_global_search_panel: QBox<SlotOfBool>,
     pub view_toggle_diagnostics_panel: QBox<SlotOfBool>,
     pub view_toggle_dependencies_panel: QBox<SlotOfBool>,
+    pub view_toggle_references_panel: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Game Selected` menu slots.
@@ -195,6 +197,7 @@ impl AppUISlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Self {
 
         //-----------------------------------------------//
@@ -832,11 +835,13 @@ impl AppUISlots {
             pack_file_contents_ui,
             diagnostics_ui,
             global_search_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
                 app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
                 app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible());
                 app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
+                app_ui.view_toggle_references_panel.set_checked(references_ui.get_ref_references_dock_widget().is_visible());
         }));
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -864,6 +869,12 @@ impl AppUISlots {
             dependencies_ui => move |state| {
                 if !state { dependencies_ui.dependencies_dock_widget.hide(); }
                 else { dependencies_ui.dependencies_dock_widget.show();}
+        }));
+
+        let view_toggle_references_panel = SlotOfBool::new(&app_ui.main_window, clone!(
+            references_ui => move |state| {
+                if !state { references_ui.get_ref_references_dock_widget().hide(); }
+                else { references_ui.get_ref_references_dock_widget().show();}
         }));
 
         //-----------------------------------------------//
@@ -1637,6 +1648,7 @@ impl AppUISlots {
             view_toggle_global_search_panel,
             view_toggle_diagnostics_panel,
             view_toggle_dependencies_panel,
+            view_toggle_references_panel,
 
             //-----------------------------------------------//
             // `Game Selected` menu slots.

@@ -690,3 +690,16 @@ impl Display for DataSource {
         }, f)
     }
 }
+
+impl From<&str> for DataSource {
+    fn from(value: &str) -> Self {
+        match value {
+            "PackFile" => Self::PackFile,
+            "GameFiles" => Self::GameFiles,
+            "ParentFiles" => Self::ParentFiles,
+            "AssKitFiles" => Self::AssKitFiles,
+            "ExternalFile" => Self::ExternalFile,
+            _ => unreachable!()
+        }
+    }
+}

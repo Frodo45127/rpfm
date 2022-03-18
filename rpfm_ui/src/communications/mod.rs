@@ -319,6 +319,9 @@ pub enum Command {
     /// This command is used to get the loc file/column/row of a key. Contains the loc key to search.
     GoToLoc(String),
 
+    /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
+    SearchReferences(HashMap<String, Vec<String>>, String),
+
     /// This command is used to get the type of a PackedFile.
     GetPackedFileType(Vec<String>),
 
@@ -495,6 +498,9 @@ pub enum Response {
 
     /// Response to return `DataSource, Vec<String>, usize, usize`.
     DataSourceVecStringUsizeUsize(DataSource, Vec<String>, usize, usize),
+
+    /// Response to return `Vec<(DataSource, Vec<String>, String, usize, usize)>`.
+    VecDataSourceVecStringStringUsizeUsize(Vec<(DataSource, Vec<String>, String, usize, usize)>),
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),

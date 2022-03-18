@@ -1044,6 +1044,42 @@ impl Table {
         None
     }
 
+    /// This function tries to find all rows with the provided data, if they exists in this table.
+    pub fn get_location_of_reference_data(
+        &self,
+        column_name: &str,
+        row_data: &str
+    ) -> Option<(usize, Vec<usize>)> {
+        let mut row_indexes = vec![];
+
+        if let Some(column_index) = self.get_ref_definition().get_fields_processed().iter().position(|x| x.get_name() == column_name) {
+            for (row_index, row) in self.get_ref_table_data().iter().enumerate() {
+                if let Some(cell_data) = row.get(column_index) {
+                    match cell_data {
+                        DecodedData::StringU8(cell_data) |
+                        DecodedData::StringU16(cell_data) |
+                        DecodedData::OptionalStringU8(cell_data) |
+                        DecodedData::OptionalStringU16(cell_data) => {
+                            if cell_data == row_data {
+                                row_indexes.push(row_index);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            if row_indexes.is_empty() {
+                None
+            } else {
+                Some((column_index, row_indexes))
+            }
+        } else {
+            None
+        }
+
+    }
+
     //----------------------------------------------------------------//
     // TSV Functions for PackedFiles.
     //----------------------------------------------------------------//

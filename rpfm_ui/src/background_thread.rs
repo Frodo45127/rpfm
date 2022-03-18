@@ -1281,6 +1281,69 @@ pub fn background_loop() {
                 }
             },
 
+            Command::SearchReferences(reference_map, value) => {
+                let paths = reference_map.keys().map(|x| PathType::Folder(vec!["db".to_owned(), x.to_owned()])).collect::<Vec<PathType>>();
+                let packed_files = pack_file_decoded.get_ref_packed_files_by_path_type_unicased(&paths);
+
+                let mut references: Vec<(DataSource, Vec<String>, String, usize, usize)> = vec![];
+
+                // Pass for local tables.
+                for (table_name, columns) in &reference_map {
+                    for packed_file in &packed_files {
+                        if &packed_file.get_path()[1] == table_name {
+                            if let Ok(DecodedPackedFile::DB(data)) = packed_file.get_decoded_from_memory() {
+                                for column_name in columns {
+                                    if let Some((column_index, row_indexes)) = data.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                        for row_index in &row_indexes {
+                                            references.push((DataSource::PackFile, packed_file.get_path().to_vec(), column_name.to_owned(), column_index, *row_index));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pass for parent tables.
+                for (table_name, columns) in &reference_map {
+                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, false, true) {
+                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                            let mut references = vec![];
+                            for column_name in columns {
+                                if let Some((column_index, row_indexes)) = table.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                    for row_index in &row_indexes {
+                                        references.push((DataSource::ParentFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                                    }
+                                }
+                            }
+
+
+                            references
+                        }).flatten().collect());
+                    }
+                }
+
+                // Pass for vanilla tables.
+                for (table_name, columns) in &reference_map {
+                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, true, false) {
+                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                            let mut references = vec![];
+                            for column_name in columns {
+                                if let Some((column_index, row_indexes)) = table.get_ref_table().get_location_of_reference_data(column_name, &value) {
+                                    for row_index in &row_indexes {
+                                        references.push((DataSource::GameFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                                    }
+                                }
+                            }
+
+                            references
+                        }).flatten().collect());
+                    }
+                }
+
+                CentralCommand::send_back(&sender, Response::VecDataSourceVecStringStringUsizeUsize(references));
+            },
+
             Command::GoToLoc(loc_key) => {
                 let packed_files = pack_file_decoded.get_ref_packed_files_by_type(PackedFileType::Loc, false);
                 let mut found = false;

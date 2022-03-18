@@ -67,6 +67,7 @@ use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_er
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
+use crate::references_ui::ReferencesUI;
 use crate::utils::create_grid_layout;
 use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
 
@@ -780,6 +781,7 @@ impl DiagnosticsUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<Self>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
@@ -795,7 +797,7 @@ impl DiagnosticsUI {
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
-            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
+            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
         } else if !path.is_empty() {
 
             // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
@@ -809,7 +811,7 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.

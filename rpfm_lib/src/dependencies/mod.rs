@@ -309,6 +309,49 @@ impl Dependencies {
         }
     }
 
+    /// This function returns the provided dbs from the cache with their full path, according to the params you pass it. Table name must end in _tables.
+    pub fn get_db_tables_with_path_from_cache(&self, table_name: &str, include_vanilla: bool, include_modded: bool) -> Result<Vec<(String, DB)>> {
+        if self.needs_updating()? {
+            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
+            let mut table_folder = "db/".to_owned();
+            table_folder.push_str(&table_name.to_lowercase());
+
+            if include_vanilla {
+                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
+                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                            Some((path.to_owned(), db.clone()))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+
+            if include_modded {
+                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
+                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
+                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
+                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
+                            Some((path.to_owned(), db.clone()))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+
+            Ok(cache)
+        }
+    }
+
     /// This function checks if the current Game Selected has a dependencies file created.
     pub fn game_has_dependencies_generated(&self) -> bool {
         let mut file_path = get_config_path().unwrap().join(DEPENDENCIES_FOLDER);

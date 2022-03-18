@@ -43,6 +43,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
+use crate::references_ui::ReferencesUI;
 use crate::utils::{check_regex, log_to_status_bar, show_dialog};
 use crate::UI_STATE;
 
@@ -85,6 +86,7 @@ pub struct TableViewSlots {
     pub search: QBox<SlotOfBool>,
     pub cascade_edition: QBox<SlotNoArgs>,
     pub patch_column: QBox<SlotNoArgs>,
+    pub find_references: QBox<SlotNoArgs>,
     pub go_to_definition: QBox<SlotNoArgs>,
     pub go_to_loc: Vec<QBox<SlotNoArgs>>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
@@ -129,6 +131,7 @@ impl TableViewSlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     ) -> Self {
 
@@ -179,13 +182,13 @@ impl TableViewSlots {
 
         // When we want to show the context menu.
         let show_context_menu = SlotOfQPoint::new(&view.table_view_primary, clone!(
-            mut view => move |_| {
+            view => move |_| {
             view.context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
         // When we want to trigger the context menu update function.
         let context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view_primary, clone!(
-            mut view => move |_,_| {
+            view => move |_,_| {
             info!("Triggering `Update Context Menu for Table` By Slot");
             view.context_menu_update();
         }));
@@ -602,15 +605,52 @@ impl TableViewSlots {
             }
         ));
 
+        let find_references = SlotNoArgs::new(&view.table_view_primary, clone!(
+            references_ui,
+            view => move || {
+
+            let selection = view.table_view_primary.selection_model().selection();
+            if selection.count_0a() == 1 {
+                let filter_index = selection.take_at(0).indexes().take_at(0);
+                let index = view.table_filter.map_to_source(filter_index.as_ref());
+                if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
+                    if let Some(field) = view.table_definition.read().unwrap().get_fields_processed().get(index.column() as usize) {
+                        if let Some(reference_data) = view.reference_map.get(field.get_name()) {
+
+                            // Stop if we have another find already running.
+                            if references_ui.get_ref_references_table_view().is_enabled() {
+                                references_ui.get_ref_references_dock_widget().show();
+                                references_ui.get_ref_references_table_view().set_enabled(false);
+
+                                let selected_value = index.data_0a().to_string().to_std_string();
+                                let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
+                                let response = CentralCommand::recv_try(&receiver);
+                                match response {
+                                    Response::VecDataSourceVecStringStringUsizeUsize(data) => {
+                                        references_ui.load_references_to_ui(data);
+
+                                        // Reenable the table.
+                                        references_ui.get_ref_references_table_view().set_enabled(true);
+                                    }
+                                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }));
+
         let go_to_definition = SlotNoArgs::new(&view.table_view_primary, clone!(
             view,
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
                 info!("Triggering `Go To Definition` By Slot");
-                if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
+                if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
                     log_to_status_bar(&error);
                 }
             }
@@ -626,9 +666,10 @@ impl TableViewSlots {
                 pack_file_contents_ui,
                 global_search_ui,
                 diagnostics_ui,
-                dependencies_ui => move || {
+                dependencies_ui,
+                references_ui => move || {
                     info!("Triggering `Go To Loc` By Slot");
-                    if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &field_name) {
+                    if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, &field_name) {
                         log_to_status_bar(&error);
                     }
                 }
@@ -733,6 +774,7 @@ impl TableViewSlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui,
+            references_ui,
             view => move |model_index| {
                 info!("Triggering `Open Subtable` By Slot");
                 if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
@@ -753,6 +795,7 @@ impl TableViewSlots {
                         &pack_file_contents_ui,
                         &diagnostics_ui,
                         &dependencies_ui,
+                        &references_ui,
                         table_data,
                         view.data_source.clone()
                     ) {
@@ -798,6 +841,7 @@ impl TableViewSlots {
             search,
             cascade_edition,
             patch_column,
+            find_references,
             go_to_definition,
             go_to_loc,
             hide_show_columns,

@@ -47,7 +47,7 @@ use qt_core::QObject;
 
 use cpp_core::Ptr;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
@@ -72,10 +72,8 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, View, ViewType};
-use crate::utils::atomic_from_ptr;
-use crate::utils::create_grid_layout;
-use crate::utils::show_dialog;
-use crate::utils::ptr_from_atomic;
+use crate::references_ui::ReferencesUI;
+use crate::utils::*;
 
 use self::slots::*;
 use self::utils::*;
@@ -197,6 +195,7 @@ pub struct TableView {
     context_menu_resize_columns: QPtr<QAction>,
     context_menu_sidebar: QPtr<QAction>,
     context_menu_search: QPtr<QAction>,
+    context_menu_find_references: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
     context_menu_patch_column: QPtr<QAction>,
     smart_delete: QBox<QAction>,
@@ -237,6 +236,7 @@ pub struct TableView {
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
     banned_table: bool,
+    reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
 
     pub save_lock: Arc<AtomicBool>,
     pub undo_lock: Arc<AtomicBool>,
@@ -278,6 +278,7 @@ impl TableView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         table_data: TableType,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
         data_source: Arc<RwLock<DataSource>>,
@@ -394,6 +395,7 @@ impl TableView {
         let context_menu_search = context_menu.add_action_q_string(&qtr("context_menu_search"));
         let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
 
+        let context_menu_find_references = context_menu.add_action_q_string(&qtr("context_menu_find_references"));
         let context_menu_cascade_edition = context_menu.add_action_q_string(&qtr("context_menu_cascade_edition"));
         let context_menu_patch_column = context_menu.add_action_q_string(&qtr("context_menu_patch_column"));
 
@@ -544,6 +546,17 @@ impl TableView {
         let timer_delayed_updates = QTimer::new_1a(parent);
         timer_delayed_updates.set_single_shot(true);
 
+        // Get the reference data for this table, to speedup reference searching.
+        let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
+            if let Some(table_name) = &table_name {
+                schema.get_referencing_columns_for_table(&table_name, &table_definition)
+            } else {
+                HashMap::new()
+            }
+        } else {
+            return Err(ErrorKind::SchemaNotFound.into());
+        };
+
         // Create the raw Struct and begin
         let packed_file_table_view = Arc::new(TableView {
             table_view_primary,
@@ -577,6 +590,7 @@ impl TableView {
             context_menu_resize_columns,
             context_menu_sidebar,
             context_menu_search,
+            context_menu_find_references,
             context_menu_cascade_edition,
             context_menu_patch_column,
             smart_delete,
@@ -617,6 +631,7 @@ impl TableView {
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
             banned_table,
+            reference_map: Arc::new(reference_map),
 
             undo_lock,
             save_lock,
@@ -635,6 +650,7 @@ impl TableView {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui,
+            references_ui,
             packed_file_path.clone()
         );
 
@@ -905,6 +921,11 @@ impl TableView {
     /// This function returns a pointer to the search action.
     pub fn get_mut_ptr_context_menu_search(&self) -> &QPtr<QAction> {
         &self.context_menu_search
+    }
+
+    /// This function returns a pointer to the find references action.
+    pub fn get_mut_ptr_context_menu_find_references(&self) -> &QPtr<QAction> {
+        &self.context_menu_find_references
     }
 
     /// This function returns a pointer to the cascade edition action.

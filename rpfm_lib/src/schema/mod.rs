@@ -71,7 +71,7 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
 use std::io::{BufReader, Read, Write};
@@ -762,6 +762,51 @@ impl Schema {
 
             Err(ErrorKind::SchemaUpdateError.into())
         }
+    }
+
+    /// This function returns all columns that reference the columns on our specific table within the DB Tables of our Schema.
+    ///
+    /// Returns a list of (local_column_name, vec<(remote_table_name, remote_column_name)>).
+    pub fn get_referencing_columns_for_table(&self, table_name: &str, definition: &Definition) -> HashMap<String, HashMap<String, Vec<String>>> {
+
+        // Iterate over all definitions and find the ones referencing our table/field.
+        let fields_processed = definition.get_fields_processed();
+        let versioned_files = self.get_ref_versioned_file_db_all();
+        let table_name_no_tables = table_name.to_owned().drain(..table_name.len() - 7).collect::<String>();
+
+        fields_processed.iter().filter_map(|field| {
+
+            let references = versioned_files.par_iter().filter_map(|versioned_file| {
+                if let VersionedFile::DB(ver_name, ver_definitions) = versioned_file {
+                    let mut references = ver_definitions.iter().filter_map(|ver_definition| {
+                        let references = ver_definition.get_fields_processed().iter().filter_map(|ver_field| {
+                            if let Some((source_table_name, source_column_name)) = ver_field.get_is_reference() {
+                                if &table_name_no_tables == source_table_name && field.get_name() == source_column_name {
+                                    Some(ver_field.get_name().to_owned())
+                                } else { None }
+                            } else { None }
+                        }).collect::<Vec<String>>();
+                        if references.is_empty() {
+                            None
+                        } else {
+                            Some(references)
+                        }
+                    }).flatten().collect::<Vec<String>>();
+                    if references.is_empty() {
+                        None
+                    } else {
+                        references.sort();
+                        references.dedup();
+                        Some((ver_name.to_owned(), references))
+                    }
+                } else { None }
+            }).collect::<HashMap<String, Vec<String>>>();
+            if references.is_empty() {
+                None
+            } else {
+                Some((field.get_name().to_owned(), references))
+            }
+        }).collect()
     }
 }
 

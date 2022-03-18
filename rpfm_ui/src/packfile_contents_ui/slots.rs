@@ -49,6 +49,7 @@ use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::DataSource;
 use crate::QString;
+use crate::references_ui::ReferencesUI;
 use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
@@ -119,6 +120,7 @@ impl PackFileContentsSlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
@@ -127,9 +129,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("PackedFile opened as Preview By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, true, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::PackFile);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -138,9 +141,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("PackedFile opened as Full By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -632,7 +636,8 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
                 info!("Triggering `Add From PackFile` By Slot");
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
@@ -661,7 +666,7 @@ impl PackFileContentsSlots {
 
                     app_ui.main_window.set_enabled(false);
                     let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str];
-                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(fake_path), false, false, DataSource::ExternalFile);
+                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
                     app_ui.main_window.set_enabled(true);
                 }
             }
@@ -928,9 +933,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open Dependency Manager` By Slot");
-            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
@@ -951,9 +957,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open In External Program` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, true, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -969,9 +976,10 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |_| {
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open Notes` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.

@@ -68,6 +68,9 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
+use crate::references_ui;
+use crate::references_ui::ReferencesUI;
+use crate::references_ui::slots::ReferencesUISlots;
 
 #[cfg(feature = "only_for_the_brave")]
 use crate::locale::qtr;
@@ -128,14 +131,16 @@ impl UI {
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
+        let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window));
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
-        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui);
-        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
-        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
-        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
-        let dependencies_slots = DependenciesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        let dependencies_slots = DependenciesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        let references_slots = ReferencesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);
@@ -153,6 +158,7 @@ impl UI {
         dependencies_ui::tips::set_tips(&dependencies_ui);
         dependencies_ui::shortcuts::set_shortcuts(&dependencies_ui);
 
+        references_ui::connections::set_connections(&references_ui, &references_slots);
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
         // Apply last ui state.

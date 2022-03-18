@@ -62,6 +62,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::QString;
+use crate::references_ui::ReferencesUI;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::UI_STATE;
 
@@ -648,6 +649,7 @@ impl GlobalSearchUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
@@ -728,7 +730,7 @@ impl GlobalSearchUI {
             },
         };
 
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), false, false, data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), false, false, data_source);
 
         // If it's a table, focus on the matched cell.
         if is_match {

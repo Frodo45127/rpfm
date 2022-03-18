@@ -1202,3 +1202,13 @@ not_empty = Cannot Be Empty
 explanation = Explanation
 explanation_placeholder_text = Why this patch is needed. Submissions are anonymous, so patches without explanation will probably be rejected.
 schema_patch_submitted_correctly = Schema Patch submitted correctly.
+
+context_menu_find_references = Find References
+gen_loc_references = References
+reference_search_data_source = Data Source
+reference_search_path = Path
+reference_search_column_name = Column Name
+reference_search_column_number = Column Index
+reference_search_row_number = Row Index
+
+view_toggle_references_panel = Toggle References Window

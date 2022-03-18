@@ -78,6 +78,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
+use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
@@ -1354,6 +1355,7 @@ impl AppUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         packed_file_path: Option<Vec<String>>,
         is_preview: bool,
         is_external: bool,
@@ -1470,7 +1472,7 @@ impl AppUI {
 
                         // If the file is an AnimFragment PackedFile...
                         PackedFileType::AnimFragment => {
-                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1517,7 +1519,7 @@ impl AppUI {
 
                         // If the file is an AnimTable PackedFile...
                         PackedFileType::AnimTable => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1565,7 +1567,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1590,7 +1592,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1627,7 +1629,7 @@ impl AppUI {
 
                         // If the file is a MatchedCombat PackedFile...
                         PackedFileType::MatchedCombat => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1779,7 +1781,7 @@ impl AppUI {
 
                         PackedFileType::ESF => {
                             if SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
-                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                     Ok(packed_file_info) => {
 
                                         // Add the file to the 'Currently open' list and make it visible.
@@ -1935,6 +1937,7 @@ impl AppUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1973,7 +1976,7 @@ impl AppUI {
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui) {
+            match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                 Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.

@@ -30,7 +30,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
-
+use crate::references_ui::ReferencesUI;
 use crate::views::table::{TableView, TableType};
 
 //-------------------------------------------------------------------------------//
@@ -57,6 +57,7 @@ impl DependenciesManagerView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
         // Get the decoded Table.
@@ -74,6 +75,7 @@ impl DependenciesManagerView {
             pack_file_contents_ui,
             diagnostics_ui,
             dependencies_ui,
+            references_ui,
             table_data,
             Some(packed_file_view.get_path_raw()),
             packed_file_view.data_source.clone()

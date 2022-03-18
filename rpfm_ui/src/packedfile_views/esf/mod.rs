@@ -51,6 +51,7 @@ use crate::packedfile_views::esf::esftree::*;
 use crate::packedfile_views::esf::slots::PackedFileESFViewSlots;
 use crate::packedfile_views::PackedFileView;
 use crate::packedfile_views::PackFileContentsUI;
+use crate::references_ui::ReferencesUI;
 use crate::utils::create_grid_layout;
 
 use self::esf_detailed_view::ESFDetailedView;
@@ -99,6 +100,7 @@ impl PackedFileESFView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Result<Option<PackedFileInfo>> {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
@@ -184,6 +186,7 @@ impl PackedFileESFView {
             pack_file_contents_ui,
             diagnostics_ui,
             dependencies_ui,
+            references_ui
         );
 
         connections::set_connections(&view, &slots);

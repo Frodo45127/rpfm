@@ -95,6 +95,7 @@ impl TableView {
         self.context_menu_undo.set_enabled(false);
         self.context_menu_redo.set_enabled(false);
         self.context_menu_import_tsv.set_enabled(false);
+        self.context_menu_find_references.set_enabled(false);
         self.context_menu_cascade_edition.set_enabled(false);
         self.context_menu_patch_column.set_enabled(true);
         self.smart_delete.set_enabled(false);
@@ -108,6 +109,7 @@ impl TableView {
             self.context_menu_copy_as_lua_table.set_enabled(true);
 
             if *self.packed_file_type == PackedFileType::DB {
+                self.context_menu_find_references.set_enabled(true);
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
             } else {
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
@@ -1732,10 +1734,9 @@ impl TableView {
         Ok(())
     }
 
-    /// This function tries to open the source of a reference/loc key, if exits in the PackFile.
+    /// This function tries to open the source of a reference/loc key, if exists.
     ///
     /// If the source it's not found, it does nothing.
-    /// If the source is a read-only dependency, it does nothing yet.
     pub unsafe fn go_to_definition(
         &self,
         app_ui: &Rc<AppUI>,
@@ -1743,6 +1744,7 @@ impl TableView {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Option<String> {
 
         let mut error_message = String::new();
@@ -1830,7 +1832,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1872,6 +1874,7 @@ impl TableView {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
         loc_column_name: &str
     ) -> Option<String> {
 
@@ -1941,7 +1944,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_vec()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();

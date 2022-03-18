@@ -29,6 +29,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::references_ui::ReferencesUI;
 use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
@@ -59,6 +60,7 @@ impl DiagnosticsUISlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Self {
 
         // Checker slots.
@@ -93,9 +95,10 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move |model_index_filter| {
+            dependencies_ui,
+            references_ui => move |model_index_filter| {
                 info!("Triggering `Open Diagnostic Match` By Slot");
-                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, model_index_filter.as_ptr());
+                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
             }
         ));
 

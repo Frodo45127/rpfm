@@ -101,6 +101,7 @@ mod network_thread;
 mod pack_tree;
 mod packfile_contents_ui;
 mod packedfile_views;
+mod references_ui;
 mod shortcuts_ui;
 mod settings_ui;
 mod tools;

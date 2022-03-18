@@ -30,6 +30,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::esf::{esftree::ESFTree, PackedFileESFView};
 use crate::packedfile_views::PackFileContentsUI;
+use crate::references_ui::ReferencesUI;
 use crate::utils::check_regex;
 
 //-------------------------------------------------------------------------------//
@@ -62,6 +63,7 @@ impl PackedFileESFViewSlots {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     )  -> Self {
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -103,13 +105,14 @@ impl PackedFileESFViewSlots {
             pack_file_contents_ui,
             diagnostics_ui,
             dependencies_ui,
+            references_ui,
             view => move || {
                 let items = view.tree_view.get_items_from_selection(true);
                 if items.len() == 1 {
                     let data = <QBox<QTreeView> as ESFTree>::get_child_nodes_from_item(&items[0]);
                     if !data.is_empty() {
                         let nodes: Vec<NodeType> = serde_json::from_str(&data).unwrap();
-                        view.detailed_view.write().unwrap().load_subnodes_to_details_view(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &view.node_data_panel, &view.tree_view, &nodes, items[0]);
+                        view.detailed_view.write().unwrap().load_subnodes_to_details_view(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui, &view.node_data_panel, &view.tree_view, &nodes, items[0]);
                     }
                 }
             }

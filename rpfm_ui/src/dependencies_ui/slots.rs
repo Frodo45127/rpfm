@@ -31,6 +31,7 @@ use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::DataSource;
 use crate::QString;
+use crate::references_ui::ReferencesUI;
 use crate::utils::*;
 
 use super::*;
@@ -73,6 +74,7 @@ impl DependenciesUISlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
     ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
@@ -81,9 +83,10 @@ impl DependenciesUISlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("Triggering `Open Dependency PackedFile (Preview)` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, true, false, DataSource::GameFiles);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::GameFiles);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -92,9 +95,10 @@ impl DependenciesUISlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui,
-            dependencies_ui => move || {
+            dependencies_ui,
+            references_ui => move || {
             info!("Triggering `Open Dependency PackedFile (Full)` By Slot");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, None, false, false, DataSource::GameFiles);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::GameFiles);
         }));
 
         // What happens when we trigger one of the filter events for the Dependencies TreeView.
