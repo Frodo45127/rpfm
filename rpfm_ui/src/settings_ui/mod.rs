@@ -195,6 +195,7 @@ pub struct SettingsUI {
     pub debug_colour_dark_local_tip_button: QBox<QPushButton>,
     pub debug_colour_dark_remote_tip_button: QBox<QPushButton>,
 
+    pub debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
     pub debug_clear_autosave_folder_button: QBox<QPushButton>,
     pub debug_clear_schema_folder_button: QBox<QPushButton>,
     pub debug_clear_layout_settings_button: QBox<QPushButton>,
@@ -639,6 +640,7 @@ impl SettingsUI {
         let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
         let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
+        let debug_clear_dependencies_cache_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_dependencies_cache_folder"), &debug_frame);
         let debug_clear_autosave_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_autosave_folder"), &debug_frame);
         let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
         let debug_clear_layout_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_layout_settings"), &debug_frame);
@@ -691,6 +693,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_colour_dark_local_tip_button, 71, 2, 1, 1);
         debug_grid.add_widget_5a(&debug_colour_dark_remote_tip_button, 72, 2, 1, 1);
 
+        debug_grid.add_widget_5a(&debug_clear_dependencies_cache_folder_button, 84, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 85, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 86, 0, 1, 3);
         debug_grid.add_widget_5a(&debug_clear_layout_settings_button, 87, 0, 1, 3);
@@ -874,6 +877,7 @@ impl SettingsUI {
             debug_colour_dark_local_tip_button,
             debug_colour_dark_remote_tip_button,
 
+            debug_clear_dependencies_cache_folder_button,
             debug_clear_autosave_folder_button,
             debug_clear_schema_folder_button,
             debug_clear_layout_settings_button,

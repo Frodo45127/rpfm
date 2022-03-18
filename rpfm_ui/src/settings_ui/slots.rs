@@ -64,6 +64,7 @@ pub struct SettingsUISlots {
     pub shortcuts: QBox<SlotNoArgs>,
     pub text_editor: QBox<SlotNoArgs>,
     pub font_settings: QBox<SlotNoArgs>,
+    pub clear_dependencies_cache: QBox<SlotNoArgs>,
     pub clear_autosaves: QBox<SlotNoArgs>,
     pub clear_schemas: QBox<SlotNoArgs>,
     pub clear_layout: QBox<SlotNoArgs>,
@@ -180,6 +181,19 @@ impl SettingsUISlots {
             let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), &ui.dialog);
             if *font_changed {
                 QGuiApplication::set_font(new_font.as_ref());
+            }
+        }));
+
+        let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            match get_dependencies_cache_path() {
+                Ok(path) => match remove_dir_all(&path) {
+                    Ok(_) => {
+                        let _ = init_config_path();
+                        show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true);
+                    }
+                    Err(error) => show_dialog(&ui.dialog, error, false),
+                }
+                Err(error) => show_dialog(&ui.dialog, error, false)
             }
         }));
 
@@ -305,6 +319,7 @@ impl SettingsUISlots {
             shortcuts,
             text_editor,
             font_settings,
+            clear_dependencies_cache,
             clear_autosaves,
             clear_schemas,
             clear_layout,

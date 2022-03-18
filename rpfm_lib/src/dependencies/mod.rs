@@ -44,7 +44,7 @@ use crate::SCHEMA;
 use crate::settings::get_config_path;
 
 const BINARY_EXTENSION: &str = "pak2";
-const DEPENDENCIES_FOLDER: &str = "dependencies";
+pub const DEPENDENCIES_FOLDER: &str = "dependencies";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

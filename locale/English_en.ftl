@@ -812,6 +812,7 @@ tt_settings_debug_clear_layout_settings = Use this to clear the layout special s
 
 autosaves_cleared = Autosave folder deleted. It'll be regenerated the next time you start the program.
 schemas_cleared = Schemas folder deleted. Please, remember to re-download the schemas to be able to open tables.
+dependencies_cache_cleared = Dependencies folder deleted.
 
 settings_autosave_amount = Autosave Amount (min 1)
 tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to use. If you reduce this number, you need to hit "Clear Autosave Folder" to delete the extra autosaves. Keep in mind this resets the entire autosave folder.
@@ -1212,3 +1213,6 @@ reference_search_column_number = Column Index
 reference_search_row_number = Row Index
 
 view_toggle_references_panel = Toggle References Window
+
+tt_settings_debug_clear_dependencies_cache_folder = Use this to clear the dependencies cache folder. In case you don't want RPFM to eat a lot of RAM.
+settings_debug_clear_dependencies_cache_folder = Clear dependencies cache folder

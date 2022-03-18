@@ -91,6 +91,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let debug_enable_esf_editor = qtr("tt_settings_debug_enable_esf_editor");
     let debug_enable_unit_editor = qtr("tt_settings_debug_enable_unit_editor");
 
+    let debug_clear_dependencies_cache = qtr("tt_settings_debug_clear_dependencies_cache_folder");
     let debug_clear_autosaves = qtr("tt_settings_debug_clear_autosave_folder");
     let debug_clear_schemas = qtr("tt_settings_debug_clear_schema_folder");
     let debug_clear_layout = qtr("tt_settings_debug_clear_layout_settings");
@@ -106,6 +107,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.debug_enable_unit_editor_label.set_tool_tip(&debug_enable_unit_editor);
     settings_ui.debug_enable_unit_editor_checkbox.set_tool_tip(&debug_enable_unit_editor);
 
+    settings_ui.debug_clear_dependencies_cache_folder_button.set_tool_tip(&debug_clear_dependencies_cache);
     settings_ui.debug_clear_autosave_folder_button.set_tool_tip(&debug_clear_autosaves);
     settings_ui.debug_clear_schema_folder_button.set_tool_tip(&debug_clear_schemas);
     settings_ui.debug_clear_layout_settings_button.set_tool_tip(&debug_clear_layout);
