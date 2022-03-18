@@ -213,18 +213,18 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
 
                 vars
@@ -339,17 +339,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
@@ -539,17 +539,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
@@ -692,17 +692,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
@@ -793,17 +793,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
@@ -865,17 +865,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
@@ -926,17 +926,17 @@ impl SupportedGames {
                 vars.insert("faction_painter_banner_table_name".to_owned(), "faction_banners_tables".to_owned());
                 vars.insert("faction_painter_banner_table_definition".to_owned(), "banner_definition".to_owned());
                 vars.insert("faction_painter_banner_key_column_name".to_owned(), "key".to_owned());
-                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary".to_owned());
-                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary".to_owned());
-                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary".to_owned());
+                vars.insert("faction_painter_banner_primary_colour_column_name".to_owned(), "primary_hex".to_owned());
+                vars.insert("faction_painter_banner_secondary_colour_column_name".to_owned(), "secondary_hex".to_owned());
+                vars.insert("faction_painter_banner_tertiary_colour_column_name".to_owned(), "tertiary_hex".to_owned());
                 vars.insert("faction_painter_banner_row_key".to_owned(), "banner_row".to_owned());
 
                 vars.insert("faction_painter_uniform_table_name".to_owned(), "faction_uniform_colours_tables".to_owned());
                 vars.insert("faction_painter_uniform_table_definition".to_owned(), "uniform_definition".to_owned());
                 vars.insert("faction_painter_uniform_key_column_name".to_owned(), "faction_name".to_owned());
-                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour".to_owned());
-                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour".to_owned());
-                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour".to_owned());
+                vars.insert("faction_painter_uniform_primary_colour_column_name".to_owned(), "primary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_secondary_colour_column_name".to_owned(), "secondary_colour_hex".to_owned());
+                vars.insert("faction_painter_uniform_tertiary_colour_column_name".to_owned(), "tertiary_colour_hex".to_owned());
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
