@@ -68,18 +68,12 @@ const ADD_COLOUR_VARIANT_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_unit_edit
 const ADD_COLOUR_VARIANT_VIEW_RELEASE: &str = "ui/tool_unit_editor_variant_editor_add_colour_variant.ui";
 
 /// List of fields tht require special treatment from unit_variants_colours_tables.
-const UNIT_VARIANTS_COLOURS_CUSTOM_FIELDS: [&str; 11] = [
+const UNIT_VARIANTS_COLOURS_CUSTOM_FIELDS: [&str; 5] = [
     "key",
     "unit_variant",
-    "primary_colour_r",
-    "primary_colour_g",
-    "primary_colour_b",
-    "secondary_colour_r",
-    "secondary_colour_g",
-    "secondary_colour_b",
-    "tertiary_colour_r",
-    "tertiary_colour_g",
-    "tertiary_colour_b",
+    "primary_colour_hex",
+    "secondary_colour_hex",
+    "tertiary_colour_hex",
 ];
 
 /// List of fields tht require special treatment from variants_tables.
@@ -497,9 +491,9 @@ impl SubToolVariantUnitEditor {
         self.tool.load_field_to_detailed_view_editor_string_combo(&data, &self.unit_variants_colours_subculture_combobox, "unit_variants_colours_subculture");
         self.tool.load_field_to_detailed_view_editor_string_combo(&data, &self.unit_variants_colours_soldier_type_combobox, "unit_variants_colours_soldier_type");
 
-        self.tool.load_fields_to_detailed_view_editor_combo_color_split(&data, &self.unit_variants_colours_primary_colour_combobox, "unit_variants_colours_primary_colour_r", "unit_variants_colours_primary_colour_g", "unit_variants_colours_primary_colour_b");
-        self.tool.load_fields_to_detailed_view_editor_combo_color_split(&data, &self.unit_variants_colours_secondary_colour_combobox, "unit_variants_colours_secondary_colour_r", "unit_variants_colours_secondary_colour_g", "unit_variants_colours_secondary_colour_b");
-        self.tool.load_fields_to_detailed_view_editor_combo_color_split(&data, &self.unit_variants_colours_tertiary_colour_combobox, "unit_variants_colours_tertiary_colour_r", "unit_variants_colours_tertiary_colour_g", "unit_variants_colours_tertiary_colour_b");
+        self.tool.load_fields_to_detailed_view_editor_combo_color(&data, &self.unit_variants_colours_primary_colour_combobox, "unit_variants_colours_primary_colour_hex");
+        self.tool.load_fields_to_detailed_view_editor_combo_color(&data, &self.unit_variants_colours_secondary_colour_combobox, "unit_variants_colours_secondary_colour_hex");
+        self.tool.load_fields_to_detailed_view_editor_combo_color(&data, &self.unit_variants_colours_tertiary_colour_combobox, "unit_variants_colours_tertiary_colour_hex");
 
         // If we have any errors, show them here.
         if !errors.is_empty() {
@@ -754,9 +748,9 @@ impl SubToolVariantUnitEditor {
         self.tool.save_field_from_detailed_view_editor_combo(&mut data, &self.unit_variants_colours_subculture_combobox, "unit_variants_colours_subculture");
         self.tool.save_field_from_detailed_view_editor_combo(&mut data, &self.unit_variants_colours_soldier_type_combobox, "unit_variants_colours_soldier_type");
 
-        self.tool.save_fields_from_detailed_view_editor_combo_color_split(&mut data, &self.unit_variants_colours_primary_colour_combobox, "unit_variants_colours_primary_colour_r", "unit_variants_colours_primary_colour_g", "unit_variants_colours_primary_colour_b");
-        self.tool.save_fields_from_detailed_view_editor_combo_color_split(&mut data, &self.unit_variants_colours_secondary_colour_combobox, "unit_variants_colours_secondary_colour_r", "unit_variants_colours_secondary_colour_g", "unit_variants_colours_secondary_colour_b");
-        self.tool.save_fields_from_detailed_view_editor_combo_color_split(&mut data, &self.unit_variants_colours_tertiary_colour_combobox, "unit_variants_colours_tertiary_colour_r", "unit_variants_colours_tertiary_colour_g", "unit_variants_colours_tertiary_colour_b");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, &self.unit_variants_colours_primary_colour_combobox, "unit_variants_colours_primary_colour_hex");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, &self.unit_variants_colours_secondary_colour_combobox, "unit_variants_colours_secondary_colour_hex");
+        self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, &self.unit_variants_colours_tertiary_colour_combobox, "unit_variants_colours_tertiary_colour_hex");
 
         data.insert("unit_variants_colours_key".to_owned(), index.data_0a().to_string().to_std_string());
 
