@@ -1896,11 +1896,11 @@ impl TableView {
                     table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
                 } else { return Some(tr("loc_key_not_found")) };
 
-                let key = if let Some(column) = self.get_ref_table_definition().get_fields_processed().iter().position(|x| (x.get_name() == "key" || x.get_name() == "id") && x.get_is_key()) {
-                    let row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
-                    self.table_model.index_2a(row, column as i32).data_0a().to_string().to_std_string()
-                } else { return Some(tr("loc_key_not_found")) };
+                let table_definition = self.get_ref_table_definition();
+                let key_field_names = table_definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
+                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.get_fields_processed().iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
 
+                let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
 
                 // Then ask the backend to do the heavy work.
