@@ -463,6 +463,12 @@ impl DiagnosticsUI {
 
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
+
+        // Only check if we actually have the diagnostics open.
+        if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
+            return;
+        }
+
         app_ui.menu_bar_packfile.set_enabled(false);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
@@ -483,6 +489,12 @@ impl DiagnosticsUI {
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
     pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
+
+        // Only check if we actually have the diagnostics open.
+        if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
+            return;
+        }
+
         let diagnostics = UI_STATE.get_diagnostics();
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate((diagnostics, paths)));
         let response = CentralCommand::recv_try(&receiver);
