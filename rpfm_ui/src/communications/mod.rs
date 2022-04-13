@@ -363,6 +363,9 @@ pub enum Command {
 
     /// This command is used to import a schema patch in the local schema patches.
     ImportSchemaPatch(SchemaPatch),
+
+    /// This command is used to generate all missing loc entries for the currently open PackFile.
+    GenerateMissingLocData,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

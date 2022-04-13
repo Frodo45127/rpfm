@@ -1216,3 +1216,4 @@ view_toggle_references_panel = Toggle References Window
 
 tt_settings_debug_clear_dependencies_cache_folder = Use this to clear the dependencies cache folder. In case you don't want RPFM to eat a lot of RAM.
 settings_debug_clear_dependencies_cache_folder = Clear dependencies cache folder
+context_menu_generate_missing_loc_data = Generate Loc Data

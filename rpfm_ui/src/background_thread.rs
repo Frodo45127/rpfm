@@ -38,6 +38,7 @@ use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo, RawPackedFile}, PathType, PFHFlags, RESERVED_NAME_NOTES};
@@ -1601,6 +1602,17 @@ pub fn background_loop() {
                 }
             }
 
+            Command::GenerateMissingLocData => {
+                match &*SCHEMA.read().unwrap() {
+                    Some(schema) => {
+                        match pack_file_decoded.generate_missing_loc_data(schema) {
+                            Ok(path) => CentralCommand::send_back(&sender, Response::VecString(path)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

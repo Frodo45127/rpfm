@@ -96,6 +96,7 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_tables_merge_tables: QBox<SlotOfBool>,
     pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
+    pub contextual_menu_generate_missing_loc_data: QBox<SlotOfBool>,
 
     pub contextual_menu_mass_import_tsv: QBox<SlotOfBool>,
     pub contextual_menu_mass_export_tsv: QBox<SlotOfBool>,
@@ -419,6 +420,13 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                     },
+                }
+
+                // If there is anything selected, we can generate missing loc data.
+                if files > 0 || folders > 0 {
+                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(true);
+                } else {
+                    pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
                 }
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
@@ -1126,6 +1134,26 @@ impl PackFileContentsSlots {
             }
         }));
 
+        // What happens when we trigger the "Update Table" action in the Contextual Menu.
+        let contextual_menu_generate_missing_loc_data = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            info!("Triggering `Generate Loc Data` By Slot");
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
+            let response = CentralCommand::recv(&receiver);
+            match response {
+                Response::VecString(path_to_add) => {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                }
+
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }));
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -1266,6 +1294,7 @@ impl PackFileContentsSlots {
 
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
+            contextual_menu_generate_missing_loc_data,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,

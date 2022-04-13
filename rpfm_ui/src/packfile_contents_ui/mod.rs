@@ -91,6 +91,7 @@ pub struct PackFileContentsUI {
     pub context_menu_open_notes: QPtr<QAction>,
     pub context_menu_merge_tables: QPtr<QAction>,
     pub context_menu_update_table: QPtr<QAction>,
+    pub context_menu_generate_missing_loc_data: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // Actions not in the UI.
@@ -202,6 +203,7 @@ impl PackFileContentsUI {
         let context_menu_open_notes = menu_open.add_action_q_string(&qtr("context_menu_open_notes"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_merge_tables"));
         let context_menu_update_table = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_update_table"));
+        let context_menu_generate_missing_loc_data = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_generate_missing_loc_data"));
         let packfile_contents_tree_view_expand_all = QAction::from_q_string(&qtr("treeview_expand_all"));
         let packfile_contents_tree_view_collapse_all = QAction::from_q_string(&qtr("treeview_collapse_all"));
 
@@ -282,6 +284,7 @@ impl PackFileContentsUI {
 
             context_menu_merge_tables,
             context_menu_update_table,
+            context_menu_generate_missing_loc_data,
 
             //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.
