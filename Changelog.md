@@ -6,6 +6,24 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented `Find References` feature.
+- Implemented `Clear Dependencies Cache` feature.
+- Implemented `Generate Loc Data` feature.
+
+### Changed
+- Diagnostics should not run now if the diagnostic panel is closed.
+- Dependencies cache will now load part of it's data only when triggering a diagnostic search, as that data is not used otherwise.
+- Implemented some microoptimizations that should help to get down the memory usage.
+
+### Fixed
+- Fixed hidden columns not getting ignored when performing any cell-editing operation on tables.
+- Fixed `Check Message Updates` setting not working.
+- Fixed faction painter being broken for games other than WH3.
+- Fixed unit editor.
+- Fixed `Go To Loc` feature not working on multi-keyed tables.
+
 ## [3.0.5]
 ### Fixed
 - Fixed crash at boot due to libgit2 update.
