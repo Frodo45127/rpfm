@@ -224,8 +224,8 @@ pub enum FieldType {
     StringU16,
     OptionalStringU8,
     OptionalStringU16,
-    SequenceU16(Definition),
-    SequenceU32(Definition)
+    SequenceU16(Box<Definition>),
+    SequenceU32(Box<Definition>)
 }
 
 /// This enum controls the possible responses from the server when asking if there is a new Schema update.

@@ -504,8 +504,8 @@ impl From<&FieldTypeV3> for FieldTypeV4 {
             FieldTypeV3::StringU16 => Self::StringU16,
             FieldTypeV3::OptionalStringU8 => Self::OptionalStringU8,
             FieldTypeV3::OptionalStringU16 => Self::OptionalStringU16,
-            FieldTypeV3::SequenceU16(sequence) => Self::SequenceU16(From::from(sequence)),
-            FieldTypeV3::SequenceU32(sequence) => Self::SequenceU32(From::from(sequence)),
+            FieldTypeV3::SequenceU16(sequence) => Self::SequenceU16(Box::new(From::from(&*sequence))),
+            FieldTypeV3::SequenceU32(sequence) => Self::SequenceU32(Box::new(From::from(&*sequence))),
         }
     }
 }

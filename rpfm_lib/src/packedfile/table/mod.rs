@@ -71,8 +71,8 @@ pub enum DecodedData {
     StringU16(String),
     OptionalStringU8(String),
     OptionalStringU16(String),
-    SequenceU16(Table),
-    SequenceU32(Table)
+    SequenceU16(Box<Table>),
+    SequenceU32(Box<Table>)
 }
 
 /// This holds the dependency data for a specific column of a table.
@@ -156,8 +156,8 @@ impl DecodedData {
                 FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(default_value.to_owned()),
 
                 // For these two ignore the default value.
-                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Table::new(definition)),
-                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Table::new(definition)),
+                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Box::new(Table::new(definition))),
+                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Box::new(Table::new(definition))),
             }
             None => match field_type {
                 FieldType::Boolean => DecodedData::Boolean(false),
@@ -171,8 +171,8 @@ impl DecodedData {
                 FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
                 FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
-                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Table::new(definition)),
-                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Table::new(definition)),
+                FieldType::SequenceU16(definition) => DecodedData::SequenceU16(Box::new(Table::new(definition))),
+                FieldType::SequenceU32(definition) => DecodedData::SequenceU32(Box::new(Table::new(definition))),
             }
         }
     }
@@ -572,7 +572,7 @@ impl Table {
                         if let Ok(entry_count) = data.decode_packedfile_integer_u16(*index, &mut index) {
                             let mut sub_table = Table::new(definition);
                             sub_table.decode(data, entry_count.into(), index, return_incomplete)?;
-                            Ok(DecodedData::SequenceU16(sub_table)) }
+                            Ok(DecodedData::SequenceU16(Box::new(sub_table))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
                     }
 
@@ -581,7 +581,7 @@ impl Table {
                         if let Ok(entry_count) = data.decode_packedfile_integer_u32(*index, &mut index) {
                             let mut sub_table = Table::new(definition);
                             sub_table.decode(data, entry_count, index, return_incomplete)?;
-                            Ok(DecodedData::SequenceU32(sub_table)) }
+                            Ok(DecodedData::SequenceU32(Box::new(sub_table))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
                     }
                 };
@@ -952,8 +952,8 @@ impl Table {
                             vec![DecodedData::OptionalStringU16(String::new()); 1]
                         }
                     },
-                    FieldType::SequenceU16(ref definition) => vec![DecodedData::SequenceU16(Table::new(definition)); 1],
-                    FieldType::SequenceU32(ref definition) => vec![DecodedData::SequenceU32(Table::new(definition)); 1]
+                    FieldType::SequenceU16(ref definition) => vec![DecodedData::SequenceU16(Box::new(Table::new(definition))); 1],
+                    FieldType::SequenceU32(ref definition) => vec![DecodedData::SequenceU32(Box::new(Table::new(definition))); 1]
                 }
             )
             .flatten()

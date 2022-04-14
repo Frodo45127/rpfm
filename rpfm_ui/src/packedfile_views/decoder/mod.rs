@@ -875,7 +875,7 @@ impl PackedFileDecoderView {
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
         let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
-        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Definition::new(-100)), &mut index.clone());
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Box::new(Definition::new(-100))), &mut index.clone());
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -1297,8 +1297,8 @@ impl PackedFileDecoderView {
                         "StringU16" => FieldType::StringU16,
                         "OptionalStringU8" => FieldType::OptionalStringU8,
                         "OptionalStringU16" => FieldType::OptionalStringU16,
-                        "SequenceU16" => FieldType::SequenceU16(Definition::new(-100)),
-                        "SequenceU32" => FieldType::SequenceU32(Definition::new(-100)),
+                        "SequenceU16" => FieldType::SequenceU16(Box::new(Definition::new(-100))),
+                        "SequenceU32" => FieldType::SequenceU32(Box::new(Definition::new(-100))),
                         _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
                     };
 
@@ -1440,11 +1440,11 @@ impl PackedFileDecoderView {
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-100)),
+                    "SequenceU16" => FieldType::SequenceU16(Box::new(Definition::new(-100))),
                     "SequenceU32" => FieldType::SequenceU32({
                         let mut definition = Definition::new(-100);
                         *definition.get_ref_mut_fields() = self.get_fields_from_view(Some(model_index));
-                        definition
+                        Box::new(definition)
                     }),
                     _ => unimplemented!()
                 };

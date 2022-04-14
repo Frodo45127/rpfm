@@ -172,7 +172,7 @@ impl PackedFileAnimFragmentView {
                 diagnostics_ui,
                 dependencies_ui,
                 references_ui,
-                TableType::AnimFragment(From::from(table_data_1)),
+                TableType::AnimFragment(From::from(*table_data_1)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -185,7 +185,7 @@ impl PackedFileAnimFragmentView {
                 diagnostics_ui,
                 dependencies_ui,
                 references_ui,
-                TableType::AnimFragment(From::from(table_data_2)),
+                TableType::AnimFragment(From::from(*table_data_2)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -242,11 +242,11 @@ impl PackedFileAnimFragmentView {
 
                 // Each table view, we just load them.
                 if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
-                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(*data.clone())));
                 }
 
                 if let Some(DecodedData::SequenceU32(data)) = data.get(3) {
-                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(*data.clone())));
                 }
 
                 Ok(())
@@ -270,10 +270,10 @@ impl PackedFileAnimFragmentView {
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let data_2 = get_table_from_view(&table_model, &self.table_view_2.get_ref_table_definition())?;
 
-        data.push(DecodedData::SequenceU32(data_1));
+        data.push(DecodedData::SequenceU32(Box::new(data_1)));
         data.push(i1);
         data.push(i2);
-        data.push(DecodedData::SequenceU32(data_2));
+        data.push(DecodedData::SequenceU32(Box::new(data_2)));
 
         let data = vec![data; 1];
         table.set_table_data(&data)?;
