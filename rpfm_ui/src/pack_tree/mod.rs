@@ -1141,10 +1141,7 @@ impl PackTree for QBox<QTreeView> {
                             let icon_type = IconType::File(packed_file.path.to_vec());
                             icon_type.set_icon_to_item_safe(&file);
 
-                            let qlist = QListOfQStandardItem::new();
-                            qlist.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
-
-                            parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
+                            parent.append_row_q_standard_item(file.into_ptr());
                         }
 
                         // If it's a folder, we check first if it's already in the TreeView using the following
@@ -1188,9 +1185,7 @@ impl PackTree for QBox<QTreeView> {
                                 let icon_type = IconType::Folder;
                                 icon_type.set_icon_to_item_safe(&folder);
 
-                                let qlist = QListOfQStandardItem::new();
-                                qlist.append_q_standard_item(&folder.into_ptr().as_mut_raw_ptr());
-                                parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
+                                parent.append_row_q_standard_item(folder.into_ptr());
 
                                 // This is our parent now.
                                 let index = parent.row_count() - 1;
@@ -1201,10 +1196,7 @@ impl PackTree for QBox<QTreeView> {
                 }
 
                 // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
-                let qlist = QListOfQStandardItem::new();
-                qlist.append_q_standard_item(&big_parent.as_mut_raw_ptr());
-
-                model.append_row_q_list_of_q_standard_item(qlist.as_ref());
+                model.append_row_q_standard_item(big_parent);
                 self.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
                 self.header().set_minimum_section_size(4);
             },

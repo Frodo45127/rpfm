@@ -113,7 +113,7 @@ impl Diagnostics {
     }
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack_file: &PackFile, dependencies: &Dependencies) {
+    pub fn check(&mut self, pack_file: &PackFile, dependencies: &mut Dependencies) {
 
         // Clear the diagnostics first.
         self.0.clear();
@@ -137,6 +137,8 @@ impl Diagnostics {
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
+        dependencies.initialize_vanilla_paths();
+        dependencies.initialize_parent_paths();
         let vanilla_dependencies = if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) { dependencies } else { return; };
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 
@@ -1031,7 +1033,7 @@ impl Diagnostics {
     ///
     /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
     /// use the normal check function, because it's a lot more efficient than this one.
-    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
+    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &mut Dependencies) {
 
         // First, remove all current config blocking diagnostics, so they get check properly again.
         self.0.iter_mut().for_each(|x| {
@@ -1122,6 +1124,8 @@ impl Diagnostics {
         let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
 
         // Prefetch them here, so we don't need to re-search them again.
+        dependencies.initialize_vanilla_paths();
+        dependencies.initialize_parent_paths();
         let vanilla_dependencies = if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) { dependencies } else { return };
         let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
 

@@ -1143,7 +1143,7 @@ pub fn background_loop() {
                     let mut diag = Diagnostics::default();
                     if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
                         pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
-                        diag.check(&pack_file_decoded, &dependencies);
+                        diag.check(&pack_file_decoded, &mut dependencies);
                     }
                     CentralCommand::send_back(&sender, Response::Diagnostics(diag));
                 }));
@@ -1151,7 +1151,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
-                diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
+                diagnostics.update(&pack_file_decoded, &path_types, &mut dependencies);
                 let packed_files_info = diagnostics.get_update_paths_packed_file_info(&pack_file_decoded, &path_types);
                 CentralCommand::send_back(&sender, Response::DiagnosticsVecPackedFileInfo(diagnostics, packed_files_info));
             }

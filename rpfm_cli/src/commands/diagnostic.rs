@@ -73,7 +73,7 @@ pub fn check(
             }
 
             let mut diagnostics = Diagnostics::default();
-            diagnostics.check(&pack_file, &dependencies);
+            diagnostics.check(&pack_file, &mut dependencies);
 
             println!("{}", serde_json::to_string_pretty(&diagnostics)?);
 

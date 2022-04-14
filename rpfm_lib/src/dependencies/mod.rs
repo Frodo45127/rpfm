@@ -97,27 +97,27 @@ pub struct Dependencies {
 
     /// Data to quickly check if a path exists in the vanilla files as a case insensitive file.
     #[serde(skip_serializing, skip_deserializing)]
-    vanilla_cached_packed_files_paths: HashSet<UniCase<String>>,
+    vanilla_cached_packed_files_paths: LazyLoadedData<HashSet<UniCase<String>>>,
 
     /// Data to quickly check if a path exists in the parent mod files as a case insensitive file.
     #[serde(skip_serializing, skip_deserializing)]
-    parent_cached_packed_files_paths: HashSet<UniCase<String>>,
+    parent_cached_packed_files_paths: LazyLoadedData<HashSet<UniCase<String>>>,
 
     /// Data to quickly check if a path exists in the vanilla files as a case insensitive folder.
     #[serde(skip_serializing, skip_deserializing)]
-    vanilla_cached_folders_caseless: HashSet<UniCase<String>>,
+    vanilla_cached_folders_caseless: LazyLoadedData<HashSet<UniCase<String>>>,
 
     /// Data to quickly check if a path exists in the parent mod files as a case insensitive folder.
     #[serde(skip_serializing, skip_deserializing)]
-    parent_cached_folders_caseless: HashSet<UniCase<String>>,
+    parent_cached_folders_caseless: LazyLoadedData<HashSet<UniCase<String>>>,
 
     /// Data to quickly check if a path exists in the vanilla files as a case sensitive folder.
     #[serde(skip_serializing, skip_deserializing)]
-    vanilla_cached_folders_cased: HashSet<String>,
+    vanilla_cached_folders_cased: LazyLoadedData<HashSet<String>>,
 
     /// Data to quickly check if a path exists in the parent mod files as a case sensitive folder.
     #[serde(skip_serializing, skip_deserializing)]
-    parent_cached_folders_cased: HashSet<String>,
+    parent_cached_folders_cased: LazyLoadedData<HashSet<String>>,
 
     /// DB Files only available on the assembly kit. Usable only for references. Do not use them as the base for new tables.
     asskit_only_db_tables: Vec<DB>,
@@ -136,6 +136,20 @@ pub struct DependenciesInfo {
     /// Full list of parent PackedFile paths.
     pub parent_packed_files: Vec<PackedFileInfo>,
 }
+
+/// This enum is a way to lazy-load parts of the dependencies system just when we need them.
+#[derive(Debug, Clone, GetRef, GetRefMut, Serialize, Deserialize)]
+pub enum LazyLoadedData<T> {
+    Loaded(Box<T>),
+    NotYetLoaded
+}
+
+impl<T> Default for LazyLoadedData<T> {
+    fn default() -> Self {
+        Self::NotYetLoaded
+    }
+}
+
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -169,20 +183,9 @@ impl Dependencies {
         PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
 
         // Build the casing-related HashSets.
-        self.parent_cached_packed_files_paths = self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-        self.parent_cached_folders_cased = self.parent_cached_packed_files_paths.par_iter().map(|x| {
-            let path = x.split('/').collect::<Vec<&str>>();
-            let mut paths = Vec::with_capacity(path.len() - 1);
-
-            for (index, folder) in path.iter().enumerate() {
-                if index < path.len() - 1 && !folder.is_empty() {
-                    paths.push(path[0..=index].join("/"))
-                }
-            }
-
-            paths
-        }).flatten().collect::<HashSet<String>>();
-        self.parent_cached_folders_caseless = self.parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+        self.parent_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
+        self.parent_cached_folders_cased = LazyLoadedData::NotYetLoaded;
+        self.parent_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
 
         // Pre-decode all tables/locs to memory.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -408,20 +411,9 @@ impl Dependencies {
         }
 
         // Build the casing-related HashSets.
-        dependencies.vanilla_cached_packed_files_paths = dependencies.vanilla_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
-        dependencies.vanilla_cached_folders_cased = dependencies.vanilla_cached_packed_files_paths.par_iter().map(|x| {
-            let path = x.split('/').collect::<Vec<&str>>();
-            let mut paths = Vec::with_capacity(path.len() - 1);
-
-            for (index, folder) in path.iter().enumerate() {
-                if index < path.len() - 1 && !folder.is_empty() {
-                    paths.push(path[0..=index].join("/"))
-                }
-            }
-
-            paths
-        }).flatten().collect::<HashSet<String>>();
-        dependencies.vanilla_cached_folders_caseless = dependencies.vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>();
+        dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
+        dependencies.vanilla_cached_folders_cased = LazyLoadedData::NotYetLoaded;
+        dependencies.vanilla_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
 
         Ok(dependencies)
     }
@@ -438,6 +430,70 @@ impl Dependencies {
         // Never serialize directly into the file. It's bloody slow!!!
         let serialized: Vec<u8> = bincode::serialize(&self)?;
         file.write_all(&serialized).map_err(From::from)
+    }
+
+    /// This function is used to kinda-lazily initialize the vanilla paths from the dependencies checks. This speeds up reloads at the cost of a slight delay later.
+    pub fn initialize_vanilla_paths(&mut self) {
+
+        // Build the casing-related HashSets if needed.
+        if let LazyLoadedData::NotYetLoaded = self.vanilla_cached_packed_files_paths {
+            self.vanilla_cached_packed_files_paths = LazyLoadedData::Loaded(Box::new(self.vanilla_cached_packed_files.par_iter().map(|(key, _)| UniCase::new(key.to_owned())).collect::<HashSet<UniCase<String>>>()));
+        }
+
+        if let LazyLoadedData::NotYetLoaded = self.vanilla_cached_folders_cased {
+            if let LazyLoadedData::Loaded(vanilla_cached_packed_files_paths) = &mut self.vanilla_cached_packed_files_paths {
+                self.vanilla_cached_folders_cased = LazyLoadedData::Loaded(Box::new(vanilla_cached_packed_files_paths.par_iter().map(|x| {
+                    let path = x.split('/').collect::<Vec<&str>>();
+                    let mut paths = Vec::with_capacity(path.len() - 1);
+
+                    for (index, folder) in path.iter().enumerate() {
+                        if index < path.len() - 1 && !folder.is_empty() {
+                            paths.push(path[0..=index].join("/"))
+                        }
+                    }
+
+                    paths
+                }).flatten().collect::<HashSet<String>>()));
+            }
+        }
+
+        if let LazyLoadedData::NotYetLoaded = self.vanilla_cached_folders_caseless {
+            if let LazyLoadedData::Loaded(vanilla_cached_folders_cased) = &mut self.vanilla_cached_folders_cased {
+                self.vanilla_cached_folders_caseless = LazyLoadedData::Loaded(Box::new(vanilla_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>()));
+            }
+        }
+    }
+
+    /// This function is used to kinda-lazily initialize the parent paths from the dependencies checks. This speeds up reloads at the cost of a slight delay later.
+    pub fn initialize_parent_paths(&mut self) {
+
+        // Build the casing-related HashSets.
+        if let LazyLoadedData::NotYetLoaded = self.parent_cached_packed_files_paths {
+            self.parent_cached_packed_files_paths = LazyLoadedData::Loaded(Box::new(self.parent_cached_packed_files.keys().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>()));
+        }
+
+        if let LazyLoadedData::NotYetLoaded = self.parent_cached_folders_cased {
+            if let LazyLoadedData::Loaded(parent_cached_packed_files_paths) = &mut self.parent_cached_packed_files_paths {
+                self.parent_cached_folders_cased = LazyLoadedData::Loaded(Box::new(parent_cached_packed_files_paths.par_iter().map(|x| {
+                    let path = x.split('/').collect::<Vec<&str>>();
+                    let mut paths = Vec::with_capacity(path.len() - 1);
+
+                    for (index, folder) in path.iter().enumerate() {
+                        if index < path.len() - 1 && !folder.is_empty() {
+                            paths.push(path[0..=index].join("/"))
+                        }
+                    }
+
+                    paths
+                }).flatten().collect::<HashSet<String>>()));
+            }
+        }
+
+        if let LazyLoadedData::NotYetLoaded = self.parent_cached_folders_caseless {
+            if let LazyLoadedData::Loaded(parent_cached_folders_cased) = &mut self.parent_cached_folders_cased {
+                self.parent_cached_folders_caseless = LazyLoadedData::Loaded(Box::new(parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>()));
+            }
+        }
     }
 
     /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
@@ -850,7 +906,11 @@ impl Dependencies {
     /// This function returns the provided file exists on the game files.
     pub fn file_exists_on_game_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
         if case_insensitive {
-            self.vanilla_cached_packed_files_paths.contains(path)
+            if let LazyLoadedData::Loaded(vanilla_cached_packed_files_paths) = &self.vanilla_cached_packed_files_paths {
+                vanilla_cached_packed_files_paths.contains(path)
+            } else {
+                false
+            }
         } else {
             self.vanilla_cached_packed_files.contains_key(&**path)
         }
@@ -859,7 +919,11 @@ impl Dependencies {
     /// This function returns the provided file exists on the parent mod files.
     pub fn file_exists_on_parent_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
         if case_insensitive {
-            self.parent_cached_packed_files_paths.contains(path)
+            if let LazyLoadedData::Loaded(parent_cached_packed_files_paths) = &self.parent_cached_packed_files_paths {
+                parent_cached_packed_files_paths.contains(path)
+            } else {
+                false
+            }
         } else {
             self.parent_cached_packed_files.contains_key(&**path)
         }
@@ -868,18 +932,34 @@ impl Dependencies {
     /// This function returns the provided folder exists on the game files.
     pub fn folder_exists_on_game_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
         if case_insensitive {
-            self.vanilla_cached_folders_caseless.contains(path)
+            if let LazyLoadedData::Loaded(vanilla_cached_folders_caseless) = &self.vanilla_cached_folders_caseless {
+                vanilla_cached_folders_caseless.contains(path)
+            } else {
+                false
+            }
         } else {
-            self.vanilla_cached_folders_cased.contains(&**path)
+            if let LazyLoadedData::Loaded(vanilla_cached_folders_cased) = &self.vanilla_cached_folders_cased {
+                vanilla_cached_folders_cased.contains(&**path)
+            } else {
+                false
+            }
         }
     }
 
     /// This function returns the provided folder exists on the parent mod files.
     pub fn folder_exists_on_parent_files(&self, path: &UniCase<String>, case_insensitive: bool) -> bool {
         if case_insensitive {
-            self.parent_cached_folders_caseless.contains(path)
+            if let LazyLoadedData::Loaded(parent_cached_folders_caseless) = &self.parent_cached_folders_caseless {
+                parent_cached_folders_caseless.contains(path)
+            } else {
+                false
+            }
         } else {
-            self.parent_cached_folders_cased.contains(&**path)
+            if let LazyLoadedData::Loaded(parent_cached_folders_cased) = &self.parent_cached_folders_cased {
+                parent_cached_folders_cased.contains(&**path)
+            } else {
+                false
+            }
         }
     }
 
@@ -907,7 +987,7 @@ impl From<&Dependencies> for DependenciesInfo {
         let table_name_logic = GAME_SELECTED.read().unwrap().get_vanilla_db_table_name_logic();
 
         Self {
-            asskit_tables: dependencies.get_ref_asskit_only_db_tables().iter().map(|table| {
+            asskit_tables: dependencies.get_ref_asskit_only_db_tables().par_iter().map(|table| {
                 let table_name = match table_name_logic {
                     VanillaDBTableNameLogic::DefaultName(ref name) => name.to_owned(),
                     VanillaDBTableNameLogic::FolderName => table.get_table_name(),
@@ -915,8 +995,8 @@ impl From<&Dependencies> for DependenciesInfo {
 
                 PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
             }).collect(),
-            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().values().map(PackedFileInfo::from).collect(),
-            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().values().map(PackedFileInfo::from).collect(),
+            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
+            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
         }
     }
 }

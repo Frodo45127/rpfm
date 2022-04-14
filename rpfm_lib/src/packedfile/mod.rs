@@ -558,12 +558,11 @@ impl PackedFileType {
 
         // If that failed, check if it's in a folder which is known to only have specific files.
         if let Some(folder) = path_str.get(0) {
-            let base_folder = folder.to_lowercase();
-            if &base_folder == "db" {
+            if *folder == "db" {
                 return Self::DB;
             }
 
-            if &base_folder == "ui" && (!path.contains('.') || path.ends_with(uic::EXTENSION)) {
+            if *folder == "ui" && (!path.contains('.') || path.ends_with(uic::EXTENSION)) {
                 return Self::UIC;
             }
         }
