@@ -41,7 +41,8 @@ pub const SIGNATURE_CAMV: &str = "CAMV";
 pub const KEY_FRAME_MARKER: &[u8; 3] = &[0x9D, 0x01, 0x2A];
 
 /// Length of the header of a CAMV video.
-const HEADER_LENGTH_CAMV: u16 = 41;
+const HEADER_LENGTH_CAMV_V0: u16 = 0x20;
+const HEADER_LENGTH_CAMV_V1: u16 = 0x29;
 
 /// Length of the header of a IVF video.
 const HEADER_LENGTH_IVF: u16 = 32;
@@ -254,24 +255,31 @@ impl CaVp8 {
 
     /// This function creates a `CaVp8` from a `Vec<u8>` containing a video of CAMV format.
     fn save_camv(&self) -> Vec<u8> {
+
+        let header_lenght = if self.version == 0 { HEADER_LENGTH_CAMV_V0 } else { HEADER_LENGTH_CAMV_V1 };
+        let header_lenght_full = if self.version == 0 { HEADER_LENGTH_CAMV_V0 + 8 } else { HEADER_LENGTH_CAMV_V1 } as u32;
         let mut packed_file = vec![];
         packed_file.encode_string_u8(SIGNATURE_CAMV);
-        packed_file.encode_integer_i16(1);
-        packed_file.encode_integer_u16(HEADER_LENGTH_CAMV);
+        packed_file.encode_integer_i16(self.version);
+        packed_file.encode_integer_u16(header_lenght);
         packed_file.encode_string_u8(&self.codec_four_cc);
         packed_file.encode_integer_u16(self.width);
         packed_file.encode_integer_u16(self.height);
 
         packed_file.encode_float_f32(1_000f32 / self.framerate);
         packed_file.encode_integer_u32(1);
-        packed_file.encode_integer_u32(self.num_frames);
 
-        packed_file.encode_integer_u32(HEADER_LENGTH_CAMV as u32 + self.frame_table.iter().map(|x| x.size).sum::<u32>());
+        // Not a fucking clue why, but this has to have one less frame.
+        packed_file.encode_integer_u32(self.num_frames - 1);
+
+        packed_file.encode_integer_u32(header_lenght_full + self.frame_table.iter().map(|x| x.size).sum::<u32>());
         packed_file.encode_integer_u32(self.num_frames);
         packed_file.encode_integer_u32(self.frame_table.iter().map(|x| x.size).max().unwrap());
 
-        // Final header byte.
-        packed_file.push(0);
+        // Final header byte, only in version 1.
+        if self.version == 1 {
+            packed_file.push(0);
+        }
 
         // Frame data and table.
         packed_file.extend_from_slice(&self.frame_data);
@@ -281,7 +289,7 @@ impl CaVp8 {
             let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
             let is_key_frame = if &frame_data[3..6] == KEY_FRAME_MARKER { 1 } else { 0 };
 
-            packed_file.encode_integer_u32(offset as u32 + HEADER_LENGTH_CAMV as u32);
+            packed_file.encode_integer_u32(offset as u32 + header_lenght_full);
             packed_file.encode_integer_u32(frame_data.len() as u32);
             packed_file.push(is_key_frame);
             offset += frame.size as usize;
