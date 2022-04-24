@@ -839,8 +839,8 @@ impl GlobalSearch {
                 }
                 else {
                     let pattern = self.pattern.to_lowercase();
-                    let text = text.to_lowercase();
-                    if text.contains(&pattern) {
+                    let text_lower = text.to_lowercase();
+                    if text_lower.contains(&pattern) {
                         let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                         matches.push(TableMatch::new(column_name, column_number, row_number, &text));
                     }
