@@ -14,8 +14,10 @@ Module with all the code related to the main `UIState`.
 This module contains the code needed to keep track of the current state of the UI.
 !*/
 
+use qt_core::QEventLoop;
+
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::rc::Rc;
 
@@ -138,7 +140,21 @@ impl UIState {
     ///
     /// Use this only if you need to perform multiple write operations with this.
     pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<Vec<PackedFileView>> {
-        self.open_packedfiles.write().unwrap()
+        loop {
+            match self.open_packedfiles.try_write() {
+                Ok(writer) => return writer,
+                Err(error) => match error {
+                    TryLockError::Poisoned(_) => panic!("Poisoned? This should never happen."),
+
+                    // On blocking error, retrigger all UI events, as there should be one holding the lock.
+                    // Keep doing it until the lock is freed an we can re-lock it here.
+                    TryLockError::WouldBlock => {
+                        let event_loop = unsafe { QEventLoop::new_0a() };
+                        unsafe { event_loop.process_events_0a(); };
+                    }
+                }
+            }
+        }
     }
 
     /// This function returns a reference to the current `Operational Mode`.
