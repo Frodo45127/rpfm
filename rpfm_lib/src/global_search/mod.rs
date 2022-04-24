@@ -587,16 +587,33 @@ impl GlobalSearch {
                 }
             }
             MatchingMode::Pattern => {
-                let mut index = 0;
-                while let Some(start) = text.find(&self.pattern) {
+                if self.case_sensitive {
+                    let mut index = 0;
+                    while let Some(start) = text.find(&self.pattern) {
 
-                    // Advance the index so we don't get trapped in an infinite loop... again.
-                    if start >= index {
-                        let end = start + self.pattern.len();
-                        text.replace_range(start..end, &self.replace_text);
-                        index = end;
-                    } else {
-                        break;
+                        // Advance the index so we don't get trapped in an infinite loop... again.
+                        if start >= index {
+                            let end = start + self.pattern.len();
+                            text.replace_range(start..end, &self.replace_text);
+                            index = end;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                else {
+
+                    let regex = Regex::new(&format!("(?i){}", regex::escape(&self.pattern))).unwrap();
+                    let mut index = 0;
+                    while let Some(match_data) = regex.find(&text.to_owned()) {
+
+                         // Advance the index so we don't get trapped in an infinite loop... again.
+                        if match_data.start() >= index {
+                            text.replace_range(match_data.start()..match_data.end(), &self.replace_text);
+                            index = match_data.end();
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
