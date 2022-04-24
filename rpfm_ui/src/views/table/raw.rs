@@ -1389,6 +1389,16 @@ impl TableView {
                         }
                     },
 
+                    FieldType::ColourRGB => {
+                        if let Ok(new_value) = u32::from_str_radix(text, 16) {
+                            if current_value != new_value.to_string() {
+                                self.table_model.set_data_3a(real_cell, &QVariant::from_uint(new_value), 2);
+                                changed_cells += 1;
+                                self.process_edition(self.table_model.item_from_index(real_cell));
+                            }
+                        }
+                    }
+
                     _ => {
                         if current_value != *text {
                             self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
