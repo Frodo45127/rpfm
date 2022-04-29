@@ -2880,7 +2880,10 @@ impl AppUI {
                     // Get the Paths of the files inside the folders we want to add.
                     let paths: Vec<PathBuf> = match get_files_from_subdir(&assets_folder, true) {
                         Ok(paths) => paths,
-                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                        Err(error) => {
+                            app_ui.main_window.set_enabled(true);
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
                     };
 
                     // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
