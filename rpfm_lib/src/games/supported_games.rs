@@ -382,7 +382,211 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    vanilla_packs: vec![],
+                    vanilla_packs: vec![
+                        "audio.basepack".to_owned(),
+                        "audio_base_2.pack".to_owned(),
+                        "audio_base_bl.pack".to_owned(),
+                        "audio_base_br.pack".to_owned(),
+                        "audio_base_cst.pack".to_owned(),
+                        "audio_base_m.pack".to_owned(),
+                        "audio_base_tk.pack".to_owned(),
+
+                        // English -- Needs to go first so others can overwrite it, because only a few languages have audio files.
+                        "audio_en.pack".to_owned(),
+                        "audio_en_2.pack".to_owned(),
+                        "audio_en_br.pack".to_owned(),
+                        "audio_en_cst.pack".to_owned(),
+                        "audio_en_tk.pack".to_owned(),
+
+                        // Brazilian - No audio.
+                        // Czech - No audio.
+
+                        // German
+                        "audio_ge.pack".to_owned(),
+                        "audio_ge_2.pack".to_owned(),
+                        "audio_ge_bm.pack".to_owned(),
+                        "audio_ge_br.pack".to_owned(),
+                        "audio_ge_cst.pack".to_owned(),
+                        "audio_ge_tk.pack".to_owned(),
+                        "audio_ge_we.pack".to_owned(),
+
+                        // Spanish
+                        "audio_sp.pack".to_owned(),
+                        "audio_sp_2.pack".to_owned(),
+                        "audio_sp_bm.pack".to_owned(),
+                        "audio_sp_br.pack".to_owned(),
+                        "audio_sp_cst.pack".to_owned(),
+                        "audio_sp_tk.pack".to_owned(),
+                        "audio_sp_we.pack".to_owned(),
+
+                        // French
+                        "audio_fr.pack".to_owned(),
+                        "audio_fr_2.pack".to_owned(),
+                        "audio_fr_bm.pack".to_owned(),
+                        "audio_fr_br.pack".to_owned(),
+                        "audio_fr_cst.pack".to_owned(),
+                        "audio_fr_tk.pack".to_owned(),
+                        "audio_fr_we.pack".to_owned(),
+
+                        // Italian
+                        "audio_it.pack".to_owned(),
+                        "audio_it_2.pack".to_owned(),
+                        "audio_it_bm.pack".to_owned(),
+                        "audio_it_br.pack".to_owned(),
+                        "audio_it_cst.pack".to_owned(),
+                        "audio_it_tk.pack".to_owned(),
+                        "audio_it_we.pack".to_owned(),
+
+                        // Korean - No audio.
+
+                        // Polish
+                        "audio_pl.pack".to_owned(),
+                        "audio_pl_2.pack".to_owned(),
+                        "audio_pl_bm.pack".to_owned(),
+                        "audio_pl_br.pack".to_owned(),
+                        "audio_pl_cst.pack".to_owned(),
+                        "audio_pl_tk.pack".to_owned(),
+                        "audio_pl_we.pack".to_owned(),
+
+                        // Russian
+                        "audio_ru.pack".to_owned(),
+                        "audio_ru_2.pack".to_owned(),
+                        "audio_ru_bm.pack".to_owned(),
+                        "audio_ru_br.pack".to_owned(),
+                        "audio_ru_cst.pack".to_owned(),
+                        "audio_ru_tk.pack".to_owned(),
+                        "audio_ru_we.pack".to_owned(),
+
+                        // Turkish - No audio
+                        // Simplified Chinese - No audio
+                        // Traditional Chinese - No audio
+
+                        "boot.pack".to_owned(),
+                        "campaign_variants.pack".to_owned(),
+                        "campaign_variants_2.pack".to_owned(),
+                        "campaign_variants_bl.pack".to_owned(),
+                        "campaign_variants_pro09_.pack".to_owned(),
+                        "campaign_variants_sb.pack".to_owned(),
+                        "campaign_variants_sf.pack".to_owned(),
+                        "campaign_variants_twa02_.pack".to_owned(),
+                        "campaign_variants_wp_.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_1.pack".to_owned(),
+                        "data_2.pack".to_owned(),
+                        "data_bl.pack".to_owned(),
+                        "data_bm.pack".to_owned(),
+                        "data_gc.pack".to_owned(),
+                        "data_hb.pack".to_owned(),
+                        "data_pro09_.pack".to_owned(),
+                        "data_pw.pack".to_owned(),
+                        "data_sb.pack".to_owned(),
+                        "data_sc.pack".to_owned(),
+                        "data_sf.pack".to_owned(),
+                        "data_tk.pack".to_owned(),
+                        "data_twa01_.pack".to_owned(),
+                        "data_twa02_.pack".to_owned(),
+                        "data_we.pack".to_owned(),
+                        "data_wp_.pack".to_owned(),
+
+                        "local_en.pack".to_owned(),     // English
+                        "local_br.pack".to_owned(),     // Brazilian
+                        "local_cz.pack".to_owned(),     // Czech
+                        "local_ge.pack".to_owned(),     // German
+                        "local_sp.pack".to_owned(),     // Spanish
+                        "local_fr.pack".to_owned(),     // French
+                        "local_it.pack".to_owned(),     // Italian
+                        "local_kr.pack".to_owned(),     // Korean
+                        "local_pl.pack".to_owned(),     // Polish
+                        "local_ru.pack".to_owned(),     // Russian
+                        "local_tr.pack".to_owned(),     // Turkish
+                        "local_cn.pack".to_owned(),     // Simplified Chinese
+                        "local_zh.pack".to_owned(),     // Traditional Chinese
+
+                        "local_en_2.pack".to_owned(),     // English
+                        "local_br_2.pack".to_owned(),     // Brazilian
+                        "local_cz_2.pack".to_owned(),     // Czech
+                        "local_ge_2.pack".to_owned(),     // German
+                        "local_sp_2.pack".to_owned(),     // Spanish
+                        "local_fr_2.pack".to_owned(),     // French
+                        "local_it_2.pack".to_owned(),     // Italian
+                        "local_kr_2.pack".to_owned(),     // Korean
+                        "local_pl_2.pack".to_owned(),     // Polish
+                        "local_ru_2.pack".to_owned(),     // Russian
+                        "local_tr_2.pack".to_owned(),     // Turkish
+                        "local_cn_2.pack".to_owned(),     // Simplified Chinese
+                        "local_zh_2.pack".to_owned(),     // Traditional Chinese
+
+                        "local_en_gc.pack".to_owned(),     // English
+                        "local_br_gc.pack".to_owned(),     // Brazilian
+                        "local_cz_gc.pack".to_owned(),     // Czech
+                        "local_ge_gc.pack".to_owned(),     // German
+                        "local_sp_gc.pack".to_owned(),     // Spanish
+                        "local_fr_gc.pack".to_owned(),     // French
+                        "local_it_gc.pack".to_owned(),     // Italian
+                        "local_kr_gc.pack".to_owned(),     // Korean
+                        "local_pl_gc.pack".to_owned(),     // Polish
+                        "local_ru_gc.pack".to_owned(),     // Russian
+                        "local_tr_gc.pack".to_owned(),     // Turkish
+                        "local_cn_gc.pack".to_owned(),     // Simplified Chinese
+                        "local_zh_gc.pack".to_owned(),     // Traditional Chinese
+
+                        "models.pack".to_owned(),
+                        "models_2.pack".to_owned(),
+                        "models_gc.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "models2_2.pack".to_owned(),
+                        "models2_gc.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "movies_2.pack".to_owned(),
+                        "movies_sf.pack".to_owned(),
+                        "movies2.pack".to_owned(),
+                        "movies3.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "shaders_bl.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain_2.pack".to_owned(),
+                        "terrain_gc.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain2_2.pack".to_owned(),
+                        "terrain2_gc.pack".to_owned(),
+                        "terrain3.pack".to_owned(),
+                        "terrain3_2.pack".to_owned(),
+                        "terrain3_gc.pack".to_owned(),
+                        "terrain4.pack".to_owned(),
+                        "terrain4_2.pack".to_owned(),
+                        "terrain5.pack".to_owned(),
+                        "terrain7.pack".to_owned(),
+                        "terrain7_2.pack".to_owned(),
+                        "terrain7_gc.pack".to_owned(),
+                        "terrain8.pack".to_owned(),
+                        "terrain8_2.pack".to_owned(),
+                        "terrain9.pack".to_owned(),
+                        "variants.pack".to_owned(),
+                        "variants_2.pack".to_owned(),
+                        "variants_bl.pack".to_owned(),
+                        "variants_dds.pack".to_owned(),
+                        "variants_dds_2.pack".to_owned(),
+                        "variants_dds_bl.pack".to_owned(),
+                        "variants_dds_gc.pack".to_owned(),
+                        "variants_dds_sb.pack".to_owned(),
+                        "variants_dds_sf.pack".to_owned(),
+                        "variants_dds_wp_.pack".to_owned(),
+                        "variants_dds2.pack".to_owned(),
+                        "variants_dds2_2.pack".to_owned(),
+                        "variants_dds2_sb.pack".to_owned(),
+                        "variants_dds2_sc.pack".to_owned(),
+                        "variants_dds2_sf_.pack".to_owned(),
+                        "variants_dds2_wp_.pack".to_owned(),
+                        "variants_gc.pack".to_owned(),
+                        "variants_hb.pack".to_owned(),
+                        "variants_sb.pack".to_owned(),
+                        "variants_sc.pack".to_owned(),
+                        "variants_sf_.pack".to_owned(),
+                        "variants_wp_.pack".to_owned(),
+                        "warmachines.pack".to_owned(),
+                        "warmachines_2.pack".to_owned(),
+                        "warmachines_hb.pack".to_owned(),
+                    ],
                     use_manifest: true,
                     store_id: 594_570,
                     executable: "Warhammer2.exe".to_owned(),
@@ -390,7 +594,7 @@ impl SupportedGames {
                     local_mods_path: "data".to_owned(),
                     downloaded_mods_path: "./../../workshop/content/594570".to_owned(),
                 });
-
+                // TODO: check this, it may have broken with the latest update.
                 data.insert(InstallType::LnxSteam, InstallData {
                     vanilla_packs: vec![
                         "audio.pack".to_owned(),
@@ -409,6 +613,7 @@ impl SupportedGames {
                         "campaign_variants_bl.pack".to_owned(),
                         "campaign_variants_pro09_.pack".to_owned(),
                         "campaign_variants_sb.pack".to_owned(),
+                        "campaign_variants_sf.pack".to_owned(),
                         "campaign_variants_twa02_.pack".to_owned(),
                         "campaign_variants_wp_.pack".to_owned(),
                         "data.pack".to_owned(),
@@ -416,12 +621,13 @@ impl SupportedGames {
                         "data_2.pack".to_owned(),
                         "data_bl.pack".to_owned(),
                         "data_bm.pack".to_owned(),
-                        "data_gv.pack".to_owned(),
+                        "data_gc.pack".to_owned(),
                         "data_hb.pack".to_owned(),
                         "data_pro09_.pack".to_owned(),
                         "data_pw.pack".to_owned(),
                         "data_sb.pack".to_owned(),
                         "data_sc.pack".to_owned(),
+                        "data_sf.pack".to_owned(),
                         "data_tk.pack".to_owned(),
                         "data_twa01_.pack".to_owned(),
                         "data_twa02_.pack".to_owned(),
@@ -478,6 +684,7 @@ impl SupportedGames {
                         "models2_gc.pack".to_owned(),
                         "movies.pack".to_owned(),
                         "movies_2.pack".to_owned(),
+                        "movies_sf.pack".to_owned(),
                         "movies2.pack".to_owned(),
                         "movies3.pack".to_owned(),
                         "shaders.pack".to_owned(),
@@ -508,16 +715,19 @@ impl SupportedGames {
                         "variants_dds_bl.pack".to_owned(),
                         "variants_dds_gc.pack".to_owned(),
                         "variants_dds_sb.pack".to_owned(),
+                        "variants_dds_sf.pack".to_owned(),
                         "variants_dds_wp_.pack".to_owned(),
                         "variants_dds2.pack".to_owned(),
                         "variants_dds2_2.pack".to_owned(),
                         "variants_dds2_sb.pack".to_owned(),
                         "variants_dds2_sc.pack".to_owned(),
+                        "variants_dds2_sf_.pack".to_owned(),
                         "variants_dds2_wp_.pack".to_owned(),
                         "variants_gc.pack".to_owned(),
                         "variants_hb.pack".to_owned(),
                         "variants_sb.pack".to_owned(),
                         "variants_sc.pack".to_owned(),
+                        "variants_sf_.pack".to_owned(),
                         "variants_wp_.pack".to_owned(),
                         "warmachines.pack".to_owned(),
                         "warmachines_2.pack".to_owned(),
