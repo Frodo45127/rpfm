@@ -6,23 +6,33 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [3.0.6]
 ### Added
 - Implemented `Find References` feature.
 - Implemented `Clear Dependencies Cache` feature.
 - Implemented `Generate Loc Data` feature.
+- Implemented support for `TW Autogen` installation for MyMods.
 
 ### Changed
 - Diagnostics should not run now if the diagnostic panel is closed.
 - Dependencies cache will now load part of it's data only when triggering a diagnostic search, as that data is not used otherwise.
 - Implemented some microoptimizations that should help to get down the memory usage.
+- When creating a MyMod, a git repository will automatically be created in the MyMod folder.
+- When creating a MyMod, on supported games (currently, only WH3) config files will be created in the MyMod folder for VSCode and Sublime Text to make TW Autogen automatically work for them. Read TW Autogen docs for more info about it: [https://github.com/chadvandy/tw_autogen](https://github.com/chadvandy/tw_autogen).
 
 ### Fixed
-- Fixed hidden columns not getting ignored when performing any cell-editing operation on tables.
+- Fixed a CTD when pasting invalid data on a colour column.
 - Fixed `Check Message Updates` setting not working.
+- Fixed hidden columns not getting ignored when performing any cell-editing operation on tables.
 - Fixed faction painter being broken for games other than WH3.
 - Fixed unit editor.
 - Fixed `Go To Loc` feature not working on multi-keyed tables.
+- Fixed multiple issues with the CAMV<->IVF conversions.
+- Fixed fallback behavior when loading vanilla data so it no longer loads mods.
+- Fixed hang on very specific failures when importing a MyMod.
+- Fixed hang on Global Search's `Replace All` feature.
+- Fixed Global Search results being lowercased when they shouldn't.
+- Fixed Global Search's replace not working when not searching in case-sensitive mode under certain situations.
 
 ## [3.0.5]
 ### Fixed
@@ -666,7 +676,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.6...HEAD
+[3.0.6]: https://github.com/Frodo45127/rpfm/compare/v3.0.5...v3.0.6
 [3.0.5]: https://github.com/Frodo45127/rpfm/compare/v3.0.4...v3.0.5
 [3.0.4]: https://github.com/Frodo45127/rpfm/compare/v3.0.3...v3.0.4
 [3.0.3]: https://github.com/Frodo45127/rpfm/compare/v3.0.2...v3.0.3
