@@ -140,6 +140,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
     app_ui.about_check_message_updates.triggered().connect(&slots.about_check_message_updates);
+    app_ui.about_check_lua_autogen_updates.triggered().connect(&slots.about_check_lua_autogen_updates);
 
     //-----------------------------------------------//
     // `Debug` menu connections.

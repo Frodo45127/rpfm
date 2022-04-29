@@ -108,6 +108,7 @@ pub struct SettingsUI {
     pub extra_network_check_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_message_updates_on_start_label: QBox<QLabel>,
+    pub extra_network_check_lua_autogen_updates_on_start_label: QBox<QLabel>,
     pub extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
     pub extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
     pub extra_packfile_use_lazy_loading_label: QBox<QLabel>,
@@ -127,6 +128,7 @@ pub struct SettingsUI {
     pub extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_message_updates_on_start_checkbox: QBox<QCheckBox>,
+    pub extra_network_check_lua_autogen_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
@@ -416,9 +418,11 @@ impl SettingsUI {
         let extra_network_check_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_updates_on_start"), &general_frame);
         let extra_network_check_schema_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_schema_updates_on_start"), &general_frame);
         let extra_network_check_message_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_message_updates_on_start"), &general_frame);
+        let extra_network_check_lua_autogen_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_lua_autogen_updates_on_start"), &general_frame);
         let extra_network_check_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
         let extra_network_check_schema_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
         let extra_network_check_message_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
+        let extra_network_check_lua_autogen_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         // Behavior settings.
         let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_allow_editing_of_ca_packfiles"), &general_frame);
@@ -472,14 +476,17 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_network_check_message_updates_on_start_label, 7, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_check_message_updates_on_start_checkbox, 7, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 8, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 8, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_lua_autogen_updates_on_start_label, 8, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_lua_autogen_updates_on_start_checkbox, 8, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 9, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 9, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 9, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 9, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 10, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 10, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 10, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 10, 1, 1, 1);
+
+        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 11, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 11, 1, 1, 1);
 
         general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 13, 0, 1, 1);
         general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 13, 1, 1, 1);
@@ -790,6 +797,7 @@ impl SettingsUI {
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
             extra_network_check_message_updates_on_start_label,
+            extra_network_check_lua_autogen_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
             extra_packfile_optimize_not_renamed_packedfiles_label,
             extra_packfile_use_lazy_loading_label,
@@ -809,6 +817,7 @@ impl SettingsUI {
             extra_network_check_updates_on_start_checkbox,
             extra_network_check_schema_updates_on_start_checkbox,
             extra_network_check_message_updates_on_start_checkbox,
+            extra_network_check_lua_autogen_updates_on_start_checkbox,
             extra_packfile_allow_editing_of_ca_packfiles_checkbox,
             extra_packfile_optimize_not_renamed_packedfiles_checkbox,
             extra_packfile_use_lazy_loading_checkbox,
@@ -963,6 +972,7 @@ impl SettingsUI {
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings.settings_bool["check_updates_on_start"]);
         self.extra_network_check_schema_updates_on_start_checkbox.set_checked(settings.settings_bool["check_schema_updates_on_start"]);
         self.extra_network_check_message_updates_on_start_checkbox.set_checked(settings.settings_bool["check_message_updates_on_start"]);
+        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(settings.settings_bool["check_lua_autogen_updates_on_start"]);
         self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]);
         self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
@@ -1106,6 +1116,7 @@ impl SettingsUI {
         settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_network_check_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("check_message_updates_on_start".to_owned(), self.extra_network_check_message_updates_on_start_checkbox.is_checked());
+        settings.settings_bool.insert("check_lua_autogen_updates_on_start".to_owned(), self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
         settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());

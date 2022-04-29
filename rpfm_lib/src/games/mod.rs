@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use rpfm_error::{Result, Error, ErrorKind};
 use rpfm_macros::*;
 
-use crate::common::get_files_from_subdir;
+use crate::common::{get_files_from_subdir, get_lua_autogen_path};
 use crate::settings::get_config_path;
 use crate::packfile::{Manifest, PFHFileType, PFHVersion};
 use crate::SETTINGS;
@@ -41,6 +41,11 @@ const RUSSIAN: &str = "ru";
 const SPANISH: &str = "sp";
 const TURKISH: &str = "tr";
 const TRADITIONAL_CHINESE: &str = "zh";
+
+pub const LUA_AUTOGEN_FOLDER: &str = "tw_autogen";
+pub const LUA_REPO: &str = "https://github.com/chadvandy/tw_autogen";
+pub const LUA_REMOTE: &str = "origin";
+pub const LUA_BRANCH: &str = "main";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -92,6 +97,9 @@ pub struct GameInfo {
 
     /// Tool-specific vars for each game.
     tool_vars: HashMap<String, String>,
+
+    /// Subfolder under Lua Autogen's folder where the files for this game are, if it's supported.
+    lua_autogen_folder: Option<String>
 }
 
 /// This enum holds the info about each game approach at naming db tables.
@@ -539,5 +547,11 @@ impl GameInfo {
             }
             None => Ok(None),
         }
+    }
+
+    /// This function returns the path of the lua autogen files of the game, if it's supported.
+    pub fn get_game_lua_autogen_path(&self) -> Option<String> {
+        let base_path = get_lua_autogen_path().ok()?;
+        self.lua_autogen_folder.clone().map(|folder| format!("{}/output/{}", base_path.to_string_lossy(), folder))
     }
 }

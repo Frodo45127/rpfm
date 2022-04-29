@@ -108,6 +108,7 @@ impl Settings {
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("check_message_updates_on_start".to_owned(), false);
+        settings_bool.insert("check_lua_autogen_updates_on_start".to_owned(), true);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), true);

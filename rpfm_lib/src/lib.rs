@@ -38,6 +38,7 @@ pub mod common;
 pub mod dependencies;
 pub mod diagnostics;
 pub mod games;
+pub mod git_integration;
 pub mod global_search;
 pub mod logger;
 pub mod packedfile;

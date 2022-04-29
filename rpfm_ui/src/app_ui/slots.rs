@@ -32,9 +32,10 @@ use qt_core::QString;
 use qt_core::QUrl;
 
 use log::info;
+use rpfm_lib::packfile::PackFileSettings;
 
 use std::collections::BTreeMap;
-use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
+use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -151,6 +152,7 @@ pub struct AppUISlots {
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
     pub about_check_message_updates: QBox<SlotOfBool>,
+    pub about_check_lua_autogen_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -653,73 +655,67 @@ impl AppUISlots {
                     // Disable the main window.
                     app_ui.main_window.set_enabled(false);
 
-                    // Get his new path from the base "MyMod" path + `mod_game`.
-                    let mut mymod_path = SETTINGS.read().unwrap().paths["mymods_base_path"].clone().unwrap();
-                    mymod_path.push(&mod_game);
-
-                    // Just in case the folder doesn't exist, we try to create it.
-                    if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
-                        app_ui.main_window.set_enabled(true);
-                        return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
-                    }
-
-                    // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
-                    let mut mymod_path_private = mymod_path.clone();
-                    mymod_path_private.push(&mod_name);
-                    if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
-                        app_ui.main_window.set_enabled(true);
-                        return show_dialog(&app_ui.main_window, ErrorKind::IOCreateNestedAssetFolder, false);
-                    };
-
-                    // Complete the mymod PackFile path and create it.
-                    mymod_path.push(&full_mod_name);
-
-                    // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                    let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
-                    GlobalSearchUI::clear(&global_search_ui);
-
-                    // Reset the autosave timer.
-                    let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
-                    if timer > 0 {
-                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                        app_ui.timer_backup_autosave.start_0a();
-                    }
-
-                    let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_path.clone()));
+                    // Initialize the folder structure of the MyMod.
+                    let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game));
                     let response = CentralCommand::recv_try(&receiver);
                     match response {
-                        Response::PackFileInfo(pack_file_info) => {
+                        Response::PathBuf(mymod_pack_path) => {
 
-                            let mut build_data = BuildData::new();
-                            build_data.editable = true;
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                            let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
-                            packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                            packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+                            // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                            let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
+                            GlobalSearchUI::clear(&global_search_ui);
 
-                            // Set the UI to the state it should be in.
-                            app_ui.change_packfile_type_mod.set_checked(true);
-                            app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
-                            app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
-                            app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
-                            app_ui.change_packfile_type_header_is_extended.set_checked(false);
-                            app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+                            // Reset the autosave timer.
+                            let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                            if timer > 0 {
+                                app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                                app_ui.timer_backup_autosave.start_0a();
+                            }
 
-                            AppUI::enable_packfile_actions(&app_ui, &pack_file_info.file_path, true);
+                            // Prepare the settings to automatically ignore the .vscode, .git and sublime-project files.
+                            let mut pack_file_settings = PackFileSettings::default();
+                            pack_file_settings.settings_text.insert("import_files_to_ignore".to_owned(), format!(".vscode\n.git\n{}.sublime-project", mod_name));
 
-                            UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
-                            UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                            let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
+                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileSettings(pack_file_settings));
+                            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
+                            let response = CentralCommand::recv_try(&receiver);
+                            match response {
+                                Response::PackFileInfo(pack_file_info) => {
 
-                            // Close the Global Search stuff and reset the filter's history.
-                            //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
+                                    let mut build_data = BuildData::new();
+                                    build_data.editable = true;
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                                    packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                    packfile_item.set_text(&QString::from_std_str(&full_mod_name));
 
-                            // Show the "Tips".
-                            //display_help_tips(&app_ui);
-                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
-                            app_ui.main_window.set_enabled(true);
+                                    // Set the UI to the state it should be in.
+                                    app_ui.change_packfile_type_mod.set_checked(true);
+                                    app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
+                                    app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
+                                    app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
+                                    app_ui.change_packfile_type_header_is_extended.set_checked(false);
+                                    app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+
+                                    AppUI::enable_packfile_actions(&app_ui, &pack_file_info.file_path, true);
+
+                                    UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
+                                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                                    AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                                    app_ui.main_window.set_enabled(true);
+                                }
+
+                                Response::Error(error) => {
+                                    app_ui.main_window.set_enabled(true);
+                                    show_dialog(&app_ui.main_window, error, false);
+                                }
+
+                                // In ANY other situation, it's a message problem.
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            }
                         }
-
                         Response::Error(error) => {
                             app_ui.main_window.set_enabled(true);
                             show_dialog(&app_ui.main_window, error, false);
@@ -1224,8 +1220,9 @@ impl AppUISlots {
 
                             <li>Ca_vp8 research: <b>John Sirett</b>.</li>
 
-                            <li>LUA functions by: <b>Aexrael Dex</b>.</li>
-                            <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
+                            <li>LUA functions until v1.6.2 by: <b>Aexrael Dex</b>.</li>
+                            <li>LUA Types for Kailua until v1.6.2: <b>DrunkFlamingo</b>.</li>
+                            <li>LUA Autogen by: <b>Vandy</b>.</li>
 
                             <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b>, <b>phazer</b> and <b>Frodo45127</b>.</li>
                             <li>RigidModel module until v1.6.2 by: <b>Frodo45127</b>.</li>
@@ -1273,6 +1270,14 @@ impl AppUISlots {
             app_ui => move |_| {
                 info!("Triggering `Check Schema Updates` By Slot");
                 AppUI::check_message_updates(&app_ui, true);
+            }
+        ));
+
+        // What happens when we trigger the "Check Schema Update" action.
+        let about_check_lua_autogen_updates = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+                info!("Triggering `Check Lua Autogen Updates` By Slot");
+                AppUI::check_lua_autogen_updates(&app_ui, true);
             }
         ));
 
@@ -1683,6 +1688,7 @@ impl AppUISlots {
             about_check_updates,
             about_check_schema_updates,
             about_check_message_updates,
+            about_check_lua_autogen_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.

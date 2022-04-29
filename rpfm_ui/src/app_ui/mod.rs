@@ -242,6 +242,7 @@ pub struct AppUI {
     pub about_check_updates: QPtr<QAction>,
     pub about_check_schema_updates: QPtr<QAction>,
     pub about_check_message_updates: QPtr<QAction>,
+    pub about_check_lua_autogen_updates: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -627,6 +628,7 @@ impl AppUI {
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
         let about_check_message_updates = menu_bar_about.add_action_q_string(&qtr("about_check_message_updates"));
+        let about_check_lua_autogen_updates = menu_bar_about.add_action_q_string(&qtr("about_check_lua_autogen_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -827,6 +829,7 @@ impl AppUI {
             about_check_updates,
             about_check_schema_updates,
             about_check_message_updates,
+            about_check_lua_autogen_updates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.

@@ -156,7 +156,7 @@ pub enum ErrorKind {
     IOCreateAssetFolder,
 
     /// Error for when a folder inside the Assets folder does not exists and it cannot be created.
-    IOCreateNestedAssetFolder,
+    IOCreateNestedAssetFolder(String),
 
     /// Error for IO errors when reading files using `read_dir()`. Contains the path of the file.
     IOReadFile(PathBuf),
@@ -719,6 +719,12 @@ pub enum ErrorKind {
     
     /// Error for when we cannot find a tool var for a game.
     ToolVarNotFoundForGame(String),
+
+    /// Error for when there was an error while downloading a git repo.
+    GitUpdateError,
+
+    /// Error for when there are no updates available for a git repo.
+    GitNoUpdatesAvailable,
 }
 
 /// Implementation of `Error`.
@@ -802,7 +808,7 @@ impl Display for ErrorKind {
             ErrorKind::IOGenericDelete(paths) => write!(f, "<p>Error while trying to delete from disk the following files/folders:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOGenericWrite(paths) => write!(f, "<p>Error while trying to write to disk the following file/s:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOCreateAssetFolder => write!(f, "<p>The MyMod's asset folder does not exists and it cannot be created.</p>"),
-            ErrorKind::IOCreateNestedAssetFolder => write!(f, "<p>The folder does not exists and it cannot be created.</p>"),
+            ErrorKind::IOCreateNestedAssetFolder(folder) => write!(f, "<p>The folder '{}' does not exists and it cannot be created.</p>", folder),
             ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p><p>This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.", path),
             ErrorKind::IOReadFile(path) => write!(f, "<p>Error while trying to read the following file:</p><p>{:?}</p><p>This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.", path),
             ErrorKind::IOFolderCannotBeOpened => write!(f, "<p>The folder couldn't be opened. This means either it doesn't exist, or RPFM has no access to it.</p>"),
@@ -1077,6 +1083,8 @@ impl Display for ErrorKind {
             ErrorKind::LocalTipNotFound => write!(f, "<p>Message not found in the backend. This is a bug, pls report it.</p>"),
             ErrorKind::TipPublishUnsupported => write!(f, "<p>This version of RPFM doesn't have support for uploading messages.</p>"),
             ErrorKind::ToolVarNotFoundForGame(var) => write!(f, "<p>The following tool variable hasn't been found for the current Game Selected: {}.</p>", var),
+            ErrorKind::GitUpdateError => write!(f, "<p>There was an error while downloading/updating a git repository. Please, try again later.</p>"),
+            ErrorKind::GitNoUpdatesAvailable => write!(f, "<p>There was an error while downloading/updating a git repository: no updates available..</p>"),
         }
     }
 }

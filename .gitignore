@@ -89,3 +89,6 @@ gh-token
 
 # Tips folder.
 /tips/
+
+# Ignore autogen folder on debug builds.
+/tw_autogen/

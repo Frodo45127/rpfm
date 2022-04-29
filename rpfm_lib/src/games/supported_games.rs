@@ -156,6 +156,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "faction_row".to_owned());
                 vars
             },
+            lua_autogen_folder: Some("wh3".to_owned()),
         });
 
         // Troy
@@ -229,6 +230,7 @@ impl SupportedGames {
 
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Three Kingdoms
@@ -353,6 +355,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
         // Warhammer 2
         game_list.insert(KEY_WARHAMMER_2, GameInfo {
@@ -553,6 +556,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Warhammer
@@ -706,6 +710,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Thrones of Britannia
@@ -807,6 +812,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Attila
@@ -879,6 +885,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Rome 2
@@ -940,6 +947,7 @@ impl SupportedGames {
                 vars.insert("faction_painter_uniform_row_key".to_owned(), "uniform_row".to_owned());
                 vars
             },
+            lua_autogen_folder: None,
         });
 
         // Shogun 2
@@ -1013,6 +1021,7 @@ impl SupportedGames {
                 data
             },
             tool_vars: HashMap::new(),
+            lua_autogen_folder: None,
         });
 
         // Napoleon
@@ -1098,6 +1107,7 @@ impl SupportedGames {
                 data
             },
             tool_vars: HashMap::new(),
+            lua_autogen_folder: None,
         });
 
         // Empire
@@ -1259,6 +1269,7 @@ impl SupportedGames {
                 data
             },
             tool_vars: HashMap::new(),
+            lua_autogen_folder: None,
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -1300,6 +1311,7 @@ impl SupportedGames {
                 data
             },
             tool_vars: HashMap::new(),
+            lua_autogen_folder: None,
         });
 
         Self {

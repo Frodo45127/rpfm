@@ -151,6 +151,7 @@ update_button = &Update
 update_in_prog = <p>Downloading updates, don't close this window…</p> <p>This may take a while.</p>
 update_no_local_schema = <p>No local schemas found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
 update_no_local_template = <p>No local templates found. Do you want to download the latest ones?</p><p><b>NOTE:</b> Templates are useful to bootstraps mods in a few clicks.</p>
+update_no_local_lua_autogen = <p>No local lua autogen data found. Do you want to download the latest one?</p><p><b>NOTE:</b> Lua Autogen data can be used to (when creating a MyMod) automatically setup a Lua Development Environment within VSCode or Sublime Text for your mod.</p><p> For additional info and games supported, please check <a href='https://github.com/chadvandy/tw_autogen'>https://github.com/chadvandy/tw_autogen</a></p>
 
 ## Folder Dialogues
 
@@ -550,9 +551,14 @@ schema_new_update = <h4>New schema update available</h4> <p>Do you want to updat
 template_no_update = <h4>No new template updates available</h4> <p>More luck next time :)</p>
 template_new_update = <h4>New template update available</h4> <p>Do you want to update the templates?</p>
 
+lua_autogen_no_update = <h4>No new Lua Autogen updates available</h4> <p>More luck next time :)</p>
+lua_autogen_new_update = <h4>New Lua Autogen update available</h4> <p>Do you want to update the Lua Autogen data?</p>
+
 api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
 template_update_success = <h4>Templates updated and reloaded</h4><p>You can continue using RPFM now.</p>
+lua_autogen_update_success = <h4>Lua Autogen Data updated.</h4><p>You can continue using RPFM now.</p>
+
 
 files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
 mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
@@ -1217,3 +1223,7 @@ view_toggle_references_panel = Toggle References Window
 tt_settings_debug_clear_dependencies_cache_folder = Use this to clear the dependencies cache folder. In case you don't want RPFM to eat a lot of RAM.
 settings_debug_clear_dependencies_cache_folder = Clear dependencies cache folder
 context_menu_generate_missing_loc_data = Generate Loc Data
+about_check_lua_autogen_updates = Check Lua Autogen Updates
+settings_check_lua_autogen_updates_on_start = Check Lua Autogen Updates on Start:
+tt_about_check_lua_autogen_updates = Checks if there is any update available for the lua autogen data. This helps in developing MyMods with lua scripts.
+update_lua_autogen_checker = Update Lua Autogen Checker

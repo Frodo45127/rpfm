@@ -50,6 +50,7 @@ use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::git_integration::*;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
@@ -1343,6 +1344,83 @@ impl AppUI {
             match response {
                 Response::Success => log_to_status_bar("messages_update_success"),
                 Response::Error(error) => log_to_status_bar(&error.to_string()),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+    }
+
+    /// This function checks if there is any newer version of RPFM's schemas released.
+    ///
+    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
+    pub unsafe fn check_lua_autogen_updates(app_ui: &Rc<Self>, use_dialog: bool) {
+        let receiver = CENTRAL_COMMAND.send_network(Command::CheckLuaAutogenUpdates);
+
+        // Create the dialog to show the response and configure it.
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_lua_autogen_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            &app_ui.main_window,
+        );
+
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
+        if use_dialog {
+            dialog.show();
+        }
+
+        // When we get a response, act depending on the kind of response we got.
+        let response_thread = CentralCommand::recv_try(&receiver);
+        let message = match response_thread {
+            Response::APIResponseGit(ref response) => {
+                match response {
+                    GitResponse::NewUpdate |
+                    GitResponse::Diverged => {
+                        update_button.set_enabled(true);
+                        qtr("lua_autogen_new_update")
+                    }
+                    GitResponse::NoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("lua_autogen_no_update")
+                    }
+                    GitResponse::NoLocalFiles => {
+                        update_button.set_enabled(true);
+                        qtr("update_no_local_lua_autogen")
+                    }
+                }
+            }
+
+            Response::Error(error) => {
+                if !use_dialog { return; }
+                qtre("api_response_error", &[&error.to_string()])
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+        };
+
+        // If we hit "Update", try to update the schemas.
+        dialog.set_text(&message);
+        if dialog.exec() == 0 {
+            let receiver = CENTRAL_COMMAND.send_background(Command::UpdateLuaAutogen);
+
+            dialog.show();
+            dialog.set_text(&qtr("update_in_prog"));
+            update_button.set_enabled(false);
+            close_button.set_enabled(false);
+
+            let response = CentralCommand::recv_try(&receiver);
+            match response {
+                Response::Success => {
+                    dialog.set_text(&qtr("lua_autogen_update_success"));
+                    close_button.set_enabled(true);
+                },
+                Response::Error(error) => {
+                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    close_button.set_enabled(true);
+                }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
