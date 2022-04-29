@@ -2713,7 +2713,9 @@ impl PackFile {
                         PFHFileType::Boot => boot_files.append(&mut pack.packed_files),
                         PFHFileType::Release => release_files.append(&mut pack.packed_files),
                         PFHFileType::Patch => patch_files.append(&mut pack.packed_files),
-                        PFHFileType::Mod => mod_files.append(&mut pack.packed_files),
+                        PFHFileType::Mod => if !ignore_mods {
+                            mod_files.append(&mut pack.packed_files)
+                        },
                         PFHFileType::Movie => movie_files.append(&mut pack.packed_files),
 
                         // If we find an unknown one, return an error.
@@ -2738,9 +2740,11 @@ impl PackFile {
             patch_files.reverse();
             patch_files.dedup_by(|x, y| x.get_path() == y.get_path());
 
-            mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
-            mod_files.reverse();
-            mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
+            if !ignore_mods {
+                mod_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
+                mod_files.reverse();
+                mod_files.dedup_by(|x, y| x.get_path() == y.get_path());
+            }
 
             movie_files.sort_by(|x, y| x.get_path().cmp(y.get_path()));
             movie_files.reverse();
@@ -2749,7 +2753,11 @@ impl PackFile {
             pack_file.add_packed_files(&(boot_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
             pack_file.add_packed_files(&(release_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
             pack_file.add_packed_files(&(patch_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
-            pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+
+            if !ignore_mods {
+                pack_file.add_packed_files(&(mod_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
+            }
+
             pack_file.add_packed_files(&(movie_files.iter().collect::<Vec<&PackedFile>>()), true, false)?;
 
             // Set it as type "Other(200)", so we can easily identify it as fake in other places.
