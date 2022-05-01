@@ -628,6 +628,12 @@ impl PackTree for QBox<QTreeView> {
                 let mut index = 0;
                 let path_deep = path.len();
                 info!("Get Item From Type: Item Path Len {}", path_deep);
+
+                // If path is empty, is a mislabeled path. Return the bloody PackFile and stop crashing!!!
+                if path_deep == 0 {
+                    return item;
+                }
+
                 loop {
 
                     // If we reached the folder of the item...
