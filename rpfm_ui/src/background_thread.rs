@@ -28,14 +28,13 @@ use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::thread;
 
+use rpfm_common::{git_integration::GitIntegration, utils::*};
 use rpfm_error::{Error, ErrorKind};
 
 use rpfm_lib::assembly_kit::*;
-use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::git_integration::GitIntegration;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::animpack::AnimPack;
@@ -46,6 +45,7 @@ use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, Packed
 use rpfm_lib::schema::{*, patch::SchemaPatches};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SCHEMA_PATCHES;
+use rpfm_lib::settings::*;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::tips::Tips;
@@ -109,7 +109,7 @@ pub fn background_loop() {
                 let pack_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
 
-                if let Ok(version_number) = get_game_selected_exe_version_number() {
+                if let Ok(version_number) = GAME_SELECTED.read().unwrap().get_game_selected_exe_version_number() {
                     pack_file_decoded.set_game_version(version_number);
                 }
             }
@@ -264,7 +264,7 @@ pub fn background_loop() {
                 if !pack_file_decoded.get_file_name().is_empty() {
                     pack_file_decoded.set_pfh_version(GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(pack_file_decoded.get_pfh_file_type()));
 
-                    if let Ok(version_number) = get_game_selected_exe_version_number() {
+                    if let Ok(version_number) = GAME_SELECTED.read().unwrap().get_game_selected_exe_version_number() {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
@@ -1127,7 +1127,7 @@ pub fn background_loop() {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.update_repo() {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),

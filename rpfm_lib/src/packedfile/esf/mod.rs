@@ -22,7 +22,7 @@ use std::{fmt, fmt::Display};
 use rpfm_error::{ErrorKind, Result};
 use rpfm_macros::*;
 
-use crate::common::decoder::Decoder;
+use rpfm_common::decoder::Decoder;
 
 /// Extensions used by CEO/ESF PackedFiles.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];

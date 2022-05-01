@@ -46,11 +46,10 @@ use std::process::exit;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
+use rpfm_common::{git_integration::*, utils::*};
 use rpfm_error::{ErrorKind, Result};
 
-use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::git_integration::*;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
@@ -58,7 +57,7 @@ use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
-use rpfm_lib::settings::MYMOD_BASE_PATH;
+use rpfm_lib::settings::*;
 use rpfm_lib::tips::APIResponseTips;
 use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 

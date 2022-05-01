@@ -28,7 +28,7 @@ use std::convert::TryFrom;
 
 use rpfm_error::{Error, Result};
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 use crate::packfile::{PackFileInfo, PathType};
 use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 

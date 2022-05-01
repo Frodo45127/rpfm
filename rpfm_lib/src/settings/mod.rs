@@ -28,9 +28,13 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::dependencies::DEPENDENCIES_FOLDER;
+use crate::games::LUA_AUTOGEN_FOLDER;
 use crate::games::supported_games::*;
 use crate::SETTINGS;
+use crate::schema::*;
 use crate::SUPPORTED_GAMES;
+use crate::tips::*;
 use crate::updater::STABLE;
 
 /// Qualifier for the config folder. Only affects MacOS.
@@ -235,4 +239,29 @@ pub fn get_config_path() -> Result<PathBuf> {
             None => Err(ErrorKind::IOFolderCannotBeOpened.into())
         }
     }
+}
+
+/// This function returns the schema path.
+pub fn get_schemas_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(SCHEMA_FOLDER))
+}
+
+/// This function returns the lua autogen path.
+pub fn get_lua_autogen_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(LUA_AUTOGEN_FOLDER))
+}
+
+/// This function returns the remote tips path.
+pub fn get_remote_tips_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(TIPS_REMOTE_FOLDER))
+}
+
+/// This function returns the autosave path.
+pub fn get_backup_autosave_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join("autosaves"))
+}
+
+/// This function returns the dependencies path.
+pub fn get_dependencies_cache_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(DEPENDENCIES_FOLDER))
 }

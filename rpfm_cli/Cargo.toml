@@ -9,6 +9,7 @@ rust-version = "1.56"
 
 [dependencies]
 # Internal dependencies.
+rpfm_common = { path = "../rpfm_common" }
 rpfm_error = { path = "../rpfm_error" }
 rpfm_lib = { path = "../rpfm_lib" }
 

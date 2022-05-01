@@ -53,8 +53,9 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::rc::Rc;
 
+use rpfm_common::utils::parse_str_as_bool;
 use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::common::parse_str_as_bool;
+
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};

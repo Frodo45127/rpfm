@@ -19,7 +19,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 use super::DecodedData;
 use super::Table;
 

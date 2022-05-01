@@ -41,7 +41,8 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_lib::common::get_files_from_subdir;
+use rpfm_common::utils::*;
+
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
 use rpfm_lib::SETTINGS;

@@ -59,10 +59,10 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+use rpfm_common::decoder::*;
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
-use rpfm_lib::common::decoder::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};

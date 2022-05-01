@@ -22,6 +22,7 @@ doctest = false
 # Internal dependencies.
 rpfm_error = { path = "../rpfm_error" }
 rpfm_macros = { path = "../rpfm_macros" }
+rpfm_common = { path = "../rpfm_common" }
 
 # Configuration support.
 directories = "^4.0"

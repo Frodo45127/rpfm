@@ -25,10 +25,10 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
+use rpfm_common::{decoder::Decoder, encoder::Encoder, utils::*};
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::table_data::RawTable;
-use crate::common::{decoder::Decoder, encoder::Encoder, parse_str_as_bool};
 use crate::schema::*;
 
 pub mod animtable;

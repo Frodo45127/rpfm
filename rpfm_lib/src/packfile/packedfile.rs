@@ -27,8 +27,9 @@ use std::io::{BufReader, Read, SeekFrom};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 
-use rpfm_macros::*;
+use rpfm_common::utils::*;
 use rpfm_error::Error;
+use rpfm_macros::*;
 
 use crate::packedfile::animpack::AnimPacked;
 use crate::packfile::*;

@@ -78,7 +78,7 @@ pub fn getter_ref(input: TokenStream) -> TokenStream {
 
             let function_names = field_names
                 .iter()
-                .map(|x| Ident::new(format!("get_ref_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("{}", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 
@@ -118,7 +118,7 @@ pub fn getter_ref_mut(input: TokenStream) -> TokenStream {
 
             let function_names = field_names
                 .iter()
-                .map(|x| Ident::new(format!("get_ref_mut_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("{}_mut", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 

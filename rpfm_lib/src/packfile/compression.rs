@@ -22,8 +22,8 @@ use std::process::Command;
 use std::u64;
 
 use rpfm_error::{Error, ErrorKind, Result};
-use crate::common::encoder::Encoder;
-use crate::common::decoder::Decoder;
+use rpfm_common::encoder::Encoder;
+use rpfm_common::decoder::Decoder;
 use crate::SETTINGS;
 use crate::settings::ZIP_PATH;
 

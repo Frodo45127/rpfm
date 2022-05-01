@@ -15,16 +15,17 @@ Module that contains the GameInfo definition and stuff related with it.
 
 use std::collections::HashMap;
 use std::fs::{DirBuilder, File};
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
+use rpfm_common::utils::*;
 use rpfm_error::{Result, Error, ErrorKind};
 use rpfm_macros::*;
 
-use crate::common::{get_files_from_subdir, get_lua_autogen_path};
-use crate::settings::get_config_path;
+use crate::settings::{get_config_path, get_lua_autogen_path};
 use crate::packfile::{Manifest, PFHFileType, PFHVersion};
 use crate::SETTINGS;
+use self::supported_games::KEY_TROY;
 
 pub mod supported_games;
 
@@ -553,5 +554,51 @@ impl GameInfo {
     pub fn get_game_lua_autogen_path(&self) -> Option<String> {
         let base_path = get_lua_autogen_path().ok()?;
         self.lua_autogen_folder.clone().map(|folder| format!("{}/output/{}", base_path.to_string_lossy(), folder))
+    }
+
+    /// This function gets the version number of the exe for the current GameSelected, if it exists.
+    pub fn get_game_selected_exe_version_number(&self) -> Result<u32> {
+        let game_selected  = self.get_game_key_name();
+        match &*game_selected {
+            KEY_TROY => {
+                let mut path = SETTINGS.read().unwrap().paths[&game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
+                path.push("Troy.exe");
+                if path.is_file() {
+                    let mut data = vec![];
+                    let mut file = BufReader::new(File::open(path)?);
+                    file.read_to_end(&mut data)?;
+
+                    let version_info = get_pe_version_info(&data).map_err(|_| Error::from(ErrorKind::IOGeneric))?;
+
+                    match version_info.fixed() {
+                        Some(version_info) => {
+                            let mut version: u32 = 0;
+
+                            // The CA format is limited so these can only be u8 when encoded, so we can safetly convert them.
+                            let major = version_info.dwFileVersion.Major as u32;
+                            let minor = version_info.dwFileVersion.Minor as u32;
+                            let patch = version_info.dwFileVersion.Patch as u32;
+                            let build = version_info.dwFileVersion.Build as u32;
+
+                            version += major << 24;
+                            version += minor << 16;
+                            version += patch << 8;
+                            version += build;
+                            Ok(version)
+                        }
+
+                        None => Err(ErrorKind::GamePathNotConfigured.into()),
+                    }
+                }
+
+                // If we have no exe, return a default value.
+                else {
+                    Err(ErrorKind::GamePathNotConfigured.into())
+                }
+
+            }
+
+            _ => Err(ErrorKind::GamePathNotConfigured.into()),
+        }
     }
 }

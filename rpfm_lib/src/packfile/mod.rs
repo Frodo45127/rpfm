@@ -34,13 +34,13 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use rpfm_common::{decoder::Decoder, encoder::Encoder, utils::*};
 use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_macros::*;
 
 use crate::GAME_SELECTED;
 use crate::SCHEMA;
 use crate::SETTINGS;
-use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::dependencies::Dependencies;
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
@@ -968,7 +968,7 @@ impl PackFile {
                         packed_files_to_add.push(packed_file);
                     }
                 }
-                Err(error) => return Err(error)
+                Err(error) => return Err(From::from(error))
             }
         }
 
@@ -3144,7 +3144,7 @@ impl PackFile {
             header.encode_integer_u32(SUBHEADER_VERSION);
 
             // Just in case the PackFile is not up-to-date, we update it.
-            if let Ok(version_number) = get_game_selected_exe_version_number() {
+            if let Ok(version_number) = GAME_SELECTED.read().unwrap().get_game_selected_exe_version_number() {
                 self.set_game_version(version_number);
             }
 

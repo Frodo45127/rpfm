@@ -31,3 +31,6 @@ log = { version = "^0.4", features = ["std"] }
 
 # Config dependencies.
 lazy_static = "^1.2"
+
+# Error handling.
+anyhow = "^1.0"

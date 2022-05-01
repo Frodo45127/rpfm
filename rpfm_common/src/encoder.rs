@@ -18,11 +18,10 @@ read by the games.
 Note: If you change anything from here, remember to update the `encoder_test.rs` file for it.
 !*/
 
+use anyhow::{anyhow, Result};
 use byteorder::{LittleEndian, WriteBytesExt};
 use encoding::all::ISO_8859_1;
 use encoding::types::{Encoding, EncoderTrap};
-
-use rpfm_error::{ErrorKind, Result};
 
 //---------------------------------------------------------------------------//
 //                      `Encoder` Trait Definition
@@ -95,6 +94,9 @@ pub trait Encoder {
     /// So... we just encode the String as a normal string, then add 0 until we reach the desired size. If the String is
     /// longer than the provided size, we throw an error.
     fn encode_string_u16_0padded(&mut self, string: &(&str, usize)) -> Result<()>;
+
+    /// Like the normal encode_string_u16_0padded, but instead of failing on string too long, it crops it to fit the size.
+    fn encode_string_u16_0padded_cropped(&mut self, string: &str, size: usize);
 
     /// This function allows us to encode an UTF-8 String with his length (u16) before the String into the provided `Vec<u8>`..
     fn encode_packedfile_string_u8(&mut self, string: &str);
@@ -208,7 +210,7 @@ impl Encoder for Vec<u8> {
             self.extend_from_slice(&vec![0; size - string.len()]);
             Ok(())
         } else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
+            Err(anyhow!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size))
         }
     }
 
@@ -222,7 +224,19 @@ impl Encoder for Vec<u8> {
             self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
             Ok(())
         } else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-16 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
+            Err(anyhow!("Error trying to encode an UTF-16 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size))
+        }
+    }
+
+    fn encode_string_u16_0padded_cropped(&mut self, string: &str, size: usize) {
+        if string.len() * 2 > size {
+            let mut string = string.to_owned();
+            string.truncate(size);
+            self.encode_string_u16(&string);
+            self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
+        } else {
+            self.encode_string_u16(string);
+            self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
         }
     }
 

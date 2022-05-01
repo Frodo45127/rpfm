@@ -25,9 +25,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_macros::*;
 
-use crate::common::get_remote_tips_path;
 use crate::GAME_SELECTED;
-use crate::settings::get_config_path;
+use crate::settings::*;
 
 /// Name of the folder containing all the tips.
 const TIPS_LOCAL_FOLDER: &str = "tips/local";

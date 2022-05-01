@@ -20,9 +20,9 @@ use tempfile::Builder;
 use std::env::current_exe;
 use std::fs::{DirBuilder, File};
 
+use rpfm_common::utils::get_files_from_subdir;
 use rpfm_error::{Error, ErrorKind, Result};
 
-use crate::common::get_files_from_subdir;
 use crate::SETTINGS;
 
 const UPDATE_EXTENSION: &str = "zip";

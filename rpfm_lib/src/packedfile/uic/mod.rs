@@ -19,7 +19,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::Result;
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 use crate::Schema;
 
 const SIGNATURE: &str = "Version";

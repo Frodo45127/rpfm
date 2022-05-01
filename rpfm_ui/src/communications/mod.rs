@@ -20,11 +20,11 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
+use rpfm_common::git_integration::GitResponse;
 use rpfm_error::Error;
 
 use rpfm_lib::dependencies::DependenciesInfo;
 use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::git_integration::GitResponse;
 use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};

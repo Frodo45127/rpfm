@@ -17,10 +17,10 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::exit;
 
+use rpfm_common::utils::*;
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packfile::{Manifest, PackFile, PFHFileType};
-use rpfm_lib::common::*;
 
 /// Guess you know what this function does....
 fn main() {

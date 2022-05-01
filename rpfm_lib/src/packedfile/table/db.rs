@@ -30,7 +30,7 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_macros::*;
 
 use crate::assembly_kit::table_data::RawTable;
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 use crate::GAME_SELECTED;
 use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::Dependencies;

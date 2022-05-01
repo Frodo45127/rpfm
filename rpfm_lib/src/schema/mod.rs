@@ -81,9 +81,8 @@ use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
-use crate::common::get_schemas_path;
 use crate::dependencies::Dependencies;
-use crate::settings::get_config_path;
+use crate::settings::*;
 use crate::{SETTINGS, SCHEMA_PATCHES, GAME_SELECTED};
 use crate::SUPPORTED_GAMES;
 

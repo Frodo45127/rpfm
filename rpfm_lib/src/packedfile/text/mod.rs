@@ -19,7 +19,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 
 /// UTF-8 BOM (Byte Order Mark).
 const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];

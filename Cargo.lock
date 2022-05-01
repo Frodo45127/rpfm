@@ -27,6 +27,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1837,6 +1843,7 @@ dependencies = [
  "colored",
  "log",
  "prettytable-rs",
+ "rpfm_common",
  "rpfm_error",
  "rpfm_lib",
  "serde_json",
@@ -1845,9 +1852,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpfm_common"
+version = "3.0.6"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "chrono",
+ "encoding",
+ "git2",
+ "pelite",
+]
+
+[[package]]
 name = "rpfm_error"
 version = "3.0.7"
 dependencies = [
+ "anyhow",
  "bincode",
  "csv",
  "fluent",
@@ -1896,6 +1916,7 @@ dependencies = [
  "regex",
  "reqwest",
  "ron",
+ "rpfm_common",
  "rpfm_error",
  "rpfm_macros",
  "self_update",
@@ -1933,6 +1954,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpfm_packedfiles"
+version = "3.0.6"
+dependencies = [
+ "anyhow",
+ "backtrace",
+ "bincode",
+ "bitflags",
+ "byteorder",
+ "chrono",
+ "csv",
+ "directories",
+ "encoding",
+ "fancy-regex",
+ "filepath",
+ "float_eq",
+ "fraction",
+ "git2",
+ "indexmap",
+ "itertools 0.10.3",
+ "lazy_static",
+ "log",
+ "os_info",
+ "pelite",
+ "quick-xml 0.22.0",
+ "rand",
+ "rayon",
+ "regex",
+ "reqwest",
+ "ron",
+ "rpfm_common",
+ "rpfm_macros",
+ "self_update",
+ "sentry",
+ "serde",
+ "serde-xml-rs",
+ "serde_derive",
+ "serde_json",
+ "simplelog",
+ "tempfile",
+ "toml 0.5.8",
+ "unicase",
+ "uuid",
+ "xz2",
+ "zip-extract",
+]
+
+[[package]]
 name = "rpfm_ui"
 version = "3.0.7"
 dependencies = [
@@ -1955,6 +2023,7 @@ dependencies = [
  "rayon",
  "regex",
  "ron",
+ "rpfm_common",
  "rpfm_error",
  "rpfm_lib",
  "rpfm_macros",

@@ -30,8 +30,10 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_common::utils::*;
 use rpfm_error::ErrorKind;
-use rpfm_lib::{common::get_files_from_subdir, packfile::RESERVED_NAME_NOTES};
+
+use rpfm_lib::packfile::RESERVED_NAME_NOTES;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};

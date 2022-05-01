@@ -26,7 +26,7 @@ use fraction::GenericFraction;
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder};
 
 /// Extensions used by CA_VP8 PackedFiles.
 pub const EXTENSION: &str = ".ca_vp8";

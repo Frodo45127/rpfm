@@ -28,8 +28,8 @@ use std::path::Path;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::str::FromStr;
 
+use rpfm_common::utils::*;
 use rpfm_error::{Error, ErrorKind, Result};
-use rpfm_lib::common::get_files_from_subdir;
 
 use crate::ASSETS_PATH;
 use crate::LOCALE;

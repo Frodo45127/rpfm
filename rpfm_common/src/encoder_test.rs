@@ -12,7 +12,7 @@
 Module containing test for the entire `Encoder` implementation for `Vec<u8>`.
 !*/
 
-use crate::common::encoder::Encoder;
+use crate::encoder::Encoder;
 
 //---------------------------------------------------------------------------//
 //                          Normal Encoders

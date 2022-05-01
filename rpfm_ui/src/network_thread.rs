@@ -17,10 +17,11 @@ Basically, this does the network checks of the program.
 use crossbeam::channel::Sender;
 use log::info;
 
-use rpfm_lib::common::get_lua_autogen_path;
+use rpfm_common::git_integration::GitIntegration;
+
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
-use rpfm_lib::git_integration::GitIntegration;
 use rpfm_lib::schema::Schema;
+use rpfm_lib::settings::*;
 use rpfm_lib::tips::Tips;
 use rpfm_lib::updater;
 
@@ -77,7 +78,7 @@ pub fn network_loop() {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.check_update() {
                             Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),

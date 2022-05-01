@@ -26,11 +26,12 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
-use rpfm_macros::*;
+
+use rpfm_common::utils::*;
 use rpfm_error::{Result, Error, ErrorKind};
+use rpfm_macros::*;
 
 use crate::assembly_kit::table_data::RawTable;
-use crate::common::*;
 use crate::DB;
 use crate::GAME_SELECTED;
 use crate::games::VanillaDBTableNameLogic;
