@@ -2235,6 +2235,8 @@ impl PackFile {
                     let key_field_names = definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
                     let key_field_positions = key_field_names.iter().filter_map(|name| processed_fields.iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
 
+                    let mut new_rows = vec![];
+
                     for row in table_data {
                         for loc_field in loc_fields {
                             let key = key_field_positions.iter().map(|pos| row[*pos].data_to_string()).join("");
@@ -2244,14 +2246,16 @@ impl PackFile {
                                 let mut new_row = missing_trads_file.get_new_row();
                                 new_row[0] = DecodedData::StringU16(loc_key);
                                 new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
-                                return Some(new_row);
+                                new_rows.push(new_row);
                             }
                         }
                     }
+
+                    return Some(new_rows)
                 }
             }
             None
-        }).collect::<Vec<Vec<DecodedData>>>();
+        }).flatten().collect::<Vec<Vec<DecodedData>>>();
 
         // Save the missing translations to a missing_locs.loc file.
         let _ = missing_trads_file.set_table_data(&missing_trads_file_table_data);
