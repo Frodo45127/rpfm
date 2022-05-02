@@ -33,7 +33,6 @@ use cpp_core::Ref;
 use cpp_core::CastFrom;
 
 use chrono::naive::NaiveDateTime;
-use log::info;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -624,10 +623,8 @@ impl PackTree for QBox<QTreeView> {
         let mut item = model.item_1a(0);
         match item_type {
             TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
-                info!("Get Item From Type: Item Path {}", path.join("/"));
                 let mut index = 0;
                 let path_deep = path.len();
-                info!("Get Item From Type: Item Path Len {}", path_deep);
 
                 // If path is empty, is a mislabeled path. Return the bloody PackFile and stop crashing!!!
                 if path_deep == 0 {
@@ -665,13 +662,10 @@ impl PackTree for QBox<QTreeView> {
 
                         // Get the amount of children of the current item and goe through them until we find our folder.
                         let mut not_found = true;
-                        info!("Get Item From Type: Children count {}", children_count);
                         for row in 0..children_count {
-                            info!("Get Item From Type: Item Row {}", row);
-                            info!("Get Item From Type: Item Text {}", item.text().to_std_string());
                             let child = item.child_1a(row);
                             if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-                            info!("Get Item From Type: Child is Null {}", child.is_null());
+
                             let text = child.text().to_std_string();
                             if text == path[index] {
                                 item = child;
@@ -1585,14 +1579,8 @@ impl PackTree for QBox<QTreeView> {
                             }
 
                             let cycles = if !path.is_empty() { path.len() } else { 0 };
-                            info!("TreeView Modify: Path '{}'", path.join("/"));
-                            info!("TreeView Modify: Cycles '{}'", cycles);
-                            info!("TreeView Modify: Item text '{}'", item.text().to_std_string());
                             let mut parent = item.parent();
-                            info!("TreeView Modify Parent: Is null '{}'", parent.is_null());
-                            for i in 0..cycles {
-                                info!("TreeView Modify Parent: Loop Cycle '{}'", i);
-                                info!("TreeView Modify Parent: Parent Name '{}'", parent.text().to_std_string());
+                            for _ in 0..cycles {
 
                                 // Get the status and mark them as needed.
                                 match parent.data_1a(ITEM_STATUS).to_int_0a() {
