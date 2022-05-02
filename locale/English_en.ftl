@@ -1227,3 +1227,5 @@ about_check_lua_autogen_updates = Check TW Autogen Updates
 settings_check_lua_autogen_updates_on_start = Check TW Autogen Updates on Start:
 tt_about_check_lua_autogen_updates = Checks if there is any update available for the TW Autogen data. This helps in developing MyMods with lua scripts.
 update_lua_autogen_checker = Update TW Autogen Checker
+settings_disable_mymod_automatic_git_repo = Disable initial Git Repo on MyMods:
+settings_disable_mymod_automatic_configs = Disable initial editor configs on MyMods:

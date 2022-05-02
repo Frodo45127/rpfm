@@ -1649,48 +1649,51 @@ pub fn background_loop() {
                         };
 
                         // Create a repo inside the MyMod's folder.
-                        let git_integration = GitIntegration::new(&mymod_path, "", "", "");
-                        if let Err(error) = git_integration.init() {
-                            CentralCommand::send_back(&sender, Response::Error(From::from(error)));
-                            continue
+                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_git_repo"] {
+                            let git_integration = GitIntegration::new(&mymod_path, "", "", "");
+                            if let Err(error) = git_integration.init() {
+                                CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                                continue
+                            }
                         }
 
                         // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
-                        if let Some(lua_autogen_folder) = GAME_SELECTED.read().unwrap().get_game_lua_autogen_path() {
-                            let lua_autogen_folder = lua_autogen_folder.replace("\\", "/");
+                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_configs"] {
+                            if let Some(lua_autogen_folder) = GAME_SELECTED.read().unwrap().get_game_lua_autogen_path() {
+                                let lua_autogen_folder = lua_autogen_folder.replace("\\", "/");
 
-                            let mut vscode_config_path = mymod_path.to_owned();
-                            vscode_config_path.push(".vscode");
+                                let mut vscode_config_path = mymod_path.to_owned();
+                                vscode_config_path.push(".vscode");
 
-                            if DirBuilder::new().recursive(true).create(&vscode_config_path).is_err() {
-                                CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
-                                continue;
-                            };
+                                if DirBuilder::new().recursive(true).create(&vscode_config_path).is_err() {
+                                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
+                                    continue;
+                                };
 
-                            // Prepare both config files.
-                            let mut sublime_config_path = mymod_path.to_owned();
-                            sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
+                                // Prepare both config files.
+                                let mut sublime_config_path = mymod_path.to_owned();
+                                sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
 
-                            let mut vscode_extensions_path_file = vscode_config_path.to_owned();
-                            vscode_extensions_path_file.push("extensions.json");
+                                let mut vscode_extensions_path_file = vscode_config_path.to_owned();
+                                vscode_extensions_path_file.push("extensions.json");
 
-                            let mut vscode_config_path_file = vscode_config_path.to_owned();
-                            vscode_config_path_file.push("settings.json");
+                                let mut vscode_config_path_file = vscode_config_path.to_owned();
+                                vscode_config_path_file.push("settings.json");
 
-                            if let Ok(file) = File::create(vscode_extensions_path_file) {
-                                let mut file = BufWriter::new(file);
-                                let _ = file.write_all("
+                                if let Ok(file) = File::create(vscode_extensions_path_file) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all("
 {
     \"recommendations\": [
         \"sumneko.lua\",
         \"formulahendry.code-runner\"
     ],
 }".as_bytes());
-                            }
+                                }
 
-                            if let Ok(file) = File::create(vscode_config_path_file) {
-                                let mut file = BufWriter::new(file);
-                                let _ = file.write_all(format!("
+                                if let Ok(file) = File::create(vscode_config_path_file) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all(format!("
 {{
     \"Lua.workspace.library\": [
         \"{folder}/all.lua\",
@@ -1715,11 +1718,11 @@ pub fn background_loop() {
         \".git\"
     ]
 }}", folder = lua_autogen_folder).as_bytes());
-                            }
+                                }
 
-                            if let Ok(file) = File::create(sublime_config_path) {
-                                let mut file = BufWriter::new(file);
-                                let _ = file.write_all(format!("
+                                if let Ok(file) = File::create(sublime_config_path) {
+                                    let mut file = BufWriter::new(file);
+                                    let _ = file.write_all(format!("
 {{
     \"folders\":
     [
@@ -1752,6 +1755,7 @@ pub fn background_loop() {
         ],
     }}
 }}", folder = lua_autogen_folder).as_bytes());
+                                }
                             }
                         }
 

@@ -1829,14 +1829,14 @@ dependencies = [
 
 [[package]]
 name = "rpfm"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "winres",
 ]
 
 [[package]]
 name = "rpfm_cli"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "bytesize",
  "clap",
@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_error"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1889,7 +1889,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1936,7 +1936,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_macros"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1945,7 +1945,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "open",
  "rpfm_error",
@@ -2002,7 +2002,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "3.0.7"
+version = "3.0.8"
 dependencies = [
  "bincode",
  "chrono",
