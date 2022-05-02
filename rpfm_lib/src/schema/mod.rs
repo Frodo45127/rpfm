@@ -772,6 +772,12 @@ impl Schema {
         // Iterate over all definitions and find the ones referencing our table/field.
         let fields_processed = definition.get_fields_processed();
         let versioned_files = self.get_ref_versioned_file_db_all();
+
+        // For the idiots still renaming the fucking table folder.
+        if table_name.len() < 7 {
+            return HashMap::new();
+        }
+
         let table_name_no_tables = table_name.to_owned().drain(..table_name.len() - 7).collect::<String>();
 
         fields_processed.iter().filter_map(|field| {
