@@ -116,6 +116,8 @@ impl Settings {
         settings_bool.insert("expand_treeview_when_adding_items".to_owned(), true);
         settings_bool.insert("use_right_size_markers".to_owned(), false);
         settings_bool.insert("disable_file_previews".to_owned(), false);
+        settings_bool.insert("disable_mymod_automatic_git_repo".to_owned(), false);
+        settings_bool.insert("disable_mymod_automatic_configs".to_owned(), false);
 
         // Table Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
