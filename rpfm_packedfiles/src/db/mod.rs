@@ -15,6 +15,7 @@ DB Tables are the files which controls a lot of the parameters used in game, lik
 effects data, projectile parameters.... It's what modders use the most.
 !*/
 
+use anyhow::{anyhow, Result};
 use bincode::deserialize;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
@@ -26,21 +27,9 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use rpfm_error::{ErrorKind, Result};
-use rpfm_macros::*;
+use rpfm_common::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
-use crate::assembly_kit::table_data::RawTable;
-use crate::common::{decoder::Decoder, encoder::Encoder};
-use crate::GAME_SELECTED;
-use crate::packedfile::DecodedPackedFile;
-use crate::packedfile::Dependencies;
-use crate::packedfile::PackedFileType;
-use crate::packfile::packedfile::PackedFile;
-use crate::packfile::PackFile;
-use crate::schema::*;
-use crate::SETTINGS;
-use crate::SCHEMA;
-use super::{DecodedData, Table, DependencyData};
+use crate::{Decodeable, PackedFileType, table::Table};
 
 /// If this sequence is found, the DB Table has a GUID after it.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -56,9 +45,6 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct DB {
 
-    /// The name of the table. Not his literal file name, but the name of the table it represents, usually, db/"this_name"/yourtable. Needed to get his `Definition`.
-    pub name: String,
-
     /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
     /// NOTE: In Warhammer 2, a 0 here seems to crash the game when the tables are loaded.
     pub mysterious_byte: bool,
@@ -69,7 +55,7 @@ pub struct DB {
     /// The table's data, containing all the stuff needed to decode/encode it.
     table: Table,
 }
-
+/*
 /// This holds all the data needed to trigger cascade editions.
 ///
 /// We use a struct because Cascade Editions need a lot of different data, and it's a mess to deal with all of it independently.
@@ -88,14 +74,121 @@ pub struct CascadeEdition {
     /// Change we have to do, with the column as key.
     data_changes: BTreeMap<u32, Vec<(String, String)>>,
 }
-
+*/
 //---------------------------------------------------------------------------//
 //                           Implementation of DB
 //---------------------------------------------------------------------------//
 
+impl Decodeable for DB {
+
+    fn file_type(&self) -> PackedFileType {
+        PackedFileType::DB
+    }
+
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let (schema, table_name, return_incomplete) = extra_data.ok_or(anyhow!("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files."))?;
+        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
+
+        // Try to get the table_definition for this table, if exists.
+        let definitions = schema.definitions_by_table_name(table_name).ok_or_else(|| {
+            if entry_count == 0 {
+                anyhow!("There are no definitions for this specific version of the table in the Schema and the table is empty. This means this table cannot be open nor decoded.")
+            } else {
+                anyhow!("There are no definitions for this specific version of the table in the Schema.")
+            }
+        })?;
+
+        // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
+        let index_reset = index;
+        let (table, table_data) = if version == 0 {
+            let mut data = Err(anyhow!("There are no definitions for this specific version of the table in the Schema."));
+            for definition in definitions.iter().filter(|definition| *definition.version() < 1) {
+                index = index_reset;
+                if let Ok(table_data) = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete) {
+                    if index == packed_file_data.len() {
+                        data = Ok((Table::new(definition, table_name), table_data));
+                        break;
+                    }
+                }
+            }
+
+            data?
+        }
+
+        // For +0 versions, we expect unique definitions.
+        else {
+
+            let definition = definitions.iter().find(|definition| *definition.version() == version).ok_or_else(|| {
+                anyhow!("There are no definitions for this specific version of the table in the Schema.")
+            })?;
+
+            let table_data = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete)?;
+            let table = Table::new(definition, table_name);
+            (table, table_data)
+        };
+
+        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
+        if index != packed_file_data.len() {
+            // TODO: dump the decoded data here.
+            return Err(anyhow!("This PackedFile's reported size is '{}' bytes, but we expected it to be '{}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.", packed_file_data.len(), index));
+        }
+
+        // If everything decoded properly, load the table to the databse.
+
+
+
+        // If we've reached this, we've successfully decoded the table.
+        Ok(Self {
+            mysterious_byte,
+            uuid,
+            table,
+        })
+    }
+}
+
 /// Implementation of `DB`.
 impl DB {
 
+    /// This functions decodes the header part of a `DB` from a `Vec<u8>`.
+    ///
+    /// The data returned is:
+    /// - `version`: the version of this table.
+    /// - `mysterious_byte`: don't know.
+    /// - `uuid`: the UUID of this table.
+    /// - `entry_count`: amount of entries this `DB` has.
+    /// - `index`: position where the header ends. Useful if you want to decode the data of the `DB` after this.
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, bool, String, u32, usize)> {
+
+        // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
+        // or the data is not from a DB Table.
+        if packed_file_data.len() < 5 {
+            return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted."))
+        }
+
+        // Create the index that we'll use to decode the entire table.
+        let mut index = 0;
+
+        // If there is a GUID_MARKER, skip it together with the GUID itself (4 bytes for the marker, 74 for the GUID).
+        // About this GUID, it's something that gets randomly generated every time you export a table with DAVE. Not useful.
+        let uuid = if packed_file_data.decode_bytes_checked(0, 4)? == GUID_MARKER {
+            index += 4;
+            packed_file_data.decode_packedfile_string_u16(index, &mut index)?
+        }
+        else { String::new() };
+
+        // If there is a VERSION_MARKER, we get the version (4 bytes for the marker, 4 for the version). Otherwise, we default to 0.
+        let version = if packed_file_data.decode_bytes_checked(index, 4)? == VERSION_MARKER {
+            index += 4;
+            packed_file_data.decode_packedfile_integer_i32(index, &mut index)?
+        } else { 0 };
+
+        // We get the rest of the data from the header.
+        let mysterious_byte = packed_file_data.decode_packedfile_bool(index, &mut index)?;
+        let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
+        Ok((version, mysterious_byte, uuid, entry_count, index))
+    }
+
+/*
     /// This function creates a new empty `DB` from a definition and his name.
     pub fn new(
         name: &str,
@@ -917,9 +1010,9 @@ impl DB {
         }
 
         Ok(())
-    }
+    }*/
 }
-
+/*
 /// Implementation to create a `DB` from a `Table`.
 impl From<Table> for DB {
     fn from(table: Table) -> Self {
@@ -958,3 +1051,4 @@ impl From<&RawTable> for DB {
         }
     }
 }
+*/

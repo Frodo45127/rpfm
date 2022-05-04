@@ -26,7 +26,7 @@ use rayon::prelude::*;
 
 use std::collections::HashMap;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder};
+use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::Schema};
 use crate::*;
 
 pub const EXTENSION: &str = ".animpack";
@@ -220,7 +220,7 @@ impl Decodeable for AnimPack {
         PackedFileType::AnimPack
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         let mut index = 0;
 
         let file_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
@@ -229,7 +229,7 @@ impl Decodeable for AnimPack {
         for _ in 0..file_count {
             let path = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
             let byte_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)? as usize;
-            let data = packed_file_data.get_bytes_checked(index,  byte_count)?.to_vec();
+            let data = packed_file_data.decode_bytes_checked(index,  byte_count)?.to_vec();
             index += byte_count;
 
             files.insert(path.to_owned(), AnimPacked{path, data});

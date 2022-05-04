@@ -29,7 +29,7 @@ pub const WINDOWS_TICK: i64 = 10_000_000;
 pub const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
 
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
-pub fn get_files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
+pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
     let mut file_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
         Ok(files_in_current_path) => {
@@ -43,7 +43,7 @@ pub fn get_files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<
                         // If it's a file, add it to the list. If it's a folder, add his files to the list.
                         if file_path.is_file() { file_list.push(file_path); }
                         else if file_path.is_dir() && scan_subdirs {
-                            let mut subfolder_files_path = get_files_from_subdir(&file_path, scan_subdirs)?;
+                            let mut subfolder_files_path = files_from_subdir(&file_path, scan_subdirs)?;
                             file_list.append(&mut subfolder_files_path);
                         }
                     }
@@ -65,29 +65,29 @@ pub fn get_files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<
 }
 
 /// This function gets the current date and return it, as a decoded u32.
-pub fn get_current_time() -> i64 {
+pub fn current_time() -> i64 {
     Utc::now().naive_utc().timestamp()
 }
 
 /// This function gets the last modified date from a file and return it, as an i64.
-pub fn get_last_modified_time_from_file(file: &File) -> Result<i64> {
+pub fn last_modified_time_from_file(file: &File) -> Result<i64> {
     let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata()?.modified()?);
     Ok(last_modified_time.naive_utc().timestamp())
 }
 
 /// This function gets the last modified date from a file and return it, as an i64.
-pub fn get_last_modified_time_from_buffered_file(file: &BufReader<File>) -> Result<i64> {
+pub fn last_modified_time_from_buffered_file(file: &BufReader<File>) -> Result<i64> {
     let last_modified_time: DateTime<Utc> = DateTime::from(file.get_ref().metadata()?.modified()?);
     Ok(last_modified_time.naive_utc().timestamp())
 }
 
 /// This function gets the newer last modified time from the provided list.
-pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
+pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
     let mut last_time = 0;
     for path in paths {
         if path.is_file() {
             let file = File::open(path)?;
-            let time = get_last_modified_time_from_file(&file)?;
+            let time = last_modified_time_from_file(&file)?;
             if time > last_time {
                 last_time = time
             }
@@ -98,20 +98,20 @@ pub fn get_last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
 }
 
 /// This function gets the oldest modified file in a folder and return it.
-pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
-    let files = get_files_in_folder_from_newest_to_oldest(current_path)?;
+pub fn oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
+    let files = files_in_folder_from_newest_to_oldest(current_path)?;
     Ok(files.last().cloned())
 }
 
 /// This function gets the files in a folder sorted from newest to oldest.
-pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = get_files_from_subdir(current_path, false)?;
+pub fn files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = files_from_subdir(current_path, false)?;
     files.sort();
     files.sort_by(|a, b| {
         if let Ok(a) = File::open(a) {
             if let Ok(b) = File::open(b) {
-                if let Ok(a) = get_last_modified_time_from_file(&a) {
-                    if let Ok(b) = get_last_modified_time_from_file(&b) {
+                if let Ok(a) = last_modified_time_from_file(&a) {
+                    if let Ok(b) = last_modified_time_from_file(&b) {
                         a.cmp(&b)
                     } else { Ordering::Equal}
                 } else { Ordering::Equal}
@@ -137,12 +137,12 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
 }
 
 /// Function to get the version info of a file, courtesy of TES Loot team.
-pub fn get_pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
-    get_pe_resources(bytes)?.version_info()
+pub fn pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
+    pe_resources(bytes)?.version_info()
 }
 
 /// Function to get the resources of a file, courtesy of TES Loot team.
-pub fn get_pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
+pub fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
     match pe64::PeFile::from_bytes(bytes) {
         Ok(file) => {
             use pelite::pe64::Pe;

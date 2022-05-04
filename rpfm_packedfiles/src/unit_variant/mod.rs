@@ -16,8 +16,7 @@ Binary unit variants are the unit variants used from Empire to Shogun 2.
 
 use anyhow::{anyhow, Result};
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder};
-use rpfm_macros::{GetRef, Set};
+use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
 use crate::{Decodeable, Encodeable, PackedFileType};
 
@@ -97,7 +96,7 @@ impl Decodeable for UnitVariant {
         PackedFileType::UnitVariant
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
 
         let mut index = SIGNATURE.len();
         let (version, categories_count, unknown_1) = Self::read_header(packed_file_data, &mut index)?;

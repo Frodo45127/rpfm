@@ -17,8 +17,7 @@ The only thing to take into account is that this only work for UTF-8 encoded fil
 
 use anyhow::{anyhow, Result};
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder};
-use rpfm_macros::*;
+use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
 use crate::{Decodeable, Encodeable, PackedFileType};
 
@@ -121,7 +120,7 @@ impl Decodeable for Text {
         PackedFileType::Text(self.text_type)
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
 
         // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
         let (packed_file_data, guessed_encoding) = if packed_file_data.is_empty() { (packed_file_data, SupportedEncodings::Utf8) }

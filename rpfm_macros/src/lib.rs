@@ -38,7 +38,7 @@ pub fn getter_clone(input: TokenStream) -> TokenStream {
 
             let function_names = field_names
                 .iter()
-                .map(|x| Ident::new(format!("get_{}", x).as_str(), Span::call_site()));
+                .map(|x| Ident::new(format!("{}_cloned", x).as_str(), Span::call_site()));
 
             let quoted_code = quote!{
 

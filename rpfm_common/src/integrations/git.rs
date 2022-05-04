@@ -25,6 +25,7 @@ use anyhow::{anyhow, Result};
 //-------------------------------------------------------------------------------//
 
 /// Struct containing the data needed to perform a fetch/pull from a repo.
+#[derive(Debug)]
 pub struct GitIntegration {
 
     /// Local Path of the repo.

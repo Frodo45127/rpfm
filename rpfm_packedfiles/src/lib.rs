@@ -18,6 +18,9 @@ For encoding/decoding/proper manipulation of the data in each type of `PackedFil
 !*/
 
 use anyhow::Result;
+
+use rpfm_common::schema::Schema;
+
 /*
 use std::convert::TryFrom;
 use std::{fmt, fmt::Display};
@@ -40,6 +43,7 @@ use crate::text::TextType;
 
 pub mod animpack;
 pub mod ca_vp8;
+pub mod db;
 pub mod esf;
 pub mod image;
 pub mod rigidmodel;
@@ -121,7 +125,7 @@ pub enum ContainerPath {
 
 pub trait Decodeable {
     fn file_type(&self) -> PackedFileType;
-    fn decode(data: &[u8]) -> Result<Self> where Self: Sized;
+    fn decode(data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> where Self: Sized;
 }
 
 pub trait Encodeable {

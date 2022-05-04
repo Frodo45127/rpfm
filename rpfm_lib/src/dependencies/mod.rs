@@ -202,11 +202,11 @@ impl Dependencies {
     pub fn generate_dependencies_cache(&mut self, asskit_path: &Option<PathBuf>, version: i16) -> Result<Self> {
 
         let mut cache = Self::default();
-        cache.build_date = get_current_time();
+        cache.build_date = current_time();
         cache.vanilla_cached_packed_files = PackFile::open_all_ca_packfiles()?.get_ref_packed_files_all()
             .par_iter()
             .filter_map(|x| CachedPackedFile::new_from_packed_file(*x).ok())
-            .map(|x| (x.get_ref_packed_file_path().to_owned(), x))
+            .map(|x| (x.packed_file_path().to_owned(), x))
             .collect::<HashMap<String, CachedPackedFile>>();
 
         // This one can fail, leaving the dependencies with only game data.
@@ -500,7 +500,7 @@ impl Dependencies {
     /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
     pub fn needs_updating(&self) -> Result<bool> {
         let ca_paths = GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths()?;
-        let last_date = get_last_modified_time_from_files(&ca_paths)?;
+        let last_date = last_modified_time_from_files(&ca_paths)?;
         Ok(last_date > self.build_date)
     }
 
@@ -988,7 +988,7 @@ impl From<&Dependencies> for DependenciesInfo {
         let table_name_logic = GAME_SELECTED.read().unwrap().get_vanilla_db_table_name_logic();
 
         Self {
-            asskit_tables: dependencies.get_ref_asskit_only_db_tables().par_iter().map(|table| {
+            asskit_tables: dependencies.asskit_only_db_tables().par_iter().map(|table| {
                 let table_name = match table_name_logic {
                     VanillaDBTableNameLogic::DefaultName(ref name) => name.to_owned(),
                     VanillaDBTableNameLogic::FolderName => table.get_table_name(),
@@ -996,8 +996,8 @@ impl From<&Dependencies> for DependenciesInfo {
 
                 PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
             }).collect(),
-            vanilla_packed_files: dependencies.get_ref_vanilla_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
-            parent_packed_files:dependencies.get_ref_parent_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
+            vanilla_packed_files: dependencies.vanilla_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
+            parent_packed_files:dependencies.parent_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
         }
     }
 }

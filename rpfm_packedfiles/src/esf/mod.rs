@@ -20,8 +20,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use rpfm_common::decoder::Decoder;
-use rpfm_macros::*;
+use rpfm_common::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
 use crate::{Decodeable, Encodeable, PackedFileType};
 
@@ -294,7 +293,7 @@ impl ESF {
 
     /// This function returns if the provided data corresponds to a ESF or not.
     pub fn is_esf(data: &[u8]) -> bool {
-        match data.get_bytes_checked(0, 4) {
+        match data.decode_bytes_checked(0, 4) {
             Ok(signature) => signature == SIGNATURE_CAAB,
             Err(_) => false,
         }
@@ -550,8 +549,8 @@ impl Decodeable for ESF {
         PackedFileType::ESF
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
-        let signature_bytes: &[u8; 4] = packed_file_data.get_bytes_checked(0, 4)?.try_into()?;
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let signature_bytes: &[u8; 4] = packed_file_data.decode_bytes_checked(0, 4)?.try_into()?;
 
         // Match known signatures.
         let signature = match signature_bytes {

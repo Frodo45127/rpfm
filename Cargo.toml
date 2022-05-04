@@ -1,15 +1,11 @@
 # Workspace containing all RPFM crates.
 [workspace]
 members = [
-	"rpfm_error",
     "rpfm_macros",
-    "rpfm_lib",
-    "rpfm_cli",
     "rpfm_mod_checker",
-    "rpfm_ui",
+    "rpfm_logging",
     "rpfm_packedfiles",
     "rpfm_common",
-    "rpfm",
 ]
 
 [profile.dev]

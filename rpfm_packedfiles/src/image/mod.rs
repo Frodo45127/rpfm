@@ -16,6 +16,8 @@ Images... we really just get their that to memory. Nothing more.
 
 use anyhow::Result;
 
+use rpfm_common::schema::Schema;
+
 use crate::{Decodeable, PackedFileType};
 
 /// Extensions used by Image PackedFiles.
@@ -59,7 +61,7 @@ impl Decodeable for Image {
     }
 
     /// This function creates a `Image` from a `Vec<u8>`.
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         Ok(Self {
             data: packed_file_data.to_vec(),
         })

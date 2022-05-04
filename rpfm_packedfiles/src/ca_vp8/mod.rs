@@ -24,8 +24,7 @@ to the MIT license above and are under the CC-SA 4.0 license, available here:
 use anyhow::{anyhow, Result};
 use fraction::GenericFraction;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder};
-use rpfm_macros::*;
+use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
 use crate::{Decodeable, Encodeable, PackedFileType};
 
@@ -318,7 +317,7 @@ impl Decodeable for CaVp8 {
         PackedFileType::CaVp8
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         match &*packed_file_data.decode_string_u8(0, 4)? {
             SIGNATURE_IVF => Self::read_ivf(packed_file_data),
             SIGNATURE_CAMV => Self::read_camv(packed_file_data),

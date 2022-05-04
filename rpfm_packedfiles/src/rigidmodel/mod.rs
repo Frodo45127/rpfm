@@ -16,7 +16,7 @@ This is really a dummy module, as all the logic for this is done in the view thr
 
 use anyhow::Result;
 
-use rpfm_macros::*;
+use rpfm_common::{rpfm_macros::*, schema::Schema};
 
 use crate::{Decodeable, Encodeable, PackedFileType};
 
@@ -47,7 +47,7 @@ impl Decodeable for RigidModel {
         PackedFileType::RigidModel
     }
 
-    fn decode(packed_file_data: &[u8]) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         Ok(Self {
             data: packed_file_data.to_vec(),
         })

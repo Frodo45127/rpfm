@@ -14,9 +14,16 @@ Module with utility functions that don't fit anywhere else.
 Basically, if you need a function, but it's kinda a generic function, it goes here.
 !*/
 
+// Reexports for ease of managing dependencies.
+pub use rpfm_macros;
+pub use rpfm_logging;
+
 pub mod decoder;
 pub mod encoder;
-pub mod git_integration;
+pub mod games;
+pub mod integrations;
+pub mod schema;
+pub mod sqlite;
 pub mod utils;
 
 // This tells the compiler to only compile these mods when testing. It's just to make sure

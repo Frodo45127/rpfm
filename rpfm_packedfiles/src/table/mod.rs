@@ -17,6 +17,7 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 use anyhow::{anyhow, Result};
 use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
+use rusqlite::blob::Blob;
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::BTreeMap;
@@ -26,11 +27,10 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, utils::*};
+use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::*, utils::*};
 
-use crate::assembly_kit::table_data::RawTable;
-use crate::schema::*;
-
+//use crate::assembly_kit::table_data::RawTable;
+//
 //pub mod animtable;
 //pub mod anim_fragment;
 //pub mod db;
@@ -44,21 +44,23 @@ use crate::schema::*;
 /// This struct contains the data of a Table-like PackedFile after being decoded.
 ///
 /// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
-#[derive(Clone, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, GetRef, Serialize, Deserialize)]
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
     definition: Definition,
 
-    /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
-    entries: Vec<Vec<DecodedData>>,
+    /// The name this table has in the SQLite instance currently running.
+    table_name: String,
+
+    table_unique_id: u64,
 }
 
 /// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
 ///
 /// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
 /// inside a single field. Used, for example, in certain model tables.
-#[derive(Clone, Debug, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     F32(f32),
@@ -66,15 +68,18 @@ pub enum DecodedData {
     I16(i16),
     I32(i32),
     I64(i64),
-    ColourRGB(u32),
+    ColourRGB(String),
     StringU8(String),
     StringU16(String),
+    OptionalI16(i16),
+    OptionalI32(i32),
+    OptionalI64(i64),
     OptionalStringU8(String),
     OptionalStringU16(String),
-    SequenceU16(Box<Table>),
-    SequenceU32(Box<Table>)
+    SequenceU16(Vec<u8>),
+    SequenceU32(Vec<u8>)
 }
-
+/*
 /// This holds the dependency data for a specific column of a table.
 #[derive(PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct DependencyData {
@@ -88,11 +93,11 @@ pub struct DependencyData {
     /// The data itself, as in "key, lookup" format.
     pub data: HashMap<String, String>,
 }
-
+*/
 //----------------------------------------------------------------//
 // Implementations for `DecodedData`.
 //----------------------------------------------------------------//
-
+/*
 /// Display implementation of `DecodedData`.
 impl Display for DecodedData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -376,7 +381,7 @@ impl DecodedData {
         }
     }
 }
-
+*/
 //----------------------------------------------------------------//
 // Implementations for `Table`.
 //----------------------------------------------------------------//
@@ -385,12 +390,15 @@ impl DecodedData {
 impl Table {
 
     /// This function creates a new Table from an existing definition.
-    pub fn new(definition: &Definition) -> Self {
+    pub fn new(definition: &Definition, table_name: &str) -> Self {
         Table {
             definition: definition.clone(),
-            entries: vec![],
+            table_name: table_name.to_owned(),
+            table_unique_id: rand::random::<u64>(),
         }
     }
+
+    /*
 
     /// This function returns a copy of the definition of this Table.
     pub fn get_definition(&self) -> Definition {
@@ -502,78 +510,350 @@ impl Table {
         // If we passed all the checks, replace the data.
         self.entries = data.to_vec();
         Ok(())
+    }*/
+
+
+
+    fn decode_row_postprocess(row_data: &mut Vec<DecodedData>, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) -> Result<()> {
+        for split_colour in split_colours.values() {
+            let mut colour_hex = "".to_owned();
+            if let Some(r) = split_colour.get("r") {
+                colour_hex.push_str(&format!("{:02X?}", r));
+            }
+
+            if let Some(r) = split_colour.get("red") {
+                colour_hex.push_str(&format!("{:02X?}", r));
+            }
+
+            if let Some(g) = split_colour.get("g") {
+                colour_hex.push_str(&format!("{:02X?}", g));
+            }
+
+            if let Some(g) = split_colour.get("green") {
+                colour_hex.push_str(&format!("{:02X?}", g));
+            }
+
+            if let Some(b) = split_colour.get("b") {
+                colour_hex.push_str(&format!("{:02X?}", b));
+            }
+
+            if let Some(b) = split_colour.get("blue") {
+                colour_hex.push_str(&format!("{:02X?}", b));
+            }
+
+            if u32::from_str_radix(&colour_hex, 16).is_ok() {
+                row_data.push(DecodedData::ColourRGB(colour_hex));
+            } else {
+                return Err(anyhow!("Error decoding combined colour."));
+            }
+        }
+
+        Ok(())
     }
 
-    /// This function decodes all the fields of a table from raw bytes.
-    ///
-    /// If return_incomplete == true, this function will return an error with the incompletely decoded table when it fails.
-    fn decode(&mut self,
-        data: &[u8],
-        entry_count: u32,
-        mut index: &mut usize,
-        return_incomplete: bool,
-    ) -> Result<()> {
+    fn decode_field_postprocess(row_data: &mut Vec<DecodedData>, data: DecodedData, field: &Field, split_colours: &mut BTreeMap<u8, HashMap<String, u8>>) {
+
+        // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
+        if field.is_bitwise() > 1 {
+            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+                let data = match data {
+                    DecodedData::I16(ref data) => *data as i64,
+                    DecodedData::I32(ref data) => *data as i64,
+                    DecodedData::I64(ref data) => *data,
+                    _ => unimplemented!()
+                };
+
+                for bitwise_column in 0..field.is_bitwise() {
+                    row_data.push(DecodedData::Boolean(data & (1 << bitwise_column) != 0));
+                }
+            }
+        }
+
+        // If the field has enum values, we turn it into a string. Same as before, only for integer types.
+        else if !field.enum_values().is_empty() {
+            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+                let data = match data {
+                    DecodedData::I16(ref data) => *data as i32,
+                    DecodedData::I32(ref data) => *data,
+                    DecodedData::I64(ref data) => *data as i32,
+                    _ => unimplemented!()
+                };
+                match field.enum_values().get(&data) {
+                    Some(data) => row_data.push(DecodedData::StringU8(data.to_owned())),
+                    None => row_data.push(DecodedData::StringU8(data.to_string()))
+                }
+            }
+        }
+
+        // If the field is part of an split colour field group, don't add it. We'll separate it from the rest, then merge them into a ColourRGB field.
+        else if let Some(colour_index) = field.is_part_of_colour() {
+            if [FieldType::I16, FieldType::I32, FieldType::I64, FieldType::F32, FieldType::F64].contains(field.field_type()) {
+                let data = match data {
+                    DecodedData::I16(ref data) => *data as u8,
+                    DecodedData::I32(ref data) => *data as u8,
+                    DecodedData::I64(ref data) => *data as u8,
+                    DecodedData::F32(ref data) => *data as u8,
+                    DecodedData::F64(ref data) => *data as u8,
+                    _ => unimplemented!()
+                };
+
+                // This can be r, g, b, red, green, blue.
+                let colour_split = field.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                let colour_channel = colour_split[0].to_lowercase();
+                match split_colours.get_mut(&colour_index) {
+                    Some(colour_pack) => {
+                        colour_pack.insert(colour_channel, data);
+                    }
+                    None => {
+                        let mut colour_pack = HashMap::new();
+                        colour_pack.insert(colour_channel, data);
+                        split_colours.insert(colour_index, colour_pack);
+                    }
+                }
+            }
+        }
+
+        else {
+            row_data.push(data);
+        }
+    }
+
+    pub fn decode_table(definition: &Definition, data: &[u8], entry_count: Option<u32>, index: &mut usize, return_incomplete: bool) -> Result<Vec<Vec<DecodedData>>> {
+
+        // If we received an entry count, it's the root table. If not, it's a nested one.
+        let entry_count = match entry_count {
+            Some(entry_count) => entry_count,
+            None => data.decode_packedfile_integer_u32(*index, index)?,
+        };
 
         // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
-        self.entries = vec![];
+        let fields = definition.fields();
+        let mut table = vec![];
+
         for row in 0..entry_count {
-            let mut decoded_row = Vec::with_capacity(self.definition.get_ref_fields().len());
+            table.push(Self::decode_row(data, fields, index, row, return_incomplete)?);
+        }
+
+        Ok(table)
+    }
+
+    fn decode_row(data: &[u8], fields: &[Field], index: &mut usize, row: u32, return_incomplete: bool) -> Result<Vec<DecodedData>> {
+        let mut split_colours: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
+        let mut row_data = Vec::with_capacity(fields.len());
+        for (column, field) in fields.iter().enumerate() {
+
+            // Decode the field, then apply any postprocess operation we need.
+            let column = column as u32;
+            let field_data = match Self::decode_field(data, field, index, row, column) {
+                Ok(data) => data,
+                Err(error) => {
+                    if return_incomplete {
+                        return Ok(row_data);
+                    } else {
+                        return Err(error);
+                    }
+                }
+            };
+            Self::decode_field_postprocess(&mut row_data, field_data, field, &mut split_colours)
+        }
+
+        Self::decode_row_postprocess(&mut row_data, &mut split_colours)?;
+
+        Ok(row_data)
+    }
+
+    fn decode_field(data: &[u8], field: &Field, index: &mut usize, row: u32, column: u32) -> Result<DecodedData> {
+        match field.field_type() {
+            FieldType::Boolean => {
+                if let Ok(data) = data.decode_packedfile_bool(*index, index) { Ok(DecodedData::Boolean(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: either the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::F32 => {
+                if let Ok(data) = data.decode_packedfile_float_f32(*index, index) { Ok(DecodedData::F32(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: either the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::F64 => {
+                if let Ok(data) = data.decode_packedfile_float_f64(*index, index) { Ok(DecodedData::F64(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F64</b></i> value: either the value is not a valid F64, or there are insufficient bytes left to decode it as a F64 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::I16 => {
+                if let Ok(data) = data.decode_packedfile_integer_i16(*index, index) { Ok(DecodedData::I16(data))  }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I16</b></i> value: either the value is not a valid I16, or there are insufficient bytes left to decode it as an I16 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::I32 => {
+                if let Ok(data) = data.decode_packedfile_integer_i32(*index, index) { Ok(DecodedData::I32(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: either the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::I64 => {
+                if let Ok(data) = data.decode_packedfile_integer_i64(*index, index) { Ok(DecodedData::I64(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::ColourRGB => {
+                if let Ok(data) = data.decode_packedfile_string_colour_rgb(*index, index) { Ok(DecodedData::ColourRGB(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Colour RGB</b></i> value: either the value is not a valid RGB value, or there are insufficient bytes left to decode it as an RGB value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::StringU8 => {
+                if let Ok(data) = data.decode_packedfile_string_u8(*index, index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: either the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1)) }
+            }
+            FieldType::StringU16 => {
+                if let Ok(data) = data.decode_packedfile_string_u16(*index, index) { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: either the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1)) }
+            }
+            FieldType::OptionalI16 => {
+                if let Ok(data) = data.decode_packedfile_optional_integer_i16(*index, index) { Ok(DecodedData::OptionalI16(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I16</b></i> value: either the value is not a valid Optional I16, or there are insufficient bytes left to decode it as an Optional I16 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::OptionalI32 => {
+                if let Ok(data) = data.decode_packedfile_optional_integer_i32(*index, index) { Ok(DecodedData::OptionalI32(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I32</b></i> value: either the value is not a valid Optional I32, or there are insufficient bytes left to decode it as an Optional I32 value.</p>", row + 1, column + 1)) }
+            }
+            FieldType::OptionalI64 => {
+                if let Ok(data) = data.decode_packedfile_optional_integer_i64(*index, index) { Ok(DecodedData::OptionalI64(data)) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I64</b></i> value: either the value is not a valid Optional I64, or there are insufficient bytes left to decode it as an Optional I64 value.</p>", row + 1, column + 1)) }
+            }
+
+            FieldType::OptionalStringU8 => {
+                if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, index) { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: either the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)) }
+            }
+            FieldType::OptionalStringU16 => {
+                if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, index) { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
+                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: either the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1)) }
+            }
+
+            FieldType::SequenceU16(definition) => {
+                let start = *index;
+                match Self::decode_table(definition, data, None, index, false) {
+                    Ok(_) => {
+                        let end = if data.get(*index).is_some() { *index } else { return Err(anyhow!("Error trying to get the data for a SequenceU16 on Row {}, Cell {}: invalid ending index {}", row + 1, column + 1, *index)) };
+                        let blob = &data[start..end];
+                        Ok(DecodedData::SequenceU16(blob.to_vec()))
+                    }
+                    Err(error) => Err(anyhow!("Error trying to get the data for a SequenceU16 on Row {}, Cell {}: {}", row + 1, column + 1, error.to_string()))
+                }
+            }
+
+            FieldType::SequenceU32(definition) => {
+                let start = *index;
+                match Self::decode_table(definition, data, None, index, false) {
+                    Ok(_) => {
+                        let end = if data.get(*index).is_some() { *index } else { return Err(anyhow!("Error trying to get the data for a SequenceU32 on Row {}, Cell {}: invalid ending index {}", row + 1, column + 1, *index)) };
+                        let blob = &data[start..end];
+                        Ok(DecodedData::SequenceU32(blob.to_vec()))
+                    }
+                    Err(error) => Err(anyhow!("Error trying to get the data for a SequenceU32 on Row {}, Cell {}: {}", row + 1, column + 1, error.to_string()))
+                }
+            }
+        }
+    }
+/*
+    /// This function decodes all the fields of a table from raw bytes into a `INSERT INTO` SQL Query.
+    ///
+    /// If return_incomplete == true, this function will return an error with the incompletely decoded table when it fails.
+    fn decode_to_query(&self,
+        definition: &Definition,
+        data: &[u8],
+        entry_count: Option<u32>,
+        mut index: &mut usize,
+        is_nested: bool,
+        return_incomplete: bool,
+    ) -> Result<String> {
+
+        // If we received an entry count, it's the root table. If not, it's a nested one.
+        let entry_count = match entry_count {
+            Some(entry_count) => entry_count,
+            None => data.decode_packedfile_integer_u32(*index, index)?,
+        };
+
+        // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
+        let fields = definition.fields();
+        let mut query = if is_nested {
+            let column_names = fields.iter().map(|field| format!("\"{}\"", field.name())).collect::<Vec<_>>().join(",");
+            format!("INSERT INTO {} (source, file_name, {}) VALUES (?, ...), (?, ...); ", self.table_name, column_names)
+        } else {
+            String::new()
+        };
+
+        for row in 0..entry_count {
+
+            // TODO: Fix the source value here.
+            let mut row_values = format!("({}, {},", 0, self.file_name);
+
             let mut split_colour_fields: BTreeMap<u8, HashMap<String, u8>> = BTreeMap::new();
-            for column in 0..self.definition.get_ref_fields().len() {
-                let field = &self.definition.get_ref_fields()[column];
-                let decoded_cell = match field.get_ref_field_type() {
+
+            for column in 0..fields.len() {
+                let field = &fields[column];
+                let decoded_cell = match field.field_type() {
                     FieldType::Boolean => {
-                        if let Ok(data) = data.decode_packedfile_bool(*index, &mut index) { Ok(DecodedData::Boolean(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_bool(*index, &mut index) { Ok((data as i32).to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: either the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::F32 => {
-                        if let Ok(data) = data.decode_packedfile_float_f32(*index, &mut index) { Ok(DecodedData::F32(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_float_f32(*index, &mut index) { Ok(format!("{:.4}", data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: either the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::F64 => {
-                        if let Ok(data) = data.decode_packedfile_float_f64(*index, &mut index) { Ok(DecodedData::F64(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F64</b></i> value: the value is not a valid F64, or there are insufficient bytes left to decode it as a F64 value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_float_f64(*index, &mut index) { Ok(format!("{:.4}", data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F64</b></i> value: either the value is not a valid F64, or there are insufficient bytes left to decode it as a F64 value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::I16 => {
-                        if let Ok(data) = data.decode_packedfile_integer_i16(*index, &mut index) { Ok(DecodedData::I16(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I16</b></i> value: the value is not a valid I16, or there are insufficient bytes left to decode it as an I16 value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_integer_i16(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I16</b></i> value: either the value is not a valid I16, or there are insufficient bytes left to decode it as an I16 value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::I32 => {
-                        if let Ok(data) = data.decode_packedfile_integer_i32(*index, &mut index) { Ok(DecodedData::I32(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_integer_i32(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: either the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::I64 => {
-                        if let Ok(data) = data.decode_packedfile_integer_i64(*index, &mut index) { Ok(DecodedData::I64(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_integer_i64(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::ColourRGB => {
-                        if let Ok(data) = data.decode_packedfile_integer_colour_rgb(*index, &mut index) { Ok(DecodedData::ColourRGB(data)) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Colour RGB</b></i> value: the value is not a valid RGB value, or there are insufficient bytes left to decode it as an RGB value.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_string_colour_rgb(*index, &mut index) { Ok(data) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Colour RGB</b></i> value: either the value is not a valid RGB value, or there are insufficient bytes left to decode it as an RGB value.</p>", row + 1, column + 1)) }
                     }
                     FieldType::StringU8 => {
-                        if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { Ok(Self::escape_special_chars(&data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: either the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1)) }
                     }
                     FieldType::StringU16 => {
-                        if let Ok(data) = data.decode_packedfile_string_u16(*index, &mut index) { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_string_u16(*index, &mut index) { Ok(Self::escape_special_chars(&data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: either the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1)) }
                     }
+                    FieldType::OptionalI16 => {
+                        if let Ok(data) = data.decode_packedfile_optional_integer_i16(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I16</b></i> value: either the value is not a valid Optional I16, or there are insufficient bytes left to decode it as an Optional I16 value.</p>", row + 1, column + 1)) }
+                    }
+                    FieldType::OptionalI32 => {
+                        if let Ok(data) = data.decode_packedfile_optional_integer_i32(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I32</b></i> value: either the value is not a valid Optional I32, or there are insufficient bytes left to decode it as an Optional I32 value.</p>", row + 1, column + 1)) }
+                    }
+                    FieldType::OptionalI64 => {
+                        if let Ok(data) = data.decode_packedfile_optional_integer_i64(*index, &mut index) { Ok(data.to_string()) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I64</b></i> value: either the value is not a valid Optional I64, or there are insufficient bytes left to decode it as an Optional I64 value.</p>", row + 1, column + 1)) }
+                    }
+
                     FieldType::OptionalStringU8 => {
-                        if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { Ok(Self::escape_special_chars(&data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: either the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)) }
                     }
                     FieldType::OptionalStringU16 => {
-                        if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1))) }
+                        if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { Ok(Self::escape_special_chars(&data)) }
+                        else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: either the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1)) }
                     }
 
                     // This type is just a recursive type.
                     FieldType::SequenceU16(definition) => {
+                        let start = *index;
+                        let end = *index;
+                        let blob = &data[start..end];
+
                         if let Ok(entry_count) = data.decode_packedfile_integer_u16(*index, &mut index) {
                             let mut sub_table = Table::new(definition);
                             sub_table.decode(data, entry_count.into(), index, return_incomplete)?;
                             Ok(DecodedData::SequenceU16(Box::new(sub_table))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
+                        else { Err(anyhow!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1)) }
                     }
 
                     // This type is just a recursive type.
@@ -582,7 +862,7 @@ impl Table {
                             let mut sub_table = Table::new(definition);
                             sub_table.decode(data, entry_count, index, return_incomplete)?;
                             Ok(DecodedData::SequenceU32(Box::new(sub_table))) }
-                        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1))) }
+                        else { Err(anyhow!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1)) }
                     }
                 };
 
@@ -590,60 +870,49 @@ impl Table {
                     Ok(data) =>  {
 
                         // If the field is a bitwise, split it into multiple fields. This is currently limited to integer types.
-                        if field.get_is_bitwise() > 1 {
-                            let data = match data {
-                                DecodedData::I16(ref data) => *data as i64,
-                                DecodedData::I32(ref data) => *data as i64,
-                                DecodedData::I64(ref data) => *data,
-                                _ => return Err(ErrorKind::Generic.into())
-                            };
-
-                            for bitwise_column in 0..field.get_is_bitwise() {
-                                decoded_row.push(DecodedData::Boolean(data & (1 << bitwise_column) != 0));
+                        if field.is_bitwise() > 1 {
+                            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+                                if let Ok(data) = data.parse::<i64>() {
+                                    let values = (0..field.is_bitwise()).map(|bitwise_column| format!("{}", (data & (1 << bitwise_column) != 0) as u8)).collect::<Vec<_>>().join(",");
+                                    row_values.push_str(&values);
+                                }
                             }
                         }
 
                         // If the field has enum values, we turn it into a string. Same as before, only for integer types.
-                        else if !field.get_enum_values().is_empty() {
-                            let data = match data {
-                                DecodedData::I16(ref data) => *data as i32,
-                                DecodedData::I32(ref data) => *data,
-                                DecodedData::I64(ref data) => *data as i32,
-                                _ => return Err(ErrorKind::Generic.into())
-                            };
-
-                            match field.get_enum_values().get(&data) {
-                                Some(data) => decoded_row.push(DecodedData::StringU8(data.to_owned())),
-                                None => decoded_row.push(DecodedData::StringU8(data.to_string()))
+                        else if !field.enum_values().is_empty() {
+                            if [FieldType::I16, FieldType::I32, FieldType::I64].contains(field.field_type()) {
+                                if let Ok(data) = data.parse::<i64>() {
+                                    match field.enum_values().get(&data) {
+                                        Some(data) => row_values.push_str(&(data.to_owned() + ",")),
+                                        None => row_values.push_str(&(data.to_string() + ","))
+                                    }
+                                }
                             }
                         }
 
                         // If the field is part of an split colour field group, don't add it. We'll separate it from the rest, then merge them into a ColourRGB field.
-                        else if let Some(colour_index) = field.get_is_part_of_colour() {
-                            let data = match data {
-                                DecodedData::I16(ref data) => *data as u8,
-                                DecodedData::I32(ref data) => *data as u8,
-                                DecodedData::I64(ref data) => *data as u8,
-                                DecodedData::F32(ref data) => *data as u8,
-                                DecodedData::F64(ref data) => *data as u8,
-                                _ => return Err(ErrorKind::Generic.into())
-                            };
+                        else if let Some(colour_index) = field.is_part_of_colour() {
+                            if [FieldType::I16, FieldType::I32, FieldType::I64, FieldType::F32, FieldType::F64].contains(field.field_type()) {
+                                if let Ok(data) = data.parse::<u8>() {
 
-                            // This can be r, g, b, red, green, blue.
-                            let colour_split = field.get_name().rsplitn(2, "_").collect::<Vec<&str>>();
-                            let colour_channel = colour_split[0].to_lowercase();
-                            match split_colour_fields.get_mut(&colour_index) {
-                                Some(colour_pack) => { colour_pack.insert(colour_channel, data); }
-                                None => {
-                                    let mut colour_pack = HashMap::new();
-                                    colour_pack.insert(colour_channel, data);
-                                    split_colour_fields.insert(colour_index, colour_pack);
+                                    // This can be r, g, b, red, green, blue.
+                                    let colour_split = field.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                                    let colour_channel = colour_split[0].to_lowercase();
+                                    match split_colour_fields.get_mut(&colour_index) {
+                                        Some(colour_pack) => { colour_pack.insert(colour_channel, data); }
+                                        None => {
+                                            let mut colour_pack = HashMap::new();
+                                            colour_pack.insert(colour_channel, data);
+                                            split_colour_fields.insert(colour_index, colour_pack);
+                                        }
+                                    }
                                 }
                             }
                         }
 
                         else {
-                            decoded_row.push(data);
+                            row_values.push_str(data + ",");
                         }
                     },
                     Err(error) => if return_incomplete { return Err(ErrorKind::TableIncompleteError(format!("{}", error), serialize(self)?).into()) }
@@ -677,18 +946,25 @@ impl Table {
                     colour_hex.push_str(&format!("{:02X?}", b));
                 }
 
-                if let Ok(value) = u32::from_str_radix(&colour_hex, 16) {
-                    decoded_row.push(DecodedData::ColourRGB(value));
+                if u32::from_str_radix(&colour_hex, 16).is_ok() {
+                    row_values.push_str(&(colour_hex + ","));
                 } else {
-                    return Err(ErrorKind::Generic.into());
+                    return Err(anyhow!("Error decoding combined colour."));
                 }
             }
 
-            self.entries.push(decoded_row);
-        }
-        Ok(())
-    }
+            row_values.pop();
+            row_values.push_str("),");
 
+            query.push_str(&row_values);
+        }
+
+        // Remove the last comma, and set it so it replaces duplicates.
+        query.pop();
+
+        Ok(query)
+    }*/
+/*
     /// This function encodes all the fields of a table to raw bytes.
     fn encode(&self, mut packed_file: &mut Vec<u8>) -> Result<()> {
         let fields = self.definition.get_ref_fields();
@@ -1410,7 +1686,7 @@ impl Table {
 
         writer.flush().map_err(From::from)
     }
-
+    */
     /// This function escapes certain characters of the provided string.
     fn escape_special_chars(data: &str)-> String {
          let mut output = Vec::with_capacity(data.len() + 10);
@@ -1429,7 +1705,7 @@ impl Table {
          data.replace("\\\\t", "\t").replace("\\\\n", "\n")
     }
 }
-
+/*
 /// Implementation of `From<&RawTable>` for `Table`.
 impl From<&RawTable> for Table {
     fn from(raw_table: &RawTable) -> Self {
@@ -1479,3 +1755,4 @@ impl From<&RawTable> for Table {
         }
     }
 }
+*/

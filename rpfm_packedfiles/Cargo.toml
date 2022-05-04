@@ -18,9 +18,9 @@ default = []
 doctest = false
 
 [dependencies]
+
 # Internal dependencies.
 rpfm_common = { path = "../rpfm_common" }
-rpfm_macros = { path = "../rpfm_macros" }
 
 # Error handling.
 anyhow = "^1.0"
@@ -96,4 +96,7 @@ os_info = "^3.0"
 log = { version = "^0.4", features = ["std"] }
 simplelog = "^0.11"
 sentry = { version = "^0.25", features = ["log"] }
+
+# SQLite support
+rusqlite = { version = "^0.27", features = ["blob"] }
 

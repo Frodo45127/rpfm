@@ -39,7 +39,7 @@ pub trait Decoder {
     /// This function returns an slice after his bounds have been checked, to avoid `index-out-of-range` errors.
     ///
     /// You must provide an slice to read from, the position of the first byte you want to read, and the amount of bytes to read.
-    fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&Self>;
+    fn decode_bytes_checked(&self, offset: usize, size: usize) -> Result<&Self>;
 
     /// This function allows us to decode a boolean from a byte. This is simple: 0 is false, 1 is true. It only uses a byte.
     fn decode_bool(&self, offset: usize) -> Result<bool>;
@@ -149,6 +149,15 @@ pub trait Decoder {
     /// This function allows us to decode an i64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_i64(&self, offset: usize, index: &mut usize) -> Result<i64>;
 
+    /// This function allows us to decode an optional i16 integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_optional_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16>;
+
+    /// This function allows us to decode an optional i32 encoded integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_optional_integer_i32(&self, offset: usize, index: &mut usize) -> Result<i32>;
+
+    /// This function allows us to decode an optional i64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_optional_integer_i64(&self, offset: usize, index: &mut usize) -> Result<i64>;
+
     /// This function allows us to decode an f32 encoded float from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_float_f32(&self, offset: usize, index: &mut usize) -> Result<f32>;
 
@@ -186,7 +195,7 @@ pub trait Decoder {
 /// Implementation of trait `Decoder` for `&[u8]`.
 impl Decoder for [u8] {
 
-    fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&[u8]> {
+    fn decode_bytes_checked(&self, offset: usize, size: usize) -> Result<&[u8]> {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
             if self.get(size - 1).is_some() { Ok(&self[offset..offset + size]) }
@@ -433,6 +442,35 @@ impl Decoder for [u8] {
         result
     }
 
+    fn decode_packedfile_optional_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16> {
+        let result = self.decode_bool(offset);
+        if result.is_ok() { *index += 1; }
+
+        let result = self.decode_integer_i16(offset);
+        if result.is_ok() { *index += 2; }
+        result
+
+    }
+
+    fn decode_packedfile_optional_integer_i32(&self, offset: usize, index: &mut usize) -> Result<i32> {
+        let result = self.decode_bool(offset);
+        if result.is_ok() { *index += 1; }
+
+        let result = self.decode_integer_i32(offset);
+        if result.is_ok() { *index += 4; }
+        result
+
+    }
+
+    fn decode_packedfile_optional_integer_i64(&self, offset: usize, index: &mut usize) -> Result<i64> {
+        let result = self.decode_bool(offset);
+        if result.is_ok() { *index += 1; }
+
+        let result = self.decode_integer_i64(offset);
+        if result.is_ok() { *index += 8; }
+        result
+    }
+
     fn decode_packedfile_float_f32(&self, offset: usize, index: &mut usize) -> Result<f32> {
         let result = self.decode_float_f32(offset);
         if result.is_ok() { *index += 4; }
@@ -458,7 +496,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(anyhow!("Error trying to decode an UTF-8 String:Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
+            Err(anyhow!("Error trying to decode an UTF-8 String: Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
         }
     }
 
@@ -479,7 +517,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(anyhow!("Error trying to decode an UTF-16 String:Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
+            Err(anyhow!("Error trying to decode an UTF-16 String: Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
         }
     }
 
@@ -491,7 +529,7 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else{ Err(anyhow!("Error trying to decode an UTF-8 Optional String:The first byte is not a boolean.")) }
+        else{ Err(anyhow!("Error trying to decode an UTF-8 Optional String: The first byte is not a boolean.")) }
     }
 
     fn decode_packedfile_optional_string_u16(&self, offset: usize, index: &mut usize) -> Result<String> {
@@ -502,7 +540,7 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else { Err(anyhow!("Error trying to decode an UTF-16 Optional String:The first byte is not a boolean.")) }
+        else { Err(anyhow!("Error trying to decode an UTF-16 Optional String: The first byte is not a boolean.")) }
     }
 
     fn decode_packedfile_string_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<String> {
