@@ -162,7 +162,7 @@ impl DB {
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
         if packed_file_data.len() < 5 {
-            return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted."))
+            return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted."));
         }
 
         // Create the index that we'll use to decode the entire table.

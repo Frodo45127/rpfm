@@ -15,21 +15,16 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
+use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::Path;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::*};
 
-use crate::common::{decoder::Decoder, encoder::Encoder};
-use crate::packedfile::Dependencies;
-use super::DecodedData;
-use super::Table;
-
-use crate::SCHEMA;
-use crate::schema::*;
+use crate::{Decodeable, PackedFileType, table::Table};
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -45,6 +40,8 @@ pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
 /// Extension used by Loc PackedFiles.
 pub const EXTENSION: &str = ".loc";
+
+const ERROR_NOT_A_LOC: &str = "This is either not a Loc Table, or it's a Loc Table but it's corrupted.";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -62,16 +59,47 @@ pub struct Loc {
 //                           Implementation of Loc
 //---------------------------------------------------------------------------//
 
+
+impl Decodeable for Loc {
+
+    fn file_type(&self) -> PackedFileType {
+        PackedFileType::Loc
+    }
+
+    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let (_, table_name, _) = extra_data.ok_or(anyhow!("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files."))?;
+
+        let (version, entry_count) = Self::read_header(packed_file_data)?;
+
+        // Then try to decode all the entries.
+        let mut index = HEADER_SIZE as usize;
+        let definition = Definition::new(version);
+
+        let table_data = Table::decode_table(&definition, packed_file_data, Some(entry_count), &mut index, false)?;
+        let table = Table::new(&definition, table_name);
+
+        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
+        if index != packed_file_data.len() {
+            return Err(anyhow!("This PackedFile's reported size is '{}' bytes, but we expected it to be '{}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.", packed_file_data.len(), index));
+        }
+
+        // If we've reached this, we've successfully decoded the table.
+        Ok(Self {
+            table,
+        })
+    }
+}
+
 /// Implementation of `Loc`.
 impl Loc {
 
     /// This function creates a new empty `Loc` .
-    pub fn new(definition: &Definition) -> Self {
+    pub fn new(definition: &Definition, table_name: &str) -> Self {
         Self {
-        	table: Table::new(definition),
+            table: Table::new(definition, table_name),
         }
     }
-
+    /*
     /// This function returns if the provided data corresponds to a LOC Table or not.
     pub fn is_loc(data: &[u8]) -> bool {
         if data.len() < HEADER_SIZE { return false }
@@ -159,22 +187,30 @@ impl Loc {
             table,
         })
     }
-
+    */
     /// This function tries to read the header of a Loc PackedFile from raw data.
     pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
-        if packed_file_data.len() < HEADER_SIZE { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        if packed_file_data.len() < HEADER_SIZE {
+            return Err(anyhow!(ERROR_NOT_A_LOC))
+        }
 
         // More checks to ensure this is a valid Loc PAckedFile.
-        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
-        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? {
+            return Err(anyhow!(ERROR_NOT_A_LOC))
+        }
+
+        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? {
+            return Err(anyhow!(ERROR_NOT_A_LOC))
+        }
+
         let version = packed_file_data.decode_integer_i32(6)?;
         let entry_count = packed_file_data.decode_integer_u32(10)?;
 
         Ok((version, entry_count))
     }
-
+/*
     /// This function takes a `Loc` and encodes it to `Vec<u8>`.
     pub fn save(&self) -> Result<Vec<u8>> {
 
@@ -284,9 +320,9 @@ impl Loc {
         file_path: &[String],
     ) -> Result<()> {
         self.table.export_tsv(path, table_name, file_path)
-    }
+    }*/
 }
-
+/*
 /// Implementation to create a `Loc` from a `Table`.
 impl From<Table> for Loc {
     fn from(table: Table) -> Self {
@@ -295,3 +331,4 @@ impl From<Table> for Loc {
         }
     }
 }
+*/

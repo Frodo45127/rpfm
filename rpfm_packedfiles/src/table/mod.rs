@@ -17,11 +17,11 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 use anyhow::{anyhow, Result};
 use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
-use rusqlite::blob::Blob;
+use rpfm_common::schema::patch::SchemaPatches;
+use rusqlite::{blob::Blob, Connection, params_from_iter};
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -49,10 +49,7 @@ pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
     definition: Definition,
-
-    /// The name this table has in the SQLite instance currently running.
     table_name: String,
-
     table_unique_id: u64,
 }
 
@@ -97,6 +94,7 @@ pub struct DependencyData {
 //----------------------------------------------------------------//
 // Implementations for `DecodedData`.
 //----------------------------------------------------------------//
+
 /*
 /// Display implementation of `DecodedData`.
 impl Display for DecodedData {
@@ -398,6 +396,41 @@ impl Table {
         }
     }
 
+    pub fn insert(&self, connection: Connection, data: &[Vec<DecodedData>], key_first: bool) {
+        let mut params = vec![];
+        let values = data.iter().map(|row| {
+            format!("({})", row.iter().map(|field| {
+                match field {
+                    DecodedData::Boolean(data) => if *data { "1".to_owned() } else { "0".to_owned() },
+                    DecodedData::F32(data) => format!("{:.4}", data),
+                    DecodedData::F64(data) => format!("{:.4}", data),
+                    DecodedData::I16(data) => data.to_string(),
+                    DecodedData::I32(data) => data.to_string(),
+                    DecodedData::I64(data) => data.to_string(),
+                    DecodedData::ColourRGB(data) => data.to_owned(),
+                    DecodedData::StringU8(data) => data.to_owned(),
+                    DecodedData::StringU16(data) => data.to_owned(),
+                    DecodedData::OptionalI16(data) => data.to_string(),
+                    DecodedData::OptionalI32(data) => data.to_string(),
+                    DecodedData::OptionalI64(data) => data.to_string(),
+                    DecodedData::OptionalStringU8(data) => data.to_owned(),
+                    DecodedData::OptionalStringU16(data) => data.to_owned(),
+                    DecodedData::SequenceU16(data) => {
+                        params.push(data.to_vec());
+                        "?".to_owned()
+                    },
+                    DecodedData::SequenceU32(data) => {
+                        params.push(data.to_vec());
+                        "?".to_owned()
+                    },
+                }
+            }).collect::<Vec<_>>().join(","))
+        }).collect::<Vec<_>>().join(",");
+
+        let query = format!("INSERT OR REPLACE INTO {}_v{} {} VALUES {}", self.table_name, self.definition().version(), self.definition().map_to_sql_insert_into_string(key_first), values);
+
+        connection.execute(&query, params_from_iter(params.iter()));
+    }
     /*
 
     /// This function returns a copy of the definition of this Table.

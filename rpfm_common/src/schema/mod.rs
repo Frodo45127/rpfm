@@ -478,20 +478,29 @@ impl Definition {
     }
 
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
-    pub fn map_to_sql_string(&self, key_first: bool, table_name: &str, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
+    pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
         let fields_sorted = self.fields_processed_sorted(key_first);
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(Some(table_name), game_key, schema_patches)).collect::<Vec<_>>().join(",");
 
-        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"source\", {})", fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(","));
+        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(","));
         let foreign_keys = fields_sorted.iter()
             .filter_map(|field| field.is_reference().clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
             .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{} FOREIGN KEY (\"{}\") REFERENCES {}(\"{}\") ON UPDATE CASCADE ON DELETE CASCADE", table_name, loc_name, ref_table, ref_field))
             .collect::<Vec<_>>()
             .join(",");
 
-        let create_table_query = format!("CREATE TABLE {}_v{} (source INTEGER DEFAULT 0, table_unique_id INTEGER DEFAULT 0, {}, {}, {})", table_name, self.version(), fields_query, local_keys, foreign_keys);
+        let create_table_query = format!("CREATE TABLE {}_v{} (table_unique_id INTEGER DEFAULT 0, {}, {}, {})", table_name, self.version(), fields_query, local_keys, foreign_keys);
 
         create_table_query
+    }
+
+    /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    pub fn map_to_sql_insert_into_string(&self, key_first: bool) -> String {
+        let fields_sorted = self.fields_processed_sorted(key_first);
+        let fields_query = fields_sorted.iter().map(|field| format!("\"{}\"", field.name())).collect::<Vec<_>>().join(",");
+        let fields_query = format!("(\"table_unique_id\", {})", fields_query);
+
+        fields_query
     }
 /*
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.

@@ -46,6 +46,7 @@ pub mod ca_vp8;
 pub mod db;
 pub mod esf;
 pub mod image;
+pub mod loc;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
