@@ -37,8 +37,8 @@ pub const EXTENSION: &str = ".animpack";
 
 /// This holds an entire AnimPack PackedFile decoded in memory.
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct AnimPack {
-    files: HashMap<String, AnimPacked>,
+pub struct AnimPack<T: Decodeable> {
+    files: HashMap<String, RFile<T>>,
 }
 
 /// This holds a PackedFile from inside an AnimPack in memory.
@@ -53,7 +53,7 @@ pub struct AnimPacked {
 //---------------------------------------------------------------------------//
 
 /// Implementation of `AnimPack`.
-impl AnimPack {
+impl<T: Decodeable> AnimPack<T> {
 /*
     /// This function returns the entire list of paths contained within the provided AnimPack.
     pub fn get_file_list(&self) -> Vec<String> {
@@ -214,17 +214,17 @@ impl From<&AnimPacked> for PackedFileInfo {
     }*/
 }
 
-impl Decodeable for AnimPack {
+impl<T: Decodeable> Decodeable for AnimPack<T> {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::AnimPack
+    fn file_type(&self) -> FileType {
+        FileType::AnimPack
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         let mut index = 0;
 
         let file_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
-        let mut files = if file_count < 500_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() };
+        let mut files: HashMap<String, RFile<T>> = if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() };
 
         for _ in 0..file_count {
             let path = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
@@ -232,7 +232,13 @@ impl Decodeable for AnimPack {
             let data = packed_file_data.decode_bytes_checked(index,  byte_count)?.to_vec();
             index += byte_count;
 
-            files.insert(path.to_owned(), AnimPacked{path, data});
+            let file = RFile {
+                path: path.to_owned(),
+                timestamp: None,
+                data: RFileInnerData::Catched(data),
+            };
+
+            files.insert(path, file);
         }
 
         // If we've reached this, we've successfully decoded the entire AnimPack.
@@ -242,16 +248,16 @@ impl Decodeable for AnimPack {
     }
 }
 
-impl Encodeable for AnimPack {
+impl<T: Decodeable> Encodeable for AnimPack<T> {
     fn encode(&self) -> Vec<u8> {
         let mut data = vec![];
         data.encode_integer_u32(self.files.len() as u32);
 
         // TODO: check if sorting is needed.
-        for packed_file in self.files.values() {
-            data.encode_packedfile_string_u8(&packed_file.path);
-            data.encode_integer_u32(packed_file.data.len() as u32);
-            data.extend_from_slice(&packed_file.data);
+        for file in self.files.values() {
+            data.encode_packedfile_string_u8(&file.path_raw());
+            data.encode_integer_u32(file.data().len() as u32);
+            data.extend_from_slice(&file.data());
         }
 
         data
@@ -259,10 +265,9 @@ impl Encodeable for AnimPack {
 }
 
 
-impl Container for AnimPack {
-    type T = AnimPacked;
+impl<T: Decodeable> Container<T> for AnimPack<T> {
 
-    fn insert(&mut self, file: Self::T) -> ContainerPath {
+    fn insert(&mut self, file: RFile<T>) -> ContainerPath {
         let path = file.path();
         let path_raw = file.path_raw();
         self.files.insert(path_raw.to_owned(), file);
@@ -291,7 +296,7 @@ impl Container for AnimPack {
         }
     }
 
-    fn files(&self, path: &ContainerPath) -> Vec<&Self::T> {
+    fn files(&self, path: &ContainerPath) -> Vec<&RFile<T>> {
         match path {
             ContainerPath::File(path) => {
                 match self.files.get(path) {
@@ -303,7 +308,7 @@ impl Container for AnimPack {
                 self.files.par_iter()
                     .filter_map(|(key, file)|
                         if key.starts_with(path) { Some(file) } else { None }
-                    ).collect::<Vec<&Self::T>>()
+                    ).collect::<Vec<&RFile<T>>>()
             },
             ContainerPath::FullContainer => {
                 self.files.values().collect()
@@ -317,17 +322,5 @@ impl Container for AnimPack {
 
     fn paths_raw(&self) -> Vec<&str> {
         self.files.par_iter().map(|(path, _)| &**path).collect()
-    }
-}
-
-impl Containerizable for AnimPacked {
-    fn data(&self) -> &[u8] {
-        &self.data
-    }
-    fn path(&self) -> ContainerPath {
-        ContainerPath::File(self.path.to_owned())
-    }
-    fn path_raw(&self) -> &str {
-        &self.path
     }
 }

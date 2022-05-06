@@ -18,7 +18,7 @@ use anyhow::Result;
 
 use rpfm_common::{rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, PackedFileType};
+use crate::{Decodeable, Encodeable, FileType};
 
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
 #[allow(dead_code)]
@@ -43,8 +43,8 @@ pub struct RigidModel {
 
 impl Decodeable for RigidModel {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::RigidModel
+    fn file_type(&self) -> FileType {
+        FileType::RigidModel
     }
 
     fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {

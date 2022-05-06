@@ -18,7 +18,7 @@ use anyhow::{anyhow, Result};
 
 use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, PackedFileType};
+use crate::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "VRNT";
 
@@ -92,11 +92,11 @@ impl UnitVariant {
 
 impl Decodeable for UnitVariant {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::UnitVariant
+    fn file_type(&self) -> FileType {
+        FileType::UnitVariant
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
 
         let mut index = SIGNATURE.len();
         let (version, categories_count, unknown_1) = Self::read_header(packed_file_data, &mut index)?;

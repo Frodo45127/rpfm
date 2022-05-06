@@ -18,8 +18,10 @@ Basically, if you need a function, but it's kinda a generic function, it goes he
 pub use rpfm_macros;
 pub use rpfm_logging;
 
+pub mod compression;
 pub mod decoder;
 pub mod encoder;
+pub mod encryption;
 pub mod games;
 pub mod integrations;
 pub mod schema;

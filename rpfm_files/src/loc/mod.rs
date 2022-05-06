@@ -18,13 +18,13 @@ They're just tables with a key, a text, and a boolean column.
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BTreeMap};
 use std::collections::HashSet;
 use std::path::Path;
 
 use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::*};
 
-use crate::{Decodeable, PackedFileType, table::Table};
+use crate::{Decodeable, FileType, table::Table};
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -62,8 +62,8 @@ pub struct Loc {
 
 impl Decodeable for Loc {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::Loc
+    fn file_type(&self) -> FileType {
+        FileType::Loc
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
@@ -73,7 +73,14 @@ impl Decodeable for Loc {
 
         // Then try to decode all the entries.
         let mut index = HEADER_SIZE as usize;
-        let definition = Definition::new(version);
+
+        // TODO: Move this to its own function.
+        let mut definition = Definition::new(version);
+        let mut fields = Vec::with_capacity(3);
+        fields.push(Field::new("key".to_owned(), FieldType::StringU16, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("text".to_owned(), FieldType::StringU16, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        definition.set_fields(fields);
 
         let table_data = Table::decode_table(&definition, packed_file_data, Some(entry_count), &mut index, false)?;
         let table = Table::new(&definition, table_name);

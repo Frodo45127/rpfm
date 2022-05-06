@@ -17,9 +17,13 @@ you can find in a `PackFile`. Here, you can find some generic enums used by the 
 For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
 !*/
 
+
 use anyhow::Result;
 
-use rpfm_common::schema::Schema;
+use std::fmt::Debug;
+
+use rpfm_common::{games::pfh_version::PFHVersion, schema::Schema};
+use rpfm_macros::*;
 
 /*
 use std::convert::TryFrom;
@@ -47,6 +51,7 @@ pub mod db;
 pub mod esf;
 pub mod image;
 pub mod loc;
+//pub mod pack;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -56,6 +61,40 @@ pub mod unit_variant;
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RFile<T: Decodeable> {
+    path: String,
+    timestamp: Option<i64>,
+    data: RFileInnerData<T>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RFileInnerData<T: Decodeable> {
+    Decoded(T),
+    Catched(Vec<u8>),
+    OnDisk(OnDisk)
+
+}
+
+/// This struct contains the stuff needed to read the data of a particular PackedFile from disk.
+#[derive(Clone, Debug, PartialEq, GetRef)]
+pub struct OnDisk {
+
+    /// Reader over the PackFile containing the PackedFile.
+    path: String,
+    start: u64,
+    size: u32,
+    is_compressed: bool,
+    is_encrypted: Option<PFHVersion>,
+
+    /// Last Modified Date on disk of the PackFile containing this PackedFile.
+    last_modified_date_pack: i64,
+}
+
+
+
+
 /*
 /// This enum represents a ***decoded `PackedFile`***,
 ///
@@ -85,7 +124,7 @@ pub enum DecodedPackedFile {
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PackedFileType {
+pub enum FileType {
     Anim,
     AnimFragment,
     AnimPack,
@@ -124,8 +163,8 @@ pub enum ContainerPath {
 //                           Trait Definitions
 //---------------------------------------------------------------------------//
 
-pub trait Decodeable {
-    fn file_type(&self) -> PackedFileType;
+pub trait Decodeable: Send + Sync {
+    fn file_type(&self) -> FileType;
     fn decode(data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> where Self: Sized;
 }
 
@@ -133,19 +172,29 @@ pub trait Encodeable {
     fn encode(&self) -> Vec<u8>;
 }
 
-pub trait Container {
-    type T: Containerizable;
-    fn insert(&mut self, file: Self::T) -> ContainerPath;
+pub trait Container<T: Decodeable> {
+    fn insert(&mut self, file: RFile<T>) -> ContainerPath;
     fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath>;
-    fn files(&self, path: &ContainerPath) -> Vec<&Self::T>;
+    fn files(&self, path: &ContainerPath) -> Vec<&RFile<T>>;
     fn paths(&self) -> Vec<ContainerPath>;
     fn paths_raw(&self) -> Vec<&str>;
 }
 
-pub trait Containerizable {
-    fn data(&self) -> &[u8];
-    fn path(&self) -> ContainerPath;
-    fn path_raw(&self) -> &str;
+
+impl<T: Decodeable> RFile<T> {
+    pub fn data(&self) -> &[u8] {
+        match &self.data {
+            RFileInnerData::Decoded(_) => todo!(),
+            RFileInnerData::Catched(data) => data,
+            RFileInnerData::OnDisk(_) => todo!(),
+        }
+    }
+    pub fn path(&self) -> ContainerPath {
+        ContainerPath::File(self.path.to_owned())
+    }
+    pub fn path_raw(&self) -> &str {
+        &self.path
+    }
 }
 /*
 //----------------------------------------------------------------//

@@ -43,4 +43,7 @@ rayon = "^1.3"
 indexmap = "^1.5"
 
 # SQLite support
-rusqlite = "0.27.0"
+rusqlite = "^0.27"
+
+# Compression support.
+xz2 = "^0.1"

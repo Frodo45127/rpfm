@@ -22,7 +22,7 @@ use std::{fmt, fmt::Display};
 
 use rpfm_common::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, PackedFileType};
+use crate::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CEO/ESF PackedFiles.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];
@@ -545,8 +545,8 @@ impl From<&str> for ESFSignature {
 
 impl Decodeable for ESF {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::ESF
+    fn file_type(&self) -> FileType {
+        FileType::ESF
     }
 
     fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {

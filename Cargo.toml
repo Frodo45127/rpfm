@@ -2,10 +2,9 @@
 [workspace]
 members = [
     "rpfm_macros",
-    "rpfm_mod_checker",
     "rpfm_logging",
-    "rpfm_packedfiles",
     "rpfm_common",
+    "rpfm_files",
 ]
 
 [profile.dev]

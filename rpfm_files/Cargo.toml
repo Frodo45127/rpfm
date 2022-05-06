@@ -1,5 +1,5 @@
 [package]
-name = "rpfm_packedfiles"
+name = "rpfm_files"
 version = "3.0.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
@@ -21,6 +21,7 @@ doctest = false
 
 # Internal dependencies.
 rpfm_common = { path = "../rpfm_common" }
+rpfm_macros = { path = "../rpfm_macros" }
 
 # Error handling.
 anyhow = "^1.0"

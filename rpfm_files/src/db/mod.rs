@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 
 use rpfm_common::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, PackedFileType, table::Table};
+use crate::{Decodeable, FileType, table::Table};
 
 /// If this sequence is found, the DB Table has a GUID after it.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -81,8 +81,8 @@ pub struct CascadeEdition {
 
 impl Decodeable for DB {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::DB
+    fn file_type(&self) -> FileType {
+        FileType::DB
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {

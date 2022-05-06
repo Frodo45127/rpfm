@@ -26,7 +26,7 @@ use fraction::GenericFraction;
 
 use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, PackedFileType};
+use crate::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CA_VP8 PackedFiles.
 pub const EXTENSION: &str = ".ca_vp8";
@@ -313,8 +313,8 @@ impl CaVp8 {
 
 impl Decodeable for CaVp8 {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::CaVp8
+    fn file_type(&self) -> FileType {
+        FileType::CaVp8
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {

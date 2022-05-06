@@ -18,7 +18,7 @@ They have no extension (mostly), and I heard they're a pain in the ass to work w
 use anyhow::Result;
 
 use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::Schema};
-use crate::{Decodeable, Encodeable, PackedFileType};
+use crate::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "Version";
 const VERSION_SIZE: usize = 3;
@@ -64,11 +64,11 @@ impl UIC {
 
 impl Decodeable for UIC {
 
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::UIC
+    fn file_type(&self) -> FileType {
+        FileType::UIC
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         let version = Self::read_header(packed_file_data)?;
 
         // If we've reached this, we've successfully decoded the entire UI.

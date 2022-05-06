@@ -18,7 +18,7 @@ use anyhow::Result;
 
 use rpfm_common::schema::Schema;
 
-use crate::{Decodeable, PackedFileType};
+use crate::{Decodeable, FileType};
 
 /// Extensions used by Image PackedFiles.
 pub const EXTENSIONS: [&str; 5] = [
@@ -56,8 +56,8 @@ impl Image {
 
 /// Implementation of Decodeable for `Image` PackedFile Type.
 impl Decodeable for Image {
-    fn file_type(&self) -> PackedFileType {
-        PackedFileType::Image
+    fn file_type(&self) -> FileType {
+        FileType::Image
     }
 
     /// This function creates a `Image` from a `Vec<u8>`.
