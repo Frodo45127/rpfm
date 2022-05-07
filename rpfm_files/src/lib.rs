@@ -19,8 +19,9 @@ For encoding/decoding/proper manipulation of the data in each type of `PackedFil
 
 
 use anyhow::Result;
+use rayon::prelude::*;
 
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use rpfm_common::{games::pfh_version::PFHVersion, schema::Schema};
 use rpfm_macros::*;
@@ -51,7 +52,7 @@ pub mod db;
 pub mod esf;
 pub mod image;
 pub mod loc;
-//pub mod pack;
+pub mod pack;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -173,11 +174,77 @@ pub trait Encodeable {
 }
 
 pub trait Container<T: Decodeable> {
+    /*
     fn insert(&mut self, file: RFile<T>) -> ContainerPath;
     fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath>;
-    fn files(&self, path: &ContainerPath) -> Vec<&RFile<T>>;
+    fn files(&self) -> &HashMap<String, RFile<T>>;
+    fn files_mut(&mut self) -> &mut HashMap<String, RFile<T>>;
+    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile<T>>;
     fn paths(&self) -> Vec<ContainerPath>;
-    fn paths_raw(&self) -> Vec<&str>;
+    fn paths_raw(&self) -> Vec<&str>;*/
+
+    fn insert(&mut self, file: RFile<T>) -> ContainerPath {
+        let path = file.path();
+        let path_raw = file.path_raw();
+        self.files_mut().insert(path_raw.to_owned(), file);
+        path
+    }
+
+    fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath> {
+        match path {
+            ContainerPath::File(path) => {
+                self.files_mut().remove(path);
+                return vec![ContainerPath::File(path.to_owned())];
+            },
+            ContainerPath::Folder(path) => {
+                let paths_to_remove = self.files().par_iter()
+                    .filter_map(|(key, _)| if key.starts_with(path) { Some(key.to_owned()) } else { None }).collect::<Vec<String>>();
+
+                paths_to_remove.iter().for_each(|path| {
+                    self.files_mut().remove(path);
+                });
+                return paths_to_remove.par_iter().map(|path| ContainerPath::File(path.to_string())).collect();
+            },
+            ContainerPath::FullContainer => {
+                self.files_mut().clear();
+                return vec![ContainerPath::FullContainer];
+            },
+        }
+    }
+
+    fn files(&self) -> &HashMap<std::string::String, RFile<T>>;
+    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile<T>>;
+
+    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile<T>> {
+        match path {
+            ContainerPath::File(path) => {
+                match self.files().get(path) {
+                    Some(file) => vec![file],
+                    None => vec![],
+                }
+            },
+            ContainerPath::Folder(path) => {
+                self.files().par_iter()
+                    .filter_map(|(key, file)|
+                        if key.starts_with(path) { Some(file) } else { None }
+                    ).collect::<Vec<&RFile<T>>>()
+            },
+            ContainerPath::FullContainer => {
+                self.files().values().collect()
+            },
+        }
+    }
+
+    fn paths(&self) -> Vec<ContainerPath> {
+        self.files().par_iter().map(|(path, _)| ContainerPath::File(path.to_owned())).collect()
+    }
+
+    fn paths_raw(&self) -> Vec<String> {
+        self.files()
+            .par_iter()
+            .map(|(path, _)| path.to_owned())
+            .collect()
+    }
 }
 
 

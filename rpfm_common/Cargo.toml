@@ -22,6 +22,7 @@ csv = "^1.1"
 
 # Error handling.
 anyhow = "^1.0"
+thiserror = "1.0"
 
 # Decoding/Encoding support.
 byteorder = "^1.3"

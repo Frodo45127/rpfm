@@ -92,3 +92,10 @@ impl Display for PFHFileType {
         }
     }
 }
+
+/// Implementation of trait `Default` for `PFHFileType`.
+impl Default for PFHFileType {
+    fn default() -> Self {
+        Self::Mod
+    }
+}

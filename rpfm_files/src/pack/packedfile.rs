@@ -30,7 +30,7 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_common::{compression::*, schema::Schema, utils::*};
 use rpfm_macros::*;
-use rpfm_packedfile::{db::DB, loc::Loc, PackedFileType};
+use rpfm_files::{db::DB, loc::Loc, PackedFileType};
 
 use crate::*;
 //use crate::packedfile::animpack::AnimPacked;

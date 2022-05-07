@@ -10,9 +10,9 @@
 
 // Here should go all the functions related to the compression/decompression of PackedFiles.
 
-use anyhow::{anyhow, Result};
-use xz2::read::XzDecoder;
-use xz2::stream::Stream;
+use anyhow::Result;
+use thiserror::Error;
+use xz2::{read::XzDecoder, stream::Stream};
 
 use std::env::temp_dir;
 use std::fs::File;
@@ -21,10 +21,13 @@ use std::path::Path;
 use std::process::Command;
 use std::u64;
 
+#[derive(Error, Debug)]
+pub enum DecompressibleError {
+    #[error("This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.")]
+    DataCannotBeDecompressed
+}
+
 use crate::{decoder::Decoder, encoder::Encoder};
-
-const DATA_CANNOT_BE_DECOMPRESSED: &str = "This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.";
-
 
 pub trait Compressible {
 
@@ -87,30 +90,29 @@ impl Compressible for [u8] {
 impl Decompressible for &[u8] {
 
     fn decompress(&self) -> Result<Vec<u8>> {
-        if !self.is_empty() {
-            if self.len() >= 9 {
-
-                // CA Tweaks their headers to remove 4 bytes per PackedFile, while losing +4GB File Compression Support.
-                // We need to fix their headers so the normal LZMA lib can read them.
-                let mut fixed_data: Vec<u8> = vec![];
-                fixed_data.extend_from_slice(&self[4..8]);
-                fixed_data.push(0);
-                fixed_data.extend_from_slice(&self[0..4]);
-                fixed_data.extend_from_slice(&[0; 4]);
-                fixed_data.extend_from_slice(&self[9..]);
-
-                // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
-                // with default settings with 7-Zip. This should do the trick to get them decoded.
-                let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| anyhow!(DATA_CANNOT_BE_DECOMPRESSED))?;
-                let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
-                let mut compress_data = vec![];
-                match encoder.read_to_end(&mut compress_data) {
-                    Ok(_) => Ok(compress_data),
-                    Err(_) => Err(anyhow!(DATA_CANNOT_BE_DECOMPRESSED))
-                }
-            }
-            else { Err(anyhow!(DATA_CANNOT_BE_DECOMPRESSED)) }
+        if self.is_empty() {
+            return Ok(vec![]);
         }
-        else { Ok(vec![]) }
+
+        if self.len() < 9 {
+            return Err(DecompressibleError::DataCannotBeDecompressed.into());
+        }
+
+        // CA Tweaks their headers to remove 4 bytes per PackedFile, while losing +4GB File Compression Support.
+        // We need to fix their headers so the normal LZMA lib can read them.
+        let mut fixed_data: Vec<u8> = vec![];
+        fixed_data.extend_from_slice(&self[4..8]);
+        fixed_data.push(0);
+        fixed_data.extend_from_slice(&self[0..4]);
+        fixed_data.extend_from_slice(&[0; 4]);
+        fixed_data.extend_from_slice(&self[9..]);
+
+        // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
+        // with default settings with 7-Zip. This should do the trick to get them decoded.
+        let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| DecompressibleError::DataCannotBeDecompressed)?;
+        let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
+        let mut compress_data = vec![];
+        encoder.read_to_end(&mut compress_data)?;
+        Ok(compress_data)
     }
 }

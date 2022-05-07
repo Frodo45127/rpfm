@@ -37,12 +37,17 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_common::{compression::*, decoder::Decoder, encoder::Encoder, schema::Schema, utils::*};
 use rpfm_macros::*;
+use rpfm_common::games::pfh_version::PFHVersion;
+use rpfm_common::games::pfh_file_type::PFHFileType;
+use crate::RFile;
 
-use crate::PackedFileType;
+use crate::FileType;
+use crate::Decodeable;
+use crate::Container;
 use crate::table::DecodedData;
 use crate::db::DB;
 use crate::loc::{Loc, TSV_NAME_LOC};
-use crate::pack::packedfile::PackedFile;
+//use crate::pack::packedfile::PackedFile;
 use crate::text::TextType;
 
 //use crate::GAME_SELECTED;
@@ -51,7 +56,7 @@ use crate::text::TextType;
 //use crate::dependencies::Dependencies;
 
 
-pub mod packedfile;
+//pub mod packedfile;
 
 #[cfg(test)]
 mod packfile_test;
@@ -126,7 +131,7 @@ bitflags! {
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PackFile {
+pub struct Pack<T: Decodeable> {
 
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
     file_path: PathBuf,
@@ -161,7 +166,7 @@ pub struct PackFile {
     pack_files: Vec<String>,
 
     /// The list of PackedFiles this PackFile contains.
-    packed_files: Vec<PackedFile>,
+    files: HashMap<String, RFile<T>>,
 
     /// Notes added to the PackFile. Exclusive of this lib.
     notes: Option<String>,
@@ -192,116 +197,10 @@ pub struct PackFileInfo {
     pub bitmask: PFHFlags,
 
     /// The current state of the compression inside the PackFile.
-    pub compression_state: CompressionState,
+    pub compression_state: bool,
 
     /// The timestamp of the last time the PackFile was saved.
     pub timestamp: i64,
-}
-
-/// This struct represents the entire **Manifest.txt** from the /data folder.
-///
-/// Private for now, because I see no public use for this.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Manifest(pub Vec<ManifestEntry>);
-
-/// This struct represents a Manifest Entry.
-#[derive(Default, Debug, GetRef, Serialize, Deserialize)]
-pub struct ManifestEntry {
-
-    /// The path of the file, relative to /data.
-    relative_path: String,
-
-    /// The size in bytes of the file.
-    size: u64,
-
-    /// If the file comes with the base game (1), or with one of its dlc (0). Not in all games.
-    belongs_to_base_game: Option<u8>,
-}
-
-/// This enum represents the **Version** of a PackFile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PFHVersion {
-
-    /// Used in Troy since patch 1.3.0 for mods.
-    PFH6,
-
-    /// Used in Warhammer 2, Three Kingdoms and Arena.
-    PFH5,
-
-    /// Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
-    PFH4,
-
-    /// Used in Shogun 2.
-    PFH3,
-
-    /// Also used in Shogun 2.
-    PFH2,
-
-    /// Used in Napoleon and Empire.
-    PFH0
-}
-
-/// This enum represents the **Type** of a PackFile.
-///
-/// The types here are sorted in the same order they'll load when the game starts.
-/// The number in their docs is their numeric value when read from a PackFile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PFHFileType {
-
-    /// **(0)**: Used in CA PackFiles, not useful for modding.
-    Boot,
-
-    /// **(1)**: Used in CA PackFiles, not useful for modding.
-    Release,
-
-    /// **(2)**: Used in CA PackFiles, not useful for modding.
-    Patch,
-
-    /// **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
-    Mod,
-
-    /// **(4)** Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
-    Movie,
-
-    /// Wildcard for any type that doesn't fit in any of the other categories. The type's value is stored in the Variant.
-    Other(u32),
-}
-
-/// This enum represents the type of a path in a PackFile.
-///
-/// Keep in mind that, in the lib we don't have a reliable way to determine if a path is a file or a folder if their path conflicts.
-/// For example, if we have the folder "x/y/z/" and the file "x/y/z", and we ask the lib what type of path it's, we'll default to a file.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PathType {
-
-    /// Used for PackedFile paths. Contains the path of the PackedFile.
-    File(Vec<String>),
-
-    /// Used for folder paths. Contains the path of the folder.
-    Folder(Vec<String>),
-
-    /// Used for the PackFile itself.
-    PackFile,
-
-    /// Used for any other situation. Usually, if this is used, there is a detection problem somewhere else.
-    None,
-}
-
-/// This enum indicates the current state of the compression in the current PackFile.
-///
-/// Despite compression being per-packedfile, we only support applying it to the full PackFile for now.
-/// Also, compression is only supported by `PFHVersion::PFH5` PackFiles.
-#[derive(Debug, Clone, PartialEq)]
-pub enum CompressionState {
-
-    /// All the PackedFiles in the PackFile are compressed.
-    Enabled,
-
-    /// Some of the PackedFiles in the PackFile are compressed.
-    Partial,
-
-    /// None of the files in the PackFile are compressed.
-    Disabled,
 }
 
 /// This struct hold PackFile-specific settings.
@@ -315,6 +214,16 @@ pub struct PackFileSettings {
     pub settings_string: BTreeMap<String, String>,
     pub settings_bool: BTreeMap<String, bool>,
     pub settings_number: BTreeMap<String, i32>,
+}
+
+impl<T: Decodeable> Container<T> for Pack<T> {
+    fn files(&self) -> &HashMap<std::string::String, RFile<T>> {
+        &self.files
+    }
+
+    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile<T>> {
+        &mut self.files
+    }
 }
 
 //---------------------------------------------------------------------------//
@@ -3387,26 +3296,5 @@ impl PackFileSettings {
 impl Default for PFHFlags {
     fn default() -> Self {
         Self::empty()
-    }
-}
-
-/// Implementation of trait `Default` for `PFHVersion`.
-impl Default for PFHVersion {
-    fn default() -> Self {
-        Self::PFH6
-    }
-}
-
-/// Implementation of trait `Default` for `PFHFileType`.
-impl Default for PFHFileType {
-    fn default() -> Self {
-        Self::Mod
-    }
-}
-
-/// Implementation of trait `Default` for `CompressionState`.
-impl Default for CompressionState {
-    fn default() -> Self {
-        Self::Disabled
     }
 }

@@ -1428,6 +1428,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_derive",
+ "thiserror",
  "xz2",
 ]
 

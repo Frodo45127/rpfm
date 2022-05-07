@@ -95,3 +95,10 @@ impl Display for PFHVersion {
         }
     }
 }
+
+/// Implementation of trait `Default` for `PFHVersion`.
+impl Default for PFHVersion {
+    fn default() -> Self {
+        Self::PFH6
+    }
+}
