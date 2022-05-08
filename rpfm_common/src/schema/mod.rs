@@ -63,7 +63,6 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use anyhow::Result;
 use rayon::prelude::*;
 use ron::de::from_bytes;
 use ron::ser::{to_string_pretty, PrettyConfig};
@@ -77,11 +76,11 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-
 use rpfm_macros::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
+use crate::error::{RCommonError, Result};
 use self::patch::SchemaPatches;
 
 // Legacy Schemas, to keep backwards compatibility during updates.

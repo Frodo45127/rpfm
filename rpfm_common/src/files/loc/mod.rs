@@ -15,16 +15,16 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
-use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
 use std::{cmp::Ordering, collections::BTreeMap};
 use std::collections::HashSet;
 use std::path::Path;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::*};
 
-use crate::{Decodeable, FileType, table::Table};
+use crate::{decoder::Decoder, encoder::Encoder, schema::*};
+use crate::error::{RCommonError, Result};
+use crate::files::{Decodeable, FileType, table::Table};
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -67,7 +67,7 @@ impl Decodeable for Loc {
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (_, table_name, _) = extra_data.ok_or(anyhow!("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files."))?;
+        let (_, table_name, _) = extra_data.ok_or(RCommonError::DecodingTableMissingExtraData)?;
 
         let (version, entry_count) = Self::read_header(packed_file_data)?;
 
@@ -87,7 +87,7 @@ impl Decodeable for Loc {
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() {
-            return Err(anyhow!("This PackedFile's reported size is '{}' bytes, but we expected it to be '{}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.", packed_file_data.len(), index));
+            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index));
         }
 
         // If we've reached this, we've successfully decoded the table.
@@ -200,16 +200,16 @@ impl Loc {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
         if packed_file_data.len() < HEADER_SIZE {
-            return Err(anyhow!(ERROR_NOT_A_LOC))
+            return Err(RCommonError::DecodingLocNotALocTable)
         }
 
         // More checks to ensure this is a valid Loc PAckedFile.
         if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? {
-            return Err(anyhow!(ERROR_NOT_A_LOC))
+            return Err(RCommonError::DecodingLocNotALocTable)
         }
 
         if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? {
-            return Err(anyhow!(ERROR_NOT_A_LOC))
+            return Err(RCommonError::DecodingLocNotALocTable)
         }
 
         let version = packed_file_data.decode_integer_i32(6)?;

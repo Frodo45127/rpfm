@@ -3,8 +3,7 @@
 members = [
     "rpfm_macros",
     "rpfm_logging",
-    "rpfm_common",
-    "rpfm_files",
+    "rpfm_common"
 ]
 
 [profile.dev]

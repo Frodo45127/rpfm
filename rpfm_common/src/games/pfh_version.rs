@@ -8,9 +8,10 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use anyhow::{anyhow, Result};
 use std::{fmt, fmt::Display};
 use serde_derive::{Serialize, Deserialize};
+
+use crate::error::{RCommonError, Result};
 
 /// These are the different Preamble/Id the PackFiles can have.
 const PFH6_PREAMBLE: &str = "PFH6"; // PFH6
@@ -19,8 +20,6 @@ const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
 const PFH3_PREAMBLE: &str = "PFH3"; // PFH3
 const PFH2_PREAMBLE: &str = "PFH2"; // PFH2
 const PFH0_PREAMBLE: &str = "PFH0"; // PFH0
-
-const ERROR_UNKNOWN_PFH_VERSION: &str = "Unknown PFH Version: {}";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -77,7 +76,7 @@ impl PFHVersion {
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
             PFH2_PREAMBLE => Ok(PFHVersion::PFH2),
             PFH0_PREAMBLE => Ok(PFHVersion::PFH0),
-            _ => Err(anyhow!("Unknown PFH Version: {}", value)),
+            _ => Err(RCommonError::UnknownPFHVersion(value.to_owned())),
         }
     }
 }

@@ -122,6 +122,6 @@ impl SchemaPatch {
         to_writer_pretty(&mut data, &self, config)?;
         let file_name = "patch.txt";
 
-        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data)))
+        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
     }
 }

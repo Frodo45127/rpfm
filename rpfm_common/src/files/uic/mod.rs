@@ -15,10 +15,10 @@ UI Components are binary files that form the ui of TW Games.
 They have no extension (mostly), and I heard they're a pain in the ass to work with.
 !*/
 
-use anyhow::Result;
+use crate::error::Result;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::Schema};
-use crate::{Decodeable, Encodeable, FileType};
+use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "Version";
 const VERSION_SIZE: usize = 3;

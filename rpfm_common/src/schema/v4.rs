@@ -63,7 +63,6 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use anyhow::Result;
 use ron::de::from_bytes;
 use serde_derive::{Serialize, Deserialize};
 
@@ -72,6 +71,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+use crate::error::Result;
 use crate::schema::Schema as SchemaV5;
 use crate::schema::Definition as DefinitionV5;
 use crate::schema::FieldType as FieldTypeV5;

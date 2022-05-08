@@ -14,10 +14,8 @@ Module with all the code to interact with any kind of table data.
 This module contains the struct `Table`, used to manage the decoded data of a table. For internal use only.
 !*/
 
-use anyhow::{anyhow, Result};
-use bincode::serialize;
+//use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
-use rpfm_common::schema::patch::SchemaPatches;
 use rusqlite::{blob::Blob, Connection, params_from_iter};
 use serde_derive::{Serialize, Deserialize};
 
@@ -27,7 +25,10 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::*, utils::*};
+use rpfm_macros::*;
+
+use crate::error::{RCommonError, Result};
+use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches}, utils::*};
 
 //use crate::assembly_kit::table_data::RawTable;
 //
@@ -577,7 +578,7 @@ impl Table {
             if u32::from_str_radix(&colour_hex, 16).is_ok() {
                 row_data.push(DecodedData::ColourRGB(colour_hex));
             } else {
-                return Err(anyhow!("Error decoding combined colour."));
+                return Err(RCommonError::DecodingTableCombinedColour);
             }
         }
 
@@ -699,71 +700,71 @@ impl Table {
         match field.field_type() {
             FieldType::Boolean => {
                 if let Ok(data) = data.decode_packedfile_bool(*index, index) { Ok(DecodedData::Boolean(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: either the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string())) }
             }
             FieldType::F32 => {
                 if let Ok(data) = data.decode_packedfile_float_f32(*index, index) { Ok(DecodedData::F32(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: either the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "F32".to_string())) }
             }
             FieldType::F64 => {
                 if let Ok(data) = data.decode_packedfile_float_f64(*index, index) { Ok(DecodedData::F64(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F64</b></i> value: either the value is not a valid F64, or there are insufficient bytes left to decode it as a F64 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "F64".to_string())) }
             }
             FieldType::I16 => {
                 if let Ok(data) = data.decode_packedfile_integer_i16(*index, index) { Ok(DecodedData::I16(data))  }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I16</b></i> value: either the value is not a valid I16, or there are insufficient bytes left to decode it as an I16 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I16".to_string())) }
             }
             FieldType::I32 => {
                 if let Ok(data) = data.decode_packedfile_integer_i32(*index, index) { Ok(DecodedData::I32(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: either the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I32".to_string())) }
             }
             FieldType::I64 => {
                 if let Ok(data) = data.decode_packedfile_integer_i64(*index, index) { Ok(DecodedData::I64(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I64".to_string())) }
             }
             FieldType::ColourRGB => {
                 if let Ok(data) = data.decode_packedfile_string_colour_rgb(*index, index) { Ok(DecodedData::ColourRGB(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Colour RGB</b></i> value: either the value is not a valid RGB value, or there are insufficient bytes left to decode it as an RGB value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
             }
             FieldType::StringU8 => {
                 if let Ok(data) = data.decode_packedfile_string_u8(*index, index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: either the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
             }
             FieldType::StringU16 => {
                 if let Ok(data) = data.decode_packedfile_string_u16(*index, index) { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: either the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
             }
             FieldType::OptionalI16 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i16(*index, index) { Ok(DecodedData::OptionalI16(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I16</b></i> value: either the value is not a valid Optional I16, or there are insufficient bytes left to decode it as an Optional I16 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I16".to_string())) }
             }
             FieldType::OptionalI32 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i32(*index, index) { Ok(DecodedData::OptionalI32(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I32</b></i> value: either the value is not a valid Optional I32, or there are insufficient bytes left to decode it as an Optional I32 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I32".to_string())) }
             }
             FieldType::OptionalI64 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i64(*index, index) { Ok(DecodedData::OptionalI64(data)) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional I64</b></i> value: either the value is not a valid Optional I64, or there are insufficient bytes left to decode it as an Optional I64 value.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I64".to_string())) }
             }
 
             FieldType::OptionalStringU8 => {
                 if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, index) { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: either the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
             }
             FieldType::OptionalStringU16 => {
                 if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, index) { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
-                else { Err(anyhow!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: either the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1)) }
+                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
             }
 
             FieldType::SequenceU16(definition) => {
                 let start = *index;
                 match Self::decode_table(definition, data, None, index, false) {
                     Ok(_) => {
-                        let end = if data.get(*index).is_some() { *index } else { return Err(anyhow!("Error trying to get the data for a SequenceU16 on Row {}, Cell {}: invalid ending index {}", row + 1, column + 1, *index)) };
+                        let end = if data.get(*index).is_some() { *index } else { return Err(RCommonError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU16".to_string())) };
                         let blob = &data[start..end];
                         Ok(DecodedData::SequenceU16(blob.to_vec()))
                     }
-                    Err(error) => Err(anyhow!("Error trying to get the data for a SequenceU16 on Row {}, Cell {}: {}", row + 1, column + 1, error.to_string()))
+                    Err(error) => Err(RCommonError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU16".to_string()))
                 }
             }
 
@@ -771,11 +772,11 @@ impl Table {
                 let start = *index;
                 match Self::decode_table(definition, data, None, index, false) {
                     Ok(_) => {
-                        let end = if data.get(*index).is_some() { *index } else { return Err(anyhow!("Error trying to get the data for a SequenceU32 on Row {}, Cell {}: invalid ending index {}", row + 1, column + 1, *index)) };
+                        let end = if data.get(*index).is_some() { *index } else { return Err(RCommonError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU32".to_string())) };
                         let blob = &data[start..end];
                         Ok(DecodedData::SequenceU32(blob.to_vec()))
                     }
-                    Err(error) => Err(anyhow!("Error trying to get the data for a SequenceU32 on Row {}, Cell {}: {}", row + 1, column + 1, error.to_string()))
+                    Err(error) => Err(RCommonError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
                 }
             }
         }

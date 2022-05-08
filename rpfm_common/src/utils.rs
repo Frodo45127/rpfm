@@ -14,7 +14,6 @@ Module with utility functions that don't fit anywhere else.
 Basically, if you need a function, but it's kinda a generic function, it goes here.
 !*/
 
-use anyhow::{anyhow, Result};
 use chrono::{Utc, DateTime};
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
@@ -23,6 +22,8 @@ use std::cmp::Ordering;
 use std::fs::{File, read_dir};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+
+use crate::error::{RCommonError, Result};
 
 /// These consts are used for dealing with Time-related operations.
 pub const WINDOWS_TICK: i64 = 10_000_000;
@@ -47,17 +48,13 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
                             file_list.append(&mut subfolder_files_path);
                         }
                     }
-                    Err(_) => return Err(anyhow!("Error while trying to read the following file: {}
-                        This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.",
-                        current_path.to_string_lossy())),
+                    Err(_) => return Err(RCommonError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
                 }
             }
         }
 
         // In case of reading error, report it.
-        Err(_) => return Err(anyhow!("Error while trying to read the following file: {}
-            This means that path may not be readable by RPFM (permissions? other programs locking access to it?) or may not exists at all.",
-            current_path.to_string_lossy())),
+        Err(_) => return Err(RCommonError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
     }
 
     // Return the list of paths.
@@ -132,7 +129,7 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
         Ok(false)
     }
     else {
-        Err(anyhow!("Error while trying to parse the following value as a bool: {}", string))
+        Err(RCommonError::ParseBoolError(string.to_owned()))
     }
 }
 

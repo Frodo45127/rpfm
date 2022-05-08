@@ -18,10 +18,11 @@ a PackFile/PackedFile.
 Note: If you change anything from here, remember to update the `decoder_test.rs` file for it.
 !*/
 
-use anyhow::{anyhow, Result};
 use byteorder::{ByteOrder, LittleEndian};
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
+
+use crate::error::{RCommonError, Result};
 
 /// These constants are needed to work with LEB_128 encoded numbers.
 pub const LEB128_CONTROL_BIT: u8 = 0b10000000;
@@ -199,9 +200,9 @@ impl Decoder for [u8] {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
             if self.get(size - 1).is_some() { Ok(&self[offset..offset + size]) }
-            else { Err(anyhow!("There are not enough bytes to decode in the data you provided.")) }
+            else { Err(RCommonError::DecodingNotMoreBytesToDecode.into()) }
         }
-        else { Err(anyhow!("There are not enough bytes to decode in the data you provided.")) }
+        else { Err(RCommonError::DecodingNotMoreBytesToDecode.into()) }
     }
 
     //---------------------------------------------------------------------------//
@@ -213,17 +214,17 @@ impl Decoder for [u8] {
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(anyhow!("Error trying to decode \"{}\" as boolean: invalid value.", value)),
+            _ => Err(RCommonError::DecodingBoolError(value).into()),
         }
     }
 
     fn decode_integer_u8(&self, offset: usize) -> Result<u8> {
-        self.get(offset).copied().ok_or_else(|| anyhow!("Error trying to decode an u8 number: No bytes left to decode."))
+        self.get(offset).copied().ok_or_else(|| RCommonError::DecodingNoBytesLeftError)
     }
 
     fn decode_integer_u16(&self, offset: usize) -> Result<u16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_u16(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an u16 number: Required bytes: 2. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u16".to_owned(), 2, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u24(&self, offset: usize) -> Result<u32> {
@@ -232,26 +233,26 @@ impl Decoder for [u8] {
             data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_u32(&data)) }
-        else { Err(anyhow!("Error trying to decode an u24 number: Required bytes: 3.Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u24".to_owned(), 3, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u32(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an u32 number: Required bytes: 4. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u64(&self, offset: usize) -> Result<u64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_u64(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an u64 number: Required bytes: 8. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i8(&self, offset: usize) -> Result<i8> {
-        self.get(offset).map(|x| *x as i8).ok_or_else(|| anyhow!("Error trying to decode an i8 number: No bytes left to decode."))
+        self.get(offset).map(|x| *x as i8).ok_or_else(|| RCommonError::DecodingNoBytesLeftError)
     }
 
     fn decode_integer_i16(&self, offset: usize) -> Result<i16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_i16(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an i16 number: Required bytes: 2. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i16".to_owned(), 2, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i24(&self, offset: usize) -> Result<i32> {
@@ -260,92 +261,100 @@ impl Decoder for [u8] {
             data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_i32(&data)) }
-        else { Err(anyhow!("Error trying to decode an i24 number: Required bytes: 3. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i24".to_owned(), 3, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i32(&self, offset: usize) -> Result<i32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_i32(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an i32 number: Required bytes: 4. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i64(&self, offset: usize) -> Result<i64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_i64(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an i64 number: Required bytes: 8. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_float_f32(&self, offset: usize) -> Result<f32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_f32(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an f32 number: Required bytes: 4. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("f32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_float_f64(&self, offset: usize) -> Result<f64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_f64(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an f64 number: Required bytes: 8. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("f64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String> {
-        if self.len() >= offset + size {
-            String::from_utf8(self[offset..offset + size].to_vec()).map_err(|_| anyhow!("Error trying to decode an UTF-8 String."))
+        if self.len() < offset + size {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String".to_owned(), size, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an UTF-8 String: Required bytes: {}. Provided bytes: {:?}.", size, offset.checked_sub(self.len()))) }
+        String::from_utf8(self[offset..offset + size].to_vec()).map_err(From::from)
     }
 
     fn decode_integer_colour_rgb(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
-        else { Err(anyhow!("Error trying to decode an RGB colour: Required bytes: 4. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_string_u8_iso_8859_1(&self, offset: usize, size: usize) -> Result<String> {
-        if self.len() >= offset + size {
-            ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|_| anyhow!("Error trying to decode an UTF-8 String."))
+        if self.len() < offset + size {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String from an ISO8859-1 String".to_owned(), size, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an UTF-8 String: Required bytes: {}. Provided bytes: {:?}.", size, offset.checked_sub(self.len()))) }
+
+        ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|error| RCommonError::DecodeUTF8FromISO8859Error(error.to_string()))
     }
 
     fn decode_string_u8_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
-        if self.len() >= offset + size {
-            let size_no_zeros = self[offset..offset + size].iter().position(|x| *x == 0).map_or(size, |x| x);
-            let string_decoded = String::from_utf8(self[offset..offset + size_no_zeros].to_vec()).map_err(|_| anyhow!("Error trying to decode an UTF-8 0-Padded String."))?;
-            Ok((string_decoded, size))
+        if self.len() < offset + size {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an UTF-8 0-Padded String: Required bytes: {}. Provided bytes: {:?}.", size, offset.checked_sub(self.len()))) }
+
+        let size_no_zeros = self[offset..offset + size].iter().position(|x| *x == 0).map_or(size, |x| x);
+        let string_decoded = String::from_utf8(self[offset..offset + size_no_zeros].to_vec())?;
+        Ok((string_decoded, size))
     }
 
     fn decode_string_u8_0terminated(&self, offset: usize) -> Result<(String, usize)> {
-        if self.len() >= offset {
-            let (ends_in_zero, size) = self[offset..].iter().position(|x| *x == 0).map_or((false, self[offset..].len()), |x| (true, x));
-            let string_decoded = String::from_utf8_lossy(&self[offset..offset + size]).to_string();
-            Ok((string_decoded, if ends_in_zero { size + 1 } else { size }))
-        } else { Err(anyhow!("Error trying to decode an UTF-8 0-Terminated String:Not enough bytes to decode.")) }
+        if self.len() < offset {
+            return Err(RCommonError::DecodingNotMoreBytesToDecode.into());
+        }
+
+        let (ends_in_zero, size) = self[offset..].iter().position(|x| *x == 0).map_or((false, self[offset..].len()), |x| (true, x));
+        let string_decoded = String::from_utf8_lossy(&self[offset..offset + size]).to_string();
+        Ok((string_decoded, if ends_in_zero { size + 1 } else { size }))
     }
 
     fn decode_string_u16(&self, offset: usize, size: usize) -> Result<String> {
-        if self.len() >= offset + size && size % 2 == 0 {
-            let u16_characters = self[offset..offset + size].chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect::<Vec<u16>>();
-            String::from_utf16(&u16_characters).map_err(|_| anyhow!("Error trying to decode an UTF-16 String."))
+        if self.len() < offset + size && size % 2 == 0 {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-16 String".to_owned(), size, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an UTF-16 String: Required bytes: {}. Provided bytes: {:?}.", size, offset.checked_sub(self.len()))) }
+
+        let u16_characters = self[offset..offset + size]
+            .chunks_exact(2)
+            .map(|x| u16::from_le_bytes([x[0], x[1]]))
+            .collect::<Vec<u16>>();
+        String::from_utf16(&u16_characters).map_err(From::from)
     }
 
     fn decode_string_u16_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
-        if self.len() >= offset + size {
-            let size_no_zeros = self[offset..offset + size].iter().step_by(2).position(|x| *x == 0).map_or(size, |x| x * 2);
-            let u16_characters = self[offset..offset + size_no_zeros].chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect::<Vec<u16>>();
-            let string_decoded = String::from_utf16(&u16_characters).map_err(|_| anyhow!("Error trying to decode a UTF-16 0-Padded String."))?;
-            Ok((string_decoded, size))
+        if self.len() < offset + size {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-16 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an UTF-16 0-Padded String: Required bytes: {}. Provided bytes: {:?}.", size, offset.checked_sub(self.len()))) }
+
+        let size_no_zeros = self[offset..offset + size].iter().step_by(2).position(|x| *x == 0).map_or(size, |x| x * 2);
+        let u16_characters = self[offset..offset + size_no_zeros].chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect::<Vec<u16>>();
+        let string_decoded = String::from_utf16(&u16_characters)?;
+        Ok((string_decoded, size))
     }
 
     fn decode_string_colour_rgb(&self, offset: usize) -> Result<String> {
-        if self.len() >= offset + 4 {
-
-            // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
-            // REMEMBER, FORMAT ENCODED IS BBGGRR00.
-            let value = format!("{:06X?}", LittleEndian::read_u32(&self[offset..]));
-            Ok(value)
+        if self.len() < offset + 4 {
+            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len())))
         }
-        else { Err(anyhow!("Error trying to decode an RGB colour: Required bytes: 4. Provided bytes: {:?}.", offset.checked_sub(self.len()))) }
+        // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
+        // REMEMBER, FORMAT ENCODED IS BBGGRR00.
+        let value = format!("{:06X?}", LittleEndian::read_u32(&self[offset..]));
+        Ok(value)
     }
 
     //---------------------------------------------------------------------------//
@@ -390,20 +399,14 @@ impl Decoder for [u8] {
 
     fn decode_packedfile_integer_cauleb128(&self, index: &mut usize) -> Result<u32> {
         let mut size: u32 = 0;
-        let mut byte = if let Some(byte) = self.get(*index) { byte }
-        else { return Err(anyhow!("Error trying to decode a cauleb_128 value: No bytes left to decode.")) };
+        let mut byte = self.get(*index).ok_or_else(|| RCommonError::DecodingNotMoreBytesToDecode)?;
 
         while(byte & 0x80) != 0 {
             size = (size << 7) | (byte & 0x7f) as u32;
             *index += 1;
 
             // Check the new byte is even valid before continuing.
-            if let Some(new_byte) = self.get(*index) {
-                byte = new_byte;
-            }
-            else {
-                return Err(anyhow!("Error trying to decode an cauleb_128 value: No bytes left to decode."))
-            }
+            byte = self.get(*index).ok_or_else(|| RCommonError::DecodingNotMoreBytesToDecode)?;
         }
 
         size = (size << 7) | (byte & 0x7f) as u32;
@@ -496,7 +499,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(anyhow!("Error trying to decode an UTF-8 String: Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
+            return Err(RCommonError::DecodingStringSizeError("UTF-8 String".to_owned(), offset.checked_sub(self.len()), 2))
         }
     }
 
@@ -517,30 +520,34 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(anyhow!("Error trying to decode an UTF-16 String: Not enough bytes (only {:?}, minimum required is 2) to get his size.", offset.checked_sub(self.len())))
+            return Err(RCommonError::DecodingStringSizeError("UTF-16 String".to_owned(), offset.checked_sub(self.len()), 2))
         }
     }
 
     fn decode_packedfile_optional_string_u8(&self, offset: usize, index: &mut usize) -> Result<String> {
-        if let Ok(is) = self.decode_packedfile_bool(offset, index) {
-            if is {
-                let result = self.decode_packedfile_string_u8(offset + 1, index);
-                if result.is_err() { *index -= 1 };
-                result
-            } else { Ok(String::new()) }
+        let is = self.decode_packedfile_bool(offset, index)
+            .map_err(|_| RCommonError::DecodingOptionalStringBoolError("UTF-8 Optional String".to_owned()))?;
+
+        if !is {
+            return Ok(String::new())
         }
-        else{ Err(anyhow!("Error trying to decode an UTF-8 Optional String: The first byte is not a boolean.")) }
+
+        let result = self.decode_packedfile_string_u8(offset + 1, index);
+        if result.is_err() { *index -= 1 };
+        result
     }
 
     fn decode_packedfile_optional_string_u16(&self, offset: usize, index: &mut usize) -> Result<String> {
-        if let Ok(is) = self.decode_packedfile_bool(offset, index) {
-            if is {
-                let result = self.decode_packedfile_string_u16(offset + 1, index);
-                if result.is_err() { *index -= 1 };
-                result
-            } else { Ok(String::new()) }
+        let is = self.decode_packedfile_bool(offset, index)
+            .map_err(|_| RCommonError::DecodingOptionalStringBoolError("UTF-16 Optional String".to_owned()))?;
+
+        if !is {
+            return Ok(String::new())
         }
-        else { Err(anyhow!("Error trying to decode an UTF-16 Optional String: The first byte is not a boolean.")) }
+
+        let result = self.decode_packedfile_string_u16(offset + 1, index);
+        if result.is_err() { *index -= 1 };
+        result
     }
 
     fn decode_packedfile_string_colour_rgb(&self, offset: usize, index: &mut usize) -> Result<String> {

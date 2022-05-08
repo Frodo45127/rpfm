@@ -8,7 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use anyhow::{anyhow, Result};
 use csv::ReaderBuilder;
 use serde_derive::Deserialize;
 
@@ -16,10 +15,10 @@ use std::path::Path;
 
 use rpfm_macros::*;
 
+use crate::error::{RCommonError, Result};
 use super::GameInfo;
 
-const ERROR_MANIFEST_NOT_FOUND: &str = "The manifest for the Game Selected hasn't been found.";
-const ERROR_MANIFEST_ERROR: &str = "Error while parsing the manifest.txt file of the game selected.";
+const MANIFEST_FILE_NAME: &str = "manifest.txt";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -55,7 +54,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parsable.
     pub fn read_from_game_path(game: &GameInfo, game_path: &Path) -> Result<Self> {
-        let manifest_path = game.get_data_path(game_path).map_err(|_| anyhow!(ERROR_MANIFEST_NOT_FOUND))?.join("manifest.txt");
+        let manifest_path = game.get_data_path(game_path)?.join(MANIFEST_FILE_NAME);
         Self::read(&manifest_path)
     }
 
@@ -77,17 +76,17 @@ impl Manifest {
 
             // We only know these manifest formats.
             if record.len() != 2 && record.len() != 3 {
-                return Err(anyhow!(ERROR_MANIFEST_ERROR));
+                return Err(RCommonError::ManifestFileParseError("Mismatch column count".to_owned()).into());
             } else {
                 let mut manifest_entry = ManifestEntry {
-                    relative_path: record.get(0).ok_or_else(|| anyhow!(ERROR_MANIFEST_ERROR))?.to_owned(),
-                    size: record.get(1).ok_or_else(|| anyhow!(ERROR_MANIFEST_ERROR))?.parse()?,
+                    relative_path: record.get(0).ok_or_else(|| RCommonError::ManifestFileParseError("Error reading relative path".to_owned()))?.to_owned(),
+                    size: record.get(1).ok_or_else(|| RCommonError::ManifestFileParseError("Error reading size".to_owned()))?.parse()?,
                     ..Default::default()
                 };
 
                 // In newer games, a third field has been added.
                 if record.len() == 3 {
-                    manifest_entry.belongs_to_base_game = record.get(2).ok_or_else(|| anyhow!(ERROR_MANIFEST_ERROR))?.parse().ok();
+                    manifest_entry.belongs_to_base_game = record.get(2).ok_or_else(|| RCommonError::ManifestFileParseError("Error reading if file belongs to the base game".to_owned()))?.parse().ok();
                 }
                 else {
                     manifest_entry.belongs_to_base_game = None;

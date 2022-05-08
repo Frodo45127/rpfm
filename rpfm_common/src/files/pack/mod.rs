@@ -19,14 +19,13 @@ and that is handled automagically by RPFM. All the data you'll ever see will be 
 so you don't have to worry about that.
 !*/
 
-use anyhow::{anyhow, Result};
 use bitflags::bitflags;
 use csv::ReaderBuilder;
-use itertools::{Itertools, Either};
+//use itertools::{Itertools, Either};
 use serde_derive::{Serialize, Deserialize};
-use serde_json::{from_slice, to_string_pretty};
+//use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
-use unicase::UniCase;
+//use unicase::UniCase;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::{fmt, fmt::Display};
@@ -35,20 +34,21 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use rpfm_common::{compression::*, decoder::Decoder, encoder::Encoder, schema::Schema, utils::*};
 use rpfm_macros::*;
-use rpfm_common::games::pfh_version::PFHVersion;
-use rpfm_common::games::pfh_file_type::PFHFileType;
-use crate::RFile;
+use crate::{compression::*, decoder::Decoder, encoder::Encoder, schema::Schema, utils::*};
+use crate::games::pfh_version::PFHVersion;
+use crate::games::pfh_file_type::PFHFileType;
 
-use crate::FileType;
-use crate::Decodeable;
-use crate::Container;
-use crate::table::DecodedData;
-use crate::db::DB;
-use crate::loc::{Loc, TSV_NAME_LOC};
-//use crate::pack::packedfile::PackedFile;
-use crate::text::TextType;
+use crate::files::RFile;
+
+use crate::error::{RCommonError, Result};
+use crate::files::FileType;
+use crate::files::Decodeable;
+use crate::files::Container;
+//use crate::files::table::DecodedData;
+//use crate::files::db::DB;
+//use crate::files::loc::{Loc, TSV_NAME_LOC};
+use crate::files::text::TextType;
 
 //use crate::GAME_SELECTED;
 //use crate::SCHEMA;
@@ -136,6 +136,26 @@ pub struct Pack<T: Decodeable> {
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
     file_path: PathBuf,
 
+    header: PackHeader,
+
+    /// The list of PackFiles this PackFile requires to be loaded before himself when starting the game.
+    ///
+    /// In other places, we refer to this as the `Dependency List`.
+    dependencies: Vec<String>,
+
+    /// The list of PackedFiles this PackFile contains.
+    files: HashMap<String, RFile<T>>,
+
+    /// Notes added to the PackFile. Exclusive of this lib.
+    notes: Option<String>,
+
+    /// Settings stored in the PackFile itself, to be able to share them between installations.
+    settings: PackFileSettings,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PackHeader {
+
     /// The version of the PackFile.
     pfh_version: PFHVersion,
 
@@ -159,20 +179,6 @@ pub struct Pack<T: Decodeable> {
 
     /// Extra subheader data, in case it's used in the future.
     extra_subheader_data: Vec<u8>,
-
-    /// The list of PackFiles this PackFile requires to be loaded before himself when starting the game.
-    ///
-    /// In other places, we refer to this as the `Dependency List`.
-    pack_files: Vec<String>,
-
-    /// The list of PackedFiles this PackFile contains.
-    files: HashMap<String, RFile<T>>,
-
-    /// Notes added to the PackFile. Exclusive of this lib.
-    notes: Option<String>,
-
-    /// Settings stored in the PackFile itself, to be able to share them between installations.
-    settings: PackFileSettings,
 }
 
 /// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.

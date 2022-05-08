@@ -8,11 +8,13 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with utility functions that don't fit anywhere else.
+//! # Overview
+//!
+//! This crate provides utilities to read/write multiple types of files used by Creative Assembly (CA)
+//! in Total War Games since Empire: Total War.
+//!
+//! For information about ann specific file, please check their modules under the [`files`] module.
 
-Basically, if you need a function, but it's kinda a generic function, it goes here.
-!*/
 
 // Reexports for ease of managing dependencies.
 pub use rpfm_macros;
@@ -22,6 +24,8 @@ pub mod compression;
 pub mod decoder;
 pub mod encoder;
 pub mod encryption;
+pub mod error;
+pub mod files;
 pub mod games;
 pub mod integrations;
 pub mod schema;

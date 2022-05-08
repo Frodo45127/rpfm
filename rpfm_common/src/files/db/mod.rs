@@ -15,8 +15,6 @@ DB Tables are the files which controls a lot of the parameters used in game, lik
 effects data, projectile parameters.... It's what modders use the most.
 !*/
 
-use anyhow::{anyhow, Result};
-use bincode::deserialize;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
@@ -27,9 +25,10 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use rpfm_common::{decoder::Decoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, FileType, table::Table};
+use crate::error::{RCommonError, Result};
+use crate::files::{Decodeable, FileType, table::Table};
 
 /// If this sequence is found, the DB Table has a GUID after it.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -86,22 +85,22 @@ impl Decodeable for DB {
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (schema, table_name, return_incomplete) = extra_data.ok_or(anyhow!("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files."))?;
+        let (schema, table_name, return_incomplete) = extra_data.ok_or(RCommonError::DecodingTableMissingExtraData)?;
         let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
 
         // Try to get the table_definition for this table, if exists.
         let definitions = schema.definitions_by_table_name(table_name).ok_or_else(|| {
             if entry_count == 0 {
-                anyhow!("There are no definitions for this specific version of the table in the Schema and the table is empty. This means this table cannot be open nor decoded.")
+                RCommonError::DecodingDBNoDefinitionsFoundAndEmptyFile
             } else {
-                anyhow!("There are no definitions for this specific version of the table in the Schema.")
+                RCommonError::DecodingDBNoDefinitionsFound
             }
         })?;
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
         let index_reset = index;
         let (table, table_data) = if version == 0 {
-            let mut data = Err(anyhow!("There are no definitions for this specific version of the table in the Schema."));
+            let mut data = Err(RCommonError::DecodingDBNoDefinitionsFound);
             for definition in definitions.iter().filter(|definition| *definition.version() < 1) {
                 index = index_reset;
                 if let Ok(table_data) = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete) {
@@ -119,7 +118,7 @@ impl Decodeable for DB {
         else {
 
             let definition = definitions.iter().find(|definition| *definition.version() == version).ok_or_else(|| {
-                anyhow!("There are no definitions for this specific version of the table in the Schema.")
+                RCommonError::DecodingDBNoDefinitionsFound
             })?;
 
             let table_data = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete)?;
@@ -130,7 +129,7 @@ impl Decodeable for DB {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
         if index != packed_file_data.len() {
             // TODO: dump the decoded data here.
-            return Err(anyhow!("This PackedFile's reported size is '{}' bytes, but we expected it to be '{}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.", packed_file_data.len(), index));
+            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index));
         }
 
         // If everything decoded properly, load the table to the databse.
@@ -162,7 +161,7 @@ impl DB {
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
         if packed_file_data.len() < 5 {
-            return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted."));
+            return Err(RCommonError::DecodingDBNotADBTable);
         }
 
         // Create the index that we'll use to decode the entire table.

@@ -17,34 +17,14 @@ you can find in a `PackFile`. Here, you can find some generic enums used by the 
 For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
 !*/
 
-
-use anyhow::Result;
 use rayon::prelude::*;
 
 use std::{collections::HashMap, fmt::Debug};
 
-use rpfm_common::{games::pfh_version::PFHVersion, schema::Schema};
+use crate::{error::Result, games::pfh_version::PFHVersion, schema::Schema};
 use rpfm_macros::*;
 
-/*
-use std::convert::TryFrom;
-use std::{fmt, fmt::Display};
-use std::ops::Deref;
-*/
-//use crate::{dependencies::Dependencies, packfile::{RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}};
-//use crate::packedfile::animpack::AnimPack;
-//use crate::packedfile::ca_vp8::CaVp8;
-//use crate::packedfile::esf::ESF;
-//use crate::packedfile::image::Image;
-//use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
-use crate::text::TextType;
-//use crate::packedfile::rigidmodel::RigidModel;
-//use crate::packedfile::uic::UIC;
-//use crate::packedfile::unit_variant::UnitVariant;
-//use crate::packfile::packedfile::{CachedPackedFile, PackedFile, RawPackedFile};
-//use crate::schema::Schema;
-//use crate::SCHEMA;
-//use crate::SETTINGS;
+use self::text::TextType;
 
 pub mod animpack;
 pub mod ca_vp8;
@@ -72,7 +52,7 @@ pub struct RFile<T: Decodeable> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RFileInnerData<T: Decodeable> {
-    Decoded(T),
+    Decoded(Box<T>),
     Catched(Vec<u8>),
     OnDisk(OnDisk)
 
@@ -93,34 +73,6 @@ pub struct OnDisk {
     last_modified_date_pack: i64,
 }
 
-
-
-
-/*
-/// This enum represents a ***decoded `PackedFile`***,
-///
-/// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
-#[derive(PartialEq, Clone, Debug)]
-pub enum DecodedPackedFile {
-    Anim,
-    AnimFragment(AnimFragment),
-    AnimPack(AnimPack),
-    AnimTable(AnimTable),
-    CaVp8(CaVp8),
-    CEO(ESF),
-    DB(DB),
-    ESF(ESF),
-    Image(Image),
-    GroupFormations,
-    Loc(Loc),
-    MatchedCombat(MatchedCombat),
-    RigidModel(RigidModel),
-    Text(Text),
-    UIC(UIC),
-    UnitVariant(UnitVariant),
-    Unknown,
-}
-*/
 /// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.

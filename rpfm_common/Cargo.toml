@@ -21,12 +21,15 @@ ron = "^0.7"
 csv = "^1.1"
 
 # Error handling.
-anyhow = "^1.0"
 thiserror = "1.0"
 
 # Decoding/Encoding support.
 byteorder = "^1.3"
 encoding = "^0.2"
+bitflags = "^1.0"
+
+# RNG support.
+rand = "^0.8"
 
 # Date manipulation support.
 chrono = "^0.4"
@@ -44,7 +47,13 @@ rayon = "^1.3"
 indexmap = "^1.5"
 
 # SQLite support
-rusqlite = "^0.27"
+rusqlite = { version = "^0.27", features = ["blob"] }
 
 # Compression support.
 xz2 = "^0.1"
+
+# Fractions support
+fraction = "^0.10"
+
+# UUID Generation support.
+uuid = { version = "^0.8", features = ["v4"] }

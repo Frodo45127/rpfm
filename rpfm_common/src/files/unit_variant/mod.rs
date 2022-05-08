@@ -14,11 +14,11 @@ Module with all the code to interact with binary Unit Variants.
 Binary unit variants are the unit variants used from Empire to Shogun 2.
 !*/
 
-use anyhow::{anyhow, Result};
+use crate::error::{RCommonError, Result};
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, FileType};
+use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "VRNT";
 
@@ -26,9 +26,6 @@ const SIGNATURE: &str = "VRNT";
 pub const HEADER_SIZE: usize = 4;
 
 pub const EXTENSION: &str = ".unit_variant";
-
-const ERROR_NOT_AN_UNIT_VARIANT: &str = "This PackedFile is not an Unit Variant.";
-const ERROR_INCOMPLETE_DECODING: &str = "The PackedFile has been decoded, but there's still part of it that's not decoded. This means the decoder logic is incomplete for this PackedFile.";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -68,7 +65,7 @@ impl UnitVariant {
     pub fn read_header(packed_file_data: &[u8], index: &mut usize) -> Result<(u32, u32, u32)> {
         if let Ok(signature) = packed_file_data.decode_string_u8(0, SIGNATURE.len()) {
             if signature != SIGNATURE {
-                return Err(anyhow!(ERROR_NOT_AN_UNIT_VARIANT))
+                return Err(RCommonError::DecodingUnitVariantNotAUnitVariant)
             }
         }
 
@@ -136,7 +133,7 @@ impl Decodeable for UnitVariant {
 
         // Trigger an error if there's left data on the source.
         if index != packed_file_data.len() {
-            return Err(anyhow!(ERROR_INCOMPLETE_DECODING))
+            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index))
         }
 
         // If we've reached this, we've successfully decoded the entire UnitVariant.

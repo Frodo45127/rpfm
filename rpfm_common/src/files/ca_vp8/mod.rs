@@ -8,25 +8,23 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with CA_VP8 PackedFiles.
 
-This is a video format which is basically VP8 with custom changes by CA.
+//!Module with all the code to interact with CA_VP8 PackedFiles.
+//!
+//!This is a video format which is basically VP8 with custom changes by CA.
+//!
+//!Research and initial implementation for this was done by John Sirett here:
+//!- <https://gitlab.com/johnsirett/ca_vp8-reverse>
+//!
+//!As such, the read/save functions here (and only those functions) are an exception
+//!to the MIT license above and are under the CC-SA 4.0 license, available here:
+//!- <https://creativecommons.org/licenses/by-sa/4.0/>
 
-Research and initial implementation for this was done by John Sirett here:
-- https://gitlab.com/johnsirett/ca_vp8-reverse
-
-As such, the read/save functions here (and only those functions) are an exception
-to the MIT license above and are under the CC-SA 4.0 license, available here:
-- https://creativecommons.org/licenses/by-sa/4.0/
-!*/
-
-use anyhow::{anyhow, Result};
+use crate::error::{RCommonError, Result};
 use fraction::GenericFraction;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
-
-use crate::{Decodeable, Encodeable, FileType};
+use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
+use crate::files::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CA_VP8 PackedFiles.
 pub const EXTENSION: &str = ".ca_vp8";
@@ -46,9 +44,6 @@ const HEADER_LENGTH_CAMV_V1: u16 = 0x29;
 
 /// Length of the header of a IVF video.
 const HEADER_LENGTH_IVF: u16 = 32;
-
-const ERROR_NOT_A_CAVP8_OR_IVF: &str = "This PackedFile is neither a CA_VP8 nor IVF file.";
-const ERROR_INCORRECT_FRAME_SIZE: &str = "Incorrect/Unknown Frame size.";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -172,7 +167,7 @@ impl CaVp8 {
 
             let frame_offset_real_end = frame_offset_real + frame.size;
             if frame_offset_real_end as usize > packed_file_data.len() {
-                return Err(anyhow!(ERROR_INCORRECT_FRAME_SIZE));
+                return Err(RCommonError::DecodingCAVP8IncorrectOrUnknownFrameSize);
             }
 
             frame_data.extend_from_slice(&packed_file_data[frame_offset_real as usize..frame_offset_real_end as usize]);
@@ -317,11 +312,11 @@ impl Decodeable for CaVp8 {
         FileType::CaVp8
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         match &*packed_file_data.decode_string_u8(0, 4)? {
             SIGNATURE_IVF => Self::read_ivf(packed_file_data),
             SIGNATURE_CAMV => Self::read_camv(packed_file_data),
-            _ => Err(anyhow!(ERROR_NOT_A_CAVP8_OR_IVF))
+            _ => Err(RCommonError::DecodingCAVP8UnsupportedFormat)
         }
     }
 }

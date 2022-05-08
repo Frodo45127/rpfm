@@ -19,7 +19,6 @@ Note that these loggers need to be initialized on start by calling `Logger::init
 Otherwise, none of them will work.
 !*/
 
-use anyhow::Result;
 use backtrace::Backtrace;
 use log::{error, info, warn};
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*};
@@ -32,6 +31,10 @@ use std::panic::PanicInfo;
 use std::path::Path;
 use std::panic;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::error::Result;
+
+pub mod error;
 
 /// Log files to log execution steps and other messages.
 const LOG_FILE_CURRENT: &str = "rpfm.log";

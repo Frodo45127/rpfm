@@ -10,8 +10,6 @@
 
 // Here should go all the functions related to the compression/decompression of PackedFiles.
 
-use anyhow::Result;
-use thiserror::Error;
 use xz2::{read::XzDecoder, stream::Stream};
 
 use std::env::temp_dir;
@@ -21,12 +19,7 @@ use std::path::Path;
 use std::process::Command;
 use std::u64;
 
-#[derive(Error, Debug)]
-pub enum DecompressibleError {
-    #[error("This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.")]
-    DataCannotBeDecompressed
-}
-
+use crate::error::{RCommonError, Result};
 use crate::{decoder::Decoder, encoder::Encoder};
 
 pub trait Compressible {
@@ -95,7 +88,7 @@ impl Decompressible for &[u8] {
         }
 
         if self.len() < 9 {
-            return Err(DecompressibleError::DataCannotBeDecompressed.into());
+            return Err(RCommonError::DataCannotBeDecompressed.into());
         }
 
         // CA Tweaks their headers to remove 4 bytes per PackedFile, while losing +4GB File Compression Support.
@@ -109,7 +102,7 @@ impl Decompressible for &[u8] {
 
         // Vanilla compressed files are LZMA Alone (or legacy) level 3 compressed files, reproducible by compressing them
         // with default settings with 7-Zip. This should do the trick to get them decoded.
-        let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| DecompressibleError::DataCannotBeDecompressed)?;
+        let stream = Stream::new_lzma_decoder(u64::MAX).map_err(|_| RCommonError::DataCannotBeDecompressed)?;
         let mut encoder = XzDecoder::new_stream(&*fixed_data, stream);
         let mut compress_data = vec![];
         encoder.read_to_end(&mut compress_data)?;

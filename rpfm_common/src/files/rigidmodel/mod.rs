@@ -14,11 +14,11 @@ Module with all the code to interact with RigidModel PackedFiles.
 This is really a dummy module, as all the logic for this is done in the view through Phazer's lib.
 !*/
 
-use anyhow::Result;
+use crate::error::Result;
 
-use rpfm_common::{rpfm_macros::*, schema::Schema};
-
-use crate::{Decodeable, Encodeable, FileType};
+use crate::schema::Schema;
+use rpfm_macros::*;
+use crate::files::{Decodeable, Encodeable, FileType};
 
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
 #[allow(dead_code)]

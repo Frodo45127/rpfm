@@ -9,7 +9,7 @@ rust-version = "1.56"
 [dependencies]
 
 # Error handling.
-anyhow = "^1.0"
+thiserror = "^1.0"
 
 # Serialization support.
 serde = "^1.0"

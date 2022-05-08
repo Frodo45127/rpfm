@@ -15,11 +15,11 @@ Text PackedFiles are any kind of plain text packedfile, like lua, xml, txt,...
 The only thing to take into account is that this only work for UTF-8 encoded files.
 !*/
 
-use anyhow::{anyhow, Result};
+use crate::error::{RCommonError, Result};
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
-use crate::{Decodeable, Encodeable, FileType};
+use crate::files::{Decodeable, Encodeable, FileType};
 
 /// UTF-8 BOM (Byte Order Mark).
 const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
@@ -53,8 +53,6 @@ pub const EXTENSIONS: [(&str, TextType); 23] = [
     (".json", TextType::Json),
     (".texture_array", TextType::Plain),
 ];
-
-const ERROR_WRONG_ENCODING_OR_NOT_A_TEXT_FILE: &str = "This is either not a Text PackedFile, or a Text PackedFile using an unsupported encoding";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -135,7 +133,7 @@ impl Decodeable for Text {
                     Ok(string) => (SupportedEncodings::Utf8, string),
                     Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
                         Ok(string) => (SupportedEncodings::Iso8859_1, string),
-                        Err(_) => return Err(anyhow!(ERROR_WRONG_ENCODING_OR_NOT_A_TEXT_FILE)),
+                        Err(_) => return Err(RCommonError::DecodingTextUnsupportedEncodingOrNotATextFile),
                     }
                 }
             }
@@ -143,7 +141,7 @@ impl Decodeable for Text {
             SupportedEncodings::Utf16Le => {
                 match packed_file_data.decode_string_u16(0, packed_file_data.len()) {
                     Ok(string) => (SupportedEncodings::Utf16Le, string),
-                    Err(_) => return Err(anyhow!(ERROR_WRONG_ENCODING_OR_NOT_A_TEXT_FILE)),
+                    Err(_) => return Err(RCommonError::DecodingTextUnsupportedEncodingOrNotATextFile),
                 }
             }
         };

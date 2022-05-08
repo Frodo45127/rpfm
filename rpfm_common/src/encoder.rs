@@ -18,10 +18,11 @@ read by the games.
 Note: If you change anything from here, remember to update the `encoder_test.rs` file for it.
 !*/
 
-use anyhow::{anyhow, Result};
 use byteorder::{LittleEndian, WriteBytesExt};
 use encoding::all::ISO_8859_1;
 use encoding::types::{Encoding, EncoderTrap};
+
+use crate::error::{RCommonError, Result};
 
 //---------------------------------------------------------------------------//
 //                      `Encoder` Trait Definition
@@ -205,13 +206,12 @@ impl Encoder for Vec<u8> {
     }
 
     fn encode_string_u8_0padded(&mut self, (string, size): &(String, usize)) -> Result<()> {
-        if string.len() <= *size {
-            self.extend_from_slice(string.as_bytes());
-            self.extend_from_slice(&vec![0; size - string.len()]);
-            Ok(())
-        } else {
-            Err(anyhow!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size))
+        if string.len() > *size {
+            return Err(RCommonError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), string.len(), *size));
         }
+        self.extend_from_slice(string.as_bytes());
+        self.extend_from_slice(&vec![0; size - string.len()]);
+        Ok(())
     }
 
     fn encode_string_u16(&mut self, string: &str) {
@@ -219,13 +219,13 @@ impl Encoder for Vec<u8> {
     }
 
     fn encode_string_u16_0padded(&mut self, (string, size): &(&str, usize)) -> Result<()> {
-        if string.len() * 2 <= *size {
-            self.encode_string_u16(string);
-            self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
-            Ok(())
-        } else {
-            Err(anyhow!("Error trying to encode an UTF-16 0-Padded String: \"{}\" has a length of {} chars, but his length should be less or equal than {}.", string, string.len(), size))
+        if string.len() * 2 > *size {
+            return Err(RCommonError::EncodingPaddedStringError("UTF-16 0-Padded String".to_owned(), string.to_string(), string.len(), *size));
         }
+
+        self.encode_string_u16(string);
+        self.extend_from_slice(&vec![0; size - (string.len() * 2)]);
+        Ok(())
     }
 
     fn encode_string_u16_0padded_cropped(&mut self, string: &str, size: usize) {

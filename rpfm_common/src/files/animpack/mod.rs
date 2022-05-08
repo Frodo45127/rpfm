@@ -8,27 +8,35 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with AnimPack PackedFiles.
+//! AnimPacks are a container-type file, that usually contains anim-related files, such as Anim Tables,
+//! Anim Fragments and Matched Combat Tables.
+//!
+//! It's usually found in the `anim` folder of the game, under the extension `.animpack`, hence their name.
+//!
+//! # AnimPack Structure
+//!
+//! | Bytes | Type | Data |
+//! | ----- | ---- | ---- |
+//! | 4     | [u32] | File Count. |
+//! | X * File Count | [File](#file-structure) List | List of files inside the AnimPack File. |
+//!
+//!
+//! # File Structure
+//!
+//! | Bytes | Type | Data |
+//! | ----- | ---- | ---- |
+//! | *     | StringU8 | File Path. |
+//! | 4     | [u32]  | File Length in bytes. |
+//! | File Lenght | &\[[u8]\] | File Data. |
 
-This is a container, containing all the anim tables and related files. For each
-file type, check their own module.
-
-AnimPack's structure is very simple:
-- File count.
-- List of files:
-    - File Path.
-    - Byte Count.
-!*/
-
-use anyhow::Result;
-use rayon::prelude::*;
 
 use std::collections::HashMap;
 
-use rpfm_common::{decoder::Decoder, encoder::Encoder, schema::Schema};
-use crate::*;
+use crate::error::Result;
+use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::files::*;
 
+/// Extension used by AnimPacks.
 pub const EXTENSION: &str = ".animpack";
 
 //---------------------------------------------------------------------------//
@@ -48,37 +56,6 @@ pub struct AnimPack<T: Decodeable> {
 /// Implementation of `AnimPack`.
 impl<T: Decodeable> AnimPack<T> {
 /*
-    /// This function returns the entire list of paths contained within the provided AnimPack.
-    pub fn get_file_list(&self) -> Vec<String> {
-        self.files.iter()
-            .map(|x| x.path.join("/"))
-            .collect()
-    }
-
-    pub fn get_anim_packed_paths_all(&self) -> Vec<Vec<String>> {
-        self.files.iter().map(|x| x.path.to_vec()).collect()
-    }
-
-    pub fn add_packed_files(&mut self, packed_files: &[PackedFile]) -> Result<Vec<PathType>> {
-        let mut success_paths = vec![];
-        for packed_file in packed_files {
-            match self.files.iter_mut().find(|x| x.path == packed_file.get_path()) {
-                Some(file) => {
-                    if let Ok(data) = packed_file.get_raw_data() {
-                        file.data = data;
-                        success_paths.push(PathType::File(packed_file.get_path().to_vec()));
-                    }
-                }
-                None => {
-                    if let Ok(anim_packed) = AnimPacked::try_from(packed_file) {
-                        self.files.push(anim_packed);
-                        success_paths.push(PathType::File(packed_file.get_path().to_vec()));
-                    }
-                }
-            }
-        }
-        Ok(success_paths)
-    }
 
     pub fn get_as_pack_file_info(&self, path: &[String]) -> (PackFileInfo, Vec<PackedFileInfo>) {
         let pack_file_info = PackFileInfo {
@@ -90,39 +67,9 @@ impl<T: Decodeable> AnimPack<T> {
         (pack_file_info, packed_file_info)
     }
 
-    pub fn get_anim_packed_as_packed_files(&self, path_types: &[PathType]) -> Vec<PackedFile> {
-        let paths = self.get_file_paths_from_path_types(path_types);
-        self.get_packed_files_by_paths(paths.iter().map(|x| &**x).collect())
-    }
-
-    /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
-    pub fn get_packed_files_all(&self) -> Vec<PackedFile> {
-        self.files.iter().map(From::from).collect()
-    }
-
-    /// This function returns a copy of all the `PackedFiles` starting with the provided path.
-    pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
-        self.files.par_iter().filter(|x| x.get_ref_path().starts_with(path) && !path.is_empty() && x.get_ref_path().len() > path.len()).map(From::from).collect()
-    }
-
-    /// This function returns a copy of all the `PackedFiles` in the provided paths.
-    pub fn get_packed_files_by_paths(&self, paths: Vec<&[String]>) -> Vec<PackedFile> {
-        self.files.par_iter().filter(|x| paths.contains(&x.get_ref_path())).map(From::from).collect()
-    }
-
     /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
     pub fn get_ref_packed_files_paths_by_path_start(&self, path: &[String]) -> Vec<&[String]> {
         self.files.par_iter().map(|x| x.get_ref_path()).filter(|x| x.starts_with(path) && !path.is_empty() && x.len() > path.len()).collect()
-    }
-
-    /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
-    pub fn remove_packed_file_by_path_types(&mut self, path_types: &[PathType]) {
-        let paths = self.get_file_paths_from_path_types(path_types).iter().map(|x| x.to_vec()).collect::<Vec<Vec<String>>>();
-        for path in &paths {
-            if let Some(position) = self.files.par_iter().position_any(|x| x.get_ref_path() == path) {
-                self.files.remove(position);
-            }
-        }
     }
 
     pub fn get_file_paths_from_path_types(&self, path_types: &[PathType]) -> Vec<Vec<String>> {
@@ -170,42 +117,10 @@ impl<T: Decodeable> AnimPack<T> {
             paths_files
         }
     }
+
+    */
 }
 
-/// Implementation of AnimPacked.
-impl AnimPacked {
-    pub fn get_ref_data(&self) -> &[u8] {
-        &self.data
-    }
-
-    pub fn get_ref_path(&self) -> &[String] {
-        &self.path
-    }
-}
-
-/// Implementation to create an `AnimPacked` from a `PackedFile`.
-impl TryFrom<&PackedFile> for AnimPacked {
-
-    type Error = Error;
-
-    fn try_from(packed_file: &PackedFile) -> Result<Self> {
-        let anim_packed = Self {
-            path: packed_file.get_path().to_vec(),
-            data: packed_file.get_raw_data()?,
-        };
-        Ok(anim_packed)
-    }
-}
-
-impl From<&AnimPacked> for PackedFileInfo {
-    fn from(anim_packed: &AnimPacked) -> Self {
-        let packed_file_info = Self {
-            path: anim_packed.get_ref_path().to_vec(),
-            ..Default::default()
-        };
-        packed_file_info
-    }*/
-}
 
 impl<T: Decodeable> Decodeable for AnimPack<T> {
 

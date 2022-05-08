@@ -18,7 +18,7 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::process::Command as SystemCommand;
 
-use anyhow::{anyhow, Result};
+use crate::error::{RCommonError, Result};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -141,7 +141,7 @@ impl GitIntegration {
                 DirBuilder::new().recursive(true).create(&self.local_path)?;
                 match Repository::clone(&self.url, &self.local_path) {
                     Ok(_) => return Ok(()),
-                    Err(_) => return Err(anyhow!("There was an error while downloading/updating the following git repository: {}.", &self.url)),
+                    Err(_) => return Err(RCommonError::GitErrorDownloadFromRepo(self.url.to_owned())),
                 }
             }
         };
@@ -178,7 +178,7 @@ impl GitIntegration {
             if stash_id.is_ok() {
                 let _ = repo.stash_pop(0, None);
             }
-            Err(anyhow!("No updates available for the following git repository: {}.", &self.url))
+            Err(RCommonError::GitErrorNoUpdatesAvailable(self.url.to_owned()))
         }
 
         // If we can do a fast-forward, we do it. This is the preferred option.
@@ -213,7 +213,7 @@ impl GitIntegration {
                 let _ = repo.stash_pop(0, None);
             }
 
-            Err(anyhow!("There was an error while downloading/updating the following git repository: {}.", &self.url))
+            Err(RCommonError::GitErrorDownloadFromRepo(self.url.to_owned()))
         }
     }
 }

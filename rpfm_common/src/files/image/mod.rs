@@ -14,11 +14,11 @@ Module with all the code to interact with Image PackedFiles.
 Images... we really just get their that to memory. Nothing more.
 !*/
 
-use anyhow::Result;
+use crate::error::Result;
 
-use rpfm_common::schema::Schema;
+use crate::schema::Schema;
 
-use crate::{Decodeable, FileType};
+use crate::files::{Decodeable, FileType};
 
 /// Extensions used by Image PackedFiles.
 pub const EXTENSIONS: [&str; 5] = [
@@ -61,7 +61,7 @@ impl Decodeable for Image {
     }
 
     /// This function creates a `Image` from a `Vec<u8>`.
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         Ok(Self {
             data: packed_file_data.to_vec(),
         })
