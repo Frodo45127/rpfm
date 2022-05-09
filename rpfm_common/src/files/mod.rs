@@ -8,14 +8,37 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to decode/encode/interact with the different type of `PackedFiles`.
-
-This module contains all the code related with interacting with the different type of `PackedFiles`
-you can find in a `PackFile`. Here, you can find some generic enums used by the different `PackedFiles`.
-
-For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
-!*/
+//! This module contains the definition of RFile, the file abstraction used by this lib to decode/encode files.
+//!
+//! # Known file types
+//!
+//! | File Type       | Decoding Supported | Encoding Supported |
+//! | --------------- | ------------------ | ------------------ |
+//! | [`AnimPack`]    | Yes                | Yes                |
+//! | [`CAVP8`]       | Yes                | Yes                |
+//! | [`DB`]          | Yes                | Yes                |
+//! | [`ESF`]         | Limited            | Limited            |
+//! | [`Image`]       | Yes                | No                 |
+//! | [`Loc`]         | Yes                | Yes                |
+//! | [`Pack`]        | Yes                | Yes                |
+//! | [`RigidModel`]  | No                 | No                 |
+//! | [`Text`]        | Yes                | Yes                |
+//! | [`UIC`]         | No                 | No                 |
+//! | [`UnitVariant`] | Yes                | Yes                |
+//!
+//! For more information about specific file types, including their binary format spec, please **check their respective modules**.
+//!
+//! [`AnimPack`]: crate::files::animpack
+//! [`CAVP8`]: crate::files::ca_vp8
+//! [`DB`]: crate::files::db
+//! [`ESF`]: crate::files::esf
+//! [`Image`]: crate::files::image
+//! [`Loc`]: crate::files::loc
+//! [`Pack`]: crate::files::pack
+//! [`RigidModel`]: crate::files::rigidmodel
+//! [`Text`]: crate::files::text
+//! [`UIC`]: crate::files::uic
+//! [`UnitVariant`]: crate::files::unit_variant
 
 use rayon::prelude::*;
 
@@ -43,39 +66,62 @@ pub mod unit_variant;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// This struct represents an individual file, either in the disk, inside a container like a PackFile,
+/// or already decoded on memory. It's used to perform file-level actions in a generic way, without
+/// interfering with their file's data, type or format.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RFile<T: Decodeable> {
+
+    /// Path of the file within a [`Container`]. It may be an empty string if the file is not in one.
     path: String,
+
+    /// Last modified date of the file. Optional.
     timestamp: Option<i64>,
+
+    /// Inner data of the file.
     data: RFileInnerData<T>,
 }
 
+/// This enum contains the inner data of each [`RFile`]. Despite being public, is not recommended to
+/// manipulate this data directly unless you know what you're doing.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RFileInnerData<T: Decodeable> {
-    Decoded(Box<T>),
-    Catched(Vec<u8>),
-    OnDisk(OnDisk)
 
+    /// This variant represents a file whose data has been loaded to memory and decoded.
+    Decoded(Box<T>),
+
+    /// This variant represents a file whose data has been loaded to memory, but it hasn't been decoded.
+    Catched(Vec<u8>),
+
+    /// This variant represents a file whose data hasn't been loaded to memory yet.
+    OnDisk(OnDisk)
 }
 
-/// This struct contains the stuff needed to read the data of a particular PackedFile from disk.
+/// This struct represents a file on disk. This may be a file directly on disk, or one inside another file
+/// (like inside a Pack).
 #[derive(Clone, Debug, PartialEq, GetRef)]
 pub struct OnDisk {
 
-    /// Reader over the PackFile containing the PackedFile.
+    /// Path of the file or the containing file.
     path: String,
-    start: u64,
-    size: u32,
-    is_compressed: bool,
-    is_encrypted: Option<PFHVersion>,
 
-    /// Last Modified Date on disk of the PackFile containing this PackedFile.
-    last_modified_date_pack: i64,
+    /// Offset of the start of the file's data. 0 if the data is not inside another file.
+    start: u64,
+
+    /// Size in bytes of the file's data.
+    size: u32,
+
+    /// Is the data compressed?.
+    is_compressed: bool,
+
+    /// Is the data encrypted? And if so, with which format?.
+    is_encrypted: Option<PFHVersion>,
 }
 
-/// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
+/// This enum specifies the known types of files we can find in a Total War game.
 ///
-/// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
+/// This list is not exhaustive and it may get bigger in the future as more files are added to the list.
+/// For each file info, please check their dedicated submodule.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FileType {
     Anim,
@@ -106,10 +152,14 @@ pub enum FileType {
     Unknown,
 }
 
+/// This enum represents a ***Path*** inside a container.
 pub enum ContainerPath {
+
+    /// This variant represents the path of a single file.
     File(String),
+
+    /// This variant represents the path of a single folder.
     Folder(String),
-    FullContainer,
 }
 
 //---------------------------------------------------------------------------//
@@ -149,18 +199,24 @@ pub trait Container<T: Decodeable> {
                 return vec![ContainerPath::File(path.to_owned())];
             },
             ContainerPath::Folder(path) => {
-                let paths_to_remove = self.files().par_iter()
-                    .filter_map(|(key, _)| if key.starts_with(path) { Some(key.to_owned()) } else { None }).collect::<Vec<String>>();
 
-                paths_to_remove.iter().for_each(|path| {
-                    self.files_mut().remove(path);
-                });
-                return paths_to_remove.par_iter().map(|path| ContainerPath::File(path.to_string())).collect();
-            },
-            ContainerPath::FullContainer => {
-                self.files_mut().clear();
-                return vec![ContainerPath::FullContainer];
-            },
+                // If the path is empty, we mean the root of the container, including everything on it.
+                if path.is_empty() {
+                    self.files_mut().clear();
+                    return vec![ContainerPath::Folder(path.to_string())];
+                }
+
+                // Otherwise, it's a normal folder.
+                else {
+                    let paths_to_remove = self.files().par_iter()
+                        .filter_map(|(key, _)| if key.starts_with(path) { Some(key.to_owned()) } else { None }).collect::<Vec<String>>();
+
+                    paths_to_remove.iter().for_each(|path| {
+                        self.files_mut().remove(path);
+                    });
+                    return paths_to_remove.par_iter().map(|path| ContainerPath::File(path.to_string())).collect();
+                }
+            }
         }
     }
 
@@ -176,13 +232,19 @@ pub trait Container<T: Decodeable> {
                 }
             },
             ContainerPath::Folder(path) => {
-                self.files().par_iter()
-                    .filter_map(|(key, file)|
-                        if key.starts_with(path) { Some(file) } else { None }
-                    ).collect::<Vec<&RFile<T>>>()
-            },
-            ContainerPath::FullContainer => {
-                self.files().values().collect()
+
+                // If the path is empty, get everything.
+                if path.is_empty() {
+                    self.files().values().collect()
+                }
+
+                // Otherwise, only get the files under our folder.
+                else {
+                    self.files().par_iter()
+                        .filter_map(|(key, file)|
+                            if key.starts_with(path) { Some(file) } else { None }
+                        ).collect::<Vec<&RFile<T>>>()
+                }
             },
         }
     }

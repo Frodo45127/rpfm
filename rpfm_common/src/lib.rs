@@ -14,7 +14,8 @@
 //! in Total War Games since Empire: Total War.
 //!
 //! For information about ann specific file, please check their modules under the [`files`] module.
-
+//!
+//! # TODO: Write some examples.
 
 // Reexports for ease of managing dependencies.
 pub use rpfm_macros;
