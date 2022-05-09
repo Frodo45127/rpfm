@@ -22,7 +22,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use encoding::all::ISO_8859_1;
 use encoding::types::{Encoding, EncoderTrap};
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 //---------------------------------------------------------------------------//
 //                      `Encoder` Trait Definition
@@ -207,7 +207,7 @@ impl Encoder for Vec<u8> {
 
     fn encode_string_u8_0padded(&mut self, (string, size): &(String, usize)) -> Result<()> {
         if string.len() > *size {
-            return Err(RCommonError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), string.len(), *size));
+            return Err(RLibError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), string.len(), *size));
         }
         self.extend_from_slice(string.as_bytes());
         self.extend_from_slice(&vec![0; size - string.len()]);
@@ -220,7 +220,7 @@ impl Encoder for Vec<u8> {
 
     fn encode_string_u16_0padded(&mut self, (string, size): &(&str, usize)) -> Result<()> {
         if string.len() * 2 > *size {
-            return Err(RCommonError::EncodingPaddedStringError("UTF-16 0-Padded String".to_owned(), string.to_string(), string.len(), *size));
+            return Err(RLibError::EncodingPaddedStringError("UTF-16 0-Padded String".to_owned(), string.to_string(), string.len(), *size));
         }
 
         self.encode_string_u16(string);

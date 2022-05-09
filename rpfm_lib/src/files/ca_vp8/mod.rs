@@ -20,7 +20,7 @@
 //!to the MIT license above and are under the CC-SA 4.0 license, available here:
 //!- <https://creativecommons.org/licenses/by-sa/4.0/>
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use fraction::GenericFraction;
 
 use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
@@ -167,7 +167,7 @@ impl CaVp8 {
 
             let frame_offset_real_end = frame_offset_real + frame.size;
             if frame_offset_real_end as usize > packed_file_data.len() {
-                return Err(RCommonError::DecodingCAVP8IncorrectOrUnknownFrameSize);
+                return Err(RLibError::DecodingCAVP8IncorrectOrUnknownFrameSize);
             }
 
             frame_data.extend_from_slice(&packed_file_data[frame_offset_real as usize..frame_offset_real_end as usize]);
@@ -316,7 +316,7 @@ impl Decodeable for CaVp8 {
         match &*packed_file_data.decode_string_u8(0, 4)? {
             SIGNATURE_IVF => Self::read_ivf(packed_file_data),
             SIGNATURE_CAMV => Self::read_camv(packed_file_data),
-            _ => Err(RCommonError::DecodingCAVP8UnsupportedFormat)
+            _ => Err(RLibError::DecodingCAVP8UnsupportedFormat)
         }
     }
 }

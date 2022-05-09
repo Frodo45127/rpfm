@@ -23,7 +23,7 @@ use std::path::Path;
 
 
 use crate::{decoder::Decoder, encoder::Encoder, schema::*};
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
@@ -67,7 +67,7 @@ impl Decodeable for Loc {
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (_, table_name, _) = extra_data.ok_or(RCommonError::DecodingTableMissingExtraData)?;
+        let (_, table_name, _) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
 
         let (version, entry_count) = Self::read_header(packed_file_data)?;
 
@@ -87,7 +87,7 @@ impl Decodeable for Loc {
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() {
-            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index));
+            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index));
         }
 
         // If we've reached this, we've successfully decoded the table.
@@ -200,16 +200,16 @@ impl Loc {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
         if packed_file_data.len() < HEADER_SIZE {
-            return Err(RCommonError::DecodingLocNotALocTable)
+            return Err(RLibError::DecodingLocNotALocTable)
         }
 
         // More checks to ensure this is a valid Loc PAckedFile.
         if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? {
-            return Err(RCommonError::DecodingLocNotALocTable)
+            return Err(RLibError::DecodingLocNotALocTable)
         }
 
         if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? {
-            return Err(RCommonError::DecodingLocNotALocTable)
+            return Err(RLibError::DecodingLocNotALocTable)
         }
 
         let version = packed_file_data.decode_integer_i32(6)?;

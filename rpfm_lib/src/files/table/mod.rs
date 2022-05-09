@@ -27,7 +27,7 @@ use std::path::Path;
 
 use rpfm_macros::*;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches}, utils::*};
 
 //use crate::assembly_kit::table_data::RawTable;
@@ -578,7 +578,7 @@ impl Table {
             if u32::from_str_radix(&colour_hex, 16).is_ok() {
                 row_data.push(DecodedData::ColourRGB(colour_hex));
             } else {
-                return Err(RCommonError::DecodingTableCombinedColour);
+                return Err(RLibError::DecodingTableCombinedColour);
             }
         }
 
@@ -700,71 +700,71 @@ impl Table {
         match field.field_type() {
             FieldType::Boolean => {
                 if let Ok(data) = data.decode_packedfile_bool(*index, index) { Ok(DecodedData::Boolean(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string())) }
             }
             FieldType::F32 => {
                 if let Ok(data) = data.decode_packedfile_float_f32(*index, index) { Ok(DecodedData::F32(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "F32".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F32".to_string())) }
             }
             FieldType::F64 => {
                 if let Ok(data) = data.decode_packedfile_float_f64(*index, index) { Ok(DecodedData::F64(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "F64".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "F64".to_string())) }
             }
             FieldType::I16 => {
                 if let Ok(data) = data.decode_packedfile_integer_i16(*index, index) { Ok(DecodedData::I16(data))  }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I16".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I16".to_string())) }
             }
             FieldType::I32 => {
                 if let Ok(data) = data.decode_packedfile_integer_i32(*index, index) { Ok(DecodedData::I32(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I32".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I32".to_string())) }
             }
             FieldType::I64 => {
                 if let Ok(data) = data.decode_packedfile_integer_i64(*index, index) { Ok(DecodedData::I64(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "I64".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "I64".to_string())) }
             }
             FieldType::ColourRGB => {
                 if let Ok(data) = data.decode_packedfile_string_colour_rgb(*index, index) { Ok(DecodedData::ColourRGB(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
             }
             FieldType::StringU8 => {
                 if let Ok(data) = data.decode_packedfile_string_u8(*index, index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
             }
             FieldType::StringU16 => {
                 if let Ok(data) = data.decode_packedfile_string_u16(*index, index) { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
             }
             FieldType::OptionalI16 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i16(*index, index) { Ok(DecodedData::OptionalI16(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I16".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I16".to_string())) }
             }
             FieldType::OptionalI32 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i32(*index, index) { Ok(DecodedData::OptionalI32(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I32".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I32".to_string())) }
             }
             FieldType::OptionalI64 => {
                 if let Ok(data) = data.decode_packedfile_optional_integer_i64(*index, index) { Ok(DecodedData::OptionalI64(data)) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional I64".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional I64".to_string())) }
             }
 
             FieldType::OptionalStringU8 => {
                 if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, index) { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
             }
             FieldType::OptionalStringU16 => {
                 if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, index) { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
-                else { Err(RCommonError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
+                else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
             }
 
             FieldType::SequenceU16(definition) => {
                 let start = *index;
                 match Self::decode_table(definition, data, None, index, false) {
                     Ok(_) => {
-                        let end = if data.get(*index).is_some() { *index } else { return Err(RCommonError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU16".to_string())) };
+                        let end = if data.get(*index).is_some() { *index } else { return Err(RLibError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU16".to_string())) };
                         let blob = &data[start..end];
                         Ok(DecodedData::SequenceU16(blob.to_vec()))
                     }
-                    Err(error) => Err(RCommonError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU16".to_string()))
+                    Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU16".to_string()))
                 }
             }
 
@@ -772,11 +772,11 @@ impl Table {
                 let start = *index;
                 match Self::decode_table(definition, data, None, index, false) {
                     Ok(_) => {
-                        let end = if data.get(*index).is_some() { *index } else { return Err(RCommonError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU32".to_string())) };
+                        let end = if data.get(*index).is_some() { *index } else { return Err(RLibError::DecodingTableFieldSequenceIndexError(row + 1, column + 1, *index, "SequenceU32".to_string())) };
                         let blob = &data[start..end];
                         Ok(DecodedData::SequenceU32(blob.to_vec()))
                     }
-                    Err(error) => Err(RCommonError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
+                    Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
                 }
             }
         }

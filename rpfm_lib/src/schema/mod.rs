@@ -80,7 +80,7 @@ use rpfm_macros::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use self::patch::SchemaPatches;
 
 // Legacy Schemas, to keep backwards compatibility during updates.

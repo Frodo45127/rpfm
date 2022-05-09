@@ -22,7 +22,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 /// These constants are needed to work with LEB_128 encoded numbers.
 pub const LEB128_CONTROL_BIT: u8 = 0b10000000;
@@ -200,9 +200,9 @@ impl Decoder for [u8] {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
             if self.get(size - 1).is_some() { Ok(&self[offset..offset + size]) }
-            else { Err(RCommonError::DecodingNotMoreBytesToDecode.into()) }
+            else { Err(RLibError::DecodingNotMoreBytesToDecode.into()) }
         }
-        else { Err(RCommonError::DecodingNotMoreBytesToDecode.into()) }
+        else { Err(RLibError::DecodingNotMoreBytesToDecode.into()) }
     }
 
     //---------------------------------------------------------------------------//
@@ -214,17 +214,17 @@ impl Decoder for [u8] {
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(RCommonError::DecodingBoolError(value).into()),
+            _ => Err(RLibError::DecodingBoolError(value).into()),
         }
     }
 
     fn decode_integer_u8(&self, offset: usize) -> Result<u8> {
-        self.get(offset).copied().ok_or_else(|| RCommonError::DecodingNoBytesLeftError)
+        self.get(offset).copied().ok_or_else(|| RLibError::DecodingNoBytesLeftError)
     }
 
     fn decode_integer_u16(&self, offset: usize) -> Result<u16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_u16(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u16".to_owned(), 2, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("u16".to_owned(), 2, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u24(&self, offset: usize) -> Result<u32> {
@@ -233,26 +233,26 @@ impl Decoder for [u8] {
             data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_u32(&data)) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u24".to_owned(), 3, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("u24".to_owned(), 3, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u32(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u32".to_owned(), 4, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("u32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_u64(&self, offset: usize) -> Result<u64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_u64(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("u64".to_owned(), 8, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("u64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i8(&self, offset: usize) -> Result<i8> {
-        self.get(offset).map(|x| *x as i8).ok_or_else(|| RCommonError::DecodingNoBytesLeftError)
+        self.get(offset).map(|x| *x as i8).ok_or_else(|| RLibError::DecodingNoBytesLeftError)
     }
 
     fn decode_integer_i16(&self, offset: usize) -> Result<i16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_i16(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i16".to_owned(), 2, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("i16".to_owned(), 2, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i24(&self, offset: usize) -> Result<i32> {
@@ -261,52 +261,52 @@ impl Decoder for [u8] {
             data.extend_from_slice(&self[offset..offset + 3]);
             data.push(0);
             Ok(LittleEndian::read_i32(&data)) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i24".to_owned(), 3, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("i24".to_owned(), 3, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i32(&self, offset: usize) -> Result<i32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_i32(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i32".to_owned(), 4, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("i32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_integer_i64(&self, offset: usize) -> Result<i64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_i64(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("i64".to_owned(), 8, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("i64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_float_f32(&self, offset: usize) -> Result<f32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_f32(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("f32".to_owned(), 4, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("f32".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_float_f64(&self, offset: usize) -> Result<f64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_f64(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("f64".to_owned(), 8, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("f64".to_owned(), 8, offset.checked_sub(self.len()))) }
     }
 
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() < offset + size {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String".to_owned(), size, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String".to_owned(), size, offset.checked_sub(self.len())))
         }
         String::from_utf8(self[offset..offset + size].to_vec()).map_err(From::from)
     }
 
     fn decode_integer_colour_rgb(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
-        else { Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len()))) }
+        else { Err(RLibError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len()))) }
     }
 
     fn decode_string_u8_iso_8859_1(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() < offset + size {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String from an ISO8859-1 String".to_owned(), size, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("UTF-8 String from an ISO8859-1 String".to_owned(), size, offset.checked_sub(self.len())))
         }
 
-        ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|error| RCommonError::DecodeUTF8FromISO8859Error(error.to_string()))
+        ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|error| RLibError::DecodeUTF8FromISO8859Error(error.to_string()))
     }
 
     fn decode_string_u8_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
         if self.len() < offset + size {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-8 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("UTF-8 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
         }
 
         let size_no_zeros = self[offset..offset + size].iter().position(|x| *x == 0).map_or(size, |x| x);
@@ -316,7 +316,7 @@ impl Decoder for [u8] {
 
     fn decode_string_u8_0terminated(&self, offset: usize) -> Result<(String, usize)> {
         if self.len() < offset {
-            return Err(RCommonError::DecodingNotMoreBytesToDecode.into());
+            return Err(RLibError::DecodingNotMoreBytesToDecode.into());
         }
 
         let (ends_in_zero, size) = self[offset..].iter().position(|x| *x == 0).map_or((false, self[offset..].len()), |x| (true, x));
@@ -326,7 +326,7 @@ impl Decoder for [u8] {
 
     fn decode_string_u16(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() < offset + size && size % 2 == 0 {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-16 String".to_owned(), size, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("UTF-16 String".to_owned(), size, offset.checked_sub(self.len())))
         }
 
         let u16_characters = self[offset..offset + size]
@@ -338,7 +338,7 @@ impl Decoder for [u8] {
 
     fn decode_string_u16_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
         if self.len() < offset + size {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("UTF-16 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("UTF-16 0-Padded String".to_owned(), size, offset.checked_sub(self.len())))
         }
 
         let size_no_zeros = self[offset..offset + size].iter().step_by(2).position(|x| *x == 0).map_or(size, |x| x * 2);
@@ -349,7 +349,7 @@ impl Decoder for [u8] {
 
     fn decode_string_colour_rgb(&self, offset: usize) -> Result<String> {
         if self.len() < offset + 4 {
-            return Err(RCommonError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len())))
+            return Err(RLibError::DecodingNotEnoughBytesToDecodeForType("RGB Colour".to_owned(), 4, offset.checked_sub(self.len())))
         }
         // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
         // REMEMBER, FORMAT ENCODED IS BBGGRR00.
@@ -399,14 +399,14 @@ impl Decoder for [u8] {
 
     fn decode_packedfile_integer_cauleb128(&self, index: &mut usize) -> Result<u32> {
         let mut size: u32 = 0;
-        let mut byte = self.get(*index).ok_or_else(|| RCommonError::DecodingNotMoreBytesToDecode)?;
+        let mut byte = self.get(*index).ok_or_else(|| RLibError::DecodingNotMoreBytesToDecode)?;
 
         while(byte & 0x80) != 0 {
             size = (size << 7) | (byte & 0x7f) as u32;
             *index += 1;
 
             // Check the new byte is even valid before continuing.
-            byte = self.get(*index).ok_or_else(|| RCommonError::DecodingNotMoreBytesToDecode)?;
+            byte = self.get(*index).ok_or_else(|| RLibError::DecodingNotMoreBytesToDecode)?;
         }
 
         size = (size << 7) | (byte & 0x7f) as u32;
@@ -499,7 +499,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            return Err(RCommonError::DecodingStringSizeError("UTF-8 String".to_owned(), offset.checked_sub(self.len()), 2))
+            return Err(RLibError::DecodingStringSizeError("UTF-8 String".to_owned(), offset.checked_sub(self.len()), 2))
         }
     }
 
@@ -520,13 +520,13 @@ impl Decoder for [u8] {
             result
         }
         else {
-            return Err(RCommonError::DecodingStringSizeError("UTF-16 String".to_owned(), offset.checked_sub(self.len()), 2))
+            return Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned(), offset.checked_sub(self.len()), 2))
         }
     }
 
     fn decode_packedfile_optional_string_u8(&self, offset: usize, index: &mut usize) -> Result<String> {
         let is = self.decode_packedfile_bool(offset, index)
-            .map_err(|_| RCommonError::DecodingOptionalStringBoolError("UTF-8 Optional String".to_owned()))?;
+            .map_err(|_| RLibError::DecodingOptionalStringBoolError("UTF-8 Optional String".to_owned()))?;
 
         if !is {
             return Ok(String::new())
@@ -539,7 +539,7 @@ impl Decoder for [u8] {
 
     fn decode_packedfile_optional_string_u16(&self, offset: usize, index: &mut usize) -> Result<String> {
         let is = self.decode_packedfile_bool(offset, index)
-            .map_err(|_| RCommonError::DecodingOptionalStringBoolError("UTF-16 Optional String".to_owned()))?;
+            .map_err(|_| RLibError::DecodingOptionalStringBoolError("UTF-16 Optional String".to_owned()))?;
 
         if !is {
             return Ok(String::new())

@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{decoder::Decoder, rpfm_macros::*, schema::Schema};
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
 
 /// If this sequence is found, the DB Table has a GUID after it.
@@ -85,22 +85,22 @@ impl Decodeable for DB {
     }
 
     fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (schema, table_name, return_incomplete) = extra_data.ok_or(RCommonError::DecodingTableMissingExtraData)?;
+        let (schema, table_name, return_incomplete) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
         let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
 
         // Try to get the table_definition for this table, if exists.
         let definitions = schema.definitions_by_table_name(table_name).ok_or_else(|| {
             if entry_count == 0 {
-                RCommonError::DecodingDBNoDefinitionsFoundAndEmptyFile
+                RLibError::DecodingDBNoDefinitionsFoundAndEmptyFile
             } else {
-                RCommonError::DecodingDBNoDefinitionsFound
+                RLibError::DecodingDBNoDefinitionsFound
             }
         })?;
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
         let index_reset = index;
         let (table, table_data) = if version == 0 {
-            let mut data = Err(RCommonError::DecodingDBNoDefinitionsFound);
+            let mut data = Err(RLibError::DecodingDBNoDefinitionsFound);
             for definition in definitions.iter().filter(|definition| *definition.version() < 1) {
                 index = index_reset;
                 if let Ok(table_data) = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete) {
@@ -118,7 +118,7 @@ impl Decodeable for DB {
         else {
 
             let definition = definitions.iter().find(|definition| *definition.version() == version).ok_or_else(|| {
-                RCommonError::DecodingDBNoDefinitionsFound
+                RLibError::DecodingDBNoDefinitionsFound
             })?;
 
             let table_data = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete)?;
@@ -129,7 +129,7 @@ impl Decodeable for DB {
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
         if index != packed_file_data.len() {
             // TODO: dump the decoded data here.
-            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index));
+            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index));
         }
 
         // If everything decoded properly, load the table to the databse.
@@ -161,7 +161,7 @@ impl DB {
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
         if packed_file_data.len() < 5 {
-            return Err(RCommonError::DecodingDBNotADBTable);
+            return Err(RLibError::DecodingDBNotADBTable);
         }
 
         // Create the index that we'll use to decode the entire table.

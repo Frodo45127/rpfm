@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 use rpfm_macros::*;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::utils::*;
 
 use self::supported_games::KEY_TROY;
@@ -334,14 +334,14 @@ impl GameInfo {
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings
     pub fn get_data_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.get_install_type(game_path)?;
-        let install_data = self.install_data.get(&install_type).ok_or_else(|| RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.data_path()))
     }
 
     /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
     pub fn get_local_mods_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.get_install_type(game_path)?;
-        let install_data = self.install_data.get(&install_type).ok_or_else(|| RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
         Ok(game_path.join(install_data.local_mods_path()))
     }
     /*
@@ -424,7 +424,7 @@ impl GameInfo {
     /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
     pub fn use_manifest(&self, game_path: &Path) -> Result<bool> {
         let install_type = self.get_install_type(game_path)?;
-        let install_data = self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        let install_data = self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
 
         // If the install_type is linux, or we actually have a hardcoded list, ignore all Manifests.
         Ok(*install_data.use_manifest())
@@ -490,7 +490,7 @@ impl GameInfo {
     fn get_all_ca_packfiles_paths_no_manifest(&self, game_path: &Path) -> Result<Vec<PathBuf>> {
         let data_path = self.get_data_path(game_path)?;
         let install_type = self.get_install_type(game_path)?;
-        let vanilla_packs = &self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
+        let vanilla_packs = &self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
         if !vanilla_packs.is_empty() {
             Ok(vanilla_packs.iter().filter_map(|x| {
                 let mut pack_file_path = data_path.to_path_buf();
@@ -518,10 +518,10 @@ impl GameInfo {
         match install_type {
             InstallType::LnxSteam |
             InstallType::WinSteam => {
-                let store_id = self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
+                let store_id = self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
                 Ok(format!("steam://rungameid/{}", store_id))
             },
-            _ => return Err(RCommonError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
+            _ => return Err(RLibError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
         }
     }
 

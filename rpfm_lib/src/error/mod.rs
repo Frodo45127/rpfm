@@ -8,26 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with the `Decoder` trait, to decode bytes to readable data.
-
-This module contains the `Decoder` trait and his implementation for `&[u8]`. This trait allow us
-to safely (yes, it covers your `index-out-of-bounds` bugs) decode any type of data contained within
-a PackFile/PackedFile.
-
-Note: If you change anything from here, remember to update the `decoder_test.rs` file for it.
-!*/
+//! This module contains all kind of errors used inside this crate.
+//!
+//! Not much to say appart of that, really.
 
 use thiserror::Error;
 
-//---------------------------------------------------------------------------//
-//                      `Decoder` Trait Definition
-//---------------------------------------------------------------------------//
-
-pub type Result<T, E = RCommonError> = core::result::Result<T, E>;
+/// Custom `Result` type, to always return our custom error.
+pub type Result<T, E = RLibError> = core::result::Result<T, E>;
 
 #[derive(Error, Debug)]
-pub enum RCommonError {
+pub enum RLibError {
     #[error("This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.")]
     DataCannotBeDecompressed,
 

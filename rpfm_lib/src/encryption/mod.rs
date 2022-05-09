@@ -13,7 +13,7 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::num::Wrapping;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::decoder::Decoder;
 
 // Old key used in Arena, and all the way back to Shogun 2.

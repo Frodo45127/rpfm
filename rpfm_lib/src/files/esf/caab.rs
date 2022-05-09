@@ -12,7 +12,7 @@
 Module with all the code needed to support the CAAB format for ESF files.
 !*/
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 use std::collections::BTreeMap;
 
@@ -68,7 +68,7 @@ impl ESF {
 
         // If we're not at the end of the file, something failed.
         if offset != packed_file_data.len() {
-            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), offset));
+            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), offset));
         }
 
         // Restore the index before continuing.
@@ -79,7 +79,7 @@ impl ESF {
 
         // If we're not at the exact end of the nodes, something failed.
         if offset != record_names_offset as usize {
-            return Err(RCommonError::DecodingMismatchSizeError(record_names_offset as usize, offset));
+            return Err(RLibError::DecodingMismatchSizeError(record_names_offset as usize, offset));
         }
 
         let esf = Self{
@@ -185,7 +185,7 @@ impl ESF {
 
             let name = match record_names.get(name_index as usize) {
                 Some(name) => name.to_owned(),
-                None => return Err(RCommonError::DecodingESFRecordNameNotFound(name_index)),
+                None => return Err(RLibError::DecodingESFRecordNameNotFound(name_index)),
             };
 
             // Get the block size, to know what data do we have to decode exactly.
@@ -213,7 +213,7 @@ impl ESF {
 
                 // Make sure we decoded exactly the data we wanted.
                 if *offset != final_entry_offset {
-                    return Err(RCommonError::DecodingMismatchSizeError(final_entry_offset as usize, *offset));
+                    return Err(RLibError::DecodingMismatchSizeError(final_entry_offset as usize, *offset));
                 }
 
                 children.push(node_list);
@@ -221,7 +221,7 @@ impl ESF {
 
             // Make sure we decoded exactly the data we wanted.
             if *offset != final_block_offset {
-                return Err(RCommonError::DecodingMismatchSizeError(final_block_offset as usize, *offset));
+                return Err(RLibError::DecodingMismatchSizeError(final_block_offset as usize, *offset));
             }
 
             let node_data = RecordNode {
@@ -239,7 +239,7 @@ impl ESF {
             match next_byte {
 
                 // Invalid node. This is always an error.
-                INVALID => return Err(RCommonError::DecodingESFUnsupportedDataType(next_byte)),
+                INVALID => return Err(RLibError::DecodingESFUnsupportedDataType(next_byte)),
 
                 //------------------------------------------------//
                 // Primitive nodes.
@@ -292,14 +292,14 @@ impl ESF {
                     let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
                     match strings_utf16.get(&string_index) {
                         Some(string) => NodeType::Utf16(string.to_owned()),
-                        None => return Err(RCommonError::DecodingESFStringNotFound(string_index)),
+                        None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                     }
                 },
                 ASCII => {
                     let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
                     match strings_utf8.get(&string_index) {
                         Some(string) => NodeType::Ascii(string.to_owned()),
-                        None => return Err(RCommonError::DecodingESFStringNotFound(string_index)),
+                        None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                     }
                 },
                 ANGLE => NodeType::Angle(packed_file_data.decode_packedfile_integer_i16(*offset, offset)?),
@@ -570,7 +570,7 @@ impl ESF {
                         let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
                         match strings_utf16.get(&string_index) {
                             Some(string) => node_data.push(string.to_owned()),
-                            None => return Err(RCommonError::DecodingESFStringNotFound(string_index)),
+                            None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                         }
                     }
                     NodeType::Utf16Array(node_data)
@@ -584,7 +584,7 @@ impl ESF {
                         let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
                         match strings_utf8.get(&string_index) {
                             Some(string) => node_data.push(string.to_owned()),
-                            None => return Err(RCommonError::DecodingESFStringNotFound(string_index)),
+                            None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                         }
                     }
                     NodeType::AsciiArray(node_data)
@@ -695,7 +695,7 @@ impl ESF {
                 },
 
                 // Anything else is not yet supported.
-                _ => return Err(RCommonError::DecodingESFUnsupportedDataType(next_byte)),
+                _ => return Err(RLibError::DecodingESFUnsupportedDataType(next_byte)),
             }
         };
 

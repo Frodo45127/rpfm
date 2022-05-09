@@ -23,7 +23,7 @@ use std::fs::{File, read_dir};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 /// These consts are used for dealing with Time-related operations.
 pub const WINDOWS_TICK: i64 = 10_000_000;
@@ -48,13 +48,13 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
                             file_list.append(&mut subfolder_files_path);
                         }
                     }
-                    Err(_) => return Err(RCommonError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
                 }
             }
         }
 
         // In case of reading error, report it.
-        Err(_) => return Err(RCommonError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
     }
 
     // Return the list of paths.
@@ -129,7 +129,7 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
         Ok(false)
     }
     else {
-        Err(RCommonError::ParseBoolError(string.to_owned()))
+        Err(RLibError::ParseBoolError(string.to_owned()))
     }
 }
 

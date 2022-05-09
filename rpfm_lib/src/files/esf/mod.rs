@@ -20,7 +20,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::{fmt, fmt::Display};
 
 use crate::{decoder::Decoder, rpfm_macros::*, schema::Schema};
-use crate::error::{Result, RCommonError};
+use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CEO/ESF PackedFiles.
@@ -556,13 +556,13 @@ impl Decodeable for ESF {
             SIGNATURE_CAAB => ESFSignature::CAAB,
             SIGNATURE_CEAB => ESFSignature::CEAB,
             SIGNATURE_CFAB => ESFSignature::CFAB,
-            _ => return Err(RCommonError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
+            _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
         };
 
         // Match signatures that we can actually decode.
         let esf = match signature {
             ESFSignature::CAAB => Self::read_caab(packed_file_data)?,
-            _ => return Err(RCommonError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
+            _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
         };
 
         //use std::io::Write;

@@ -14,7 +14,7 @@ Module with all the code to interact with binary Unit Variants.
 Binary unit variants are the unit variants used from Empire to Shogun 2.
 !*/
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
@@ -65,7 +65,7 @@ impl UnitVariant {
     pub fn read_header(packed_file_data: &[u8], index: &mut usize) -> Result<(u32, u32, u32)> {
         if let Ok(signature) = packed_file_data.decode_string_u8(0, SIGNATURE.len()) {
             if signature != SIGNATURE {
-                return Err(RCommonError::DecodingUnitVariantNotAUnitVariant)
+                return Err(RLibError::DecodingUnitVariantNotAUnitVariant)
             }
         }
 
@@ -133,7 +133,7 @@ impl Decodeable for UnitVariant {
 
         // Trigger an error if there's left data on the source.
         if index != packed_file_data.len() {
-            return Err(RCommonError::DecodingMismatchSizeError(packed_file_data.len(), index))
+            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index))
         }
 
         // If we've reached this, we've successfully decoded the entire UnitVariant.

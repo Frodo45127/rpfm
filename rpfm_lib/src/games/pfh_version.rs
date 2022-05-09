@@ -11,7 +11,7 @@
 use std::{fmt, fmt::Display};
 use serde_derive::{Serialize, Deserialize};
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 /// These are the different Preamble/Id the PackFiles can have.
 const PFH6_PREAMBLE: &str = "PFH6"; // PFH6
@@ -76,7 +76,7 @@ impl PFHVersion {
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
             PFH2_PREAMBLE => Ok(PFHVersion::PFH2),
             PFH0_PREAMBLE => Ok(PFHVersion::PFH0),
-            _ => Err(RCommonError::UnknownPFHVersion(value.to_owned())),
+            _ => Err(RLibError::UnknownPFHVersion(value.to_owned())),
         }
     }
 }

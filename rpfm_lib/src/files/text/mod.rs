@@ -15,7 +15,7 @@ Text PackedFiles are any kind of plain text packedfile, like lua, xml, txt,...
 The only thing to take into account is that this only work for UTF-8 encoded files.
 !*/
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 
 use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
 
@@ -133,7 +133,7 @@ impl Decodeable for Text {
                     Ok(string) => (SupportedEncodings::Utf8, string),
                     Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
                         Ok(string) => (SupportedEncodings::Iso8859_1, string),
-                        Err(_) => return Err(RCommonError::DecodingTextUnsupportedEncodingOrNotATextFile),
+                        Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
                     }
                 }
             }
@@ -141,7 +141,7 @@ impl Decodeable for Text {
             SupportedEncodings::Utf16Le => {
                 match packed_file_data.decode_string_u16(0, packed_file_data.len()) {
                     Ok(string) => (SupportedEncodings::Utf16Le, string),
-                    Err(_) => return Err(RCommonError::DecodingTextUnsupportedEncodingOrNotATextFile),
+                    Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
                 }
             }
         };

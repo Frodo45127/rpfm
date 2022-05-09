@@ -41,7 +41,7 @@ use crate::games::pfh_file_type::PFHFileType;
 
 use crate::files::RFile;
 
-use crate::error::{RCommonError, Result};
+use crate::error::{RLibError, Result};
 use crate::files::FileType;
 use crate::files::Decodeable;
 use crate::files::Container;
