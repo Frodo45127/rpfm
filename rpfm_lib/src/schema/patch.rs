@@ -15,19 +15,17 @@ These are manual patches made so the autoimporter doesn't break manual fixes.
 !*/
 
 use ron::ser::{to_string_pretty, to_writer_pretty, PrettyConfig};
-use ron::de::from_str;
-use sentry::Envelope;
-use sentry::Level;
-use sentry::protocol::{Attachment, EnvelopeItem, Event};
+use ron::de::{from_bytes, from_str};
 
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::HashMap;
+use std::io::BufWriter;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use rpfm_logging::*;
 use rpfm_macros::*;
 
-use crate::GAME_SELECTED;
-use crate::SENTRY_GUARD;
 use super::*;
 
 const SCHEMA_PATCHES_FILE: &str = "patches.ron";
@@ -45,7 +43,7 @@ pub struct SchemaPatches {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default, GetRef, GetRefMut)]
-pub struct SchemaPatch{
+pub struct SchemaPatch {
 
     /// It stores a list of per-table, per-column patches.
     tables: HashMap<String, HashMap<String, HashMap<String, String>>>,
@@ -59,32 +57,28 @@ pub struct SchemaPatch{
 impl SchemaPatches {
 
     /// This function loads a `SchemaPatches` to memory from a file in the `schemas/` folder.
-    pub fn load() -> Result<Self> {
-        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
-        file_path.push(SCHEMA_PATCHES_FILE);
-
-        let mut file = BufReader::new(File::open(&file_path)?);
+    pub fn load(path: &Path) -> Result<Self> {
+        let mut file = BufReader::new(File::open(&path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         from_bytes(&data).map_err(From::from)
     }
 
     /// This function saves a `SchemaPatches` from memory to a file in the `schemas/` folder.
-    pub fn save(&mut self) -> Result<()> {
-        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
-        DirBuilder::new().recursive(true).create(&file_path)?;
+    pub fn save(&mut self, path: &Path) -> Result<()> {
+        if let Some(parent_folder) = path.parent() {
+            DirBuilder::new().recursive(true).create(&parent_folder)?;
+        }
 
-        file_path.push(SCHEMA_PATCHES_FILE);
-        let mut file = File::create(&file_path)?;
+        let mut file = BufWriter::new(File::create(&path)?);
         let config = PrettyConfig::default();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
     }
 
     /// This function imports a schema patch into the currently loaded patchset, using the Game Selected to choose what schema to patch.
-    pub fn import(&mut self, patch: SchemaPatch) -> Result<()> {
-        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
-        match self.patches.get_mut(&game_selected) {
+    pub fn import(&mut self, game_key: &str, patch: SchemaPatch, path: &Path) -> Result<()> {
+        match self.patches.get_mut(game_key) {
 
             // If we have patches fopr that game.
             Some(patches) => {
@@ -99,10 +93,10 @@ impl SchemaPatches {
                     None => { patches.tables.insert(table_name.to_owned(), patch.tables.get(table_name).unwrap().clone()); }
                 }
             }
-            None => { self.patches.insert(game_selected, patch); },
+            None => { self.patches.insert(game_key.to_owned(), patch); },
         }
 
-        self.save()
+        self.save(path)
     }
 
     /// This function retireves a value from a schema patch.
@@ -120,28 +114,14 @@ impl SchemaPatch {
     }
 
     /// This function uploads a patch to sentry's service.
-    pub fn upload(&self) -> Result<()> {
-        if SENTRY_GUARD.read().unwrap().is_enabled() {
-            let mut event = Event::new();
-            event.level = Level::Info;
-            event.message = Some(format!("Summited Schema Patch for: {}.", GAME_SELECTED.read().unwrap().get_display_name()));
+    pub fn upload(&self, sentry_guard: &ClientInitGuard, game_name: &str) -> Result<()> {
+        let level = Level::Info;
+        let message = format!("Summited Schema Patch for: {} - {}.", game_name, SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
+        let config = PrettyConfig::default();
+        let mut data = vec![];
+        to_writer_pretty(&mut data, &self, config)?;
+        let file_name = "patch.txt";
 
-            let config = PrettyConfig::default();
-            let mut data = vec![];
-            to_writer_pretty(&mut data, &self, config)?;
-
-            let mut envelope = Envelope::from(event);
-            let attatchment = Attachment {
-                buffer: data,
-                filename: "patch.ron".to_owned(),
-                ty: None
-            };
-
-            envelope.add_item(EnvelopeItem::Attachment(attatchment));
-            SENTRY_GUARD.read().unwrap().send_envelope(envelope);
-        }
-
-        // TODO: Make this fail in case of sentry being not working?
-        Ok(())
+        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
     }
 }

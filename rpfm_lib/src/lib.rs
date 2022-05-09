@@ -8,72 +8,35 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// This is the RPFM Lib, a lib to decode/encode any kind of PackFile CA has to offer, including his contents.
+//! # Overview
+//!
+//! This crate provides utilities to read/write multiple types of files used by Creative Assembly (CA)
+//! in Total War Games since Empire: Total War.
+//!
+//! For information about ann specific file, please check their modules under the [`files`] module.
+//!
+//! # TODO: Write some examples.
 
-// Disabled `Clippy` linters, with the reasons why they were disabled.
-#![allow(
-    clippy::cognitive_complexity,           // Disabled due to useless warnings.
-    //clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
-    clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formatted in the docs as it says.
-    clippy::too_many_arguments,             // Disabled because you never have enough arguments.
-    clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
-    clippy::suspicious_else_formatting,     // Disabled because it's more or less useless.
-    clippy::large_enum_variant              // Not useful in our case.
-)]
+// Reexports for ease of managing dependencies.
+pub use rpfm_macros;
+pub use rpfm_logging;
 
-use lazy_static::lazy_static;
-use sentry::ClientInitGuard;
-
-use std::sync::{Arc, RwLock};
-
-use crate::games::{GameInfo, supported_games::{SupportedGames, KEY_THREE_KINGDOMS}};
-use crate::logger::Logger;
-use crate::packedfile::table::db::DB;
-use crate::schema::patch::SchemaPatches;
-use crate::schema::Schema;
-use crate::settings::Settings;
-
-pub mod assembly_kit;
-pub mod dependencies;
-pub mod diagnostics;
+pub mod compression;
+pub mod decoder;
+pub mod encoder;
+pub mod encryption;
+pub mod error;
+pub mod files;
 pub mod games;
-pub mod global_search;
-pub mod logger;
-pub mod packedfile;
-pub mod packfile;
+pub mod integrations;
 pub mod schema;
-pub mod settings;
-pub mod tips;
-pub mod updater;
+pub mod sqlite;
+pub mod utils;
 
-// Statics, so we don't need to pass them everywhere to use them.
-lazy_static! {
+// This tells the compiler to only compile these mods when testing. It's just to make sure
+// the encoders and decoders don't break between updates.
+#[cfg(test)]
+mod decoder_test;
 
-    /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and
-    /// for "MyMod" folders.
-    #[derive(Debug)]
-    pub static ref SUPPORTED_GAMES: SupportedGames = SupportedGames::new();
-
-    /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
-    pub static ref SETTINGS: Arc<RwLock<Settings>> = Arc::new(RwLock::new(Settings::load(None).unwrap_or_else(|_|Settings::new())));
-
-    /// The current GameSelected. If invalid, it uses 3K as default.
-    pub static ref GAME_SELECTED: Arc<RwLock<&'static GameInfo>> = Arc::new(RwLock::new(
-        match SUPPORTED_GAMES.get_supported_game_from_key(&SETTINGS.read().unwrap().settings_string["default_game"]) {
-            Ok(game) => game,
-            Err(_) => SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap(),
-        }
-    ));
-
-    /// Currently loaded schema.
-    pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
-    pub static ref SCHEMA_PATCHES: Arc<RwLock<SchemaPatches>> = Arc::new(RwLock::new(SchemaPatches::default()));
-
-    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    pub static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init().unwrap()));
-}
-
-pub const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";
-pub const PATREON_URL: &str = "https://www.patreon.com/RPFM";
-
-// TODO: docs
+#[cfg(test)]
+mod encoder_test;

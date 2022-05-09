@@ -13,21 +13,27 @@ Module that contains the GameInfo definition and stuff related with it.
 
 !*/
 
+
 use std::collections::HashMap;
+use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use rpfm_common::utils::*;
-use rpfm_error::{Result, Error, ErrorKind};
 use rpfm_macros::*;
 
-use crate::settings::{get_config_path, get_lua_autogen_path};
-use crate::packfile::{Manifest, PFHFileType, PFHVersion};
-use crate::SETTINGS;
+use crate::error::{RCommonError, Result};
+use crate::utils::*;
+
 use self::supported_games::KEY_TROY;
+use self::manifest::Manifest;
+use self::pfh_file_type::PFHFileType;
+use self::pfh_version::PFHVersion;
 
 pub mod supported_games;
+pub mod manifest;
+pub mod pfh_file_type;
+pub mod pfh_version;
 
 const BRAZILIAN: &str = "br";
 const SIMPLIFIED_CHINESE: &str = "cn";
@@ -79,7 +85,7 @@ pub struct GameInfo {
     db_tables_have_guid: bool,
 
     /// If the game has locales for all languages, and we only need to load our own locales. Contains the name of the locale file.
-    locale_file: Option<String>,
+    locale_file_name: Option<String>,
 
     /// List of tables (table_name) which the program should NOT EDIT UNDER ANY CIRCUnSTANCE.
     banned_packedfiles: Vec<String>,
@@ -164,21 +170,36 @@ struct InstallData {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
+impl Display for InstallType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::WinSteam => "Windows - Steam",
+            Self::LnxSteam => "Linux - Steam",
+            Self::WinEpic => "Windows - Epic",
+            Self::WinWargaming => "Windows - Wargaming",
+        }, f)
+    }
+}
+
 /// Implementation of GameInfo.
 impl GameInfo {
 
+    //---------------------------------------------------------------------------//
+    // Getters.
+    //---------------------------------------------------------------------------//
+
     /// This function returns the "Key" name of the Game, meaning in lowercase and without spaces.
-    pub fn get_game_key_name(&self) -> String {
+    pub fn game_key_name(&self) -> String {
         self.display_name.to_lowercase().replace(' ', "_")
     }
 
     /// This function returns the "Display" name of the Game, meaning properly written.
-    pub fn get_display_name(&self) -> &str {
+    pub fn display_name(&self) -> &str {
         self.display_name
     }
 
     /// This function returns the PFHVersion corresponding to the provided PackFile type. If it's not found, it defaults to the one used by mods.
-    pub fn get_pfh_version_by_file_type(&self, pfh_file_type: PFHFileType) -> PFHVersion {
+    pub fn pfh_version_by_file_type(&self, pfh_file_type: PFHFileType) -> PFHVersion {
         match self.pfh_versions.get(&pfh_file_type) {
             Some(pfh_version) => *pfh_version,
             None => *self.pfh_versions.get(&PFHFileType::Mod).unwrap(),
@@ -186,55 +207,60 @@ impl GameInfo {
     }
 
     /// This function returns the full list of compatible PFHVersions for this game.
-    pub fn get_pfh_versions(&self) -> &HashMap<PFHFileType, PFHVersion> {
+    pub fn pfh_versions(&self) -> &HashMap<PFHFileType, PFHVersion> {
         &self.pfh_versions
     }
 
     /// This function returns this Game's schema file name.
-    pub fn get_schema_name(&self) -> &str {
+    pub fn schema_file_name(&self) -> &str {
         &self.schema_file_name
     }
 
     /// This function returns this Game's dependencies cache file name.
-    pub fn get_dependencies_cache_file_name(&self) -> &str {
+    pub fn dependencies_cache_file_name(&self) -> &str {
         &self.dependencies_cache_file_name
     }
 
     /// This function returns this Game's raw_db_version, used to identify how to process AssKit table files for this game.
-    pub fn get_raw_db_version(&self) -> i16 {
+    pub fn raw_db_version(&self) -> i16 {
         self.raw_db_version
     }
 
     /// This function returns whether this Game supports editing or not.
-    pub fn get_supports_editing(&self) -> bool {
+    pub fn supports_editing(&self) -> bool {
         self.supports_editing
     }
 
     /// This function returns whether this Game's tables should have a GUID in their header or not.
-    pub fn get_db_tables_have_guid(&self) -> bool {
+    pub fn db_tables_have_guid(&self) -> bool {
         self.db_tables_have_guid
     }
 
     /// This function returns the file with the language of the game, if any.
-    pub fn get_locale_file(&self) -> &Option<String> {
-        &self.locale_file
+    pub fn locale_file_name(&self) -> &Option<String> {
+        &self.locale_file_name
     }
 
     /// This function returns this Game's icon filename. Normal size.
-    pub fn get_game_selected_icon_file_name(&self) -> &str {
+    pub fn game_selected_icon_file_name(&self) -> &str {
         &self.game_selected_icon
     }
 
     /// This function returns this Game's icon filename. Big size.
-    pub fn get_game_selected_icon_big_file_name(&self) -> &str {
+    pub fn game_selected_icon_big_file_name(&self) -> &str {
         &self.game_selected_big_icon
     }
 
     /// This function returns this Game's logic for naming db tables.
-    pub fn get_vanilla_db_table_name_logic(&self) -> VanillaDBTableNameLogic {
-        self.vanilla_db_table_name_logic.clone()
+    pub fn vanilla_db_table_name_logic(&self) -> &VanillaDBTableNameLogic {
+        &self.vanilla_db_table_name_logic
     }
 
+    /// This function returns this Game's logic for naming db tables.
+    pub fn lua_autogen_folder(&self) -> Option<&str> {
+        self.lua_autogen_folder.as_deref()
+    }
+/*
     /// This function gets the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
     pub fn get_dependencies_cache_file(&self) -> Result<PathBuf> {
         let mut base_path = get_config_path()?;
@@ -244,15 +270,19 @@ impl GameInfo {
         if base_path.is_file() { Ok(base_path) }
         else { Err(ErrorKind::IOFileNotFound.into()) }
     }
+*/
+
+    //---------------------------------------------------------------------------//
+    // Advanced getters.
+    //---------------------------------------------------------------------------//
 
     /// This function tries to get the correct InstallType for the currently configured installation of the game.
-    pub fn get_install_type(&self) -> Result<InstallType> {
-        let base_path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
+    pub fn get_install_type(&self, game_path: &Path) -> Result<InstallType> {
 
         // Checks to guess what kind of installation we have.
-        let base_path_files = get_files_from_subdir(&base_path, false)?;
+        let base_path_files = files_from_subdir(&game_path, false)?;
         let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
-            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.get_ref_executable()) {
+            if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.executable()) {
                 Some(install_type)
             } else { None }
         ).collect::<Vec<&InstallType>>();
@@ -302,29 +332,27 @@ impl GameInfo {
     }
 
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings
-    pub fn get_data_path(&self) -> Result<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
-        let install_type = self.get_install_type()?;
-        let install_data = self.install_data.get(&install_type).ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
-        Ok(path.join(PathBuf::from(install_data.get_ref_data_path())))
+    pub fn get_data_path(&self, game_path: &Path) -> Result<PathBuf> {
+        let install_type = self.get_install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        Ok(game_path.join(install_data.data_path()))
     }
 
     /// This function gets the `/data` path or equivalent (the folder local mods are installed during development) of the game selected, if said game it's configured in the settings
-    pub fn get_local_mods_path(&self) -> Result<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GamePathNotConfigured))?;
-        let install_type = self.get_install_type()?;
-        let install_data = self.install_data.get(&install_type).ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
-        Ok(path.join(PathBuf::from(install_data.get_ref_local_mods_path())))
+    pub fn get_local_mods_path(&self, game_path: &Path) -> Result<PathBuf> {
+        let install_type = self.get_install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        Ok(game_path.join(install_data.local_mods_path()))
     }
-
+    /*
     /// This function gets the `/assembly_kit` path or equivalent of the game selected, if said game it's configured in the settings.
-    pub fn get_assembly_kit_path(&self) -> Result<PathBuf> {
+    pub fn get_assembly_kit_path(&self, game_path: &Path) -> Result<PathBuf> {
         SETTINGS.read().unwrap().paths.get(&(self.get_game_key_name() + "_assembly_kit")).cloned().flatten().ok_or_else(|| Error::from(ErrorKind::GameAssemblyKitPathNotConfigured))
-    }
-
+    }*/
+    /*
     /// This function returns the assembly kit raw data path, or an error if this game doesn't have a known path.
-    pub fn get_assembly_kit_db_tables_path(&self) -> Result<PathBuf> {
-        let mut base_path = self.get_assembly_kit_path()?;
+    pub fn get_assembly_kit_db_tables_path(&self, game_path: &Path) -> Result<PathBuf> {
+        let mut base_path = self.get_assembly_kit_path(game_path)?;
         let version = self.get_raw_db_version();
         match version {
 
@@ -337,24 +365,23 @@ impl GameInfo {
             // Shogun 2/Older games
             _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
         }
-    }
+    }*/
 
     /// This function gets the `/mods` path or equivalent of the game selected, if said game it's configured in the settings.
-    pub fn get_content_packfiles_paths(&self) -> Option<Vec<PathBuf>> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
-        let install_type = self.get_install_type().ok()?;
+    pub fn get_content_packfiles_paths(&self, game_path: &Path) -> Option<Vec<PathBuf>> {
+        let install_type = self.get_install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
-        let downloaded_mods_path = install_data.get_ref_downloaded_mods_path();
+        let downloaded_mods_path = install_data.downloaded_mods_path();
 
         // If the path is empty, it means this game does not support downloaded mods.
         if downloaded_mods_path.is_empty() {
             return None;
         }
 
-        let path = std::fs::canonicalize(path.join(PathBuf::from(downloaded_mods_path))).ok()?;
+        let path = std::fs::canonicalize(game_path.join(downloaded_mods_path)).ok()?;
         let mut paths = vec![];
 
-        for path in get_files_from_subdir(&path, true).ok()?.iter() {
+        for path in files_from_subdir(&path, true).ok()?.iter() {
             match path.extension() {
                 Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
                 None => continue,
@@ -366,11 +393,11 @@ impl GameInfo {
     }
 
     /// This function gets the `/data` path or equivalent of the game selected, if said game it's configured in the settings.
-    pub fn get_data_packfiles_paths(&self) -> Option<Vec<PathBuf>> {
-        let game_path = self.get_data_path().ok()?;
+    pub fn get_data_packfiles_paths(&self, game_path: &Path) -> Option<Vec<PathBuf>> {
+        let game_path = self.get_data_path(game_path).ok()?;
         let mut paths = vec![];
 
-        for path in get_files_from_subdir(&game_path, false).ok()?.iter() {
+        for path in files_from_subdir(&game_path, false).ok()?.iter() {
             match path.extension() {
                 Some(extension) => if extension == "pack" { paths.push(path.to_path_buf()); }
                 None => continue,
@@ -383,11 +410,10 @@ impl GameInfo {
 
 
     /// This function gets the destination folder for MyMod packs.
-    pub fn get_mymod_install_path(&self) -> Option<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
-        let install_type = self.get_install_type().ok()?;
+    pub fn get_mymod_install_path(&self, game_path: &Path) -> Option<PathBuf> {
+        let install_type = self.get_install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
-        let path = path.join(PathBuf::from(install_data.get_ref_local_mods_path()));
+        let path = game_path.join(PathBuf::from(install_data.local_mods_path()));
 
         // Make sure the folder exists.
         DirBuilder::new().recursive(true).create(&path).ok()?;
@@ -396,12 +422,12 @@ impl GameInfo {
     }
 
     /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
-    pub fn use_manifest(&self) -> Result<bool> {
-        let install_type = self.get_install_type()?;
-        let install_data = self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?;
+    pub fn use_manifest(&self, game_path: &Path) -> Result<bool> {
+        let install_type = self.get_install_type(game_path)?;
+        let install_data = self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
 
         // If the install_type is linux, or we actually have a hardcoded list, ignore all Manifests.
-        Ok(*install_data.get_ref_use_manifest())
+        Ok(*install_data.use_manifest())
     }
 
     /// This function is used to get the paths of all CA PackFiles on the data folder of the game selected.
@@ -409,42 +435,42 @@ impl GameInfo {
     /// If it fails to find a manifest, it falls back to all non-mod files!
     ///
     /// NOTE: For WH3, this is language-sensitive. Meaning, if you have the game on spanish, it'll try to load the spanish localization files ONLY.
-    pub fn get_all_ca_packfiles_paths(&self) -> Result<Vec<PathBuf>> {
+    pub fn get_all_ca_packfiles_paths(&self, game_path: &Path) -> Result<Vec<PathBuf>> {
 
         // Check if we have to filter by language, to avoid overwriting our language with another one.
-        let language = self.get_game_locale_from_file()?;
+        let language = self.get_game_locale_from_file(game_path)?;
 
         // Check if we can use the manifest for this.
-        if !self.use_manifest()? {
-            self.get_all_ca_packfiles_paths_no_manifest()
+        if !self.use_manifest(game_path)? {
+            self.get_all_ca_packfiles_paths_no_manifest(game_path)
         } else {
 
             // Try to get the manifest, if exists.
-            match Manifest::read_from_game_selected() {
+            match Manifest::read_from_game_path(self, game_path) {
                 Ok(manifest) => {
                     let pack_file_names = manifest.0.iter().filter_map(|x|
-                        if x.get_ref_relative_path().ends_with(".pack") {
+                        if x.relative_path().ends_with(".pack") {
                             match &language {
                                 Some(language) => {
 
                                     // Filter out other language's packfiles.
-                                    if x.get_ref_relative_path().contains("local_") {
+                                    if x.relative_path().contains("local_") {
                                         let language = format!("local_{}", language);
-                                        if x.get_ref_relative_path().contains(&language) {
-                                            Some(x.get_ref_relative_path().to_owned())
+                                        if x.relative_path().contains(&language) {
+                                            Some(x.relative_path().to_owned())
                                         } else {
                                             None
                                         }
                                     } else {
-                                        Some(x.get_ref_relative_path().to_owned())
+                                        Some(x.relative_path().to_owned())
                                     }
                                 }
-                                None => Some(x.get_ref_relative_path().to_owned())
+                                None => Some(x.relative_path().to_owned())
                             }
                         } else { None }
                         ).collect::<Vec<String>>();
 
-                    let data_path = self.get_data_path()?;
+                    let data_path = self.get_data_path(game_path)?;
                     let mut paths = pack_file_names.iter().map(|x| {
                         let mut pack_file_path = data_path.to_path_buf();
                         pack_file_path.push(x);
@@ -455,16 +481,16 @@ impl GameInfo {
                 }
 
                 // If there is no manifest, use the hardcoded file list for the game, if it has one.
-                Err(_) => self.get_all_ca_packfiles_paths_no_manifest()
+                Err(_) => self.get_all_ca_packfiles_paths_no_manifest(game_path)
             }
         }
     }
 
     /// This function tries to get the ca PackFiles without depending on a Manifest. For internal use only.
-    fn get_all_ca_packfiles_paths_no_manifest(&self) -> Result<Vec<PathBuf>> {
-        let data_path = self.get_data_path()?;
-        let install_type = self.get_install_type()?;
-        let vanilla_packs = &self.install_data.get(&install_type).ok_or(ErrorKind::GameNotSupported)?.vanilla_packs;
+    fn get_all_ca_packfiles_paths_no_manifest(&self, game_path: &Path) -> Result<Vec<PathBuf>> {
+        let data_path = self.get_data_path(game_path)?;
+        let install_type = self.get_install_type(game_path)?;
+        let vanilla_packs = &self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
         if !vanilla_packs.is_empty() {
             Ok(vanilla_packs.iter().filter_map(|x| {
                 let mut pack_file_path = data_path.to_path_buf();
@@ -475,7 +501,7 @@ impl GameInfo {
 
         // If there is no hardcoded list, get every path.
         else {
-            Ok(get_files_from_subdir(&data_path, false)?.iter()
+            Ok(files_from_subdir(&data_path, false)?.iter()
                 .filter_map(|x| if let Some(extension) = x.extension() {
                     if extension.to_string_lossy().to_lowercase() == "pack" {
                         Some(x.to_owned())
@@ -486,21 +512,24 @@ impl GameInfo {
     }
 
     /// This command returns the "launch" command for executing this game's installation.
-    pub fn get_game_launch_command(&self) -> Result<String> {
-        let install_type = self.get_install_type()?;
+    pub fn get_game_launch_command(&self, game_path: &Path) -> Result<String> {
+        let install_type = self.get_install_type(game_path)?;
+
         match install_type {
             InstallType::LnxSteam |
-            InstallType::WinSteam => Ok(format!("steam://rungameid/{}", self.install_data.get(&install_type).ok_or(ErrorKind::GameSelectedPathNotCorrectlyConfigured)?.get_ref_store_id())),
-            _ => return Err(ErrorKind::LaunchNotSupportedForThisGame.into())
+            InstallType::WinSteam => {
+                let store_id = self.install_data.get(&install_type).ok_or(RCommonError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
+                Ok(format!("steam://rungameid/{}", store_id))
+            },
+            _ => return Err(RCommonError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
         }
     }
 
     /// This command returns the "Executable" path for the game's installation.
-    pub fn get_executable_path(&self) -> Option<PathBuf> {
-        let path = SETTINGS.read().unwrap().paths.get(&self.get_game_key_name()).cloned().flatten()?;
-        let install_type = self.get_install_type().ok()?;
+    pub fn get_executable_path(&self, game_path: &Path) -> Option<PathBuf> {
+        let install_type = self.get_install_type(game_path).ok()?;
         let install_data = self.install_data.get(&install_type)?;
-        let executable_path = path.join(PathBuf::from(install_data.get_ref_executable()));
+        let executable_path = game_path.join(install_data.executable());
 
         Some(executable_path)
     }
@@ -517,10 +546,10 @@ impl GameInfo {
     }
 
     /// This function tries to get the language of the game. Defaults to english if not found.
-    fn get_game_locale_from_file(&self) -> Result<Option<String>> {
-        match self.get_locale_file() {
+    fn get_game_locale_from_file(&self, game_path: &Path) -> Result<Option<String>> {
+        match self.locale_file_name() {
             Some(locale_file) => {
-                let data_path = self.get_data_path()?;
+                let data_path = self.get_data_path(game_path)?;
                 let locale_path = data_path.to_path_buf().join(locale_file);
                 let mut language = String::new();
                 let mut file = File::open(&locale_path)?;
@@ -549,56 +578,48 @@ impl GameInfo {
             None => Ok(None),
         }
     }
-
+/*
     /// This function returns the path of the lua autogen files of the game, if it's supported.
     pub fn get_game_lua_autogen_path(&self) -> Option<String> {
         let base_path = get_lua_autogen_path().ok()?;
         self.lua_autogen_folder.clone().map(|folder| format!("{}/output/{}", base_path.to_string_lossy(), folder))
     }
-
+*/
     /// This function gets the version number of the exe for the current GameSelected, if it exists.
-    pub fn get_game_selected_exe_version_number(&self) -> Result<u32> {
-        let game_selected  = self.get_game_key_name();
-        match &*game_selected {
+    pub fn game_version_number(&self, game_path: &Path) -> Option<u32> {
+        match &*self.game_key_name() {
             KEY_TROY => {
-                let mut path = SETTINGS.read().unwrap().paths[&game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
-                path.push("Troy.exe");
-                if path.is_file() {
+                let exe_path = self.get_executable_path(game_path)?;
+                if exe_path.is_file() {
                     let mut data = vec![];
-                    let mut file = BufReader::new(File::open(path)?);
-                    file.read_to_end(&mut data)?;
+                    let mut file = BufReader::new(File::open(exe_path).ok()?);
+                    file.read_to_end(&mut data).ok()?;
 
-                    let version_info = get_pe_version_info(&data).map_err(|_| Error::from(ErrorKind::IOGeneric))?;
+                    let version_info = pe_version_info(&data).ok()?;
+                    let version_info = version_info.fixed()?;
+                    let mut version: u32 = 0;
 
-                    match version_info.fixed() {
-                        Some(version_info) => {
-                            let mut version: u32 = 0;
+                    // The CA format is limited so these can only be u8 when encoded, so we can safetly convert them.
+                    let major = version_info.dwFileVersion.Major as u32;
+                    let minor = version_info.dwFileVersion.Minor as u32;
+                    let patch = version_info.dwFileVersion.Patch as u32;
+                    let build = version_info.dwFileVersion.Build as u32;
 
-                            // The CA format is limited so these can only be u8 when encoded, so we can safetly convert them.
-                            let major = version_info.dwFileVersion.Major as u32;
-                            let minor = version_info.dwFileVersion.Minor as u32;
-                            let patch = version_info.dwFileVersion.Patch as u32;
-                            let build = version_info.dwFileVersion.Build as u32;
-
-                            version += major << 24;
-                            version += minor << 16;
-                            version += patch << 8;
-                            version += build;
-                            Ok(version)
-                        }
-
-                        None => Err(ErrorKind::GamePathNotConfigured.into()),
-                    }
+                    version += major << 24;
+                    version += minor << 16;
+                    version += patch << 8;
+                    version += build;
+                    Some(version)
                 }
 
                 // If we have no exe, return a default value.
                 else {
-                    Err(ErrorKind::GamePathNotConfigured.into())
+                    None
                 }
 
             }
 
-            _ => Err(ErrorKind::GamePathNotConfigured.into()),
+            _ => None,
         }
     }
 }

@@ -1208,7 +1208,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpfm_common"
+name = "rpfm_lib"
 version = "3.0.6"
 dependencies = [
  "bitflags",

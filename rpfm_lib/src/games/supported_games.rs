@@ -19,10 +19,7 @@ use indexmap::IndexMap;
 
 use std::collections::HashMap;
 
-use rpfm_error::{Result, ErrorKind};
-
-use crate::packfile::{PFHFileType, PFHVersion};
-use super::{GameInfo, VanillaDBTableNameLogic, InstallData, InstallType};
+use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
 // Display Name for all the Supported Games.
 pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
@@ -67,13 +64,6 @@ pub struct SupportedGames {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Default Implementation for `SupportedGames`.
-impl Default for SupportedGames {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Implementation for `SupportedGames`.
 impl SupportedGames {
 
@@ -98,7 +88,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: Some("language.txt".to_owned()),
+            locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![
                 "db/agent_subtype_ownership_content_pack_junctions_tables".to_owned(),
                 "db/allied_recruitment_unit_permissions_tables".to_owned(),
@@ -176,7 +166,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: Some("language.txt".to_owned()),
+            locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
             game_selected_icon: "gs_troy.png".to_owned(),
             game_selected_big_icon: "gs_big_troy.png".to_owned(),
@@ -250,7 +240,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_3k.png".to_owned(),
             game_selected_big_icon: "gs_big_3k.png".to_owned(),
@@ -374,7 +364,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_wh2.png".to_owned(),
             game_selected_big_icon: "gs_big_wh2.png".to_owned(),
@@ -786,7 +776,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_wh.png".to_owned(),
             game_selected_big_icon: "gs_big_wh.png".to_owned(),
@@ -940,7 +930,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_tob.png".to_owned(),
             game_selected_big_icon: "gs_big_tob.png".to_owned(),
@@ -1042,7 +1032,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_att.png".to_owned(),
             game_selected_big_icon: "gs_big_att.png".to_owned(),
@@ -1115,7 +1105,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_rom2.png".to_owned(),
             game_selected_big_icon: "gs_big_rom2.png".to_owned(),
@@ -1178,7 +1168,7 @@ impl SupportedGames {
             raw_db_version: 1,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_sho2.png".to_owned(),
             game_selected_big_icon: "gs_big_sho2.png".to_owned(),
@@ -1251,7 +1241,7 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_nap.png".to_owned(),
             game_selected_big_icon: "gs_big_nap.png".to_owned(),
@@ -1337,7 +1327,7 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_emp.png".to_owned(),
             game_selected_big_icon: "gs_big_emp.png".to_owned(),
@@ -1501,7 +1491,7 @@ impl SupportedGames {
             raw_db_version: -1,
             supports_editing: false,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_are.png".to_owned(),
             game_selected_big_icon: "gs_big_are.png".to_owned(),
@@ -1530,12 +1520,12 @@ impl SupportedGames {
     }
 
     /// This function returns a GameInfo from a game name.
-    pub fn get_supported_game_from_key(&self, key: &str) -> Result<&GameInfo> {
-        self.games.get(key).ok_or_else(|| ErrorKind::GameNotSupported.into())
+    pub fn game(&self, key: &str) -> Option<&GameInfo> {
+        self.games.get(key)
     }
 
     /// This function returns a vec with references to the full list of supported games.
-    pub fn get_games(&self) -> Vec<&GameInfo> {
+    pub fn games(&self) -> Vec<&GameInfo> {
         self.games.values().collect::<Vec<&GameInfo>>()
     }
 }
