@@ -17,7 +17,7 @@ This is really a dummy module, as all the logic for this is done in the view thr
 use crate::error::Result;
 
 use crate::schema::Schema;
-use rpfm_macros::*;
+use getset::*;
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
@@ -32,7 +32,7 @@ pub const EXTENSION: &str = ".rigid_model_v2";
 //---------------------------------------------------------------------------//
 
 /// This struct contains a RigidModel decoded in memory.
-#[derive(Clone, Debug,PartialEq, GetRef, Set)]
+#[derive(Clone, Debug,PartialEq, Getters, Setters)]
 pub struct RigidModel {
     data: Vec<u8>,
 }

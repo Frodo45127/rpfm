@@ -20,10 +20,11 @@
 //!to the MIT license above and are under the CC-SA 4.0 license, available here:
 //!- <https://creativecommons.org/licenses/by-sa/4.0/>
 
+use getset::*;
 use crate::error::{RLibError, Result};
 use fraction::GenericFraction;
 
-use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CA_VP8 PackedFiles.
@@ -50,7 +51,7 @@ const HEADER_LENGTH_IVF: u16 = 32;
 //---------------------------------------------------------------------------//
 
 /// This holds an entire CA_VP8 PackedFile decoded in memory.
-#[derive(PartialEq, Clone, Debug, GetRef, Set)]
+#[derive(PartialEq, Clone, Debug, Getters, Setters)]
 pub struct CaVp8 {
 
     /// Format of the file.
@@ -82,7 +83,7 @@ pub struct CaVp8 {
 }
 
 /// This enum contains the list of formats RPFM supports.
-#[derive(PartialEq, Clone, Copy, Debug, GetRef, Set)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum SupportedFormats {
 
     /// Used by CA.
@@ -93,7 +94,7 @@ pub enum SupportedFormats {
 }
 
 /// This enum represents the data to locate and get an specific frame from a video.
-#[derive(PartialEq, Clone, Copy, Debug, GetRef, Set)]
+#[derive(PartialEq, Clone, Copy, Debug, Getters, Setters)]
 pub struct Frame {
 
     /// Offset on the data where the frame begins.

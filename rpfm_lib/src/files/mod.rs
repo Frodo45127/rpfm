@@ -40,12 +40,12 @@
 //! [`UIC`]: crate::files::uic
 //! [`UnitVariant`]: crate::files::unit_variant
 
+use getset::*;
 use rayon::prelude::*;
 
 use std::{collections::HashMap, fmt::Debug};
 
 use crate::{error::Result, games::pfh_version::PFHVersion, schema::Schema};
-use rpfm_macros::*;
 
 use self::text::TextType;
 
@@ -99,7 +99,7 @@ pub enum RFileInnerData<T: Decodeable> {
 
 /// This struct represents a file on disk. This may be a file directly on disk, or one inside another file
 /// (like inside a Pack).
-#[derive(Clone, Debug, PartialEq, GetRef)]
+#[derive(Clone, Debug, PartialEq, Getters)]
 pub struct OnDisk {
 
     /// Path of the file or the containing file.

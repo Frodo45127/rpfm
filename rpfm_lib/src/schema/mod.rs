@@ -76,7 +76,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use rpfm_macros::*;
+use getset::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
@@ -109,7 +109,7 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 //---------------------------------------------------------------------------//
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
-#[derive(Clone, PartialEq, Eq, Debug, GetRef, Set, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Getters, Setters, Serialize, Deserialize)]
 pub struct Schema {
 
     /// It stores the structural version of the Schema.
@@ -121,7 +121,7 @@ pub struct Schema {
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, GetRef, Set, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Getters, Setters, Serialize, Deserialize)]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:
@@ -138,7 +138,7 @@ pub struct Definition {
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Set, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Setters, Serialize, Deserialize)]
 pub struct Field {
 
     /// Name of the field. Should contain no spaces, using `_` instead.

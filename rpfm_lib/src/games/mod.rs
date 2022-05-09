@@ -20,7 +20,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use rpfm_macros::*;
+use getset::*;
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -140,7 +140,7 @@ pub enum InstallType {
 /// This struct contains installation-dependant data about each game.
 ///
 /// NOTE: All PackFile paths contained in this struct are RELATIVE, either to the data folder, or to the game's folder.
-#[derive(GetRef, Clone, Debug)]
+#[derive(Getters, Clone, Debug)]
 struct InstallData {
 
     /// List of vanilla packs, to be use as reference for knowing what PackFiles are vanilla in games without a manifest file.

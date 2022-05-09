@@ -14,10 +14,10 @@ Module with all the code to interact with binary Unit Variants.
 Binary unit variants are the unit variants used from Empire to Shogun 2.
 !*/
 
+use getset::*;
+
 use crate::error::{RLibError, Result};
-
-use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
-
+use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "VRNT";
@@ -32,7 +32,7 @@ pub const EXTENSION: &str = ".unit_variant";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UnitVariant decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default, GetRef, Set)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters)]
 pub struct UnitVariant {
     version: u32,
     unknown_1: u32,
@@ -40,7 +40,7 @@ pub struct UnitVariant {
 }
 
 /// This holds a category of equipments.
-#[derive(PartialEq, Clone, Debug, Default,  GetRef, Set)]
+#[derive(PartialEq, Clone, Debug, Default,  Getters, Setters)]
 pub struct Category {
     name: String,
     id: u64,

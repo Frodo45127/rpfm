@@ -34,7 +34,7 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use rpfm_macros::*;
+use getset::*;
 use crate::{compression::*, decoder::Decoder, encoder::Encoder, schema::Schema, utils::*};
 use crate::games::pfh_version::PFHVersion;
 use crate::games::pfh_file_type::PFHFileType;

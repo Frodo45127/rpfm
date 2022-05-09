@@ -2,7 +2,6 @@
 [workspace]
 members = [
     # Libs
-    "rpfm_macros",
     "rpfm_logging",
     "rpfm_lib",
 

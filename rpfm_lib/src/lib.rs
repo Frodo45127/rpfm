@@ -17,10 +17,6 @@
 //!
 //! # TODO: Write some examples.
 
-// Reexports for ease of managing dependencies.
-pub use rpfm_macros;
-pub use rpfm_logging;
-
 pub mod compression;
 pub mod decoder;
 pub mod encoder;

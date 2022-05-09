@@ -29,7 +29,7 @@ use std::fs::File;
 use std::sync::{Arc, Mutex};
 
 use rpfm_common::{compression::*, schema::Schema, utils::*};
-use rpfm_macros::*;
+use getset::*;
 use rpfm_files::{db::DB, loc::Loc, PackedFileType};
 
 use crate::*;
@@ -81,7 +81,7 @@ pub enum PackedFileData {
 }
 
 /// This struct contains the stuff needed to read the data of a particular PackedFile from disk.
-#[derive(Clone, Debug, PartialEq, GetRef)]
+#[derive(Clone, Debug, PartialEq, Getters)]
 pub struct RawOnDisk {
 
     /// Reader over the PackFile containing the PackedFile.
@@ -101,7 +101,7 @@ pub struct RawOnDisk {
 /// This struct contains a "Cached" version of a PackedFile, so we can serialize it and store it.
 ///
 /// This is mostly a 1:1 map of the RawOnDisk with extras.
-#[derive(Clone, Debug, GetRef, Serialize, Deserialize)]
+#[derive(Clone, Debug, Getters, Serialize, Deserialize)]
 pub struct CachedPackedFile {
     pack_file_path: String,
     packed_file_path: String,

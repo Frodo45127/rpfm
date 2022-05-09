@@ -15,10 +15,10 @@ Text PackedFiles are any kind of plain text packedfile, like lua, xml, txt,...
 The only thing to take into account is that this only work for UTF-8 encoded files.
 !*/
 
+use getset::*;
+
 use crate::error::{RLibError, Result};
-
-use crate::{decoder::Decoder, encoder::Encoder, rpfm_macros::*, schema::Schema};
-
+use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// UTF-8 BOM (Byte Order Mark).
@@ -59,7 +59,7 @@ pub const EXTENSIONS: [(&str, TextType); 23] = [
 //---------------------------------------------------------------------------//
 
 /// This holds an entire Text PackedFile decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, GetRef, Set)]
+#[derive(Default, PartialEq, Clone, Debug, Getters, Setters)]
 pub struct Text {
 
     /// The encoding used by the text of the PackedFile.

@@ -13,7 +13,7 @@ use serde_derive::Deserialize;
 
 use std::path::Path;
 
-use rpfm_macros::*;
+use getset::*;
 
 use crate::error::{RLibError, Result};
 use super::GameInfo;
@@ -31,7 +31,7 @@ const MANIFEST_FILE_NAME: &str = "manifest.txt";
 pub struct Manifest(pub Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
-#[derive(Default, GetRef, Deserialize)]
+#[derive(Default, Getters, Deserialize)]
 pub struct ManifestEntry {
 
     /// The path of the file, relative to /data.

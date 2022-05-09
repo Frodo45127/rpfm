@@ -15,11 +15,12 @@ ESF are like savestates of the game.
 !*/
 
 use bitflags::bitflags;
+use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use crate::{decoder::Decoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, schema::Schema};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, Encodeable, FileType};
 
@@ -143,7 +144,7 @@ If you see this message, please report it to RPFM's author so support for the fi
 //---------------------------------------------------------------------------//
 
 /// This holds an entire ESF PackedFile decoded in memory.
-#[derive(GetRef, Set, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ESF {
     signature: ESFSignature,
     unknown_1: u32,
@@ -218,56 +219,56 @@ pub enum NodeType {
 }
 
 /// Node containing a bool value, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BoolNode {
     value: bool,
     optimized: bool,
 }
 
 /// Node containing an i32 value, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct I32Node {
     value: i32,
     optimized: bool,
 }
 
 /// Node containing an u32 value, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct U32Node {
     value: u32,
     optimized: bool,
 }
 
 /// Node containing an f32 value, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct F32Node {
     value: f32,
     optimized: bool,
 }
 
 /// Node containing a Vec<i32>, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct VecI32Node {
     value: Vec<i32>,
     optimized: bool,
 }
 
 /// Node containing a Vec<u32>, and if the node should be optimized or not.
-#[derive(GetRef, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct VecU32Node {
     value: Vec<u32>,
     optimized: bool,
 }
 
 /// Node containing a pair of X/Y coordinates.
-#[derive(GetRef, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Coordinates2DNode {
     x: f32,
     y: f32,
 }
 
 /// Node containing a group of X/Y/Z coordinates.
-#[derive(GetRef, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Getters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Coordinates3DNode {
     x: f32,
     y: f32,
@@ -275,7 +276,7 @@ pub struct Coordinates3DNode {
 }
 
 /// Node containing a record of data. Basically, a node with other nodes attached to it.
-#[derive(GetRef, Set, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, Setters, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct RecordNode {
     record_flags: RecordNodeFlags,
     version: u8,

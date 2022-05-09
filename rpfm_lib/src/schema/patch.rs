@@ -24,7 +24,7 @@ use std::io::BufWriter;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rpfm_logging::*;
-use rpfm_macros::*;
+use getset::*;
 
 use super::*;
 
@@ -35,14 +35,14 @@ const SCHEMA_PATCHES_FILE: &str = "patches.ron";
 //---------------------------------------------------------------------------//
 
 /// This struct represents a bunch of Schema Patches in memory.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default, GetRef, GetRefMut)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default, Getters, MutGetters)]
 pub struct SchemaPatches {
 
     /// It stores the patches split by games.
     patches: HashMap<String, SchemaPatch>
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default, GetRef, GetRefMut)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default, Getters, MutGetters)]
 pub struct SchemaPatch {
 
     /// It stores a list of per-table, per-column patches.

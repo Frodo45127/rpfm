@@ -15,6 +15,7 @@ DB Tables are the files which controls a lot of the parameters used in game, lik
 effects data, projectile parameters.... It's what modders use the most.
 !*/
 
+use getset::*;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
@@ -25,7 +26,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::{decoder::Decoder, rpfm_macros::*, schema::Schema};
+use crate::{decoder::Decoder, schema::Schema};
 
 use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
@@ -58,7 +59,7 @@ pub struct DB {
 /// This holds all the data needed to trigger cascade editions.
 ///
 /// We use a struct because Cascade Editions need a lot of different data, and it's a mess to deal with all of it independently.
-#[derive(Clone, Debug, Default, GetRef, GetRefMut, Set)]
+#[derive(Clone, Debug, Default, Getters, MutGetters, Set)]
 pub struct CascadeEdition {
 
     /// Name of the edited table.

@@ -11,8 +11,10 @@ rust-version = "1.56"
 doctest = false
 
 [dependencies]
-rpfm_macros = { path = "../rpfm_macros" }
 rpfm_logging = { path = "../rpfm_logging" }
+
+# Basic get/set support.
+getset = "^0.1"
 
 # Serialization support.
 serde = "^1.0"

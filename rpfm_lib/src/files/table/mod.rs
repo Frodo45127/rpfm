@@ -25,7 +25,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use rpfm_macros::*;
+use getset::*;
 
 use crate::error::{RLibError, Result};
 use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches}, utils::*};
@@ -45,7 +45,7 @@ use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches
 /// This struct contains the data of a Table-like PackedFile after being decoded.
 ///
 /// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
-#[derive(Clone, Debug, PartialEq, PartialOrd, GetRef, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Getters, Serialize, Deserialize)]
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
