@@ -8,7 +8,32 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here should go all the functions related to the compression/decompression of PackedFiles.
+//! This module contains the code to compress/decompress data for Total War games.
+//!
+//! Total War games use the Non-Streamed LZMA1 format with the following custom header:
+//!
+//! | Bytes | Type | Data |
+//! | ----- | ---- | ---- |
+//! |  4    | [u32] | Uncompressed size (as u32, max at 4GB). |
+//! |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form... I think. Usually it's `0x5D`. |
+//! |  4    | [u32] | Dictionary size (as u32)... I think. It's usually `[0x00, 0x00, 0x40, 0x00]`. |
+//!
+//! For reference, a normal Non-Streamed LZMA1 header (from the original spec) contains:
+//!
+//! | Bytes | Type | Data |
+//! | ----- | ---- | ---- |
+//! |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form |
+//! |  4    | [u32] | Dictionary size (32-bit unsigned integer, little-endian) |
+//! |  8    | [prim@u64] | Uncompressed size (64-bit unsigned integer, little-endian) |
+//!
+//! The traits [`Compressible`] and [`Decompressible`] within this module contain functions to compress/decompress
+//! data from/to CA's LZMA1 custom implementation. Implementations of these two traits for &[[`u8`]] are provided within this module.
+//!
+//! Also, a couple of things to take into account:
+//! * **NEVER COMPRESS TABLES**. The games (at least Total War: Warhammer 2) have some kind of issue where
+//!   Packs with compressed tables cause crashes on start to random people.
+//!
+//! * Compressed files are **only supported on PFH5 Packs** (Since Total War: Warhammer 2).
 
 use xz2::{read::XzDecoder, stream::Stream};
 
@@ -19,12 +44,17 @@ use std::path::Path;
 use std::process::Command;
 use std::u64;
 
-use crate::error::{RCommonError, Result};
 use crate::{decoder::Decoder, encoder::Encoder};
+use crate::error::{RCommonError, Result};
 
+//---------------------------------------------------------------------------//
+//                                  Traits
+//---------------------------------------------------------------------------//
+
+/// Internal trait to implement compression over a data type.
 pub trait Compressible {
 
-    /// This function compress the data of a PackedFile, returning the compressed data.
+    /// This function compress the data of a file, returning the compressed data.
     ///
     /// Now, some explanation: CA uses Non-Streamed LZMA1 (or LZMA Alone) compressed files.
     /// Xz, the `standard` linux lib to deal with LZMA files has a fucking exception for
@@ -34,14 +64,18 @@ pub trait Compressible {
     /// Sadly, this means we have to ship 7z with RPFM. But hey, we're not the ones doing a
     /// fucking exception to a known format because we don't want to support the original format.
     fn compress(&self, sevenzip_path: &Path) -> Result<Vec<u8>>;
-
 }
 
-/// This trait allow us to easely decode all kind of data from a `&[u8]`.
+/// Internal trait to implement decompression over a data type.
 pub trait Decompressible {
-    /// This function decompress the data of a PackedFile, returning the decompressed data.
+
+    /// This function decompress the provided data, returning the decompressed data, or an error if the decompression failed.
     fn decompress(&self) -> Result<Vec<u8>>;
 }
+
+//---------------------------------------------------------------------------//
+//                              Implementations
+//---------------------------------------------------------------------------//
 
 impl Compressible for [u8] {
     fn compress(&self, sevenzip_path: &Path) -> Result<Vec<u8>> {
@@ -81,7 +115,6 @@ impl Compressible for [u8] {
 }
 
 impl Decompressible for &[u8] {
-
     fn decompress(&self) -> Result<Vec<u8>> {
         if self.is_empty() {
             return Ok(vec![]);
@@ -91,7 +124,7 @@ impl Decompressible for &[u8] {
             return Err(RCommonError::DataCannotBeDecompressed.into());
         }
 
-        // CA Tweaks their headers to remove 4 bytes per PackedFile, while losing +4GB File Compression Support.
+        // CA Tweaks their headers to remove 4 bytes per file, while losing +4GB File Compression Support.
         // We need to fix their headers so the normal LZMA lib can read them.
         let mut fixed_data: Vec<u8> = vec![];
         fixed_data.extend_from_slice(&self[4..8]);
