@@ -18,11 +18,7 @@ only_for_the_brave = []
 default = []
 
 [dependencies]
-# Internal dependencies.
-rpfm_common = { path = "../rpfm_common" }
-rpfm_error = { path = "../rpfm_error" }
 rpfm_lib = { path = "../rpfm_lib" }
-rpfm_macros = { path = "../rpfm_macros" }
 
 # Config dependencies.
 lazy_static = "^1.2"

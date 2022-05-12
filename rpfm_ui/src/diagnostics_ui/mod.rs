@@ -54,7 +54,7 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
-use rpfm_macros::{GetRef, GetRefMut, Set};
+use rpfm_macros::{Getters, MutGetters, Set};
 
 use crate::AppUI;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -79,7 +79,7 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the Diagnostics panel.
-#[derive(GetRef, GetRefMut, Set)]
+#[derive(Getters, MutGetters, Set)]
 pub struct DiagnosticsUI {
 
     //-------------------------------------------------------------------------------//

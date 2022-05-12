@@ -12,7 +12,7 @@
 Module containing test for the entire `Decoder` implementation for `&[u8]`.
 !*/
 
-use crate::decoder::Decoder;
+use super::decoder::Decoder;
 
 //---------------------------------------------------------------------------//
 //                          Normal Decoders

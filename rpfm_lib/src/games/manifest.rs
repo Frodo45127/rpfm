@@ -32,6 +32,7 @@ pub struct Manifest(pub Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
 #[derive(Default, Getters, Deserialize)]
+#[getset(get = "pub")]
 pub struct ManifestEntry {
 
     /// The path of the file, relative to /data.

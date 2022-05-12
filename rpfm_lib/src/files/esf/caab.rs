@@ -16,7 +16,7 @@ use crate::error::{RLibError, Result};
 
 use std::collections::BTreeMap;
 
-use crate::{decoder::Decoder, encoder::Encoder};
+use crate::binary::{decoder::Decoder, encoder::Encoder};
 
 
 use super::*;

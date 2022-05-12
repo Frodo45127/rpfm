@@ -36,7 +36,7 @@ use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packfile::PackFileInfo;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_macros::*;
+use getset::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -58,7 +58,7 @@ mod shortcuts;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of an AnimPack PackedFile.
-#[derive(GetRef)]
+#[derive(Getters)]
 pub struct PackedFileAnimPackView {
     path: Arc<RwLock<Vec<String>>>,
 

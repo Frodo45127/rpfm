@@ -15,8 +15,6 @@ This module defines the list of games this lib support for any `Game-Specific` f
 You should have no business here, except for supporting a new game.
 !*/
 
-use indexmap::IndexMap;
-
 use std::collections::HashMap;
 
 use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
@@ -57,7 +55,9 @@ pub const KEY_ARENA: &str = "arena";
 pub struct SupportedGames {
 
     /// List of games supported.
-    games: IndexMap<&'static str, GameInfo>,
+    games: HashMap<&'static str, GameInfo>,
+
+    order: Vec<&'static str>
 }
 
 //-------------------------------------------------------------------------------//
@@ -69,7 +69,7 @@ impl SupportedGames {
 
     /// This function builds and generates the entire SupportedGames list. For initialization.
     pub fn new() -> Self {
-        let mut game_list = IndexMap::new();
+        let mut game_list = HashMap::new();
 
         // Warhammer 3
         game_list.insert(KEY_WARHAMMER_3, GameInfo {
@@ -1514,8 +1514,23 @@ impl SupportedGames {
             lua_autogen_folder: None,
         });
 
+        let mut order_list = vec![];
+        order_list.push(KEY_WARHAMMER_3);
+        order_list.push(KEY_TROY);
+        order_list.push(KEY_THREE_KINGDOMS);
+        order_list.push(KEY_WARHAMMER_2);
+        order_list.push(KEY_WARHAMMER);
+        order_list.push(KEY_THRONES_OF_BRITANNIA);
+        order_list.push(KEY_ATTILA);
+        order_list.push(KEY_ROME_2);
+        order_list.push(KEY_SHOGUN_2);
+        order_list.push(KEY_NAPOLEON);
+        order_list.push(KEY_EMPIRE);
+        order_list.push(KEY_ARENA);
+
         Self {
             games: game_list,
+            order: order_list,
         }
     }
 

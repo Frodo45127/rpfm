@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 
-use crate::{decoder::Decoder, encoder::Encoder, schema::*};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::*};
 use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
 

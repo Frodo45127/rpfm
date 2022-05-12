@@ -110,6 +110,7 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
 #[derive(Clone, PartialEq, Eq, Debug, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct Schema {
 
     /// It stores the structural version of the Schema.
@@ -122,6 +123,7 @@ pub struct Schema {
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:
@@ -139,6 +141,7 @@ pub struct Definition {
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Setters, Serialize, Deserialize)]
+#[getset(set = "pub")]
 pub struct Field {
 
     /// Name of the field. Should contain no spaces, using `_` instead.

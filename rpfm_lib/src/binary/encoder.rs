@@ -8,15 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with the `Encoder` trait, to encode data to `Vec<u8>`..
+//! Module with the [`Encoder`] trait, to encode data to `Vec<u8>`.
+//!
+//! This module contains the [`Encoder`] trait and his implementation for `Vec<u8>`. This trait allow us
+//! to encode any type of data contained within a data slice, so it can be saved to disk and
+//! read by the games.
+//!
+//! Note: If you change anything from here, remember to update the `encoder_test.rs` file for it so the tests
+//! are kept up-to-date.
+//!
+//! TODO: Maybe move this implementation to use a Cursor instead of indexes?
 
-This module contains the `Encoder` trait and his implementation for `Vec<u8>`. This trait allow us
-to encode any type of data contained within a PackFile/PackedFile, so it can be saved to disk and
-read by the games.
-
-Note: If you change anything from here, remember to update the `encoder_test.rs` file for it.
-!*/
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use encoding::all::ISO_8859_1;

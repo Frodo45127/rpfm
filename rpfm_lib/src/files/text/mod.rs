@@ -18,7 +18,7 @@ The only thing to take into account is that this only work for UTF-8 encoded fil
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// UTF-8 BOM (Byte Order Mark).

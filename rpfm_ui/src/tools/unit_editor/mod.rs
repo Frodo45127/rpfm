@@ -55,7 +55,7 @@ use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 
-use rpfm_macros::*;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -135,7 +135,7 @@ const LOC_KEYS: [(&str, &str); 4] = [
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Unit Editor` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct ToolUnitEditor {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,

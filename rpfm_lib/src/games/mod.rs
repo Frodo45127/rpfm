@@ -141,6 +141,7 @@ pub enum InstallType {
 ///
 /// NOTE: All PackFile paths contained in this struct are RELATIVE, either to the data folder, or to the game's folder.
 #[derive(Getters, Clone, Debug)]
+#[getset(get = "pub")]
 struct InstallData {
 
     /// List of vanilla packs, to be use as reference for knowing what PackFiles are vanilla in games without a manifest file.

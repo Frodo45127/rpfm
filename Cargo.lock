@@ -1249,7 +1249,6 @@ dependencies = [
  "fraction",
  "getset",
  "git2",
- "indexmap",
  "pelite",
  "rand",
  "rayon",

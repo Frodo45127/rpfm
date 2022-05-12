@@ -17,7 +17,7 @@ Binary unit variants are the unit variants used from Empire to Shogun 2.
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "VRNT";

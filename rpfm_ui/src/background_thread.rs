@@ -804,7 +804,7 @@ pub fn background_loop() {
             }
 
             // In case we want to get the reference data for a definition...
-            Command::GetReferenceDataFromDefinition(table_name, definition, files_to_ignore) => {
+            Command::GetterserenceDataFromDefinition(table_name, definition, files_to_ignore) => {
 
                 // This is a heavy function, so first check if we have the data we want in the cache.
                 let dependency_data = if dependencies.get_ref_cached_data().read().unwrap().get(&table_name).is_some() {

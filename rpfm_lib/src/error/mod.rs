@@ -17,6 +17,7 @@ use thiserror::Error;
 /// Custom `Result` type, to always return our custom error.
 pub type Result<T, E = RLibError> = core::result::Result<T, E>;
 
+/// Custom error type for the lib.
 #[derive(Error, Debug)]
 pub enum RLibError {
     #[error("This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.")]

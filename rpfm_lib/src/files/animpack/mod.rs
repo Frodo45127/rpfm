@@ -29,11 +29,10 @@
 //! | 4     | [u32]  | File Length in bytes. |
 //! | File Lenght | &\[[u8]\] | File Data. |
 
-
 use std::collections::HashMap;
 
 use crate::error::Result;
-use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
 use crate::files::*;
 
 /// Extension used by AnimPacks.

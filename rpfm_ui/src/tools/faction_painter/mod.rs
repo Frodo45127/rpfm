@@ -52,7 +52,7 @@ use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData};
 
 use rpfm_error::*;
-use rpfm_macros::*;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -96,7 +96,7 @@ const DEFAULT_FILENAME: &str = "faction_painter_edited";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Faction Painter` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct ToolFactionPainter {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,

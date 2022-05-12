@@ -14,7 +14,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::num::Wrapping;
 
 use crate::error::{RLibError, Result};
-use crate::decoder::Decoder;
+use crate::binary::decoder::Decoder;
 
 // Old key used in Arena, and all the way back to Shogun 2.
 // static INDEX_STRING_KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";

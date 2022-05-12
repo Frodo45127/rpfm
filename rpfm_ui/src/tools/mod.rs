@@ -50,7 +50,7 @@ use std::io::{Read, BufReader};
 use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
-use rpfm_macros::*;
+use getset::*;
 
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
@@ -109,7 +109,7 @@ pub mod unit_editor;
 //-------------------------------------------------------------------------------//
 
 /// This struct represents the common content and behavior shared across Tools.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct Tool {
 
     /// Main widget of the tool, built from a Template. Usually, the dialog.

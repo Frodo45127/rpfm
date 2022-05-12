@@ -17,7 +17,7 @@ They have no extension (mostly), and I heard they're a pain in the ass to work w
 
 use crate::error::Result;
 
-use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "Version";

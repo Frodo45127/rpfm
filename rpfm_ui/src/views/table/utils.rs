@@ -792,7 +792,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
-    let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
+    let receiver = CENTRAL_COMMAND.send_background(Command::GetterserenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
 
     let reference_data = definition.get_reference_data();
     let mut dependency_data_visual = BTreeMap::new();

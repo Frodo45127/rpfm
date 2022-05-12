@@ -28,7 +28,7 @@ use std::path::Path;
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches}, utils::*};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::{*, patch::SchemaPatches}, utils::*};
 
 //use crate::assembly_kit::table_data::RawTable;
 //
@@ -46,6 +46,7 @@ use crate::{decoder::Decoder, encoder::Encoder, schema::{*, patch::SchemaPatches
 ///
 /// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
 #[derive(Clone, Debug, PartialEq, PartialOrd, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.

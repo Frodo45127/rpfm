@@ -8,27 +8,27 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with the `Decoder` trait, to decode bytes to readable data.
-
-This module contains the `Decoder` trait and his implementation for `&[u8]`. This trait allow us
-to safely (yes, it covers your `index-out-of-bounds` bugs) decode any type of data contained within
-a PackFile/PackedFile.
-
-Note: If you change anything from here, remember to update the `decoder_test.rs` file for it.
-!*/
+//! Module with the [`Decoder`] trait, to decode bytes to readable data.
+//!
+//! This module contains the [`Decoder`] trait and his implementation for `&[u8]`. This trait allow us
+//! to safely (yes, it covers your `index-out-of-bounds` bugs) decode any type of data contained within
+//! a file.
+//!
+//! Note: If you change anything from here, remember to update the `decoder_test.rs` file for it so the test
+//! are kept up-to-date.
+//!
+//! TODO: Maybe move this implementation to use a Cursor instead of indexes?
 
 use byteorder::{ByteOrder, LittleEndian};
-use encoding::{Encoding, DecoderTrap};
-use encoding::all::ISO_8859_1;
+use encoding::{all::ISO_8859_1, Encoding, DecoderTrap};
 
-use crate::error::{RLibError, Result};
+use crate::error::{Result, RLibError};
 
 /// These constants are needed to work with LEB_128 encoded numbers.
-pub const LEB128_CONTROL_BIT: u8 = 0b10000000;
-pub const LEB128_SIGNED_MAX: u8 = 0b00111111;
-pub const LEB128_UNSIGNED_MAX: u8 = 0b01111111;
-pub const U32_BITS: u32 = 32;
+const LEB128_CONTROL_BIT: u8 = 0b10000000;
+const LEB128_SIGNED_MAX: u8 = 0b00111111;
+const LEB128_UNSIGNED_MAX: u8 = 0b01111111;
+const U32_BITS: u32 = 32;
 
 //---------------------------------------------------------------------------//
 //                      `Decoder` Trait Definition

@@ -17,9 +17,8 @@
 //!
 //! # TODO: Write some examples.
 
+pub mod binary;
 pub mod compression;
-pub mod decoder;
-pub mod encoder;
 pub mod encryption;
 pub mod error;
 pub mod files;
@@ -28,11 +27,3 @@ pub mod integrations;
 pub mod schema;
 pub mod sqlite;
 pub mod utils;
-
-// This tells the compiler to only compile these mods when testing. It's just to make sure
-// the encoders and decoders don't break between updates.
-#[cfg(test)]
-mod decoder_test;
-
-#[cfg(test)]
-mod encoder_test;

@@ -24,7 +24,7 @@ use getset::*;
 use crate::error::{RLibError, Result};
 use fraction::GenericFraction;
 
-use crate::{decoder::Decoder, encoder::Encoder, schema::Schema};
+use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 /// Extensions used by CA_VP8 PackedFiles.

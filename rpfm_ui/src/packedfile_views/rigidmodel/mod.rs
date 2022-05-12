@@ -25,7 +25,7 @@ use qt_core::QPtr;
 use std::sync::Arc;
 
 use rpfm_error::{Result, ErrorKind};
-use rpfm_macros::*;
+use getset::*;
 
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::packedfile::PackedFileType;
@@ -41,7 +41,7 @@ use crate::packedfile_views::{PackedFileView, View, ViewType};
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of a RigidModel PackedFile.
-#[derive(GetRef)]
+#[derive(Getters)]
 pub struct PackedFileRigidModelView {
     editor: QBox<QWidget>,
 }

@@ -26,7 +26,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use crate::{decoder::Decoder, schema::Schema};
+use crate::{binary::decoder::Decoder, schema::Schema};
 
 use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};

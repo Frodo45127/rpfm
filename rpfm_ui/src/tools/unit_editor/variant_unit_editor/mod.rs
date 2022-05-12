@@ -43,7 +43,7 @@ use std::collections::HashMap;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::PathType;
-use rpfm_macros::*;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -89,7 +89,7 @@ const VARIANT_KEY_VALUE: &str = "unit_variants_faction";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Unit Editor` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct SubToolVariantUnitEditor {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,

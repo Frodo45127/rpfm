@@ -40,7 +40,7 @@ use cpp_core::Ptr;
 use std::rc::Rc;
 
 use rpfm_lib::SETTINGS;
-use rpfm_macros::{GetRef, GetRefMut, Set};
+use rpfm_macros::{Getters, MutGetters, Set};
 
 use crate::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -62,7 +62,7 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the References panel.
-#[derive(GetRef, GetRefMut, Set)]
+#[derive(Getters, MutGetters, Set)]
 pub struct ReferencesUI {
 
     //-------------------------------------------------------------------------------//

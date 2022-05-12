@@ -44,7 +44,7 @@ use std::path::Path;
 use std::process::Command;
 use std::u64;
 
-use crate::{decoder::Decoder, encoder::Encoder};
+use crate::binary::{decoder::Decoder, encoder::Encoder};
 use crate::error::{RLibError, Result};
 
 //---------------------------------------------------------------------------//
