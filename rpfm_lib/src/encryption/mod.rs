@@ -11,10 +11,11 @@
 // Here should be all the functions related with encryption/decryption.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::Cursor;
 use std::num::Wrapping;
 
 use crate::error::{RLibError, Result};
-use crate::binary::decoder::Decoder;
+use crate::binary::ReadBytes;
 
 // Old key used in Arena, and all the way back to Shogun 2.
 // static INDEX_STRING_KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
@@ -66,7 +67,7 @@ impl Decryptable for [u8] {
     /// - 'ciphertext': the encrypted size of the PackedFile, read directly as LittleEndian::u32.
     /// - 'packed_files_after_this_one': the amount of items after this one in the Index.
     fn decrypt_u32(&self, second_key: u32) -> Result<u32> {
-        let bytes = self.decode_integer_u32(0)?;
+        let bytes = ReadBytes::read_u32(&mut Cursor::new(self))?;
         Ok(bytes ^ INDEX_U32_KEY ^ !second_key)
     }
 
@@ -87,5 +88,3 @@ impl Decryptable for [u8] {
         path
     }
 }
-
-

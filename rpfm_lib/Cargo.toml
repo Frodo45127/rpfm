@@ -6,10 +6,6 @@ description = "Lib with all the common functions and utils used by all the RPFM 
 edition = "2021"
 rust-version = "1.56"
 
-[lib]
-# Disable doctest, as we have none of them but still `cargo test` tries to execute `RON` code as doctests, and fails.
-doctest = false
-
 [dependencies]
 rpfm_logging = { path = "../rpfm_logging" }
 

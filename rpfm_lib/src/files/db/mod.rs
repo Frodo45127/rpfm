@@ -23,10 +23,10 @@ use uuid::Uuid;
 use std::cmp::Ordering;
 use std::collections::{HashSet, BTreeMap};
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, SeekFrom};
 use std::path::{Path, PathBuf};
 
-use crate::{binary::decoder::Decoder, schema::Schema};
+use crate::{binary::ReadBytes, schema::Schema};
 
 use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
@@ -85,9 +85,9 @@ impl Decodeable for DB {
         FileType::DB
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         let (schema, table_name, return_incomplete) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
+        let (version, mysterious_byte, uuid, entry_count) = Self::read_header(data)?;
 
         // Try to get the table_definition for this table, if exists.
         let definitions = schema.definitions_by_table_name(table_name).ok_or_else(|| {
@@ -99,20 +99,22 @@ impl Decodeable for DB {
         })?;
 
         // For version 0 tables, get all definitions between 0 and -99, and get the first one that works.
-        let index_reset = index;
+        let index_reset = data.stream_position()?;
+        let len = data.len()?;
         let (table, table_data) = if version == 0 {
-            let mut data = Err(RLibError::DecodingDBNoDefinitionsFound);
+            let mut result = Err(RLibError::DecodingDBNoDefinitionsFound);
             for definition in definitions.iter().filter(|definition| *definition.version() < 1) {
-                index = index_reset;
-                if let Ok(table_data) = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete) {
-                    if index == packed_file_data.len() {
-                        data = Ok((Table::new(definition, table_name), table_data));
+                data.seek(SeekFrom::Start(index_reset))?;
+                if let Ok(table_data) = Table::decode_table(data, definition, Some(entry_count), return_incomplete) {
+                    let curr_pos = data.stream_position()?;
+                    if curr_pos == len {
+                        result = Ok((Table::new(definition, table_name), table_data));
                         break;
                     }
                 }
             }
 
-            data?
+            result?
         }
 
         // For +0 versions, we expect unique definitions.
@@ -122,15 +124,16 @@ impl Decodeable for DB {
                 RLibError::DecodingDBNoDefinitionsFound
             })?;
 
-            let table_data = Table::decode_table(definition, packed_file_data, Some(entry_count), &mut index, return_incomplete)?;
+            let table_data = Table::decode_table(data, definition, Some(entry_count), return_incomplete)?;
             let table = Table::new(definition, table_name);
             (table, table_data)
         };
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
-        if index != packed_file_data.len() {
-            // TODO: dump the decoded data here.
-            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index));
+        let len = data.len()?;
+        let curr_pos = data.stream_position()?;
+        if len != curr_pos {
+            return Err(RLibError::DecodingMismatchSizeError(len as usize, curr_pos as usize));
         }
 
         // If everything decoded properly, load the table to the databse.
@@ -157,35 +160,29 @@ impl DB {
     /// - `uuid`: the UUID of this table.
     /// - `entry_count`: amount of entries this `DB` has.
     /// - `index`: position where the header ends. Useful if you want to decode the data of the `DB` after this.
-    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, bool, String, u32, usize)> {
-
+    fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, bool, String, u32)> {
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
-        if packed_file_data.len() < 5 {
+        if data.len()? < 5 {
             return Err(RLibError::DecodingDBNotADBTable);
         }
 
-        // Create the index that we'll use to decode the entire table.
-        let mut index = 0;
-
         // If there is a GUID_MARKER, skip it together with the GUID itself (4 bytes for the marker, 74 for the GUID).
         // About this GUID, it's something that gets randomly generated every time you export a table with DAVE. Not useful.
-        let uuid = if packed_file_data.decode_bytes_checked(0, 4)? == GUID_MARKER {
-            index += 4;
-            packed_file_data.decode_packedfile_string_u16(index, &mut index)?
+        let uuid = if data.read_slice(4, false)? == GUID_MARKER {
+            data.read_sized_string_u16()?
         }
         else { String::new() };
 
         // If there is a VERSION_MARKER, we get the version (4 bytes for the marker, 4 for the version). Otherwise, we default to 0.
-        let version = if packed_file_data.decode_bytes_checked(index, 4)? == VERSION_MARKER {
-            index += 4;
-            packed_file_data.decode_packedfile_integer_i32(index, &mut index)?
+        let version = if data.read_slice(4, false)? == VERSION_MARKER {
+            data.read_i32()?
         } else { 0 };
 
         // We get the rest of the data from the header.
-        let mysterious_byte = packed_file_data.decode_packedfile_bool(index, &mut index)?;
-        let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
-        Ok((version, mysterious_byte, uuid, entry_count, index))
+        let mysterious_byte = data.read_bool()?;
+        let entry_count = data.read_u32()?;
+        Ok((version, mysterious_byte, uuid, entry_count))
     }
 
 /*

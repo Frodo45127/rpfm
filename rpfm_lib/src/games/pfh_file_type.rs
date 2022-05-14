@@ -10,12 +10,14 @@
 
 use std::{fmt, fmt::Display};
 
+use crate::error::RLibError;
+
 /// These are the types the PackFiles can have.
-const FILE_TYPE_BOOT: u32 = 0;
-const FILE_TYPE_RELEASE: u32 = 1;
-const FILE_TYPE_PATCH: u32 = 2;
-const FILE_TYPE_MOD: u32 = 3;
-const FILE_TYPE_MOVIE: u32 = 4;
+const FILE_TYPE_BOOT: isize = 0;
+const FILE_TYPE_RELEASE: isize = 1;
+const FILE_TYPE_PATCH: isize = 2;
+const FILE_TYPE_MOD: isize = 3;
+const FILE_TYPE_MOVIE: isize = 4;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -29,22 +31,19 @@ const FILE_TYPE_MOVIE: u32 = 4;
 pub enum PFHFileType {
 
     /// **(0)**: Used in CA PackFiles, not useful for modding.
-    Boot,
+    Boot = FILE_TYPE_BOOT,
 
     /// **(1)**: Used in CA PackFiles, not useful for modding.
-    Release,
+    Release = FILE_TYPE_RELEASE,
 
     /// **(2)**: Used in CA PackFiles, not useful for modding.
-    Patch,
+    Patch = FILE_TYPE_PATCH,
 
     /// **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
-    Mod,
+    Mod = FILE_TYPE_MOD,
 
     /// **(4)** Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
-    Movie,
-
-    /// Wildcard for any type that doesn't fit in any of the other categories. The type's value is stored in the Variant.
-    Other(u32),
+    Movie = FILE_TYPE_MOVIE
 }
 
 //-------------------------------------------------------------------------------//
@@ -54,28 +53,17 @@ pub enum PFHFileType {
 /// Implementation of `PFHFileType`.
 impl PFHFileType {
 
-    /// This function returns the PackFile's **Type** in `u32` format. To know what value corresponds with what type, check their definition's comment.
-    pub fn value(self) -> u32 {
-        match self {
-            PFHFileType::Boot => FILE_TYPE_BOOT,
-            PFHFileType::Release => FILE_TYPE_RELEASE,
-            PFHFileType::Patch => FILE_TYPE_PATCH,
-            PFHFileType::Mod => FILE_TYPE_MOD,
-            PFHFileType::Movie => FILE_TYPE_MOVIE,
-            PFHFileType::Other(value) => value
-        }
+    /// This function returns the PackFile's **Type** in `u32` format.
+    /// To know what value corresponds with what type, check their definition's comment.
+    pub fn value(&self) -> u32 {
+        *self as u32
     }
+}
 
-    /// This function returns the PackFile's Type corresponding to the provided value.
-    pub fn file_type(value: u32) -> Self {
-        match value {
-            FILE_TYPE_BOOT => PFHFileType::Boot,
-            FILE_TYPE_RELEASE => PFHFileType::Release,
-            FILE_TYPE_PATCH => PFHFileType::Patch,
-            FILE_TYPE_MOD => PFHFileType::Mod,
-            FILE_TYPE_MOVIE => PFHFileType::Movie,
-            _ => PFHFileType::Other(value),
-        }
+/// Default implementation of `PFHFileType`.
+impl Default for PFHFileType {
+    fn default() -> Self {
+        Self::Mod
     }
 }
 
@@ -87,15 +75,23 @@ impl Display for PFHFileType {
             PFHFileType::Release => write!(f, "Release"),
             PFHFileType::Patch => write!(f, "Patch"),
             PFHFileType::Mod => write!(f, "Mod"),
-            PFHFileType::Movie => write!(f, "Movie"),
-            PFHFileType::Other(version) => write!(f, "Other: {}", version),
+            PFHFileType::Movie => write!(f, "Movie")
         }
     }
 }
 
-/// Implementation of trait `Default` for `PFHFileType`.
-impl Default for PFHFileType {
-    fn default() -> Self {
-        Self::Mod
+/// TryFrom implementation of `PFHFileType`.
+impl TryFrom<u32> for PFHFileType {
+    type Error = RLibError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == PFHFileType::Boot as u32 => Ok(PFHFileType::Boot),
+            x if x == PFHFileType::Release as u32 => Ok(PFHFileType::Release),
+            x if x == PFHFileType::Patch as u32 => Ok(PFHFileType::Patch),
+            x if x == PFHFileType::Mod as u32 => Ok(PFHFileType::Mod),
+            x if x == PFHFileType::Movie as u32 => Ok(PFHFileType::Movie),
+            _ => Err(RLibError::UnknownPFHFileType(value.to_string())),
+        }
     }
 }

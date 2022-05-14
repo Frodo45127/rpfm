@@ -1,0 +1,781 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
+//
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+//
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
+//! Module with the [`ReadBytes`] trait, to read bytes to known types.
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use encoding::{all::ISO_8859_1, Encoding, DecoderTrap};
+
+use std::{char::decode_utf16, io::{Read, Seek, SeekFrom}};
+
+use crate::error::{Result, RLibError};
+
+//---------------------------------------------------------------------------//
+//                            Trait Definition
+//---------------------------------------------------------------------------//
+
+/// This trait allow us to easily read all kind of data from a source that implements [`Read`] + [`Seek`].
+pub trait ReadBytes: Read + Seek {
+
+    /// This function returns the lenght of the data we're reading.
+    ///
+    /// Extracted from the nightly std.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 2, 3, 4];
+    /// let mut cursor = Cursor::new(data);
+    /// let len = cursor.len().unwrap();
+    /// assert_eq!(len, 4);
+    /// ```
+    fn len(&mut self) -> Result<u64> {
+        let old_pos = self.stream_position()?;
+        let len = self.seek(SeekFrom::End(0))?;
+        // Avoid seeking a third time when we were already at the end of the
+        // stream. The branch is usually way cheaper than a seek operation.
+        if old_pos != len {
+            self.seek(SeekFrom::Start(old_pos))?;
+        }
+        Ok(len)
+    }
+
+    /// This function returns the amount of bytes specified in the `size` argument as a [`Vec<u8>`].
+    ///
+    /// If `rewind` is true, the cursor will be reset to its original position once the data is returned.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 2, 3, 4];
+    /// let mut cursor = Cursor::new(data.to_vec());
+    /// let data_read = cursor.read_slice(4, false).unwrap();
+    /// assert_eq!(data, data_read);
+    ///
+    /// # assert_eq!(ReadBytes::read_slice(&mut Cursor::new([1, 2, 3, 4]), 4, false).unwrap(), vec![1, 2, 3, 4]);
+    /// # assert_eq!(ReadBytes::read_slice(&mut Cursor::new(vec![0u8; 0]), 0, false).unwrap(), vec![0u8; 0]);
+    /// # assert_eq!(ReadBytes::read_slice(&mut Cursor::new([]), 4, false).is_err(), true);
+    /// ```
+    fn read_slice(&mut self, size: usize, rewind: bool) -> Result<Vec<u8>> {
+        let mut data = vec![0; size];
+
+        // If len is 0, just return.
+        if size == 0 {
+            return Ok(data)
+        }
+
+        self.read_exact(&mut data)?;
+
+        if rewind {
+            self.seek(SeekFrom::Current(size as i64 * -1))?;
+        }
+
+        Ok(data)
+    }
+
+    /// This function tries to read a bool value from `self`.
+    ///
+    /// This is simple: 0 is false, 1 is true. Anything else is an error.
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0, 1, 2];
+    /// let mut cursor = Cursor::new(data);
+    ///
+    /// let first = cursor.read_bool();
+    /// let second = cursor.read_bool();
+    /// let third = cursor.read_bool();
+    ///
+    /// assert_eq!(first.unwrap(), false);
+    /// assert_eq!(second.unwrap(), true);
+    /// assert!(third.is_err());
+    /// ```
+    fn read_bool(&mut self) -> Result<bool> {
+        let value = self.read_u8()?;
+        match value {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(RLibError::DecodingBoolError(value).into()),
+        }
+    }
+
+    /// This function tries to read an unsigned byte value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u8().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_u8().is_err(), true);
+    /// ```
+    fn read_u8(&mut self) -> Result<u8> {
+        ReadBytesExt::read_u8(self).map_err(From::from)
+    }
+
+    /// This function tries to read an u16 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 10];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u16().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_u16().is_err(), true);
+    /// ```
+    fn read_u16(&mut self) -> Result<u16> {
+        ReadBytesExt::read_u16::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an u24 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![152, 150, 129, 152, 150];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u24().unwrap();
+    ///
+    /// assert_eq!(data, 84_926_96);
+    /// assert_eq!(cursor.read_u24().is_err(), true);
+    /// ```
+    fn read_u24(&mut self) -> Result<u32> {
+        ReadBytesExt::read_u24::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an u32 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 0, 0, 10, 0, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u32().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_u32().is_err(), true);
+    /// ```
+    fn read_u32(&mut self) -> Result<u32> {
+        ReadBytesExt::read_u32::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an u64 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 0, 0, 0, 0, 0, 0, 10, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u64().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_u64().is_err(), true);
+    /// ```
+    fn read_u64(&mut self) -> Result<u64> {
+        ReadBytesExt::read_u64::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read CA's own take (or I greatly misunderstood this) on ULEB_128 values from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0x80, 10];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_cauleb128().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_cauleb128().is_err(), true);
+    /// ```
+    fn read_cauleb128(&mut self) -> Result<u32> {
+        let mut size: u32 = 0;
+        let mut byte = self.read_u8()?;
+
+        while(byte & 0x80) != 0 {
+            size = (size << 7) | (byte & 0x7f) as u32;
+
+            // Check the new byte is even valid before continuing.
+            byte = self.read_u8()?;
+        }
+
+        size = (size << 7) | (byte & 0x7f) as u32;
+        Ok(size)
+    }
+
+    /// This function tries to read a signed byte value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![254];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i8().unwrap();
+    ///
+    /// assert_eq!(data, -2);
+    /// assert_eq!(cursor.read_i8().is_err(), true);
+    /// ```
+    fn read_i8(&mut self) -> Result<i8> {
+        ReadBytesExt::read_i8(self).map_err(From::from)
+    }
+
+    /// This function tries to read an i16 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![254, 254, 10];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i16().unwrap();
+    ///
+    /// assert_eq!(data, -258);
+    /// assert_eq!(cursor.read_i16().is_err(), true);
+    /// ```
+    fn read_i16(&mut self) -> Result<i16> {
+        ReadBytesExt::read_i16::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an i24 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![152, 150, 129, 152, 150];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i24().unwrap();
+    ///
+    /// assert_eq!(data, -8_284_520);
+    /// assert_eq!(cursor.read_i24().is_err(), true);
+    /// ```
+    fn read_i24(&mut self) -> Result<i32> {
+        ReadBytesExt::read_i24::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an i32 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 0, 0, 10, 0, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i32().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_i32().is_err(), true);
+    /// ```
+    fn read_i32(&mut self) -> Result<i32> {
+        ReadBytesExt::read_i32::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an i64 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 0, 0, 0, 0, 0, 0, 10, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i64().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_i64().is_err(), true);
+    /// ```
+    fn read_i64(&mut self) -> Result<i64> {
+        ReadBytesExt::read_i64::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an optional i16 value from `self`.
+    ///
+    /// The value is preceeded by a bool. If the bool is true, we expect a value after it.
+    /// If its false, we expect a sentinel value (0) after it.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 254, 254, 2];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_optional_i16().unwrap();
+    ///
+    /// assert_eq!(data, -258);
+    /// assert_eq!(cursor.read_optional_i16().is_err(), true);
+    ///
+    /// # assert_eq!(ReadBytes::read_optional_i16(&mut Cursor::new([1, 10])).is_err(), true);
+    /// ```
+    fn read_optional_i16(&mut self) -> Result<i16> {
+        let _ = self.read_bool()?;
+        self.read_i16()
+    }
+
+    /// This function tries to read an optional i32 value from `self`.
+    ///
+    /// The value is preceeded by a bool. If the bool is true, we expect a value after it.
+    /// If its false, we expect a sentinel value (0) after it.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 10, 0, 0, 0, 2];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_optional_i32().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_optional_i32().is_err(), true);
+    ///
+    /// # assert_eq!(ReadBytes::read_optional_i32(&mut Cursor::new([1, 10])).is_err(), true);
+    /// ```
+    fn read_optional_i32(&mut self) -> Result<i32> {
+        let _ = self.read_bool()?;
+        self.read_i32()
+    }
+
+    /// This function tries to read an optional i64 value from `self`.
+    ///
+    /// The value is preceeded by a bool. If the bool is true, we expect a value after it.
+    /// If its false, we expect a sentinel value (0) after it.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 10, 0, 0, 0, 0, 0, 0, 0, 2];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_optional_i64().unwrap();
+    ///
+    /// assert_eq!(data, 10);
+    /// assert_eq!(cursor.read_optional_i64().is_err(), true);
+    ///
+    /// # assert_eq!(ReadBytes::read_optional_i64(&mut Cursor::new([1, 10])).is_err(), true);
+    /// ```
+    fn read_optional_i64(&mut self) -> Result<i64> {
+        let _ = self.read_bool()?;
+        self.read_i64()
+    }
+
+    /// This function tries to read an f32 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0, 0, 32, 65];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_f32().unwrap();
+    ///
+    /// assert_eq!(data, 10.0);
+    /// assert_eq!(cursor.read_f32().is_err(), true);
+    /// ```
+    fn read_f32(&mut self) -> Result<f32> {
+        ReadBytesExt::read_f32::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an f64 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0, 0, 0, 0, 0, 0, 36, 64];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_f64().unwrap();
+    ///
+    /// assert_eq!(data, 10.0);
+    /// assert_eq!(cursor.read_f64().is_err(), true);
+    /// ```
+    fn read_f64(&mut self) -> Result<f64> {
+        ReadBytesExt::read_f64::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read an UTF-8 String value of the provided `size` from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 97, 104, 97, 104, 97, 104, 97, 104, 97];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u8(10).unwrap();
+    ///
+    /// assert_eq!(data, "Wahahahaha");
+    /// assert_eq!(cursor.read_string_u8(10).is_err(), true);
+    /// ```
+    fn read_string_u8(&mut self, size: usize) -> Result<String> {
+        let mut data = vec![0; size];
+        self.read_exact(&mut data)?;
+        String::from_utf8(data).map_err(From::from)
+    }
+
+    /// This function tries to read an ISO-8859-1 String value of the provided `size` from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u8_iso_8859_1(11).unwrap();
+    ///
+    /// assert_eq!(data, "Wahaÿhahaha");
+    /// assert_eq!(cursor.read_string_u8_iso_8859_1(10).is_err(), true);
+    /// ```
+    fn read_string_u8_iso_8859_1(&mut self, size: usize) -> Result<String> {
+        let mut data = vec![0; size];
+        self.read_exact(&mut data)?;
+        ISO_8859_1.decode(&data, DecoderTrap::Replace).map_err(|error| RLibError::DecodeUTF8FromISO8859Error(error.to_string()))
+    }
+
+    /// This function tries to read a 00-Padded UTF-8 String value of the provided `size` from `self`.
+    ///
+    /// Note that `size` here is the full lenght of the String, including the 00 bytes that act as padding.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 97, 104, 97, 104, 97, 0, 0, 0, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u8_0padded(10).unwrap();
+    ///
+    /// assert_eq!(data, "Wahaha");
+    /// assert_eq!(cursor.read_string_u8_0padded(10).is_err(), true);
+    /// ```
+    fn read_string_u8_0padded(&mut self, size: usize) -> Result<String> {
+        let mut data = vec![0; size];
+        self.read_exact(&mut data)?;
+
+        let size_no_zeros = data.iter().position(|x| *x == 0).map_or(size, |x| x);
+        String::from_utf8(data[..size_no_zeros].to_vec()).map_err(From::from)
+    }
+
+    /// This function tries to read a 00-Terminated (or NULL-Terminated) UTF-8 String value from `self`.
+    ///
+    /// If there are no 00 bytes before the end of the data, the full data is considered part of the String.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 97, 104, 97, 104, 97, 104, 97, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u8_0terminated().unwrap();
+    ///
+    /// assert_eq!(data, "Wahahaha");
+    /// assert_eq!(cursor.read_string_u8_0terminated().is_err(), true);
+    /// ```
+    fn read_string_u8_0terminated(&mut self) -> Result<String> {
+        let mut data = vec![];
+        let max = self.len()?;
+        let mut current_pos;
+
+        loop {
+            let value = self.read_u8()?;
+            if value != 0 {
+                data.push(value);
+
+                // Exit on end of data.
+                current_pos = self.stream_position()?;
+                if max == current_pos {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        String::from_utf8(data).map_err(From::from)
+    }
+
+    /// This function tries to read a Sized UTF-8 String value from `self`.
+    ///
+    /// In Sized Strings, the first two values of the data are the size in Characters of the string,
+    /// followed by the String itself.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_sized_string_u8().unwrap();
+    ///
+    /// assert_eq!(data, "Wahahahaha");
+    /// assert_eq!(cursor.read_sized_string_u8().is_err(), true);
+    /// ```
+    fn read_sized_string_u8(&mut self) -> Result<String> {
+        if let Ok(size) = self.read_u16() {
+            // TODO: check if we have to restore cursor pos on failure.
+            self.read_string_u8(size as usize)
+        }
+        else {
+            return Err(RLibError::DecodingStringSizeError("UTF-8 String".to_owned()))
+        }
+    }
+
+    /// This function tries to read an Optional UTF-8 String value from `self`.
+    ///
+    /// In Optional Strings, the first byte is a boolean. If true, it's followed by a Sized String.
+    /// If false, then there is no more data after the boolean.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the first value is not a boolean,
+    /// the value contains invalid, characters for an UTF-8 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_optional_string_u8().unwrap();
+    ///
+    /// assert_eq!(data, "Wahahahaha");
+    /// assert_eq!(cursor.read_optional_string_u8().is_err(), true);
+    /// ```
+    fn read_optional_string_u8(&mut self) -> Result<String> {
+        let is = self.read_bool()
+            .map_err(|_| RLibError::DecodingOptionalStringBoolError("UTF-8 Optional String".to_owned()))?;
+
+        if is {
+            self.read_sized_string_u8()
+        } else {
+            Ok(String::new())
+        }
+    }
+
+    /// This function tries to read an UTF-16 String value of the provided `size` (in characters) from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-16 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u16(6).unwrap();
+    ///
+    /// assert_eq!(data, "Wahaha");
+    /// assert_eq!(cursor.read_string_u16(6).is_err(), true);
+    /// ```
+    fn read_string_u16(&mut self, size: usize) -> Result<String> {
+        let mut data = vec![0; size.wrapping_mul(2)];
+        self.read_exact(&mut data)?;
+
+        let iter = (0..size).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
+        decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
+    }
+
+    /// This function tries to read a 00-Padded UTF-16 String value of the provided `size` from `self`.
+    ///
+    /// Note that `size` here is the full lenght of the String, including the 00 bytes that act as padding.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-16 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_u16_0padded(10).unwrap();
+    ///
+    /// assert_eq!(data, "Wahaha");
+    /// assert_eq!(cursor.read_string_u16_0padded(10).is_err(), true);
+    /// ```
+    fn read_string_u16_0padded(&mut self, size: usize) -> Result<String> {
+        let mut data = vec![0; size.wrapping_mul(2)];
+        self.read_exact(&mut data)?;
+
+        let size_no_zeros = (0..size).position(|x| data[x * 2] == 0).map_or(size, |x| x);
+        let iter = (0..size_no_zeros).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
+        decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
+    }
+
+    /// This function tries to read a Sized UTF-16 String value from `self`.
+    ///
+    /// In Sized Strings, the first two values of the data are the size in Characters of the string,
+    /// followed by the String itself.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the value contains invalid
+    /// characters for an UTF-16 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![4, 0, 87, 0, 97, 0, 104, 0, 97, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_sized_string_u16().unwrap();
+    ///
+    /// assert_eq!(data, "Waha");
+    /// assert_eq!(cursor.read_sized_string_u16().is_err(), true);
+    /// ```
+    fn read_sized_string_u16(&mut self) -> Result<String> {
+        if let Ok(size) = self.read_u16() {
+            // TODO: check if we have to restore cursor pos on failure.
+            self.read_string_u16(size as usize)
+        }
+        else {
+            return Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned()))
+        }
+    }
+
+    /// This function tries to read an Optional UTF-16 String value from `self`.
+    ///
+    /// In Optional Strings, the first byte is a boolean. If true, it's followed by a Sized String.
+    /// If false, then there is no more data after the boolean.
+    ///
+    /// It may fail if there are not enough bytes to read the value, the first value is not a boolean,
+    /// the value contains invalid, characters for an UTF-16 String, or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 4, 0, 87, 0, 97, 0, 104, 0, 97, 0];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_optional_string_u16().unwrap();
+    ///
+    /// assert_eq!(data, "Waha");
+    /// assert_eq!(cursor.read_optional_string_u16().is_err(), true);
+    /// ```
+    fn read_optional_string_u16(&mut self) -> Result<String> {
+        let is = self.read_bool()
+            .map_err(|_| RLibError::DecodingOptionalStringBoolError("UTF-16 Optional String".to_owned()))?;
+
+        if is {
+            self.read_sized_string_u16()
+        } else {
+            Ok(String::new())
+        }
+    }
+
+    /// This function tries to read a Hex-Encoded RGB Colour from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![0xFF, 0x04, 0x05, 0x00];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_string_colour_rgb().unwrap();
+    ///
+    /// assert_eq!(data, "0504FF");
+    /// assert_eq!(cursor.read_string_colour_rgb().is_err(), true);
+    /// ```
+    fn read_string_colour_rgb(&mut self) -> Result<String> {
+        let value = self.read_u32()?;
+
+        // Padding to 8 zeros so we don't lose the first one, then remove the last two zeros (alpha?).
+        // REMEMBER, FORMAT ENCODED IS BBGGRR00.
+        Ok(format!("{:06X?}", value))
+    }
+}
+
+// Automatic implementation for everything that implements `Read + Seek`.
+impl<R: Read + Seek> ReadBytes for R {}

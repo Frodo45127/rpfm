@@ -92,3 +92,6 @@ gh-token
 
 # Ignore autogen folder on debug builds.
 /tw_autogen/
+
+# Ignore grcov folder, if exists.
+/coverage/

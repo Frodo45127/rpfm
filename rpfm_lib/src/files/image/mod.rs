@@ -18,6 +18,7 @@ use crate::error::Result;
 
 use crate::schema::Schema;
 
+use crate::binary::ReadBytes;
 use crate::files::{Decodeable, FileType};
 
 /// Extensions used by Image PackedFiles.
@@ -61,9 +62,11 @@ impl Decodeable for Image {
     }
 
     /// This function creates a `Image` from a `Vec<u8>`.
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let len = data.len()?;
+        let data = data.read_slice(len as usize, false)?;
         Ok(Self {
-            data: packed_file_data.to_vec(),
+            data,
         })
     }
 }

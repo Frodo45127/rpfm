@@ -15,11 +15,13 @@ Text PackedFiles are any kind of plain text packedfile, like lua, xml, txt,...
 The only thing to take into account is that this only work for UTF-8 encoded files.
 !*/
 
+use std::io::SeekFrom;
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
+use crate::schema::Schema;
 use crate::files::{Decodeable, Encodeable, FileType};
+use crate::binary::{ReadBytes, WriteBytes};
 
 /// UTF-8 BOM (Byte Order Mark).
 const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
@@ -118,20 +120,28 @@ impl Decodeable for Text {
         FileType::Text(self.text_type)
     }
 
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let len = data.len()?;
 
         // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
-        let (packed_file_data, guessed_encoding) = if packed_file_data.is_empty() { (packed_file_data, SupportedEncodings::Utf8) }
-        else if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM_UTF_8 { (&packed_file_data[3..], SupportedEncodings::Utf8) }
-        else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_LE { (&packed_file_data[2..], SupportedEncodings::Utf16Le) }
-        else { (packed_file_data, SupportedEncodings::Utf8) };
+        let guessed_encoding = if len > 2 && data.read_slice(3, true)? == BOM_UTF_8 {
+            data.seek(SeekFrom::Current(3))?;
+            SupportedEncodings::Utf8
+        }
+        else if len > 1 && data.read_slice(2, true)? == BOM_UTF_16_LE {
+            data.seek(SeekFrom::Current(2))?;
+            SupportedEncodings::Utf16Le
+        }
+        else {
+            SupportedEncodings::Utf8
+        };
 
         // This is simple: we try to decode it depending on what the guesser gave us. If all fails, return error.
         let (encoding, contents) = match guessed_encoding {
             SupportedEncodings::Utf8 | SupportedEncodings::Iso8859_1 => {
-                match packed_file_data.decode_string_u8(0, packed_file_data.len()) {
+                match data.read_string_u8( len as usize) {
                     Ok(string) => (SupportedEncodings::Utf8, string),
-                    Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
+                    Err(_) => match data.read_string_u8_iso_8859_1(len as usize) {
                         Ok(string) => (SupportedEncodings::Iso8859_1, string),
                         Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
                     }
@@ -139,7 +149,7 @@ impl Decodeable for Text {
             }
 
             SupportedEncodings::Utf16Le => {
-                match packed_file_data.decode_string_u16(0, packed_file_data.len()) {
+                match data.read_string_u16(len as usize) {
                     Ok(string) => (SupportedEncodings::Utf16Le, string),
                     Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
                 }
@@ -158,19 +168,16 @@ impl Decodeable for Text {
 }
 
 impl Encodeable for Text {
-    fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
+    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         match self.encoding {
-            SupportedEncodings::Utf8 => data.encode_string_u8(&self.contents),
-            SupportedEncodings::Iso8859_1 => data.encode_string_u8_iso_8859_1(&self.contents),
+            SupportedEncodings::Utf8 => buffer.write_string_u8(&self.contents),
+            SupportedEncodings::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
 
             // For UTF-16 we always have to add the BOM. Otherwise we have no way to easily tell what this file is.
             SupportedEncodings::Utf16Le => {
-                data.append(&mut BOM_UTF_16_LE.to_vec());
-                data.encode_string_u16(&self.contents)
+                buffer.write_all(&mut BOM_UTF_16_LE.to_vec())?;
+                buffer.write_string_u16(&self.contents)
             },
         }
-
-        data
     }
 }

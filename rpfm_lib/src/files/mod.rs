@@ -45,6 +45,7 @@ use rayon::prelude::*;
 
 use std::{collections::HashMap, fmt::Debug};
 
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::{error::Result, games::pfh_version::PFHVersion, schema::Schema};
 
 use self::text::TextType;
@@ -52,10 +53,10 @@ use self::text::TextType;
 pub mod animpack;
 pub mod ca_vp8;
 pub mod db;
-pub mod esf;
+//pub mod esf;
 pub mod image;
 pub mod loc;
-pub mod pack;
+//pub mod pack;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -147,7 +148,7 @@ pub enum FileType {
     DependencyPackFilesList,
 
     /// To identify PackFiles in a PackedFile context.
-    PackFile,
+    Pack,
     PackFileSettings,
     Unknown,
 }
@@ -168,11 +169,11 @@ pub enum ContainerPath {
 
 pub trait Decodeable: Send + Sync {
     fn file_type(&self) -> FileType;
-    fn decode(data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> where Self: Sized;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> where Self: Sized;
 }
 
-pub trait Encodeable {
-    fn encode(&self) -> Vec<u8>;
+pub trait Encodeable: Send + Sync {
+    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()>;
 }
 
 pub trait Container<T: Decodeable> {

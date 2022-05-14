@@ -50,14 +50,20 @@ pub enum RLibError {
     #[error(transparent)]
     DecodeUTF16Error(#[from] std::string::FromUtf16Error),
 
+    #[error(transparent)]
+    DecodeCharUTF16Error(#[from] std::char::DecodeUtf16Error),
+
     #[error("Error trying to convert an ISO8859-1 String to an UTF-8 String: {0}.")]
     DecodeUTF8FromISO8859Error(String),
 
-    #[error("Error trying to decode an {0}: Not enough bytes (only {1:?}, minimum required is {2}) to get his size.")]
-    DecodingStringSizeError(String, Option<usize>, u8),
+    #[error("Error trying to decode an {0}: Not enough bytes to get his size.")]
+    DecodingStringSizeError(String),
 
     #[error("Error trying to decode an {0}: The first byte is not a boolean.")]
     DecodingOptionalStringBoolError(String),
+
+    #[error("Error trying to convert an UTF-8 String to an ISO8859-1 String: {0}.")]
+    EncodeUTF8ToISO8859Error(String),
 
     #[error("Error trying to encode an {0}: \"{1}\" has a length of {2} chars, but his length should be less or equal than {3}.")]
     EncodingPaddedStringError(String, String, usize, usize),
@@ -74,6 +80,9 @@ pub enum RLibError {
     #[error("Error while trying to read the following file/folder: {0}. \
         This means that path may not be readable (permissions? other programs locking access to it?) or may not exists at all.")]
     ReadFileFolderError(String),
+
+    #[error("Unknown PFH File Type: {0}")]
+    UnknownPFHFileType(String),
 
     #[error("Unknown PFH Version: {0}")]
     UnknownPFHVersion(String),

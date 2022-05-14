@@ -32,7 +32,7 @@
 use std::collections::HashMap;
 
 use crate::error::Result;
-use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
+use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
 use crate::files::*;
 
 /// Extension used by AnimPacks.
@@ -127,17 +127,15 @@ impl<T: Decodeable> Decodeable for AnimPack<T> {
         FileType::AnimPack
     }
 
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let mut index = 0;
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
 
-        let file_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
+        let file_count = data.read_u32()?;
         let mut files: HashMap<String, RFile<T>> = if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() };
 
         for _ in 0..file_count {
-            let path = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-            let byte_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)? as usize;
-            let data = packed_file_data.decode_bytes_checked(index,  byte_count)?.to_vec();
-            index += byte_count;
+            let path = data.read_sized_string_u8()?;
+            let byte_count = data.read_u32()? as usize;
+            let data = data.read_slice(byte_count, false)?;
 
             let file = RFile {
                 path: path.to_owned(),
@@ -156,18 +154,17 @@ impl<T: Decodeable> Decodeable for AnimPack<T> {
 }
 
 impl<T: Decodeable> Encodeable for AnimPack<T> {
-    fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
-        data.encode_integer_u32(self.files.len() as u32);
+    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+        buffer.write_u32(self.files.len() as u32)?;
 
         // TODO: check if sorting is needed.
         for file in self.files.values() {
-            data.encode_packedfile_string_u8(&file.path_raw());
-            data.encode_integer_u32(file.data().len() as u32);
-            data.extend_from_slice(&file.data());
+            buffer.write_sized_string_u8(&file.path_raw())?;
+            buffer.write_u32(file.data().len() as u32)?;
+            buffer.write_all(&file.data())?;
         }
 
-        data
+        Ok(())
     }
 }
 

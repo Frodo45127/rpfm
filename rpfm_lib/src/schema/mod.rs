@@ -14,7 +14,7 @@ Module with all the code to interact with Schemas.
 This module contains all the code related with the schemas used by this lib to decode many PackedFile types.
 
 The basic structure of an `Schema` is:
-```rust
+```ignore
 (
     version: 3,
     versioned_files: [

@@ -15,6 +15,7 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
+use std::io::SeekFrom;
 use rayon::prelude::*;
 
 use std::{cmp::Ordering, collections::BTreeMap};
@@ -22,7 +23,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 
-use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::*};
+use crate::{binary::{ReadBytes, WriteBytes}, schema::*};
 use crate::error::{RLibError, Result};
 use crate::files::{Decodeable, FileType, table::Table};
 
@@ -66,13 +67,13 @@ impl Decodeable for Loc {
         FileType::Loc
     }
 
-    fn decode(packed_file_data: &[u8], extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
         let (_, table_name, _) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
 
-        let (version, entry_count) = Self::read_header(packed_file_data)?;
+        let (version, entry_count) = Self::read_header(data)?;
 
         // Then try to decode all the entries.
-        let mut index = HEADER_SIZE as usize;
+        data.seek(SeekFrom::Start(HEADER_SIZE as u64))?;
 
         // TODO: Move this to its own function.
         let mut definition = Definition::new(version);
@@ -82,12 +83,14 @@ impl Decodeable for Loc {
         fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
         definition.set_fields(fields);
 
-        let table_data = Table::decode_table(&definition, packed_file_data, Some(entry_count), &mut index, false)?;
+        let table_data = Table::decode_table(data, &definition, Some(entry_count), false)?;
         let table = Table::new(&definition, table_name);
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        if index != packed_file_data.len() {
-            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index));
+        let len = data.len()?;
+        let curr_pos = data.stream_position()?;
+        if len != curr_pos {
+            return Err(RLibError::DecodingMismatchSizeError(len as usize, curr_pos as usize));
         }
 
         // If we've reached this, we've successfully decoded the table.
@@ -196,24 +199,25 @@ impl Loc {
     }
     */
     /// This function tries to read the header of a Loc PackedFile from raw data.
-    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
+    pub fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, u32)> {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
-        if packed_file_data.len() < HEADER_SIZE {
+        if data.len()? < HEADER_SIZE as u64 {
             return Err(RLibError::DecodingLocNotALocTable)
         }
 
         // More checks to ensure this is a valid Loc PAckedFile.
-        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? {
+        if BYTEORDER_MARK != data.read_u16()? {
             return Err(RLibError::DecodingLocNotALocTable)
         }
 
-        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? {
+        if PACKED_FILE_TYPE != data.read_string_u8(3)? {
             return Err(RLibError::DecodingLocNotALocTable)
         }
 
-        let version = packed_file_data.decode_integer_i32(6)?;
-        let entry_count = packed_file_data.decode_integer_u32(10)?;
+        let _ = data.read_u8()?;
+        let version = data.read_i32()?;
+        let entry_count = data.read_u32()?;
 
         Ok((version, entry_count))
     }

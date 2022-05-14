@@ -44,7 +44,7 @@ use std::path::Path;
 use std::process::Command;
 use std::u64;
 
-use crate::binary::{decoder::Decoder, encoder::Encoder};
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 
 //---------------------------------------------------------------------------//
@@ -96,17 +96,15 @@ impl Compressible for [u8] {
         // - We have just one file, so the offset is the exact length of that file.
         // - Then we read the offset from the end of the header. And done.
         let mut reader = BufReader::new(File::open(&compressed_path)?);
-        let mut footer_offset = vec![0; 4];
         reader.seek(SeekFrom::Start(12))?;
-        reader.read_exact(&mut footer_offset)?;
-        let compressed_data_length = footer_offset.decode_integer_u32(0)?;
+        let compressed_data_length = reader.read_u32()?;
 
         let mut compressed_data = vec![0; compressed_data_length as usize];
         reader.seek(SeekFrom::Start(32))?;
         reader.read_exact(&mut compressed_data)?;
 
         let mut fixed_data = vec![];
-        fixed_data.encode_integer_i32(self.len() as i32);
+        fixed_data.write_i32(self.len() as i32)?;
         fixed_data.extend_from_slice(&[0x5D, 0x00, 0x00, 0x40, 0x00]);
         fixed_data.append(&mut compressed_data);
 

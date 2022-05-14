@@ -16,8 +16,10 @@ Binary unit variants are the unit variants used from Empire to Shogun 2.
 
 use getset::*;
 
+use std::io::SeekFrom;
+
 use crate::error::{RLibError, Result};
-use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
+use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "VRNT";
@@ -53,31 +55,31 @@ pub struct Category {
 
 /// Implementation of `UnitVariant`.
 impl UnitVariant {
-
+    /*
     /// This function checks if the provided data is an UnitVariant.
     pub fn is_unit_variant(packed_file_data: &[u8]) -> bool {
-        if let Ok(signature) = packed_file_data.decode_string_u8(0, SIGNATURE.len()) {
+        if let Ok(signature) = packed_file_data.read_string_u8(0, SIGNATURE.len()) {
             signature == SIGNATURE
         } else { false }
-    }
+    }*/
 
     /// This function tries to read the header of an UIC PackedFile from raw data.
-    pub fn read_header(packed_file_data: &[u8], index: &mut usize) -> Result<(u32, u32, u32)> {
-        if let Ok(signature) = packed_file_data.decode_string_u8(0, SIGNATURE.len()) {
+    fn read_header<R: ReadBytes>(data: &mut R) -> Result<(u32, u32, u32)> {
+        if let Ok(signature) = data.read_string_u8(SIGNATURE.len()) {
             if signature != SIGNATURE {
                 return Err(RLibError::DecodingUnitVariantNotAUnitVariant)
             }
         }
 
-        let version = packed_file_data.decode_packedfile_integer_u32(SIGNATURE.len(), index)?;
-        let categories_count = packed_file_data.decode_packedfile_integer_u32(*index, index)?;
+        let version = data.read_u32()?;
+        let categories_count = data.read_u32()?;
 
         // We don't use them, but it's good to know what they are.
-        let _categories_index = packed_file_data.decode_packedfile_integer_u32(*index, index)?;
-        let _equipments_index = packed_file_data.decode_packedfile_integer_u32(*index, index)?;
+        let _categories_index = data.read_u32()?;
+        let _equipments_index = data.read_u32()?;
 
         // V2 has an extra number here. No idea what it is.
-        let unknown_1 = if version == 2 { packed_file_data.decode_packedfile_integer_u32(*index, index)? } else { 0 };
+        let unknown_1 = if version == 2 { data.read_u32()? } else { 0 };
 
         Ok((version, categories_count, unknown_1))
     }
@@ -93,21 +95,19 @@ impl Decodeable for UnitVariant {
         FileType::UnitVariant
     }
 
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-
-        let mut index = SIGNATURE.len();
-        let (version, categories_count, unknown_1) = Self::read_header(packed_file_data, &mut index)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        data.seek(SeekFrom::Start(SIGNATURE.len() as u64))?;
+        let (version, categories_count, unknown_1) = Self::read_header(data)?;
 
         // Get the categories.
         let mut categories = vec![];
         for _ in 0..categories_count {
 
-            let (name, _) = packed_file_data.decode_string_u16_0padded(index, 512)?;
-            index += 512;
+            let name = data.read_string_u16_0padded(512)?;
 
-            let id = packed_file_data.decode_packedfile_integer_u64(index, &mut index)?;
-            let equipments_on_this_category = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
-            let _equipments_before_this_category = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
+            let id = data.read_u64()?;
+            let equipments_on_this_category = data.read_u32()?;
+            let _equipments_before_this_category = data.read_u32()?;
 
             let category = Category {
                 name,
@@ -121,19 +121,19 @@ impl Decodeable for UnitVariant {
         // Read the equipments.
         for category in &mut categories {
             for _ in 0..category.equipments.capacity() {
-                let equipment_1 = packed_file_data.decode_string_u16_0padded(index, 512)?;
-                index += 512;
-                let equipment_2 = packed_file_data.decode_string_u16_0padded(index, 512)?;
-                index += 512;
-                index += 2;
+                let equipment_1 = data.read_string_u16_0padded(512)?;
+                let equipment_2 = data.read_string_u16_0padded(512)?;
+                let _no_idea = data.read_u16()?;
 
-                category.equipments.push((equipment_1.0, equipment_2.0));
+                category.equipments.push((equipment_1, equipment_2));
             }
         }
 
         // Trigger an error if there's left data on the source.
-        if index != packed_file_data.len() {
-            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), index))
+        let curr_pos = data.stream_position()?;
+        let len = data.len()?;
+        if curr_pos != len {
+            return Err(RLibError::DecodingMismatchSizeError(len as usize, curr_pos as usize))
         }
 
         // If we've reached this, we've successfully decoded the entire UnitVariant.
@@ -146,20 +146,20 @@ impl Decodeable for UnitVariant {
 }
 
 impl Encodeable for UnitVariant {
-    fn encode(&self) -> Vec<u8> {
+    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
 
         let mut encoded_equipments = vec![];
         let mut encoded_categories = vec![];
 
         let mut equipments_count = 0;
         for category in &self.categories {
-            encoded_categories.encode_string_u16_0padded_cropped(&category.name, 512);
-            encoded_categories.encode_integer_u64(category.id);
-            encoded_categories.encode_integer_u32(category.equipments.len() as u32);
-            encoded_categories.encode_integer_u32(equipments_count);
+            encoded_categories.write_string_u16_0padded(&category.name, 512, true)?;
+            encoded_categories.write_u64(category.id)?;
+            encoded_categories.write_u32(category.equipments.len() as u32)?;
+            encoded_categories.write_u32(equipments_count)?;
             for equipment in &category.equipments {
-                encoded_equipments.encode_string_u16_0padded_cropped(&equipment.0, 512);
-                encoded_equipments.encode_string_u16_0padded_cropped(&equipment.1, 512);
+                encoded_equipments.write_string_u16_0padded(&equipment.0, 512, true)?;
+                encoded_equipments.write_string_u16_0padded(&equipment.1, 512, true)?;
 
                 // Two bytes, not one!!!
                 encoded_equipments.push(0);
@@ -169,21 +169,20 @@ impl Encodeable for UnitVariant {
             equipments_count += category.equipments.len() as u32;
         }
 
-        let mut data = vec![];
-        data.encode_string_u8(SIGNATURE);
-        data.encode_integer_u32(self.version);
-        data.encode_integer_u32(self.categories.len() as u32);
+        buffer.write_string_u8(SIGNATURE)?;
+        buffer.write_u32(self.version)?;
+        buffer.write_u32(self.categories.len() as u32)?;
 
-        data.encode_integer_u32(self.get_header_size());
-        data.encode_integer_u32(self.get_header_size() + encoded_categories.len() as u32);
+        buffer.write_u32(self.get_header_size())?;
+        buffer.write_u32(self.get_header_size() + encoded_categories.len() as u32)?;
 
         if self.version == 2 {
-            data.encode_integer_u32(self.unknown_1);
+            buffer.write_u32(self.unknown_1)?;
         }
 
-        data.append(&mut encoded_categories);
-        data.append(&mut encoded_equipments);
+        buffer.write_all(&mut encoded_categories)?;
+        buffer.write_all(&mut encoded_equipments)?;
 
-        data
+        Ok(())
     }
 }

@@ -17,7 +17,7 @@ They have no extension (mostly), and I heard they're a pain in the ass to work w
 
 use crate::error::Result;
 
-use crate::{binary::{decoder::Decoder, encoder::Encoder}, schema::Schema};
+use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
 use crate::files::{Decodeable, Encodeable, FileType};
 
 const SIGNATURE: &str = "Version";
@@ -44,18 +44,18 @@ pub struct UIC {
 
 /// Implementation of `UIC`.
 impl UIC {
-
+    /*
     pub fn is_ui_component(data: &[u8]) -> bool {
         match data.decode_string_u8(0, 7) {
             Ok(signature) => signature == SIGNATURE,
             Err(_) => false,
         }
-    }
+    }*/
 
     /// This function tries to read the header of an UIC PackedFile from raw data.
-    fn read_header(packed_file_data: &[u8]) -> Result<u32> {
-        let _signature = packed_file_data.decode_string_u8(0, SIGNATURE.len())?;
-        let version = packed_file_data.decode_string_u8(SIGNATURE.len(), VERSION_SIZE)?.parse::<u32>()?;
+    fn read_header<R: ReadBytes>(data: &mut R) -> Result<u32> {
+        let _signature = data.read_string_u8(SIGNATURE.len())?;
+        let version = data.read_string_u8(VERSION_SIZE)?.parse::<u32>()?;
 
         Ok(version)
     }
@@ -68,8 +68,8 @@ impl Decodeable for UIC {
         FileType::UIC
     }
 
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let version = Self::read_header(packed_file_data)?;
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+        let version = Self::read_header(data)?;
 
         // If we've reached this, we've successfully decoded the entire UI.
         Ok(Self {
@@ -79,11 +79,10 @@ impl Decodeable for UIC {
 }
 
 impl Encodeable for UIC {
-    fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
-        data.encode_string_u8(SIGNATURE);
-        data.encode_integer_u32(self.version);
+    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+        buffer.write_string_u8(SIGNATURE)?;
+        buffer.write_u32(self.version)?;
 
-        data
+        Ok(())
     }
 }
