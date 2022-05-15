@@ -13,19 +13,30 @@ Module containing test for the `PackFile` module, just to make sure we don't bre
 !*/
 
 use std::path::PathBuf;
+use std::io::BufReader;
+use std::fs::File;
+
+use crate::files::*;
+use crate::files::db::DB;
+use crate::binary::ReadBytes;
 
 use super::Pack;
 /*
 #[test]
 fn test_decode_pfh6() {
     assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH6_test.pack"), false).is_ok(), true);
-}
+}*/
+
 
 #[test]
 fn test_decode_pfh5() {
-    assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH5_test.pack"), false).is_ok(), true);
-}
 
+    let file = File::open("../test_files/PFH5_test.pack").unwrap();
+    let mut reader = BufReader::new(file);
+    let pack = Pack::decode(&mut reader, None);
+    assert!(pack.is_ok());
+}
+/*
 #[test]
 fn test_decode_pfh4() {
 	assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH4_test.pack"), false).is_ok(), true);

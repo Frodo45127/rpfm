@@ -48,6 +48,9 @@ pub enum RLibError {
     DecodeUTF8Error(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
+    DecodeUTF8StrError(#[from] std::str::Utf8Error),
+
+    #[error(transparent)]
     DecodeUTF16Error(#[from] std::string::FromUtf16Error),
 
     #[error(transparent)]
@@ -61,6 +64,9 @@ pub enum RLibError {
 
     #[error("Error trying to decode an {0}: The first byte is not a boolean.")]
     DecodingOptionalStringBoolError(String),
+
+    #[error("Error trying to read an 00-Terminated String: No byte 00 found.")]
+    DecodingString0TeminatedNo0Error,
 
     #[error("Error trying to convert an UTF-8 String to an ISO8859-1 String: {0}.")]
     EncodeUTF8ToISO8859Error(String),
@@ -80,6 +86,12 @@ pub enum RLibError {
     #[error("Error while trying to read the following file/folder: {0}. \
         This means that path may not be readable (permissions? other programs locking access to it?) or may not exists at all.")]
     ReadFileFolderError(String),
+
+    #[error("The header of the Pack is incomplete, unsupported or damaged.")]
+    PackFileHeaderNotComplete,
+
+    #[error("The indexes of the Pack are incomplete, unsupported or damaged")]
+    PackFileIndexesNotComplete,
 
     #[error("Unknown PFH File Type: {0}")]
     UnknownPFHFileType(String),

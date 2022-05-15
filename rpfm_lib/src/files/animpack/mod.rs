@@ -44,8 +44,8 @@ pub const EXTENSION: &str = ".animpack";
 
 /// This holds an entire AnimPack PackedFile decoded in memory.
 #[derive(PartialEq, Clone, Debug, Default)]
-pub struct AnimPack<T: Decodeable> {
-    files: HashMap<String, RFile<T>>,
+pub struct AnimPack {
+    files: HashMap<String, RFile>,
 }
 
 //---------------------------------------------------------------------------//
@@ -53,7 +53,7 @@ pub struct AnimPack<T: Decodeable> {
 //---------------------------------------------------------------------------//
 
 /// Implementation of `AnimPack`.
-impl<T: Decodeable> AnimPack<T> {
+impl AnimPack {
 /*
 
     pub fn get_as_pack_file_info(&self, path: &[String]) -> (PackFileInfo, Vec<PackedFileInfo>) {
@@ -121,7 +121,7 @@ impl<T: Decodeable> AnimPack<T> {
 }
 
 
-impl<T: Decodeable> Decodeable for AnimPack<T> {
+impl Decodeable for AnimPack {
 
     fn file_type(&self) -> FileType {
         FileType::AnimPack
@@ -130,7 +130,7 @@ impl<T: Decodeable> Decodeable for AnimPack<T> {
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
 
         let file_count = data.read_u32()?;
-        let mut files: HashMap<String, RFile<T>> = if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() };
+        let mut files: HashMap<String, RFile> = if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() };
 
         for _ in 0..file_count {
             let path = data.read_sized_string_u8()?;
@@ -153,7 +153,7 @@ impl<T: Decodeable> Decodeable for AnimPack<T> {
     }
 }
 
-impl<T: Decodeable> Encodeable for AnimPack<T> {
+impl Encodeable for AnimPack {
     fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;
 
@@ -169,12 +169,12 @@ impl<T: Decodeable> Encodeable for AnimPack<T> {
 }
 
 
-impl<T: Decodeable> Container<T> for AnimPack<T> {
-    fn files(&self) -> &HashMap<std::string::String, RFile<T>> {
+impl<T: Decodeable> Container<T> for AnimPack {
+    fn files(&self) -> &HashMap<std::string::String, RFile> {
         &self.files
     }
 
-    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile<T>> {
+    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile> {
         &mut self.files
     }
 }

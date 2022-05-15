@@ -13,7 +13,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding::{all::ISO_8859_1, Encoding, DecoderTrap};
 
-use std::{char::decode_utf16, io::{Read, Seek, SeekFrom}};
+use std::{char::decode_utf16, io::{BufRead, Read, Seek, SeekFrom}};
 
 use crate::error::{Result, RLibError};
 
@@ -537,10 +537,8 @@ pub trait ReadBytes: Read + Seek {
 
     /// This function tries to read a 00-Terminated (or NULL-Terminated) UTF-8 String value from `self`.
     ///
-    /// If there are no 00 bytes before the end of the data, the full data is considered part of the String.
-    ///
     /// It may fail if there are not enough bytes to read the value, the value contains invalid
-    /// characters for an UTF-8 String, or `self` cannot be read.
+    /// characters for an UTF-8 String, the last value is not 00 or `self` cannot be read.
     ///
     /// ```rust
     /// use std::io::Cursor;
@@ -555,25 +553,51 @@ pub trait ReadBytes: Read + Seek {
     /// assert_eq!(cursor.read_string_u8_0terminated().is_err(), true);
     /// ```
     fn read_string_u8_0terminated(&mut self) -> Result<String> {
+
+        // So, reads are expensive, so instead of reading byte by byte, we read a bunch of them
+        // and start searching with memchr. If we can't find anything, read another bunch and try again.
+        let mut buf = [0; 512];
         let mut data = vec![];
-        let max = self.len()?;
-        let mut current_pos;
+        let mut curr_pos = 0u64;
+        let mut end_pos = 0u64;
+        let mut found = false;
 
         loop {
-            let value = self.read_u8()?;
-            if value != 0 {
-                data.push(value);
+            let read = self.read(&mut buf);
+            match read {
+                Ok(0) => break,
+                Ok(read_bytes) => {
+                    if let Some(pos) = memchr::memchr(0, &buf[..read_bytes]) {
 
-                // Exit on end of data.
-                current_pos = self.stream_position()?;
-                if max == current_pos {
-                    break;
+                        // If we found a 00, get the final "read" position, the final position of the 00 byte,
+                        // and mark the byte as found.
+                        end_pos = curr_pos + read_bytes as u64;
+                        curr_pos += pos as u64;
+                        data.extend_from_slice(&buf[..curr_pos as usize]);
+                        found = true;
+                        break;
+                    } else {
+                        curr_pos += read_bytes as u64;
+                        data.extend_from_slice(&buf);
+                    }
                 }
-            } else {
-                break;
+
+                // If there is any error, just return it.
+                Err(error) => return Err(error)?,
             }
         }
 
+        // If we exited without finding the 00 byte, return an error.
+        if !found {
+            return Err(RLibError::DecodingString0TeminatedNo0Error);
+        }
+
+        // Move the cursor to the end of the value, so we can continue reading.
+        // -1 because we need to end after the 00 byte.
+        let new_pos = (end_pos - curr_pos - 1) as i64;
+        self.seek(SeekFrom::Current(new_pos * -1))?;
+
+        // Get a String from it.
         String::from_utf8(data).map_err(From::from)
     }
 

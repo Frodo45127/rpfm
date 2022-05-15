@@ -284,7 +284,7 @@ fn read_string_u8_0terminated() {
     assert_eq!(ReadBytes::read_string_u8_0terminated(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 0, 97])).unwrap(), "Wahahaha".to_owned());
 
     // Check the reader works for a string that doesn't end in zero, but in end of slice.
-    assert_eq!(ReadBytes::read_string_u8_0terminated(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97])).unwrap(), "Wahahahaha".to_owned());
+    assert!(ReadBytes::read_string_u8_0terminated(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97])).is_err());
 
     // Check the reader works for a slice with non-UTF8 characters (255).
     assert!(ReadBytes::read_string_u8_0terminated(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err());

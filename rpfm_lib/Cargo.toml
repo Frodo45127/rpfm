@@ -52,3 +52,5 @@ fraction = "^0.10"
 
 # UUID Generation support.
 uuid = { version = "^0.8", features = ["v4"] }
+
+memchr = "^2.5"

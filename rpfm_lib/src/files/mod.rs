@@ -56,7 +56,7 @@ pub mod db;
 //pub mod esf;
 pub mod image;
 pub mod loc;
-//pub mod pack;
+pub mod pack;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -71,7 +71,7 @@ pub mod unit_variant;
 /// or already decoded on memory. It's used to perform file-level actions in a generic way, without
 /// interfering with their file's data, type or format.
 #[derive(Clone, Debug, PartialEq)]
-pub struct RFile<T: Decodeable> {
+pub struct RFile {
 
     /// Path of the file within a [`Container`]. It may be an empty string if the file is not in one.
     path: String,
@@ -80,16 +80,16 @@ pub struct RFile<T: Decodeable> {
     timestamp: Option<i64>,
 
     /// Inner data of the file.
-    data: RFileInnerData<T>,
+    data: RFileInnerData,
 }
 
 /// This enum contains the inner data of each [`RFile`]. Despite being public, is not recommended to
 /// manipulate this data directly unless you know what you're doing.
 #[derive(Clone, Debug, PartialEq)]
-pub enum RFileInnerData<T: Decodeable> {
+pub enum RFileInnerData {
 
     /// This variant represents a file whose data has been loaded to memory and decoded.
-    Decoded(Box<T>),
+    Decoded(Box<RFileDecoded>),
 
     /// This variant represents a file whose data has been loaded to memory, but it hasn't been decoded.
     Catched(Vec<u8>),
@@ -117,6 +117,12 @@ pub struct OnDisk {
 
     /// Is the data encrypted? And if so, with which format?.
     is_encrypted: Option<PFHVersion>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum RFileDecoded {
+    Text(self::text::Text),
+    Loc(self::loc::Loc)
 }
 
 /// This enum specifies the known types of files we can find in a Total War game.
@@ -186,7 +192,7 @@ pub trait Container<T: Decodeable> {
     fn paths(&self) -> Vec<ContainerPath>;
     fn paths_raw(&self) -> Vec<&str>;*/
 
-    fn insert(&mut self, file: RFile<T>) -> ContainerPath {
+    fn insert(&mut self, file: RFile) -> ContainerPath {
         let path = file.path();
         let path_raw = file.path_raw();
         self.files_mut().insert(path_raw.to_owned(), file);
@@ -221,10 +227,10 @@ pub trait Container<T: Decodeable> {
         }
     }
 
-    fn files(&self) -> &HashMap<std::string::String, RFile<T>>;
-    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile<T>>;
+    fn files(&self) -> &HashMap<std::string::String, RFile>;
+    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile>;
 
-    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile<T>> {
+    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile> {
         match path {
             ContainerPath::File(path) => {
                 match self.files().get(path) {
@@ -244,7 +250,7 @@ pub trait Container<T: Decodeable> {
                     self.files().par_iter()
                         .filter_map(|(key, file)|
                             if key.starts_with(path) { Some(file) } else { None }
-                        ).collect::<Vec<&RFile<T>>>()
+                        ).collect::<Vec<&RFile>>()
                 }
             },
         }
@@ -263,7 +269,7 @@ pub trait Container<T: Decodeable> {
 }
 
 
-impl<T: Decodeable> RFile<T> {
+impl RFile {
     pub fn data(&self) -> &[u8] {
         match &self.data {
             RFileInnerData::Decoded(_) => todo!(),
