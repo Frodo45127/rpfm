@@ -11,9 +11,10 @@
 // Here should be all the functions related with encryption/decryption.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::Cursor;
+use std::io::{Cursor, Read, Seek};
 use std::num::Wrapping;
 
+use crate::compression::Decompressible;
 use crate::error::{RLibError, Result};
 use crate::binary::ReadBytes;
 
@@ -28,20 +29,14 @@ static INDEX_STRING_KEY: [u8; 64] = *b"#:AhppdV-!PEfz&}[]Nv?6w4guU%dF5.fq:n*-qGu
 static INDEX_U32_KEY: u32 = 0xE10B_73F4;
 static DATA_KEY: Wrapping<u64> = Wrapping(0x8FEB_2A67_40A6_920E);
 
-pub trait Decryptable {
+pub trait Decryptable: ReadBytes + Read + Seek {
 
-    fn decrypt(&self, use_padding: bool) -> Vec<u8>;
-    fn decrypt_u32(&self, second_key: u32) -> Result<u32>;
-    fn decrypt_string(&self, second_key: u8, offset: &mut usize) -> String;
-}
-
-impl Decryptable for [u8] {
-
-    fn decrypt(&self, use_padding: bool) -> Vec<u8> {
+    fn decrypt(&mut self, use_padding: bool) -> Result<Vec<u8>> {
 
         // First, make sure the file ends in a multiple of 8. If not, extend it with zeros.
         // We need it because the decoding is done in packs of 8 bytes.
-        let mut ciphertext = self.to_vec();
+        let ciphertext_len = self.len()? as usize;
+        let mut ciphertext = self.read_slice(ciphertext_len, false)?;
         let size = ciphertext.len();
         let padding = 8 - (size % 8);
         if padding < 8 { ciphertext.resize(size + padding, 0) };
@@ -60,14 +55,14 @@ impl Decryptable for [u8] {
 
         // Remove the extra bytes we added in the first step.
         plaintext.truncate(size);
-        plaintext
+        Ok(plaintext)
     }
 
     /// This function decrypts the size of a PackedFile. Requires:
     /// - 'ciphertext': the encrypted size of the PackedFile, read directly as LittleEndian::u32.
     /// - 'packed_files_after_this_one': the amount of items after this one in the Index.
-    fn decrypt_u32(&self, second_key: u32) -> Result<u32> {
-        let bytes = ReadBytes::read_u32(&mut Cursor::new(self))?;
+    fn decrypt_u32(&mut self, second_key: u32) -> Result<u32> {
+        let bytes = self.read_u32()?;
         Ok(bytes ^ INDEX_U32_KEY ^ !second_key)
     }
 
@@ -75,16 +70,20 @@ impl Decryptable for [u8] {
     /// - 'ciphertext': the encrypted data of the PackedFile, read from the begining of the encrypted path.
     /// - 'decrypted_size': the decrypted size of the PackedFile.
     /// - 'offset': offset to know in what position of the index we should continue decoding the next entry.
-    fn decrypt_string(&self, second_key: u8, offset: &mut usize) -> String {
+    fn decrypt_string(&mut self, second_key: u8) -> Result<String> {
+
+        // TODO: Optimize this. The read_u8 in the loop is bloody ineficient.
         let mut path: String = String::new();
         let mut index = 0;
         loop {
-            let character = self[index] ^ INDEX_STRING_KEY[index % INDEX_STRING_KEY.len()] ^ !second_key;
+            let character = self.read_u8()? ^ INDEX_STRING_KEY[index % INDEX_STRING_KEY.len()] ^ !second_key;
             index += 1;
             if character == 0 { break; }
             path.push(character as char);
         }
-        *offset += index;
-        path
+        Ok(path)
     }
 }
+
+impl<R: ReadBytes + Read + Seek> Decryptable for R {}
+
