@@ -6,6 +6,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [3.0.9]
+### Fixed
+- Fixed table `allied_recruitment_units_tables` being locked instead of `allied_recruitment_core_units_tables` after the last WH3 Patch.
+
 ## [3.0.8]
 ### Added
 - Implemented setting to disable automatic Git Repos and Config files on new MyMods.
@@ -690,7 +694,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.8...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.9...HEAD
+[3.0.9]: https://github.com/Frodo45127/rpfm/compare/v3.0.8...v3.0.9
 [3.0.8]: https://github.com/Frodo45127/rpfm/compare/v3.0.7...v3.0.8
 [3.0.7]: https://github.com/Frodo45127/rpfm/compare/v3.0.6...v3.0.7
 [3.0.6]: https://github.com/Frodo45127/rpfm/compare/v3.0.5...v3.0.6
