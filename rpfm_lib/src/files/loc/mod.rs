@@ -15,17 +15,14 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
+use crate::files::DecodeableExtraData;
 use std::io::SeekFrom;
-use rayon::prelude::*;
 
-use std::{cmp::Ordering, collections::BTreeMap};
-use std::collections::HashSet;
-use std::path::Path;
+use std::{collections::BTreeMap};
 
-
-use crate::{binary::{ReadBytes, WriteBytes}, schema::*};
+use crate::{binary::ReadBytes, schema::*};
 use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, FileType, table::Table};
+use crate::files::{Decodeable, table::Table};
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -41,8 +38,6 @@ pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
 /// Extension used by Loc PackedFiles.
 pub const EXTENSION: &str = ".loc";
-
-const ERROR_NOT_A_LOC: &str = "This is either not a Loc Table, or it's a Loc Table but it's corrupted.";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -63,12 +58,11 @@ pub struct Loc {
 
 impl Decodeable for Loc {
 
-    fn file_type(&self) -> FileType {
-        FileType::Loc
-    }
-
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (_, table_name, _) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let table_name = extra_data
+            .ok_or(RLibError::DecodingTableMissingExtraData)?
+            .table_name
+            .ok_or(RLibError::DecodingTableMissingExtraData)?;
 
         let (version, entry_count) = Self::read_header(data)?;
 

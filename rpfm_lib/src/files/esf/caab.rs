@@ -15,8 +15,9 @@ Module with all the code needed to support the CAAB format for ESF files.
 use crate::error::{RLibError, Result};
 
 use std::collections::BTreeMap;
+use std::io::SeekFrom;
 
-use crate::binary::{decoder::Decoder, encoder::Encoder};
+use crate::binary::{ReadBytes, WriteBytes};
 
 
 use super::*;
@@ -29,57 +30,60 @@ use super::*;
 impl ESF {
 
     /// This function creates a `ESF` of type CAAB from a `Vec<u8>`.
-    pub(crate) fn read_caab(packed_file_data: &[u8]) -> Result<Self> {
+    pub(crate) fn read_caab<R: ReadBytes>(data: &mut R) -> Result<Self> {
         let signature = ESFSignature::CAAB;
 
-        let mut offset = 4;
-        let unknown_1 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let creation_date = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let record_names_offset = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let nodes_offset = offset;
+        // Note: this assumes the caller has already read the first 4 bytes of the data.
+        let unknown_1 = data.read_u32()?;
+        let creation_date = data.read_u32()?;
+        let record_names_offset = data.read_u32()?;
+        let nodes_offset = data.stream_position()?;
 
         // We need this data decoded first, because some nodes reference to it, and we can use that to populate the nodes.
-        offset = record_names_offset as usize;
+        data.seek(SeekFrom::Start(record_names_offset as u64))?;
 
         // Get the name list for the record/record block entries.
-        let record_names_count = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
+        let record_names_count = data.read_u16()?;
         let mut record_names = vec![];
         for _ in 0..record_names_count {
-            record_names.push(packed_file_data.decode_packedfile_string_u8(offset, &mut offset)?);
+            record_names.push(data.read_sized_string_u8()?);
         }
 
         // Get the UTF-16 Strings for all the subnodes.
-        let strings_count_utf16 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let strings_count_utf16 = data.read_u32()?;
         let mut strings_utf16 = BTreeMap::new();
         for _ in 0..strings_count_utf16 {
-            let name = packed_file_data.decode_packedfile_string_u16(offset, &mut offset)?;
-            let index = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+            let name = data.read_sized_string_u16()?;
+            let index = data.read_u32()?;
             strings_utf16.insert(index, name);
         }
 
         // Get the UTF-8 Strings for all the subnodes.
-        let strings_count_utf8 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let strings_count_utf8 = data.read_u32()?;
         let mut strings_utf8 = BTreeMap::new();
         for _ in 0..strings_count_utf8 {
-            let name = packed_file_data.decode_packedfile_string_u8(offset, &mut offset)?;
-            let index = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+            let name = data.read_sized_string_u8()?;
+            let index = data.read_u32()?;
             strings_utf8.insert(index, name);
         }
 
         // If we're not at the end of the file, something failed.
-        if offset != packed_file_data.len() {
-            return Err(RLibError::DecodingMismatchSizeError(packed_file_data.len(), offset));
+        let data_len = data.len()?;
+        let curr_pos = data.stream_position()?;
+        if curr_pos != data_len {
+            return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
         }
 
         // Restore the index before continuing.
-        offset = nodes_offset;
+        data.seek(SeekFrom::Start(nodes_offset))?;
 
         // This file is a big tree hanging from the root node, so just decode everything recursively.
-        let root_node = Self::read_node(packed_file_data, &mut offset, true, &record_names, &strings_utf8, &strings_utf16)?;
+        let root_node = Self::read_node(data, true, &record_names, &strings_utf8, &strings_utf16)?;
 
         // If we're not at the exact end of the nodes, something failed.
-        if offset != record_names_offset as usize {
-            return Err(RLibError::DecodingMismatchSizeError(record_names_offset as usize, offset));
+        let curr_pos = data.stream_position()?;
+        if curr_pos != record_names_offset as u64 {
+            return Err(RLibError::DecodingMismatchSizeError(record_names_offset as usize, curr_pos as usize));
         }
 
         let esf = Self{
@@ -99,13 +103,12 @@ impl ESF {
     }
 
     /// This function takes a `ESF` of type CAAB and encodes it to `Vec<u8>`.
-    pub(crate) fn save_caab(&self) -> Vec<u8> {
-        let mut data = vec![];
+    pub(crate) fn save_caab<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
 
         // Encode the header info, except the offsets, because those are calculated later.
-        data.extend_from_slice(SIGNATURE_CAAB);
-        data.encode_integer_u32(self.unknown_1);
-        data.encode_integer_u32(self.creation_date);
+        buffer.write_all(SIGNATURE_CAAB)?;
+        buffer.write_u32(self.unknown_1)?;
+        buffer.write_u32(self.creation_date)?;
 
         // First, get the strings encoded, as we need to have them in order before encoding the nodes.
         let mut record_names = vec![];
@@ -114,49 +117,50 @@ impl ESF {
         Self::read_string_from_node(&self.root_node, &mut record_names, &mut strings_utf8, &mut strings_utf16);
 
         // Next, encode the nodes. We need them (and the strings) encoded in order to know their offsets.
-        let mut nodes_data = Self::save_node(&self.root_node, true, &record_names, &strings_utf8, &strings_utf16);
+        let mut nodes_data = vec![];
+        Self::save_node(&mut nodes_data, &self.root_node, true, &record_names, &strings_utf8, &strings_utf16)?;
 
         // Then, encode the strings.
         let mut strings_data: Vec<u8> = vec![];
-        strings_data.encode_integer_u16(record_names.len() as u16);
+        strings_data.write_u16(record_names.len() as u16)?;
 
         // First record names.
         for name in record_names {
-            strings_data.encode_packedfile_string_u8(&name);
+            strings_data.write_sized_string_u8(&name)?;
         }
 
         // Then UTF-16 Strings.
-        strings_data.encode_integer_u32(strings_utf16.len() as u32);
+        strings_data.write_u32(strings_utf16.len() as u32)?;
         for (index, string) in strings_utf16.iter().enumerate() {
-            strings_data.encode_packedfile_string_u16(string);
-            strings_data.encode_integer_u32(index as u32);
+            strings_data.write_sized_string_u16(string)?;
+            strings_data.write_u32(index as u32)?;
         }
 
         // Then UTF-8 Strings.
-        strings_data.encode_integer_u32(strings_utf8.len() as u32);
+        strings_data.write_u32(strings_utf8.len() as u32)?;
         for (index, string) in strings_utf8.iter().enumerate() {
-            strings_data.encode_packedfile_string_u8(string);
-            strings_data.encode_integer_u32(index as u32);
+            strings_data.write_sized_string_u8(string)?;
+            strings_data.write_u32(index as u32)?;
         }
 
         // And finally, merge everything.
-        data.encode_integer_u32((data.len() + nodes_data.len() + 4) as u32);
-        data.append(&mut nodes_data);
-        data.append(&mut strings_data);
-        data
+        buffer.write_u32((12 + nodes_data.len() + 4) as u32)?;
+        buffer.write_all(&mut nodes_data)?;
+        buffer.write_all(&mut strings_data)?;
+
+        Ok(())
     }
 
     /// This function takes care of reading a node's data into the appropriate NodeType.
-    fn read_node(
-        packed_file_data: &[u8],
-        offset: &mut usize,
+    fn read_node<R: ReadBytes>(
+        data: &mut R,
         is_root_node: bool,
         record_names: &[String],
         strings_utf8: &BTreeMap<u32, String>,
         strings_utf16: &BTreeMap<u32, String>
     ) -> Result<NodeType> {
 
-        let next_byte = packed_file_data.decode_packedfile_integer_u8(*offset, offset)?;
+        let next_byte = data.read_u8()?;
         let is_record = next_byte & RecordNodeFlags::IS_RECORD_NODE.bits == RecordNodeFlags::IS_RECORD_NODE.bits;
 
         // Get the node type. If it's a record, process it separately from the rest, as records are significantly more complex than standard nodes.
@@ -169,8 +173,8 @@ impl ESF {
             let version;
 
             if has_non_optimized_info {
-                name_index = packed_file_data.decode_packedfile_integer_u16(*offset, offset)?;
-                version = packed_file_data.decode_packedfile_integer_u8(*offset, offset)?;
+                name_index = data.read_u16()?;
+                version = data.read_u8()?;
             }
 
             // If it's not the root node, the data is encoded in 2 bytes using bitwise.
@@ -180,7 +184,7 @@ impl ESF {
             // - 7..16: Name index.
             else {
                 version = (next_byte & 0x1E) >> 1;
-                name_index = (((next_byte & 1) as u16) << 8) + packed_file_data.decode_packedfile_integer_u8(*offset, offset)? as u16;
+                name_index = (((next_byte & 1) as u16) << 8) + data.read_u8()? as u16;
             }
 
             let name = match record_names.get(name_index as usize) {
@@ -189,39 +193,41 @@ impl ESF {
             };
 
             // Get the block size, to know what data do we have to decode exactly.
-            let block_size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
+            let block_size = data.read_cauleb128()?;
             let group_count = if record_flags.contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
-                packed_file_data.decode_packedfile_integer_cauleb128(offset)?
+                data.read_cauleb128()?
             } else { 1 };
-            let final_block_offset = *offset + block_size as usize;
+            let final_block_offset = data.stream_position()? as usize + block_size as usize;
             let mut children = Vec::with_capacity(group_count as usize);
 
             // Get the record data. This process differs depending if we have nested blocks or not.
             // If we have nested blocks, we decode group by group. If we don't, we just treat it as a single group.
             for _ in 0..group_count {
                 let final_entry_offset = if record_flags.contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
-                    let entry_size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    *offset + entry_size as usize
+                    let entry_size = data.read_cauleb128()?;
+                    data.stream_position()? as usize + entry_size as usize
                 } else {
                     final_block_offset
                 };
 
                 let mut node_list = vec![];
-                while *offset < final_entry_offset {
-                    node_list.push(Self::read_node(&packed_file_data[..final_entry_offset], offset, false, record_names, strings_utf8, strings_utf16)?);
+                while data.stream_position()? < final_entry_offset as u64 {
+                    node_list.push(Self::read_node(data, false, record_names, strings_utf8, strings_utf16)?);
                 }
 
                 // Make sure we decoded exactly the data we wanted.
-                if *offset != final_entry_offset {
-                    return Err(RLibError::DecodingMismatchSizeError(final_entry_offset as usize, *offset));
+                let curr_pos = data.stream_position()?;
+                if curr_pos != final_entry_offset as u64 {
+                    return Err(RLibError::DecodingMismatchSizeError(final_entry_offset as usize, curr_pos as usize));
                 }
 
                 children.push(node_list);
             }
 
             // Make sure we decoded exactly the data we wanted.
-            if *offset != final_block_offset {
-                return Err(RLibError::DecodingMismatchSizeError(final_block_offset as usize, *offset));
+            let curr_pos = data.stream_position()?;
+            if curr_pos != final_block_offset as u64 {
+                return Err(RLibError::DecodingMismatchSizeError(final_block_offset as usize, curr_pos as usize));
             }
 
             let node_data = RecordNode {
@@ -245,43 +251,43 @@ impl ESF {
                 // Primitive nodes.
                 //------------------------------------------------//
                 BOOL => NodeType::Bool(BoolNode {
-                    value: packed_file_data.decode_packedfile_bool(*offset, offset)?,
+                    value: data.read_bool()?,
                     optimized: false,
                 }),
-                I8 => NodeType::I8(packed_file_data.decode_packedfile_integer_i8(*offset, offset)?),
-                I16 => NodeType::I16(packed_file_data.decode_packedfile_integer_i16(*offset, offset)?),
+                I8 => NodeType::I8(data.read_i8()?),
+                I16 => NodeType::I16(data.read_i16()?),
                 I32 => NodeType::I32(I32Node {
-                    value: packed_file_data.decode_packedfile_integer_i32(*offset, offset)?,
+                    value: data.read_i32()?,
                     optimized: false,
                 }),
-                I64 => NodeType::I64(packed_file_data.decode_packedfile_integer_i64(*offset, offset)?),
-                U8 => NodeType::U8(packed_file_data.decode_packedfile_integer_u8(*offset, offset)?),
-                U16 => NodeType::U16(packed_file_data.decode_packedfile_integer_u16(*offset, offset)?),
+                I64 => NodeType::I64(data.read_i64()?),
+                U8 => NodeType::U8(data.read_u8()?),
+                U16 => NodeType::U16(data.read_u16()?),
                 U32 => NodeType::U32(U32Node {
-                    value: packed_file_data.decode_packedfile_integer_u32(*offset, offset)?,
+                    value: data.read_u32()?,
                     optimized: false,
                 }),
-                U64 => NodeType::U64(packed_file_data.decode_packedfile_integer_u64(*offset, offset)?),
+                U64 => NodeType::U64(data.read_u64()?),
                 F32 => NodeType::F32(F32Node {
-                    value: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
+                    value: data.read_f32()?,
                     optimized: false,
                 }),
-                F64 => NodeType::F64(packed_file_data.decode_packedfile_float_f64(*offset, offset)?),
+                F64 => NodeType::F64(data.read_f64()?),
 
                 //------------------------------------------------//
                 // Complex/Specialized nodes.
                 //------------------------------------------------//
                 COORD_2D =>{
                     NodeType::Coord2d(Coordinates2DNode{
-                        x: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                        y: packed_file_data.decode_packedfile_float_f32(*offset, offset)?
+                        x: data.read_f32()?,
+                        y: data.read_f32()?
                     })
                 },
                 COORD_3D =>{
                     NodeType::Coord3d(Coordinates3DNode{
-                        x: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                        y: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                        z: packed_file_data.decode_packedfile_float_f32(*offset, offset)?
+                        x: data.read_f32()?,
+                        y: data.read_f32()?,
+                        z: data.read_f32()?
                     })
                 },
 
@@ -289,20 +295,20 @@ impl ESF {
                 // String nodes.
                 //------------------------------------------------//
                 UTF16 => {
-                    let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
+                    let string_index = data.read_u32()?;
                     match strings_utf16.get(&string_index) {
                         Some(string) => NodeType::Utf16(string.to_owned()),
                         None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                     }
                 },
                 ASCII => {
-                    let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
+                    let string_index = data.read_u32()?;
                     match strings_utf8.get(&string_index) {
                         Some(string) => NodeType::Ascii(string.to_owned()),
                         None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                     }
                 },
-                ANGLE => NodeType::Angle(packed_file_data.decode_packedfile_integer_i16(*offset, offset)?),
+                ANGLE => NodeType::Angle(data.read_i16()?),
 
                 //------------------------------------------------//
                 // Optimized primitive nodes.
@@ -324,15 +330,15 @@ impl ESF {
                     optimized: true,
                 }),
                 U32_BYTE => NodeType::U32(U32Node {
-                    value: packed_file_data.decode_packedfile_integer_u8(*offset, offset)? as u32,
+                    value: data.read_u8()? as u32,
                     optimized: true,
                 }),
                 U32_16BIT => NodeType::U32(U32Node {
-                    value: packed_file_data.decode_packedfile_integer_u16(*offset, offset)? as u32,
+                    value: data.read_u16()? as u32,
                     optimized: true,
                 }),
                 U32_24BIT => NodeType::U32(U32Node {
-                    value: packed_file_data.decode_packedfile_integer_u24(*offset, offset)? as u32,
+                    value: data.read_u24()? as u32,
                     optimized: true,
                 }),
                 I32_ZERO => NodeType::I32(I32Node {
@@ -340,15 +346,15 @@ impl ESF {
                     optimized: true,
                 }),
                 I32_BYTE => NodeType::I32(I32Node {
-                    value: packed_file_data.decode_packedfile_integer_i8(*offset, offset)? as i32,
+                    value: data.read_i8()? as i32,
                     optimized: true,
                 }),
                 I32_16BIT => NodeType::I32(I32Node {
-                    value: packed_file_data.decode_packedfile_integer_i16(*offset, offset)? as i32,
+                    value: data.read_i16()? as i32,
                     optimized: true,
                 }),
                 I32_24BIT => NodeType::I32(I32Node {
-                    value: packed_file_data.decode_packedfile_integer_i24(*offset, offset)? as i32,
+                    value: data.read_i24()? as i32,
                     optimized: true,
                 }),
                 F32_ZERO => NodeType::F32(F32Node {
@@ -359,28 +365,26 @@ impl ESF {
                 //------------------------------------------------//
                 // Unknown nodes.
                 //------------------------------------------------//
-                UNKNOWN_21 => NodeType::Unknown21(packed_file_data.decode_packedfile_integer_u32(*offset, offset)?),
-                UNKNOWN_23 => NodeType::Unknown23(packed_file_data.decode_packedfile_integer_u8(*offset, offset)?),
+                UNKNOWN_21 => NodeType::Unknown21(data.read_u32()?),
+                UNKNOWN_23 => NodeType::Unknown23(data.read_u8()?),
                 //UNKNOWN_24 =>{},
-                UNKNOWN_25 => NodeType::Unknown25(packed_file_data.decode_packedfile_integer_u32(*offset, offset)?),
+                UNKNOWN_25 => NodeType::Unknown25(data.read_u32()?),
 
                 // Very weird type.
                 UNKNOWN_26 => {
                     let mut node_data = vec![];
-                    let first_byte = packed_file_data.decode_packedfile_integer_u8(*offset, offset)?;
+                    let first_byte = data.read_u8()?;
                     node_data.push(first_byte);
 
                     if first_byte % 8 == 0 && first_byte != 0 {
-                        node_data.extend_from_slice(&packed_file_data[*offset..*offset + first_byte as usize]);
-                        *offset += first_byte as usize;
+                        node_data.extend_from_slice(&data.read_slice(first_byte as usize, false)?);
                     } else {
-                        node_data.extend_from_slice(&packed_file_data[*offset..*offset + 7]);
-                        *offset += 7;
+                        node_data.extend_from_slice(&data.read_slice(7, false)?);
                     }
 
-                    let last_byte = packed_file_data.decode_packedfile_integer_u8(*offset, offset);
+                    let last_byte = data.read_u8();
                     if last_byte.is_ok() && last_byte.unwrap() != 0x9C {
-                        *offset -= 1;
+                        data.seek(SeekFrom::Current(-1))?;
                     }
 
                     NodeType::Unknown26(node_data)
@@ -391,133 +395,130 @@ impl ESF {
                 //------------------------------------------------//
                 BOOL_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_bool(*offset, offset)?);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_bool()?);
                     }
 
                     NodeType::BoolArray(node_data)
                 },
+
                 I8_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i8(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i8()?)
                     }
                     NodeType::I8Array(node_data)
-
                 },
+
                 I16_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i16(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i16()?)
                     }
                     NodeType::I16Array(node_data)
-
                 },
+
                 I32_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i32(*offset, offset)?);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i32()?);
                     }
 
                     NodeType::I32Array(VecI32Node {
                         value: node_data,
                         optimized: false,
                     })
-
                 },
+
                 I64_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i64(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i64()?);
                     }
 
                     NodeType::I64Array(node_data)
-
                 },
-                U8_ARRAY => {
-                    let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u8(*offset, offset)?)
-                    }
+                U8_ARRAY => {
+                    let size = data.read_cauleb128()?;
+                    let node_data = data.read_slice(size as usize, false)?;
 
                     NodeType::U8Array(node_data)
-
                 },
+
                 U16_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u16(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u16()?);
                     }
 
                     NodeType::U16Array(node_data)
-
                 },
+
                 U32_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u32(*offset, offset)?);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u32()?);
                     }
 
                     NodeType::U32Array(VecU32Node {
                         value: node_data,
                         optimized: false,
                     })
-
                 },
+
                 U64_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u64(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u64()?)
                     }
 
                     NodeType::U64Array(node_data)
-
                 },
+
                 F32_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_float_f32(*offset, offset)?);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_f32()?);
                     }
 
                     NodeType::F32Array(node_data)
                 },
+
                 F64_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_float_f64(*offset, offset)?);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_f64()?);
                     }
 
                     NodeType::F64Array(node_data)
@@ -528,34 +529,33 @@ impl ESF {
                 //------------------------------------------------//
                 COORD_2D_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
+                    while data.stream_position()? < end_offset {
                         node_data.push(Coordinates2DNode{
-                            x: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                            y: packed_file_data.decode_packedfile_float_f32(*offset, offset)?
+                            x: data.read_f32()?,
+                            y: data.read_f32()?
                         });
                     }
 
                     NodeType::Coord2dArray(node_data)
-
                 },
+
                 COORD_3D_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
+                    while data.stream_position()? < end_offset {
                         node_data.push(Coordinates3DNode{
-                            x: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                            y: packed_file_data.decode_packedfile_float_f32(*offset, offset)?,
-                            z: packed_file_data.decode_packedfile_float_f32(*offset, offset)?
+                            x: data.read_f32()?,
+                            y: data.read_f32()?,
+                            z: data.read_f32()?
                         });
                     }
 
                     NodeType::Coord3dArray(node_data)
-
                 },
 
                 //------------------------------------------------//
@@ -563,11 +563,11 @@ impl ESF {
                 //------------------------------------------------//
                 UTF16_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
+                    while data.stream_position()? < end_offset {
+                        let string_index = data.read_u32()?;
                         match strings_utf16.get(&string_index) {
                             Some(string) => node_data.push(string.to_owned()),
                             None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
@@ -575,20 +575,20 @@ impl ESF {
                     }
                     NodeType::Utf16Array(node_data)
                 },
+
                 ASCII_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        let string_index = packed_file_data.decode_packedfile_integer_u32(*offset, offset)?;
+                    while data.stream_position()? < end_offset {
+                        let string_index = data.read_u32()?;
                         match strings_utf8.get(&string_index) {
                             Some(string) => node_data.push(string.to_owned()),
                             None => return Err(RLibError::DecodingESFStringNotFound(string_index)),
                         }
                     }
                     NodeType::AsciiArray(node_data)
-
                 },
 
                 //------------------------------------------------//
@@ -596,11 +596,11 @@ impl ESF {
                 //------------------------------------------------//
                 ANGLE_ARRAY =>{
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i16(*offset, offset)?)
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i16()?)
                     }
 
                     NodeType::AngleArray(node_data)
@@ -611,11 +611,11 @@ impl ESF {
                 //------------------------------------------------//
                 U32_BYTE_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u8(*offset, offset)? as u32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u8()? as u32);
                     }
 
                     NodeType::U32Array(VecU32Node {
@@ -623,13 +623,14 @@ impl ESF {
                         optimized: true,
                     })
                 },
+
                 U32_16BIT_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u16(*offset, offset)? as u32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u16()? as u32);
                     }
 
                     NodeType::U32Array(VecU32Node {
@@ -637,13 +638,14 @@ impl ESF {
                         optimized: true,
                     })
                 },
+
                 U32_24BIT_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_u24(*offset, offset)? as u32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_u24()?);
                     }
 
                     NodeType::U32Array(VecU32Node {
@@ -651,13 +653,14 @@ impl ESF {
                         optimized: true,
                     })
                 },
+
                 I32_BYTE_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i8(*offset, offset)? as i32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i8()? as i32);
                     }
 
                     NodeType::I32Array(VecI32Node {
@@ -665,13 +668,14 @@ impl ESF {
                         optimized: true,
                     })
                 },
+
                 I32_16BIT_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i16(*offset, offset)? as i32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i16()? as i32);
                     }
 
                     NodeType::I32Array(VecI32Node {
@@ -679,13 +683,14 @@ impl ESF {
                         optimized: true,
                     })
                 },
+
                 I32_24BIT_ARRAY => {
                     let mut node_data = vec![];
-                    let size = packed_file_data.decode_packedfile_integer_cauleb128(offset)?;
-                    let end_offset = *offset + size as usize;
+                    let size = data.read_cauleb128()?;
+                    let end_offset = data.stream_position()? + size as u64;
 
-                    while *offset < end_offset {
-                        node_data.push(packed_file_data.decode_packedfile_integer_i24(*offset, offset)? as i32);
+                    while data.stream_position()? < end_offset {
+                        node_data.push(data.read_i24()? as i32);
                     }
 
                     NodeType::I32Array(VecI32Node {
@@ -703,12 +708,12 @@ impl ESF {
         // To check for read/save integrity.
         //if *offset > 1040000 {
         //    let data = Self::save_node(&node_type, is_root_node, record_names, &strings_utf8.values().map(|x| x.to_owned()).collect::<Vec<String>>(), &strings_utf16.values().map(|x| x.to_owned()).collect::<Vec<String>>());
-        //    if data != packed_file_data[initial_offset..*offset] {
+        //    if data != data[initial_offset..*offset] {
         //        dbg!(next_byte);
         //        dbg!(*offset);
         //        let max = if data.len() > 20 { 20 } else { data.len() };
         //        dbg!(&data[..max]);
-        //        dbg!(&packed_file_data[initial_offset..(initial_offset + max)]);
+        //        dbg!(&data[initial_offset..(initial_offset + max)]);
         //        //return Err(ErrorKind::ESFUnsupportedDataType(format!("{}", next_byte)).into());
         //    }
         //}
@@ -717,8 +722,7 @@ impl ESF {
     }
 
     /// This function takes care of reading a node's data into the appropriate NodeType.
-    fn save_node(node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Vec<u8> {
-        let mut data = vec![];
+    fn save_node<W: WriteBytes>(buffer: &mut W, node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Result<()> {
         match node_type {
 
             // Crash with this for now.
@@ -730,201 +734,201 @@ impl ESF {
             NodeType::Bool(value) => {
                 if *value.optimized() {
                     if *value.value() {
-                        data.push(BOOL_TRUE);
+                        buffer.write_u8(BOOL_TRUE)?;
                     } else {
-                        data.push(BOOL_FALSE);
+                        buffer.write_u8(BOOL_FALSE)?;
                     }
                 } else {
-                    data.push(BOOL);
-                    data.encode_bool(*value.value());
+                    buffer.write_u8(BOOL)?;
+                    buffer.write_bool(*value.value())?;
                 }
             },
             NodeType::I8(value) => {
-                data.push(I8);
-                data.encode_integer_i8(*value);
+                buffer.write_u8(I8)?;
+                buffer.write_i8(*value)?;
             },
             NodeType::I16(value) => {
-                data.push(I16);
-                data.encode_integer_i16(*value);
+                buffer.write_u8(I16)?;
+                buffer.write_i16(*value)?;
             },
             NodeType::I32(value) => {
                 if *value.optimized() {
                     let value = *value.value();
                     if value == 0 {
-                        data.push(I32_ZERO);
+                        buffer.write_u8(I32_ZERO)?;
                     }
 
                     // We can do simple logic for positive numbers, but negative numbers need special logic to get their size correctly.
                     else if value.is_positive() {
                         if value <= i8::MAX as i32 {
-                            data.push(I32_BYTE);
-                            data.encode_integer_i8(value as i8);
+                            buffer.write_u8(I32_BYTE)?;
+                            buffer.write_i8(value as i8)?;
                         } else if value <= i16::MAX as i32 {
-                            data.push(I32_16BIT);
-                            data.encode_integer_i16(value as i16);
+                            buffer.write_u8(I32_16BIT)?;
+                            buffer.write_i16(value as i16)?;
                         } else if value <= 8_388_607 {
-                            data.push(I32_24BIT);
-                            data.encode_integer_i24(value);
+                            buffer.write_u8(I32_24BIT)?;
+                            buffer.write_i24(value)?;
                         } else {
-                            data.push(I32);
-                            data.encode_integer_i32(value);
+                            buffer.write_u8(I32)?;
+                            buffer.write_i32(value)?;
                         }
                     } else if value >= i8::MIN as i32 {
-                        data.push(I32_BYTE);
-                        data.encode_integer_i8(value as i8);
+                        buffer.write_u8(I32_BYTE)?;
+                        buffer.write_i8(value as i8)?;
                     } else if value >= i16::MIN as i32 {
-                        data.push(I32_16BIT);
-                        data.encode_integer_i16(value as i16);
+                        buffer.write_u8(I32_16BIT)?;
+                        buffer.write_i16(value as i16)?;
                     } else if value >= -8_388_608 {
-                        data.push(I32_24BIT);
-                        data.encode_integer_i24(value);
+                        buffer.write_u8(I32_24BIT)?;
+                        buffer.write_i24(value)?;
                     } else {
-                        data.push(I32);
-                        data.encode_integer_i32(value);
+                        buffer.write_u8(I32)?;
+                        buffer.write_i32(value)?;
                     }
                 } else {
-                    data.push(I32);
-                    data.encode_integer_i32(*value.value());
+                    buffer.write_u8(I32)?;
+                    buffer.write_i32(*value.value())?;
                 }
             },
             NodeType::I64(value) => {
-                data.push(I64);
-                data.encode_integer_i64(*value);
+                buffer.write_u8(I64)?;
+                buffer.write_i64(*value)?;
             },
             NodeType::U8(value) => {
-                data.push(U8);
-                data.push(*value);
+                buffer.write_u8(U8)?;
+                buffer.write_u8(*value)?;
             },
             NodeType::U16(value) => {
-                data.push(U16);
-                data.encode_integer_u16(*value);
+                buffer.write_u8(U16)?;
+                buffer.write_u16(*value)?;
             },
             NodeType::U32(value) => {
                 if *value.optimized() {
                     let value = *value.value();
                     if value == 0 {
-                        data.push(U32_ZERO);
+                        buffer.write_u8(U32_ZERO)?;
                     } else if value == 1 {
-                        data.push(U32_ONE);
+                        buffer.write_u8(U32_ONE)?;
                     } else if value <= 0xFF {
-                        data.push(U32_BYTE);
-                        data.push(value as u8);
+                        buffer.write_u8(U32_BYTE)?;
+                        buffer.write_u8(value as u8)?;
                     } else if value <= 0xFFFF {
-                        data.push(U32_16BIT);
-                        data.encode_integer_u16(value as u16);
+                        buffer.write_u8(U32_16BIT)?;
+                        buffer.write_u16(value as u16)?;
                     } else if value <= 0xFFFFFF {
-                        data.push(U32_24BIT);
-                        data.encode_integer_u24(value);
+                        buffer.write_u8(U32_24BIT)?;
+                        buffer.write_u24(value)?;
                     } else {
-                        data.push(U32);
-                        data.encode_integer_u32(value);
+                        buffer.write_u8(U32)?;
+                        buffer.write_u32(value)?;
                     }
                 } else {
-                    data.push(U32);
-                    data.encode_integer_u32(*value.value());
+                    buffer.write_u8(U32)?;
+                    buffer.write_u32(*value.value())?;
                 }
             },
             NodeType::U64(value) => {
-                data.push(U64);
-                data.encode_integer_u64(*value);
+                buffer.write_u8(U64)?;
+                buffer.write_u64(*value)?;
             },
             NodeType::F32(value) => {
                 if *value.optimized() {
                     let value = *value.value();
                     if (value - 0.0).abs() < std::f32::EPSILON {
-                        data.push(F32_ZERO);
+                        buffer.write_u8(F32_ZERO)?;
                     } else {
-                        data.push(F32);
-                        data.encode_float_f32(value);
+                        buffer.write_u8(F32)?;
+                        buffer.write_f32(value)?;
                     }
                 } else {
-                    data.push(F32);
-                    data.encode_float_f32(*value.value());
+                    buffer.write_u8(F32)?;
+                    buffer.write_f32(*value.value())?;
                 }
             },
             NodeType::F64(value) => {
-                data.push(F64);
-                data.encode_float_f64(*value);
+                buffer.write_u8(F64)?;
+                buffer.write_f64(*value)?;
             },
 
             //------------------------------------------------//
             // Complex nodes.
             //------------------------------------------------//
             NodeType::Coord2d(value) => {
-                data.push(COORD_2D);
-                data.encode_float_f32(value.x);
-                data.encode_float_f32(value.y);
+                buffer.write_u8(COORD_2D)?;
+                buffer.write_f32(value.x)?;
+                buffer.write_f32(value.y)?;
             },
             NodeType::Coord3d(value) => {
-                data.push(COORD_3D);
-                data.encode_float_f32(value.x);
-                data.encode_float_f32(value.y);
-                data.encode_float_f32(value.z);
+                buffer.write_u8(COORD_3D)?;
+                buffer.write_f32(value.x)?;
+                buffer.write_f32(value.y)?;
+                buffer.write_f32(value.z)?;
             },
 
             //------------------------------------------------//
             // String nodes.
             //------------------------------------------------//
             NodeType::Utf16(value) => {
-                data.push(UTF16);
-                data.encode_integer_u32(strings_utf16.iter().position(|x| x == value).unwrap() as u32);
+                buffer.write_u8(UTF16)?;
+                buffer.write_u32(strings_utf16.iter().position(|x| x == value).unwrap() as u32)?;
             },
             NodeType::Ascii(value) => {
-                data.push(ASCII);
-                data.encode_integer_u32(strings_utf8.iter().position(|x| x == value).unwrap() as u32);
+                buffer.write_u8(ASCII)?;
+                buffer.write_u32(strings_utf8.iter().position(|x| x == value).unwrap() as u32)?;
             },
             NodeType::Angle(value) => {
-                data.push(ANGLE);
-                data.encode_integer_i16(*value);
+                buffer.write_u8(ANGLE)?;
+                buffer.write_i16(*value)?;
             },
 
             //------------------------------------------------//
             // Unknown nodes.
             //------------------------------------------------//
             NodeType::Unknown21(value) => {
-                data.push(UNKNOWN_21);
-                data.encode_integer_u32(*value);
+                buffer.write_u8(UNKNOWN_21)?;
+                buffer.write_u32(*value)?;
             },
             NodeType::Unknown23(value) => {
-                data.push(UNKNOWN_23);
-                data.push(*value);
+                buffer.write_u8(UNKNOWN_23)?;
+                buffer.write_u8(*value)?;
             },
             //NodeType::Unknown_24(bool),
             NodeType::Unknown25(value) => {
-                data.push(UNKNOWN_25);
-                data.encode_integer_u32(*value);
+                buffer.write_u8(UNKNOWN_25)?;
+                buffer.write_u32(*value)?;
             },
             NodeType::Unknown26(value) => {
-                data.push(UNKNOWN_26);
-                data.extend_from_slice(value);
+                buffer.write_u8(UNKNOWN_26)?;
+                buffer.write_all(value)?;
             }
 
             //------------------------------------------------//
             // Arrays of primitive nodes.
             //------------------------------------------------//
             NodeType::BoolArray(value) => {
-                data.push(BOOL_ARRAY);
+                buffer.write_u8(BOOL_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_bool(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_bool(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::I8Array(value) => {
-                data.push(I8_ARRAY);
+                buffer.write_u8(I8_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i8(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_i8(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::I16Array(value) => {
-                data.push(I16_ARRAY);
+                buffer.write_u8(I16_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i16(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_i16(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::I32Array(value) => {
                 let mut list = vec![];
@@ -934,173 +938,172 @@ impl ESF {
                             let max_value = std::cmp::max(min_value.abs(), max_value.abs());
 
                             if max_value == 0 {
-                                data.push(I32_ZERO_ARRAY);
+                                buffer.write_u8(I32_ZERO_ARRAY)?;
                             } else if max_value <= i8::MAX as i32 {
-                                data.push(I32_BYTE_ARRAY);
-                                value.value().iter().for_each(|x| list.encode_integer_i8(*x as i8));
+                                buffer.write_u8(I32_BYTE_ARRAY)?;
+                                value.value().iter().try_for_each(|x| list.write_i8(*x as i8))?;
                             } else if max_value <= i16::MAX as i32 {
-                                data.push(I32_16BIT_ARRAY);
-                                value.value().iter().for_each(|x| list.encode_integer_i16(*x as i16));
+                                buffer.write_u8(I32_16BIT_ARRAY)?;
+                                value.value().iter().try_for_each(|x| list.write_i16(*x as i16))?;
                             } else if max_value <= 8_388_607 {
-                                data.push(I32_24BIT_ARRAY);
-                                value.value().iter().for_each(|x| list.encode_integer_i24(*x));
+                                buffer.write_u8(I32_24BIT_ARRAY)?;
+                                value.value().iter().try_for_each(|x| list.write_i24(*x))?;
                             } else {
-                                data.push(I32_ARRAY);
-                                value.value().iter().for_each(|x| list.encode_integer_i32(*x));
+                                buffer.write_u8(I32_ARRAY)?;
+                                value.value().iter().try_for_each(|x| list.write_i32(*x))?;
                             }
                         }
                     }
                 } else {
-                    data.push(I32_ARRAY);
-                    value.value().iter().for_each(|x| list.encode_integer_i32(*x));
+                    buffer.write_u8(I32_ARRAY)?;
+                    value.value().iter().try_for_each(|x| list.write_i32(*x))?;
                 }
 
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
 
             NodeType::I64Array(value) => {
-                data.push(I64_ARRAY);
+                buffer.write_u8(I64_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i64(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_i64(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::U8Array(value) => {
-                data.push(U8_ARRAY);
-
-                let mut list = vec![];
-                value.iter().for_each(|x| list.push(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_u8(U8_ARRAY)?;
+                buffer.write_cauleb128(value.len() as u32)?;
+                buffer.write_all(&value)?;
             },
             NodeType::U16Array(value) => {
-                data.push(U16_ARRAY);
+                buffer.write_u8(U16_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_u16(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_u16(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::U32Array(value) => {
                 let mut list = vec![];
                 if *value.optimized() {
                     if let Some(max_value) = value.value().iter().max() {
                         if *max_value == 0 {
-                            data.push(U32_ZERO_ARRAY);
+                            buffer.write_u8(U32_ZERO_ARRAY)?;
                         } else if max_value < &0xFF {
-                            data.push(U32_BYTE_ARRAY);
+                            buffer.write_u8(U32_BYTE_ARRAY)?;
                             value.value().iter().for_each(|x| list.push(*x as u8));
                         } else if max_value < &0xFFFF {
-                            data.push(U32_16BIT_ARRAY);
-                            value.value().iter().for_each(|x| list.encode_integer_u16(*x as u16));
+                            buffer.write_u8(U32_16BIT_ARRAY)?;
+                            value.value().iter().try_for_each(|x| list.write_u16(*x as u16))?;
                         } else if max_value < &0xFFFFFF {
-                            data.push(U32_24BIT_ARRAY);
-                            value.value().iter().for_each(|x| list.encode_integer_u24(*x));
+                            buffer.write_u8(U32_24BIT_ARRAY)?;
+                            value.value().iter().try_for_each(|x| list.write_u24(*x))?;
                         } else {
-                            data.push(U32_ARRAY);
-                            value.value().iter().for_each(|x| list.encode_integer_u32(*x));
+                            buffer.write_u8(U32_ARRAY)?;
+                            value.value().iter().try_for_each(|x| list.write_u32(*x))?;
                         }
                     }
                 } else {
-                    data.push(U32_ARRAY);
-                    value.value().iter().for_each(|x| list.encode_integer_u32(*x));
+                    buffer.write_u8(U32_ARRAY)?;
+                    value.value().iter().try_for_each(|x| list.write_u32(*x))?;
                 }
 
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::U64Array(value) => {
-                data.push(U64_ARRAY);
+                buffer.write_u8(U64_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_u64(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_u64(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::F32Array(value) => {
-                data.push(F32_ARRAY);
+                buffer.write_u8(F32_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_float_f32(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_f32(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::F64Array(value) => {
-                data.push(F64_ARRAY);
+                buffer.write_u8(F64_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_float_f64(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_f64(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
 
             //------------------------------------------------//
             // Array of complex/specialized nodes.
             //------------------------------------------------//
             NodeType::Coord2dArray(value) => {
-                data.push(COORD_2D_ARRAY);
+                buffer.write_u8(COORD_2D_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| {
-                    list.encode_float_f32(x.x);
-                    list.encode_float_f32(x.y);
-                });
+                value.iter().try_for_each(|x| {
+                    let v1 = list.write_f32(x.x);
+                    let v2 = list.write_f32(x.y);
+                    if v1.is_err() { v1 } else if v2.is_err() { v2 } else { v1 }
+                })?;
 
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::Coord3dArray(value) => {
-                data.push(COORD_3D_ARRAY);
+                buffer.write_u8(COORD_3D_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| {
-                    list.encode_float_f32(x.x);
-                    list.encode_float_f32(x.y);
-                    list.encode_float_f32(x.z);
-                });
+                value.iter().try_for_each(|x| {
+                    let v1 = list.write_f32(x.x);
+                    let v2 = list.write_f32(x.y);
+                    let v3 = list.write_f32(x.z);
+                    if v1.is_err() { v1 } else if v2.is_err() { v2 } else if v3.is_err() { v3 } else { v1 }
+                })?;
 
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
 
             //------------------------------------------------//
             // Array of string nodes.
             //------------------------------------------------//
             NodeType::Utf16Array(value) => {
-                data.push(UTF16_ARRAY);
+                buffer.write_u8(UTF16_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|y| {
-                    list.encode_integer_u32(strings_utf16.iter().position(|x| x == y).unwrap() as u32);
-                });
+                value.iter().try_for_each(|y| {
+                    list.write_u32(strings_utf16.iter().position(|x| x == y).unwrap() as u32)
+                })?;
 
-                data.encode_integer_u32(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_u32(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
             NodeType::AsciiArray(value) => {
-                data.push(ASCII_ARRAY);
+                buffer.write_u8(ASCII_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|y| {
-                    list.encode_integer_u32(strings_utf8.iter().position(|x| x == y).unwrap() as u32);
-                });
+                value.iter().try_for_each(|y| {
+                    list.write_u32(strings_utf8.iter().position(|x| x == y).unwrap() as u32)
+                })?;
 
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
 
             //------------------------------------------------//
             // Array of unknown nodes.
             //------------------------------------------------//
             NodeType::AngleArray(value) => {
-                data.push(ANGLE_ARRAY);
+                buffer.write_u8(ANGLE_ARRAY)?;
 
                 let mut list = vec![];
-                value.iter().for_each(|x| list.encode_integer_i16(*x));
-                data.encode_integer_cauleb128(list.len() as u32);
-                data.extend_from_slice(&list);
+                value.iter().try_for_each(|x| list.write_i16(*x))?;
+                buffer.write_cauleb128(list.len() as u32)?;
+                buffer.write_all(&list)?;
             },
 
             //------------------------------------------------//
@@ -1108,10 +1111,10 @@ impl ESF {
             //------------------------------------------------//
             NodeType::Record(value) => {
                 if value.record_flags().contains(RecordNodeFlags::HAS_NON_OPTIMIZED_INFO) || is_root_node {
-                    data.push(value.record_flags().bits());
+                    buffer.write_u8(value.record_flags().bits())?;
 
-                    data.encode_integer_u16(record_names.iter().position(|x| x == &value.name).unwrap() as u16);
-                    data.push(value.version);
+                    buffer.write_u16(record_names.iter().position(|x| x == &value.name).unwrap() as u16)?;
+                    buffer.write_u8(value.version)?;
                 }
 
                 // If it's not the root node or uses optimized data, it needs special encoding.
@@ -1120,7 +1123,7 @@ impl ESF {
                     info |= (value.version as u16) << 9;
                     info |= record_names.iter().position(|x| x == &value.name).unwrap() as u16;
 
-                    data.encode_integer_u16(info.swap_bytes());
+                    buffer.write_u16(info.swap_bytes())?;
                 }
 
                 let mut children_data = vec![];
@@ -1129,33 +1132,31 @@ impl ESF {
                     for group_node in &value.children {
                         let mut group_node_data = vec![];
                         for node in group_node {
-                            let child_node = Self::save_node(node, false, record_names, strings_utf8, strings_utf16);
-                            group_node_data.extend_from_slice(&child_node);
+                            Self::save_node(&mut group_node_data, node, false, record_names, strings_utf8, strings_utf16)?;
                         }
 
-                        children_data.encode_integer_cauleb128(group_node_data.len() as u32);
+                        children_data.write_cauleb128(group_node_data.len() as u32)?;
                         children_data.extend_from_slice(&group_node_data);
                     }
 
-                    data.encode_integer_cauleb128(children_data.len() as u32);
-                    data.encode_integer_cauleb128(value.children.len() as u32);
+                    buffer.write_cauleb128(children_data.len() as u32)?;
+                    buffer.write_cauleb128(value.children.len() as u32)?;
                 } else {
 
                     // For non-nested nodes, we just get the first and only children group.
                     if let Some(children) = value.children.get(0) {
                         for node in children {
-                            let child_node = Self::save_node(node, false, record_names, strings_utf8, strings_utf16);
-                            children_data.extend_from_slice(&child_node);
+                            Self::save_node(&mut children_data, node, false, record_names, strings_utf8, strings_utf16)?;
                         }
                     }
 
-                    data.encode_integer_cauleb128(children_data.len() as u32);
+                    buffer.write_cauleb128(children_data.len() as u32)?;
                 }
-                data.extend_from_slice(&children_data);
+                buffer.write_all(&children_data)?;
             },
         }
 
-        data
+        Ok(())
     }
 
     //---------------------------------------------------------------------------//

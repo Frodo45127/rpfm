@@ -15,21 +15,20 @@ DB Tables are the files which controls a lot of the parameters used in game, lik
 effects data, projectile parameters.... It's what modders use the most.
 !*/
 
-use getset::*;
-use rayon::prelude::*;
+use crate::files::DecodeableExtraData;
+
 use serde_derive::{Serialize, Deserialize};
-use uuid::Uuid;
 
-use std::cmp::Ordering;
-use std::collections::{HashSet, BTreeMap};
-use std::fs::File;
-use std::io::{BufReader, Read, SeekFrom};
-use std::path::{Path, PathBuf};
 
-use crate::{binary::ReadBytes, schema::Schema};
+
+
+
+use std::io::SeekFrom;
+
+use crate::binary::ReadBytes;
 
 use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, FileType, table::Table};
+use crate::files::{Decodeable, table::Table};
 
 /// If this sequence is found, the DB Table has a GUID after it.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -81,12 +80,12 @@ pub struct CascadeEdition {
 
 impl Decodeable for DB {
 
-    fn file_type(&self) -> FileType {
-        FileType::DB
-    }
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let schema = extra_data.schema.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let table_name = extra_data.table_name.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let return_incomplete = extra_data.return_incomplete.ok_or(RLibError::DecodingTableMissingExtraData)?;
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let (schema, table_name, return_incomplete) = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
         let (version, mysterious_byte, uuid, entry_count) = Self::read_header(data)?;
 
         // Try to get the table_definition for this table, if exists.

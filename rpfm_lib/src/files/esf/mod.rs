@@ -14,15 +14,16 @@ Module with all the code to interact with ESF PackedFiles.
 ESF are like savestates of the game.
 !*/
 
+use crate::files::DecodeableExtraData;
 use bitflags::bitflags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use crate::{binary::decoder::Decoder, schema::Schema};
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, Encodeable, FileType};
+use crate::files::{Decodeable, Encodeable};
 
 /// Extensions used by CEO/ESF PackedFiles.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];
@@ -135,9 +136,6 @@ bitflags! {
         const HAS_NON_OPTIMIZED_INFO    = 0b0010_0000;
     }
 }
-
-const ERROR_INCOMPLETE_DECODING: &str = "There are bytes still to decode, but the decoding process has finished. This means RPFM cannot yet decode this file correctly.
-If you see this message, please report it to RPFM's author so support for the file that caused the error can be implemented.";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -300,14 +298,14 @@ pub struct RecordNode {
 
 /// Implementation of `ESF`.
 impl ESF {
-
+    /*
     /// This function returns if the provided data corresponds to a ESF or not.
     pub fn is_esf(data: &[u8]) -> bool {
         match data.decode_bytes_checked(0, 4) {
             Ok(signature) => signature == SIGNATURE_CAAB,
             Err(_) => false,
         }
-    }
+    }*/
 
     /// This function creates a copy of an ESF without the root node..
     pub fn clone_without_root_node(&self) -> Self {
@@ -555,12 +553,9 @@ impl From<&str> for ESFSignature {
 
 impl Decodeable for ESF {
 
-    fn file_type(&self) -> FileType {
-        FileType::ESF
-    }
-
-    fn decode(packed_file_data: &[u8], _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        let signature_bytes: &[u8; 4] = packed_file_data.decode_bytes_checked(0, 4)?.try_into()?;
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let signature_bytes = data.read_slice(4, false)?;
+        let signature_bytes = signature_bytes.as_slice().try_into()?;
 
         // Match known signatures.
         let signature = match signature_bytes {
@@ -572,7 +567,7 @@ impl Decodeable for ESF {
 
         // Match signatures that we can actually decode.
         let esf = match signature {
-            ESFSignature::CAAB => Self::read_caab(packed_file_data)?,
+            ESFSignature::CAAB => Self::read_caab(data)?,
             _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
         };
 
@@ -585,10 +580,10 @@ impl Decodeable for ESF {
 }
 
 impl Encodeable for ESF {
-    fn encode(&self) -> Vec<u8> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         match self.signature {
-            ESFSignature::CAAB => self.save_caab(),
-            _ => return vec![],
+            ESFSignature::CAAB => self.save_caab(buffer),
+            _ => todo!(),
         }
     }
 }

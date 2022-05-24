@@ -17,9 +17,9 @@ This is really a dummy module, as all the logic for this is done in the view thr
 use getset::*;
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::files::{Decodeable, Encodeable};
 
-use crate::schema::Schema;
-use crate::files::{Decodeable, Encodeable, FileType};
+use super::DecodeableExtraData;
 
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
 #[allow(dead_code)]
@@ -44,11 +44,7 @@ pub struct RigidModel {
 
 impl Decodeable for RigidModel {
 
-    fn file_type(&self) -> FileType {
-        FileType::RigidModel
-    }
-
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let data = data.read_slice(len as usize, false)?;
         Ok(Self {
@@ -58,7 +54,7 @@ impl Decodeable for RigidModel {
 }
 
 impl Encodeable for RigidModel {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }

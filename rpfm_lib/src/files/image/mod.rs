@@ -14,12 +14,11 @@ Module with all the code to interact with Image PackedFiles.
 Images... we really just get their that to memory. Nothing more.
 !*/
 
+use crate::files::DecodeableExtraData;
 use crate::error::Result;
 
-use crate::schema::Schema;
-
 use crate::binary::ReadBytes;
-use crate::files::{Decodeable, FileType};
+use crate::files::Decodeable;
 
 /// Extensions used by Image PackedFiles.
 pub const EXTENSIONS: [&str; 5] = [
@@ -57,12 +56,9 @@ impl Image {
 
 /// Implementation of Decodeable for `Image` PackedFile Type.
 impl Decodeable for Image {
-    fn file_type(&self) -> FileType {
-        FileType::Image
-    }
 
     /// This function creates a `Image` from a `Vec<u8>`.
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let data = data.read_slice(len as usize, false)?;
         Ok(Self {

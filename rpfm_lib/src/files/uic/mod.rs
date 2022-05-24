@@ -15,10 +15,11 @@ UI Components are binary files that form the ui of TW Games.
 They have no extension (mostly), and I heard they're a pain in the ass to work with.
 !*/
 
+use crate::files::DecodeableExtraData;
 use crate::error::Result;
 
-use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
-use crate::files::{Decodeable, Encodeable, FileType};
+use crate::binary::{ReadBytes, WriteBytes};
+use crate::files::{Decodeable, Encodeable};
 
 const SIGNATURE: &str = "Version";
 const VERSION_SIZE: usize = 3;
@@ -64,11 +65,7 @@ impl UIC {
 
 impl Decodeable for UIC {
 
-    fn file_type(&self) -> FileType {
-        FileType::UIC
-    }
-
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let version = Self::read_header(data)?;
 
         // If we've reached this, we've successfully decoded the entire UI.
@@ -79,7 +76,7 @@ impl Decodeable for UIC {
 }
 
 impl Encodeable for UIC {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_string_u8(SIGNATURE)?;
         buffer.write_u32(self.version)?;
 

@@ -11,11 +11,10 @@
 // Here should be all the functions related with encryption/decryption.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Cursor, Read, Seek};
+use std::io::{Read, Seek};
 use std::num::Wrapping;
 
-use crate::compression::Decompressible;
-use crate::error::{RLibError, Result};
+use crate::error::Result;
 use crate::binary::ReadBytes;
 
 // Old key used in Arena, and all the way back to Shogun 2.

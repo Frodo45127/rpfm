@@ -22,10 +22,11 @@
 use std::io::SeekFrom;
 use getset::*;
 use crate::error::{RLibError, Result};
+use crate::files::DecodeableExtraData;
 use fraction::GenericFraction;
 
-use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
-use crate::files::{Decodeable, Encodeable, FileType};
+use crate::binary::{ReadBytes, WriteBytes};
+use crate::files::{Decodeable, Encodeable};
 
 /// Extensions used by CA_VP8 PackedFiles.
 pub const EXTENSION: &str = ".ca_vp8";
@@ -110,11 +111,7 @@ pub struct Frame {
 
 impl Decodeable for CaVp8 {
 
-    fn file_type(&self) -> FileType {
-        FileType::CaVp8
-    }
-
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         match &*data.read_string_u8(4)? {
             SIGNATURE_IVF => Self::read_ivf(data),
             SIGNATURE_CAMV => Self::read_camv(data),
@@ -124,7 +121,7 @@ impl Decodeable for CaVp8 {
 }
 
 impl Encodeable for CaVp8 {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         match self.format {
             SupportedFormats::Camv => self.save_camv(buffer),
             SupportedFormats::Ivf => self.save_ivf(buffer),

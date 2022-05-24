@@ -20,7 +20,7 @@ pub type Result<T, E = RLibError> = core::result::Result<T, E>;
 /// Custom error type for the lib.
 #[derive(Error, Debug)]
 pub enum RLibError {
-    #[error("This is a compressed file and the decompression failed for some reason. This means this PackedFile cannot be opened in RPFM.")]
+    #[error("This is a compressed file and the decompression failed for some reason. This means this File cannot be opened in RPFM.")]
     DataCannotBeDecompressed,
 
     #[error("The manifest for the Game Selected hasn't been found.")]
@@ -99,7 +99,7 @@ pub enum RLibError {
     #[error("Unknown PFH Version: {0}")]
     UnknownPFHVersion(String),
 
-    #[error("This is either not a Text PackedFile, or a Text PackedFile using an unsupported encoding")]
+    #[error("This is either not a Text File, or a Text File using an unsupported encoding")]
     DecodingTextUnsupportedEncodingOrNotATextFile,
 
     #[error("This file is neither a CA_VP8 nor an IVF file.")]
@@ -150,7 +150,7 @@ pub enum RLibError {
     #[error("This is either not an Unit Variant, or it's an Unit Variant but it's corrupted.")]
     DecodingUnitVariantNotAUnitVariant,
 
-    #[error("This PackedFile's reported size is '{0}' bytes, but we expected it to be '{1}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.")]
+    #[error("This file's reported size is '{0}' bytes, but we expected it to be '{1}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this file, or this file is corrupted.")]
     DecodingMismatchSizeError(usize, usize),
 
     #[error("There was an error while downloading/updating the following git repository: {0}.")]
@@ -158,6 +158,9 @@ pub enum RLibError {
 
     #[error("No updates available for the following git repository: {0}.")]
     GitErrorNoUpdatesAvailable(String),
+
+    #[error("The file's data has been altered on disk by another program since the last time it was accessed by us.")]
+    FileSourceChanged,
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
@@ -179,11 +182,19 @@ pub enum RLibError {
     #[error(transparent)]
     CSVError(#[from] csv::Error),
 
-    /// Represents all other cases of `csv::Error`.
+    /// Represents all other cases of `serde_json::Error`.
+    #[error(transparent)]
+    JsonError(#[from] serde_json::Error),
+
+    /// Represents all other cases of `std::array::TryFromSliceError`.
     #[error(transparent)]
     TryFromSliceError(#[from] std::array::TryFromSliceError),
 
     /// Represents all other cases of `std::time::SystemTimeError`.
     #[error(transparent)]
     SystemTimeError(#[from] std::time::SystemTimeError),
+
+    /// Represents all other cases of `r2d2::Error`.
+    #[error(transparent)]
+    R2D2Error(#[from] r2d2::Error),
 }

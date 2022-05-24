@@ -15,6 +15,7 @@ getset = "^0.1"
 # Serialization support.
 serde = "^1.0"
 serde_derive = "^1.0"
+serde_json = "^1.0"
 ron = "^0.7"
 csv = "^1.1"
 
@@ -29,9 +30,6 @@ bitflags = "^1.0"
 # RNG support.
 rand = "^0.8"
 
-# Date manipulation support.
-chrono = "^0.4"
-
 # Git support.
 git2 = "^0.13"
 
@@ -43,6 +41,8 @@ rayon = "^1.3"
 
 # SQLite support
 rusqlite = { version = "^0.27", features = ["blob"] }
+r2d2_sqlite = "^0.20"
+r2d2 = "^0.8"
 
 # Compression support.
 xz2 = "^0.1"
@@ -53,4 +53,5 @@ fraction = "^0.10"
 # UUID Generation support.
 uuid = { version = "^0.8", features = ["v4"] }
 
+# Quick char search support.
 memchr = "^2.5"

@@ -12,13 +12,11 @@
 Module containing test for the `PackFile` module, just to make sure we don't break it... again...
 !*/
 
-use std::path::PathBuf;
 use std::io::BufReader;
 use std::fs::File;
+use std::time::UNIX_EPOCH;
 
 use crate::files::*;
-use crate::files::db::DB;
-use crate::binary::ReadBytes;
 
 use super::Pack;
 /*
@@ -32,8 +30,13 @@ fn test_decode_pfh6() {
 fn test_decode_pfh5() {
 
     let file = File::open("../test_files/PFH5_test.pack").unwrap();
+    let mut decodeable_extra_data = DecodeableExtraData::default();
+    decodeable_extra_data.disk_file_path = Some("../test_files/PFH5_test.pack");
+    decodeable_extra_data.disk_file_offset = Some(0);
+    decodeable_extra_data.timestamp = Some(file.metadata().unwrap().modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs());
+    decodeable_extra_data.lazy_load = Some(false);
     let mut reader = BufReader::new(file);
-    let pack = Pack::decode(&mut reader, None);
+    let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
 }
 /*

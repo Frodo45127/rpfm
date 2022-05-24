@@ -80,7 +80,7 @@ use getset::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
-use crate::error::{RLibError, Result};
+use crate::error::Result;
 use self::patch::SchemaPatches;
 
 // Legacy Schemas, to keep backwards compatibility during updates.

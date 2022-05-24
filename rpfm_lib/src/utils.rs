@@ -14,14 +14,13 @@ Module with utility functions that don't fit anywhere else.
 Basically, if you need a function, but it's kinda a generic function, it goes here.
 !*/
 
-use chrono::{Utc, DateTime};
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
 
 use std::cmp::Ordering;
 use std::fs::{File, read_dir};
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{RLibError, Result};
 
@@ -61,25 +60,18 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
     Ok(file_list)
 }
 
-/// This function gets the current date and return it, as a decoded u32.
-pub fn current_time() -> i64 {
-    Utc::now().naive_utc().timestamp()
+/// This function gets the current date and return it, as an u64.
+pub fn current_time() -> Result<u64> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())
 }
 
-/// This function gets the last modified date from a file and return it, as an i64.
-pub fn last_modified_time_from_file(file: &File) -> Result<i64> {
-    let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata()?.modified()?);
-    Ok(last_modified_time.naive_utc().timestamp())
-}
-
-/// This function gets the last modified date from a file and return it, as an i64.
-pub fn last_modified_time_from_buffered_file(file: &BufReader<File>) -> Result<i64> {
-    let last_modified_time: DateTime<Utc> = DateTime::from(file.get_ref().metadata()?.modified()?);
-    Ok(last_modified_time.naive_utc().timestamp())
+/// This function gets the last modified date from a file and return it, as an u64.
+pub fn last_modified_time_from_file(file: &File) -> Result<u64> {
+    Ok(file.metadata()?.modified()?.duration_since(UNIX_EPOCH)?.as_secs())
 }
 
 /// This function gets the newer last modified time from the provided list.
-pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<i64> {
+pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
     let mut last_time = 0;
     for path in paths {
         if path.is_file() {

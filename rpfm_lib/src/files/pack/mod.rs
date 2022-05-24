@@ -20,34 +20,33 @@ so you don't have to worry about that.
 !*/
 
 use std::io::Cursor;
-use crate::files::RFileInnerData;
+use rayon::prelude::*;
+
 use bitflags::bitflags;
 
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::{prelude::*, BufReader, SeekFrom, Read};
-use std::path::{PathBuf};
+use std::io::SeekFrom;
+use std::path::PathBuf;
+
+use serde_json::from_slice;
 
 
-
-
-use crate::{binary::{ReadBytes}, schema::Schema, utils::*};
+use crate::binary::ReadBytes;
 use crate::games::pfh_version::PFHVersion;
 use crate::games::pfh_file_type::PFHFileType;
 
 use crate::files::RFile;
 
 use crate::error::{RLibError, Result};
-use crate::files::FileType;
 use crate::files::Decodeable;
 use crate::files::Container;
 //use crate::files::table::DecodedData;
 //use crate::files::db::DB;
 //use crate::files::loc::{Loc, TSV_NAME_LOC};
-use crate::files::text::TextType;
 
-use super::OnDisk;
+use super::DecodeableExtraData;
 
 //use crate::GAME_SELECTED;
 //use crate::SCHEMA;
@@ -58,7 +57,7 @@ use super::OnDisk;
 //pub mod packedfile;
 
 #[cfg(test)]
-mod packfile_test;
+mod pack_test;
 mod pack_versions;
 
 /// These are the different Preamble/Id the PackFiles can have.
@@ -121,7 +120,9 @@ bitflags! {
 pub struct Pack {
 
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
-    file_path: Option<PathBuf>,
+    disk_file_path: String,
+    disk_file_offset: u64,
+    timestamp: u64,
 
     header: PackHeader,
 
@@ -134,7 +135,7 @@ pub struct Pack {
     files: HashMap<String, RFile>,
 
     /// Notes added to the PackFile. Exclusive of this lib.
-    notes: Option<String>,
+    notes: String,
 
     /// Settings stored in the PackFile itself, to be able to share them between installations.
     settings: PackFileSettings,
@@ -217,7 +218,11 @@ pub struct PackFileSettings {
 //                           Structs Implementations
 //---------------------------------------------------------------------------//
 
-impl<T: Decodeable> Container<T> for Pack {
+impl Container for Pack {
+    fn disk_file_path(&self) -> &str {
+       &self.disk_file_path
+    }
+
     fn files(&self) -> &HashMap<std::string::String, RFile> {
         &self.files
     }
@@ -225,15 +230,26 @@ impl<T: Decodeable> Container<T> for Pack {
     fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile> {
         &mut self.files
     }
+
+    fn disk_file_offset(&self) -> u64 {
+       self.disk_file_offset
+    }
+
+    fn timestamp(&self) -> u64 {
+       self.timestamp
+    }
 }
 
 impl Decodeable for Pack {
-    fn file_type(&self) -> FileType {
-        FileType::Pack
-    }
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
-        Self::read(data, false)
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let lazy_load = extra_data.lazy_load.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingTableMissingExtraData)?;
+
+        Self::read(data, disk_file_path, disk_file_offset, timestamp, lazy_load)
     }
 }
 
@@ -242,11 +258,13 @@ impl Default for Pack {
     fn default() -> Self {
         Self {
             /// The path of the PackFile on disk, if exists. If not, then this should be empty.
-            file_path: None,
+            disk_file_path: String::new(),
+            disk_file_offset: 0,
+            timestamp: 0,
             header: PackHeader::default(),
             dependencies: vec![],
             files: HashMap::new(),
-            notes: None,
+            notes: String::new(),
             settings: PackFileSettings::default(),
         }
     }
@@ -258,7 +276,7 @@ impl Pack {
     /// This function tries to read a `Pack` from raw data.
     ///
     /// If `lazy_load` is false, the data of all the files inside the `Pack` will be preload to memory.
-    pub fn read<R: ReadBytes>(data: &mut R, lazy_load: bool) -> Result<Self> {
+    pub fn read<R: ReadBytes>(data: &mut R, disk_file_path: &str, disk_file_offset: u64, timestamp: u64, lazy_load: bool) -> Result<Self> {
 
         // First, we do some quick checks to ensure it's a valid Pack.
         // A valid PackFile, bare and empty, needs at least 24 bytes, regardless of game or type.
@@ -266,13 +284,16 @@ impl Pack {
         if data_len < 24 {
             return Err(RLibError::PackFileHeaderNotComplete);
         }
-
+dbg!(1);
         // Check if it has the weird steam-only header, and skip it if found.
         let start = if data.read_string_u8(3)? == MFH_PREAMBLE { 8 } else { 0 };
         data.seek(SeekFrom::Start(start))?;
 
         // Create the default Pack and start populating it.
         let mut pack = Self::default();
+        pack.disk_file_path = disk_file_path.to_owned();
+        pack.disk_file_offset = disk_file_offset;
+        pack.timestamp = timestamp;
         pack.header.pfh_version = PFHVersion::version(&data.read_string_u8(4)?)?;
 
         let pack_type = data.read_u32()?;
@@ -290,6 +311,7 @@ impl Pack {
             PFHVersion::PFH0 => todo!(),
         };
 
+dbg!(1);
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
         // NOTE: Arena PackFiles have extra data at the end. If we detect one of those PackFiles, take that into account.
         if pack.header.pfh_version == PFHVersion::PFH5 && pack.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
@@ -297,13 +319,41 @@ impl Pack {
         }
         else if expected_data_len != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
 
+dbg!(1);
         // If we disabled lazy-loading, load every PackedFile to memory.
-        //if !use_lazy_loading { for packed_file in &mut pack.files { packed_file.get_ref_mut_raw().load_data()?; }}
+        if !lazy_load {
+            pack.files.par_iter_mut().try_for_each(|(_, file)| file.load())?;
+        }
+dbg!(1);
 
         // Return our PackFile.
         Ok(pack)
     }
+
+    /// This function adds a file into a Pack, filtering out reserved files.
+    fn add_file(&mut self, mut file: RFile) -> Result<()> {
+
+        // Filter out special files, so we only leave the normal files in.
+        let path = file.path_raw();
+        if path == RESERVED_NAME_NOTES {
+            let mut data = Cursor::new(file.encode(false)?);
+            let data_len = data.len()?;
+            if let Ok(data) = data.read_string_u8(data_len as usize) {
+                self.notes = data;
+            }
+        } else if path == RESERVED_NAME_SETTINGS {
+            self.settings = PackFileSettings::load(&file.encode(false)?)?
+        }
+
+        // If it's not filtered out, add it to the Pack.
+        else {
+            self.files.insert(path.to_owned(), file);
+        }
+
+        Ok(())
+    }
 }
+
 //---------------------------------------------------------------------------//
 //                             Enum Implementations
 //---------------------------------------------------------------------------//
@@ -3223,43 +3273,15 @@ impl Default for PackFileSettings {
     }
 }
 
+*/
 /// Implementation of PackFileSettings.
 impl PackFileSettings {
 
     /// This function tries to load the settings from the current PackFile and return them.
     pub fn load(data: &[u8]) -> Result<Self> {
-        let mut settings: Self = from_slice(data)?;
-
-        // Add/Remove settings missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
-        let defaults = Self::default();
-        {
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_text.clone() { if defaults.settings_text.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_text.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_string.clone() { if defaults.settings_string.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_string.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_bool.clone() { if defaults.settings_bool.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_bool.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_number.clone() { if defaults.settings_number.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_number.remove(key); }
-        }
-
-        {
-            for (key, value) in defaults.settings_text { if settings.settings_text.get(&*key).is_none() { settings.settings_text.insert(key, value);  } }
-            for (key, value) in defaults.settings_string { if settings.settings_string.get(&*key).is_none() { settings.settings_string.insert(key, value);  } }
-            for (key, value) in defaults.settings_bool { if settings.settings_bool.get(&*key).is_none() { settings.settings_bool.insert(key, value);  } }
-            for (key, value) in defaults.settings_number { if settings.settings_number.get(&*key).is_none() { settings.settings_number.insert(key, value);  } }
-        }
-
-        Ok(settings)
+        from_slice(data).map_err(From::from)
     }
-
+    /*
     pub fn get_diagnostics_files_to_ignore(&self) -> Option<Vec<(Vec<String>, Vec<String>, Vec<String>)>> {
         self.settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
@@ -3282,9 +3304,9 @@ impl PackFileSettings {
                 }
             }).collect::<Vec<(Vec<String>, Vec<String>, Vec<String>)>>()
         })
-    }
+    }*/
 }
-*/
+
 
 /// Implementation of trait `Default` for `PFHFlags`.
 impl Default for PFHFlags {

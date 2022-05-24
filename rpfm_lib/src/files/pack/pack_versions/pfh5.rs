@@ -19,14 +19,14 @@ use crate::binary::ReadBytes;
 use crate::encryption::Decryptable;
 use crate::error::{RLibError, Result};
 use crate::games::pfh_version::PFHVersion;
-use crate::files::{OnDisk, pack::*,RFileInnerData, RFile};
+use crate::files::{pack::*, RFile};
 
 impl Pack {
 
     /// This function reads a `Pack` of version 5 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh5<R: ReadBytes>(&mut self, data: &mut R) -> Result<u64> {
         let data_len = data.len()?;
-
+        dbg!(1);
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
         let packs_index_size = data.read_u32()?;
@@ -68,6 +68,14 @@ impl Pack {
         for _ in 0..packs_count {
             self.dependencies.push(buffer_mem.read_string_u8_0terminated()?);
         }
+dbg!(1);
+
+        // Get if the files are encrypted or not.
+        let files_are_encrypted = if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) {
+            Some(self.header.pfh_version)
+        } else {
+            None
+        };
 
         // Get the Files in the Pack.
         for files_to_read in (0..files_count).rev() {
@@ -80,7 +88,7 @@ impl Pack {
             };
 
             // Some Packs keep the timestamps of their files. If we have them, get them.
-            let timestamp = i64::from(if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
+            let timestamp = u64::from(if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                 if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
                     buffer_mem.decrypt_u32(files_to_read as u32)?
                 } else { buffer_mem.read_u32()? }
@@ -97,46 +105,9 @@ impl Pack {
             };
 
             // Build the File as a LazyLoaded file by default.
-            let on_disk = OnDisk {
-                path,
-                start: data_pos,
-                size,
-                is_compressed,
-                is_encrypted: if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(self.header.pfh_version) } else { None },
-            };
+            let file = RFile::new_from_container(self, size, is_compressed, files_are_encrypted, data_pos, timestamp, &path);
+            self.add_file(file)?;
 
-            let file: RFile = RFile {
-                path: on_disk.path.to_owned(),
-                timestamp: if timestamp == 0 { None } else { Some(timestamp) },
-                data: RFileInnerData::OnDisk(on_disk)
-            };
-
-            // Add it to the list.
-            self.files.insert(file.path_raw().to_owned(), file);
-/*
-
-            // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.get_path() == [RESERVED_NAME_NOTES] {
-                if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
-                    if let Ok(data) = data.decode_string_u8(0, data.len()) {
-                        self.notes = Some(data);
-                    }
-                }
-            }
-
-            else if packed_file.get_path() == [RESERVED_NAME_SETTINGS] {
-                if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
-                    self.settings = if let Ok(settings) = PackFileSettings::load(&data) {
-                        settings
-                    } else {
-                        PackFileSettings::default()
-                    };
-                }
-            }
-            else {
-                self.packed_files.push(packed_file);
-            }
-*/
             // Then we move our data position. For encrypted files in PFH5 Packs (only ARENA) we have to start the next one in a multiple of 8.
             if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) &&
                 self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
@@ -148,7 +119,7 @@ impl Pack {
                 data_pos += u64::from(size);
             }
         }
-
+dbg!(1);
         // Return our PackFile.
         Ok(data_pos)
     }

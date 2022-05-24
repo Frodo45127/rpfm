@@ -19,9 +19,10 @@ use std::io::SeekFrom;
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::schema::Schema;
-use crate::files::{Decodeable, Encodeable, FileType};
+use crate::files::{Decodeable, Encodeable};
 use crate::binary::{ReadBytes, WriteBytes};
+
+use super::DecodeableExtraData;
 
 /// UTF-8 BOM (Byte Order Mark).
 const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
@@ -116,11 +117,8 @@ impl Default for TextType {
 }
 
 impl Decodeable for Text {
-    fn file_type(&self) -> FileType {
-        FileType::Text(self.text_type)
-    }
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
 
         // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
@@ -168,7 +166,7 @@ impl Decodeable for Text {
 }
 
 impl Encodeable for Text {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         match self.encoding {
             SupportedEncodings::Utf8 => buffer.write_string_u8(&self.contents),
             SupportedEncodings::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),

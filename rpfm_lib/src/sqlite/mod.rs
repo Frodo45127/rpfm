@@ -12,7 +12,10 @@
 Module with all the code to interact with a SQLite Instance.
 !*/
 
-use rusqlite::Connection;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+
+use crate::error::Result;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -22,6 +25,7 @@ use rusqlite::Connection;
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
 
-pub fn init_database() -> Connection {
-    Connection::open_in_memory().unwrap()
+pub fn init_database() -> Result<Pool<SqliteConnectionManager>> {
+    let manager = SqliteConnectionManager::memory();
+    Pool::new(manager).map_err(From::from)
 }

@@ -14,13 +14,14 @@ Module with all the code to interact with binary Unit Variants.
 Binary unit variants are the unit variants used from Empire to Shogun 2.
 !*/
 
+use crate::files::DecodeableExtraData;
 use getset::*;
 
 use std::io::SeekFrom;
 
 use crate::error::{RLibError, Result};
-use crate::{binary::{ReadBytes, WriteBytes}, schema::Schema};
-use crate::files::{Decodeable, Encodeable, FileType};
+use crate::binary::{ReadBytes, WriteBytes};
+use crate::files::{Decodeable, Encodeable};
 
 const SIGNATURE: &str = "VRNT";
 
@@ -91,11 +92,7 @@ impl UnitVariant {
 
 impl Decodeable for UnitVariant {
 
-    fn file_type(&self) -> FileType {
-        FileType::UnitVariant
-    }
-
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         data.seek(SeekFrom::Start(SIGNATURE.len() as u64))?;
         let (version, categories_count, unknown_1) = Self::read_header(data)?;
 
@@ -146,7 +143,7 @@ impl Decodeable for UnitVariant {
 }
 
 impl Encodeable for UnitVariant {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
 
         let mut encoded_equipments = vec![];
         let mut encoded_categories = vec![];

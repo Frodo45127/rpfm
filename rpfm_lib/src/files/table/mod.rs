@@ -15,20 +15,20 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 !*/
 
 //use bincode::serialize;
-use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
-use rusqlite::{blob::Blob, Connection, params_from_iter};
+
+use rusqlite::{Connection, params_from_iter};
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap};
-use std::{fmt, fmt::Display};
-use std::fs::{DirBuilder, File};
-use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::Path;
+
+
+
+
 
 use getset::*;
 
 use crate::error::{RLibError, Result};
-use crate::{binary::{ReadBytes, WriteBytes}, schema::{*, patch::SchemaPatches}, utils::*};
+use crate::{binary::ReadBytes, schema::*};
 
 //use crate::assembly_kit::table_data::RawTable;
 //
@@ -759,7 +759,6 @@ impl Table {
             }
 
             FieldType::SequenceU16(definition) => {
-                let start = data.stream_position()?;
                 match Self::decode_table(data, definition, None, false) {
                     Ok(_) => {
                         let end = data.stream_position()?;
@@ -771,7 +770,6 @@ impl Table {
             }
 
             FieldType::SequenceU32(definition) => {
-                let start = data.stream_position()?;
                 match Self::decode_table(data, definition, None, false) {
                     Ok(_) => {
                         let end = data.stream_position()?;

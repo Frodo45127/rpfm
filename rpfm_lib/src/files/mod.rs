@@ -40,20 +40,28 @@
 //! [`UIC`]: crate::files::uic
 //! [`UnitVariant`]: crate::files::unit_variant
 
+use crate::compression::Decompressible;
+use crate::encryption::Decryptable;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
+use std::fs::File;
 use getset::*;
 use rayon::prelude::*;
 
-use std::{collections::HashMap, fmt::Debug};
+use std::io::BufReader;
+use std::{collections::HashMap, fmt::Debug, io::Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::{error::Result, games::pfh_version::PFHVersion, schema::Schema};
+use crate::{error::{Result, RLibError}, games::pfh_version::PFHVersion, schema::Schema, utils::*};
 
-use self::text::TextType;
+use self::loc::Loc;
+use self::text::Text;
 
 pub mod animpack;
 pub mod ca_vp8;
 pub mod db;
-//pub mod esf;
+pub mod esf;
 pub mod image;
 pub mod loc;
 pub mod pack;
@@ -77,7 +85,9 @@ pub struct RFile {
     path: String,
 
     /// Last modified date of the file. Optional.
-    timestamp: Option<i64>,
+    timestamp: Option<u64>,
+
+    file_type: FileType,
 
     /// Inner data of the file.
     data: RFileInnerData,
@@ -86,13 +96,13 @@ pub struct RFile {
 /// This enum contains the inner data of each [`RFile`]. Despite being public, is not recommended to
 /// manipulate this data directly unless you know what you're doing.
 #[derive(Clone, Debug, PartialEq)]
-pub enum RFileInnerData {
+enum RFileInnerData {
 
     /// This variant represents a file whose data has been loaded to memory and decoded.
     Decoded(Box<RFileDecoded>),
 
     /// This variant represents a file whose data has been loaded to memory, but it hasn't been decoded.
-    Catched(Vec<u8>),
+    Cached(Vec<u8>),
 
     /// This variant represents a file whose data hasn't been loaded to memory yet.
     OnDisk(OnDisk)
@@ -101,10 +111,12 @@ pub enum RFileInnerData {
 /// This struct represents a file on disk. This may be a file directly on disk, or one inside another file
 /// (like inside a Pack).
 #[derive(Clone, Debug, PartialEq, Getters)]
-pub struct OnDisk {
+struct OnDisk {
 
     /// Path of the file or the containing file.
     path: String,
+
+    timestamp: u64,
 
     /// Offset of the start of the file's data. 0 if the data is not inside another file.
     start: u64,
@@ -148,7 +160,7 @@ pub enum FileType {
     UnitVariant,
 
     /// This one is an exception, as it contains the TextType of the Text PackedFile, so we can do things depending on the type.
-    Text(TextType),
+    Text,
 
     /// This one is special. It's used just in case we want to open the Dependency PackFile List as a PackedFile.
     DependencyPackFilesList,
@@ -169,29 +181,31 @@ pub enum ContainerPath {
     Folder(String),
 }
 
+#[derive(Default)]
+pub struct DecodeableExtraData<'a> {
+    disk_file_path: Option<&'a str>,
+    disk_file_offset: Option<u64>,
+    timestamp: Option<u64>,
+    lazy_load: Option<bool>,
+    is_encrypted: Option<bool>,
+    schema: Option<&'a Schema>,
+    table_name: Option<&'a str>,
+    return_incomplete: Option<bool>,
+}
+
 //---------------------------------------------------------------------------//
 //                           Trait Definitions
 //---------------------------------------------------------------------------//
 
 pub trait Decodeable: Send + Sync {
-    fn file_type(&self) -> FileType;
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<(&Schema, &str, bool)>) -> Result<Self> where Self: Sized;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> where Self: Sized;
 }
 
 pub trait Encodeable: Send + Sync {
-    fn encode<W: WriteBytes>(&self, buffer: &mut W) -> Result<()>;
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()>;
 }
 
-pub trait Container<T: Decodeable> {
-    /*
-    fn insert(&mut self, file: RFile<T>) -> ContainerPath;
-    fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath>;
-    fn files(&self) -> &HashMap<String, RFile<T>>;
-    fn files_mut(&mut self) -> &mut HashMap<String, RFile<T>>;
-    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile<T>>;
-    fn paths(&self) -> Vec<ContainerPath>;
-    fn paths_raw(&self) -> Vec<&str>;*/
-
+pub trait Container {
     fn insert(&mut self, file: RFile) -> ContainerPath {
         let path = file.path();
         let path_raw = file.path_raw();
@@ -227,6 +241,8 @@ pub trait Container<T: Decodeable> {
         }
     }
 
+    fn disk_file_path(&self) -> &str;
+    fn disk_file_offset(&self) -> u64;
     fn files(&self) -> &HashMap<std::string::String, RFile>;
     fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile>;
 
@@ -266,22 +282,174 @@ pub trait Container<T: Decodeable> {
             .map(|(path, _)| path.to_owned())
             .collect()
     }
+
+    fn timestamp(&self) -> u64;
 }
+
+// TODO: Implement "possible types" logic, to have some flexibility when opening files.
 
 
 impl RFile {
-    pub fn data(&self) -> &[u8] {
-        match &self.data {
-            RFileInnerData::Decoded(_) => todo!(),
-            RFileInnerData::Catched(data) => data,
-            RFileInnerData::OnDisk(_) => todo!(),
+    pub fn new_from_container<C: Container>(
+        container: &C,
+        size: u32,
+        is_compressed: bool,
+        is_encrypted: Option<PFHVersion>,
+        data_pos: u64,
+        timestamp: u64,
+        path: &str,
+    ) -> Self {
+        let on_disk = OnDisk {
+            path: container.disk_file_path().to_owned(),
+            timestamp: container.timestamp(),
+            start: container.disk_file_offset() + data_pos,
+            size,
+            is_compressed,
+            is_encrypted,
+        };
+
+        Self {
+            path: path.to_owned(),
+            timestamp: if timestamp == 0 { None } else { Some(timestamp) },
+            file_type: FileType::Unknown,
+            data: RFileInnerData::OnDisk(on_disk)
         }
     }
+/*
+                // Build the File as a LazyLoaded file by default.
+            let on_disk = OnDisk {
+                path: self.disk_file_path.to_owned(),
+                timestamp: self.timestamp,
+                start: self.disk_file_offset + data_pos,
+                size,
+                is_compressed,
+                is_encrypted: if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(self.header.pfh_version) } else { None },
+            };
+
+            let file: RFile = RFile {
+                path: path.to_owned(),
+                timestamp: if timestamp == 0 { None } else { Some(timestamp) },
+                file_type: FileType::Unknown,
+                data: RFileInnerData::OnDisk(on_disk)
+            };
+*/
+    pub fn decode_return(&mut self, keep_in_cache: bool) -> Result<RFileDecoded> {
+        let mut already_decoded = false;
+        let decoded = match &self.data {
+            RFileInnerData::Decoded(data) => {
+                already_decoded = true;
+                *data.clone()
+            },
+            RFileInnerData::Cached(data) => {
+                let mut data = Cursor::new(data);
+                self.decode_bytes(&mut data)?
+            },
+            RFileInnerData::OnDisk(data) => {
+                let raw_data = data.read(data.is_compressed, data.is_encrypted)?;
+                self.decode_bytes(&mut Cursor::new(raw_data))?
+            },
+        };
+
+        if !already_decoded && keep_in_cache {
+            self.data = RFileInnerData::Decoded(Box::new(decoded.clone()));
+        }
+
+        Ok(decoded)
+    }
+
+    fn decode_bytes<R: ReadBytes>(&self, data: &mut R) -> Result<RFileDecoded> {
+        Ok(match self.file_type() {
+            FileType::Loc => RFileDecoded::Loc(Loc::decode(data, None)?),
+            FileType::Text => RFileDecoded::Text(Text::decode(data, None)?),
+
+            // TODO: Create unknown type to store their data here, optionally.
+            _ => todo!(),
+        })
+    }
+
+    pub fn encode(&mut self, keep_in_cache: bool) -> Result<Vec<u8>> {
+        let mut already_encoded = false;
+        let encoded = match &mut self.data {
+            RFileInnerData::Decoded(data) => {
+                match data.as_mut() {
+                    RFileDecoded::Text(data) => {
+                        let mut buffer = vec![];
+                        data.encode(&mut buffer)?;
+                        buffer
+                    }
+
+                    _ => todo!()
+                }
+            },
+            RFileInnerData::Cached(data) => {
+                already_encoded = true;
+                data.to_vec()
+            },
+            RFileInnerData::OnDisk(data) => data.read(data.is_compressed, data.is_encrypted)?,
+        };
+
+        if !already_encoded && keep_in_cache {
+            self.data = RFileInnerData::Cached(encoded.to_vec());
+        }
+
+        Ok(encoded)
+    }
+
+    pub fn load(&mut self) -> Result<()> {
+       let loaded = match &self.data {
+            RFileInnerData::Decoded(_) |
+            RFileInnerData::Cached(_) => {
+                return Ok(())
+            },
+            RFileInnerData::OnDisk(data) => {
+                data.read(data.is_compressed, data.is_encrypted)?
+            },
+        };
+
+        self.data = RFileInnerData::Cached(loaded);
+        Ok(())
+    }
+
+    pub fn file_type(&self) -> FileType {
+        self.file_type.clone()
+    }
+
     pub fn path(&self) -> ContainerPath {
         ContainerPath::File(self.path.to_owned())
     }
     pub fn path_raw(&self) -> &str {
         &self.path
+    }
+}
+
+impl OnDisk {
+
+    /// This function tries to read and return the raw data of the PackedFile.
+    fn read(&self, decompress: bool, decrypt: Option<PFHVersion>) -> Result<Vec<u8>> {
+
+        // Date check, to ensure the PackFile hasn't been modified since we got the indexes to read it.
+        let mut file = BufReader::new(File::open(&self.path)?);
+        let timestamp = last_modified_time_from_file(file.get_ref())?;
+        if timestamp != self.timestamp {
+            return Err(RLibError::FileSourceChanged.into());
+        }
+
+        // Read the data from disk.
+        let mut data = vec![0; self.size as usize];
+        file.seek(SeekFrom::Start(self.start))?;
+        file.read_exact(&mut data)?;
+
+        // If the data is encrypted, decrypt it.
+        if decrypt.is_some() {
+            data = Cursor::new(data).decrypt(false)?;
+        }
+
+        // If the data is compressed. decompress it.
+        if decompress {
+            data = data.as_slice().decompress()?;
+        }
+
+        Ok(data)
     }
 }
 /*
