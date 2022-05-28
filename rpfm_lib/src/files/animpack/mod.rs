@@ -15,24 +15,24 @@
 //!
 //! # AnimPack Structure
 //!
-//! | Bytes | Type | Data |
-//! | ----- | ---- | ---- |
-//! | 4     | [u32] | File Count. |
+//! | Bytes          | Type                         | Data                                    |
+//! | -------------- | ---------------------------- | --------------------------------------- |
+//! | 4              | [u32]                        | File Count.                             |
 //! | X * File Count | [File](#file-structure) List | List of files inside the AnimPack File. |
 //!
 //!
 //! # File Structure
 //!
-//! | Bytes | Type | Data |
-//! | ----- | ---- | ---- |
-//! | *     | StringU8 | File Path. |
-//! | 4     | [u32]  | File Length in bytes. |
+//! | Bytes       | Type      | Data |
+//! | ----------- | --------- | ---- |
+//! | *           | StringU8  | File Path. |
+//! | 4           | [u32]     | File Length in bytes. |
 //! | File Lenght | &\[[u8]\] | File Data. |
 
 use std::collections::HashMap;
 
-use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::error::Result;
 use crate::files::*;
 
 /// Extension used by AnimPacks.
@@ -42,84 +42,26 @@ pub const EXTENSION: &str = ".animpack";
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire AnimPack PackedFile decoded in memory.
+/// This holds an entire AnimPack file decoded in memory.
 #[derive(PartialEq, Clone, Debug, Default)]
 pub struct AnimPack {
+
+    /// File Path on disk of this AnimPack.
     disk_file_path: String,
+
+    /// Offset of this file in the disk file.
     disk_file_offset: u64,
+
+    /// Timestamp of the file.
     timestamp: u64,
+
+    /// List of files within this AnimPack.
     files: HashMap<String, RFile>,
 }
 
 //---------------------------------------------------------------------------//
 //                           Implementation of AnimPack
 //---------------------------------------------------------------------------//
-
-impl Decodeable for AnimPack {
-
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let is_encrypted = extra_data.is_encrypted.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingTableMissingExtraData)?;
-
-        let file_count = data.read_u32()?;
-
-        let mut anim_pack = Self {
-            disk_file_path: disk_file_path.to_string(),
-            disk_file_offset,
-            timestamp,
-            files: if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() },
-        };
-
-        // TODO: this is broken for encrypted files.
-        for _ in 0..file_count {
-            let path = data.read_sized_string_u8()?;
-            let size = data.read_u32()?;
-
-            if is_encrypted {
-                let data = data.read_slice(size as usize, false)?;
-                let file = RFile {
-                    path: path.to_owned(),
-                    timestamp: None,
-                    file_type: FileType::AnimPack,
-                    data: RFileInnerData::Cached(data),
-                };
-
-                anim_pack.files.insert(path, file);
-            }
-
-            else {
-                let file = RFile::new_from_container(&anim_pack, size, false, None, data.stream_position()?, timestamp, &path);
-                data.seek(SeekFrom::Current(size as i64))?;
-
-                anim_pack.files.insert(path, file);
-            }
-        }
-
-        // If we've reached this, we've successfully decoded the entire AnimPack.
-        Ok(anim_pack)
-    }
-}
-
-impl Encodeable for AnimPack {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
-        buffer.write_u32(self.files.len() as u32)?;
-
-        // TODO: check if sorting is needed.
-        for file in self.files.values_mut() {
-            buffer.write_sized_string_u8(&file.path_raw())?;
-
-            let data = file.encode(true)?;
-            buffer.write_u32(data.len() as u32)?;
-            buffer.write_all(&data)?;
-        }
-
-        Ok(())
-    }
-}
-
 
 impl Container for AnimPack {
     fn disk_file_path(&self) -> &str {
@@ -140,5 +82,71 @@ impl Container for AnimPack {
 
     fn timestamp(&self) -> u64 {
        self.timestamp
+    }
+}
+
+impl Decodeable for AnimPack {
+
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let is_encrypted = extra_data.is_encrypted.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingTableMissingExtraData)?;
+
+        let file_count = data.read_u32()?;
+
+        let mut anim_pack = Self {
+            disk_file_path: disk_file_path.to_string(),
+            disk_file_offset,
+            timestamp,
+            files: if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() },
+        };
+
+        for _ in 0..file_count {
+            let path = data.read_sized_string_u8()?;
+            let size = data.read_u32()?;
+
+            // Encrypted files cannot be lazy-loaded. They must be read in-place.
+            if is_encrypted {
+                let data = data.read_slice(size as usize, false)?;
+                let file = RFile {
+                    path: path.to_owned(),
+                    timestamp: None,
+                    file_type: FileType::AnimPack,
+                    data: RFileInnerData::Cached(data),
+                };
+
+                anim_pack.files.insert(path, file);
+            }
+
+            // Unencrypted files are not read, but lazy-loaded.
+            else {
+                let file = RFile::new_from_container(&anim_pack, size, false, None, data.stream_position()?, timestamp, &path);
+                data.seek(SeekFrom::Current(size as i64))?;
+
+                anim_pack.files.insert(path, file);
+            }
+        }
+
+        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
+        Ok(anim_pack)
+    }
+}
+
+impl Encodeable for AnimPack {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+        buffer.write_u32(self.files.len() as u32)?;
+
+        // TODO: check if sorting is needed.
+        for file in self.files.values_mut() {
+            buffer.write_sized_string_u8(&file.path_raw())?;
+
+            let data = file.encode(true)?;
+            buffer.write_u32(data.len() as u32)?;
+            buffer.write_all(&data)?;
+        }
+
+        Ok(())
     }
 }

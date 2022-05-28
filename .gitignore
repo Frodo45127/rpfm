@@ -77,6 +77,10 @@ shortcuts.ron
 /rpfm_ui/qt_subclasses/qt_subclasses.pro.*
 
 # Files created during tests.
+/test_files/ca_vp8_v0_encode.ca_vp8
+/test_files/ca_vp8_v0_to_ivf_and_back.ca_vp8
+/test_files/ca_vp8_v1_encode.ca_vp8
+/test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8
 /test_files/PFH0_test_encode.pack
 /test_files/PFH2_test_encode.pack
 /test_files/PFH3_test_encode.pack
@@ -95,3 +99,7 @@ gh-token
 
 # Ignore grcov folder, if exists.
 /coverage/
+
+# Ignore files generated while building arch packages.
+/install/arch/src
+/install/arch/rpfm

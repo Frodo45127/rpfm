@@ -146,3 +146,12 @@ pub fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Erro
         Err(e) => Err(e),
     }
 }
+
+/// Function to check for a size mismatch error, to see if we left data to decode.
+pub(crate) fn check_size_mismatch(curr_pos: usize, data_len: usize) -> Result<()> {
+    if curr_pos != data_len {
+        return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
+    }
+
+    Ok(())
+}
