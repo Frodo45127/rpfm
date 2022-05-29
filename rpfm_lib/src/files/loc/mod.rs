@@ -60,9 +60,9 @@ impl Decodeable for Loc {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let table_name = extra_data
-            .ok_or(RLibError::DecodingTableMissingExtraData)?
+            .ok_or(RLibError::DecodingMissingExtraData)?
             .table_name
-            .ok_or(RLibError::DecodingTableMissingExtraData)?;
+            .ok_or(RLibError::DecodingMissingExtraData)?;
 
         let (version, entry_count) = Self::read_header(data)?;
 

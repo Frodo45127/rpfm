@@ -133,7 +133,7 @@ pub enum RLibError {
     DecodingTableFieldSequenceDataError(u32, u32, String, String),
 
     #[error("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files.")]
-    DecodingTableMissingExtraData,
+    DecodingMissingExtraData,
 
     #[error("There are no definitions for this specific version of the table in the Schema and the table is empty. This means this table cannot be open nor decoded.")]
     DecodingDBNoDefinitionsFoundAndEmptyFile,
@@ -152,6 +152,9 @@ pub enum RLibError {
 
     #[error("This file's reported size is '{0}' bytes, but we expected it to be '{1}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this file, or this file is corrupted.")]
     DecodingMismatchSizeError(usize, usize),
+
+    #[error("Missing extra data required to encode the file. This means the programmer messed up the code while that tries to decode files.")]
+    EncodingMissingExtraData,
 
     #[error("There was an error while downloading/updating the following git repository: {0}.")]
     GitErrorDownloadFromRepo(String),

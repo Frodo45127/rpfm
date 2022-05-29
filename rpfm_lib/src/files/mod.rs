@@ -40,6 +40,7 @@
 //! [`UIC`]: crate::files::uic
 //! [`UnitVariant`]: crate::files::unit_variant
 
+use std::path::Path;
 use crate::compression::Decompressible;
 use crate::encryption::Decryptable;
 use std::io::Read;
@@ -181,7 +182,7 @@ pub enum ContainerPath {
     Folder(String),
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct DecodeableExtraData<'a> {
     disk_file_path: Option<&'a str>,
     disk_file_offset: Option<u64>,
@@ -191,6 +192,8 @@ pub struct DecodeableExtraData<'a> {
     schema: Option<&'a Schema>,
     table_name: Option<&'a str>,
     return_incomplete: Option<bool>,
+    sevenzip_path: Option<&'a Path>,
+    test_mode: bool,
 }
 
 //---------------------------------------------------------------------------//
@@ -202,7 +205,7 @@ pub trait Decodeable: Send + Sync {
 }
 
 pub trait Encodeable: Send + Sync {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()>;
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()>;
 }
 
 pub trait Container {
@@ -333,6 +336,16 @@ impl RFile {
                 data: RFileInnerData::OnDisk(on_disk)
             };
 */
+
+    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Self {
+        Self {
+            path: path.to_owned(),
+            timestamp: if timestamp == 0 { None } else { Some(timestamp) },
+            file_type,
+            data: RFileInnerData::Cached(data.to_vec())
+        }
+    }
+
     pub fn decode_return(&mut self, keep_in_cache: bool) -> Result<RFileDecoded> {
         let mut already_decoded = false;
         let decoded = match &self.data {
@@ -367,14 +380,14 @@ impl RFile {
         })
     }
 
-    pub fn encode(&mut self, keep_in_cache: bool) -> Result<Vec<u8>> {
+    pub fn encode(&mut self, keep_in_cache: bool, return_data: bool) -> Result<Option<Vec<u8>>> {
         let mut already_encoded = false;
         let encoded = match &mut self.data {
             RFileInnerData::Decoded(data) => {
                 match data.as_mut() {
                     RFileDecoded::Text(data) => {
                         let mut buffer = vec![];
-                        data.encode(&mut buffer)?;
+                        data.encode(&mut buffer, None)?;
                         buffer
                     }
 
@@ -389,10 +402,42 @@ impl RFile {
         };
 
         if !already_encoded && keep_in_cache {
-            self.data = RFileInnerData::Cached(encoded.to_vec());
-        }
+            if return_data {
+                self.data = RFileInnerData::Cached(encoded.to_vec());
+                Ok(Some(encoded))
+            } else {
+                self.data = RFileInnerData::Cached(encoded);
+                Ok(None)
+            }
+        } else if return_data {
+            Ok(Some(encoded))
 
-        Ok(encoded)
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn size(&mut self) -> Result<usize> {
+        match &mut self.data {
+            RFileInnerData::Decoded(data) => {
+                let size = match data.as_mut() {
+                    RFileDecoded::Text(data) => {
+                        let mut buffer = vec![];
+                        data.encode(&mut buffer, None)?;
+                        buffer.len()
+                    }
+
+                    _ => todo!()
+                };
+                return Ok(size);
+            },
+            RFileInnerData::Cached(data) => {
+                return Ok(data.len());
+            },
+            RFileInnerData::OnDisk(data) => {
+                return Ok(data.size as usize);
+            }
+        }
     }
 
     pub fn load(&mut self) -> Result<()> {
@@ -410,6 +455,11 @@ impl RFile {
         Ok(())
     }
 
+    pub fn timestamp(&self) -> Option<u64> {
+        self.timestamp.clone()
+    }
+
+
     pub fn file_type(&self) -> FileType {
         self.file_type.clone()
     }
@@ -419,6 +469,14 @@ impl RFile {
     }
     pub fn path_raw(&self) -> &str {
         &self.path
+    }
+
+    pub fn is_compressible(&self) -> bool {
+        match self.file_type {
+            FileType::DB |
+            FileType::Loc => false,
+            _ => true
+        }
     }
 }
 

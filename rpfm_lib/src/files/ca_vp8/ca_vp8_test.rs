@@ -59,7 +59,7 @@ fn test_encode_ca_vp8_v1() {
     let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after).unwrap();
+    data.encode(&mut after, None).unwrap();
 
     let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v1_encode.ca_vp8").unwrap());
     file_out.write_all(&after).unwrap();
@@ -81,7 +81,7 @@ fn test_encode_ca_vp8_v0() {
     let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after).unwrap();
+    data.encode(&mut after, None).unwrap();
 
     let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v0_encode.ca_vp8").unwrap());
     file_out.write_all(&after).unwrap();

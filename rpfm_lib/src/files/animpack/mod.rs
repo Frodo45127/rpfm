@@ -88,11 +88,11 @@ impl Container for AnimPack {
 impl Decodeable for AnimPack {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let is_encrypted = extra_data.is_encrypted.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingMissingExtraData)?;
+        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingMissingExtraData)?;
+        let is_encrypted = extra_data.is_encrypted.ok_or(RLibError::DecodingMissingExtraData)?;
+        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingMissingExtraData)?;
 
         let file_count = data.read_u32()?;
 
@@ -135,14 +135,14 @@ impl Decodeable for AnimPack {
 }
 
 impl Encodeable for AnimPack {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;
 
         // TODO: check if sorting is needed.
         for file in self.files.values_mut() {
             buffer.write_sized_string_u8(&file.path_raw())?;
 
-            let data = file.encode(true)?;
+            let data = file.encode(true, true)?.unwrap();
             buffer.write_u32(data.len() as u32)?;
             buffer.write_all(&data)?;
         }

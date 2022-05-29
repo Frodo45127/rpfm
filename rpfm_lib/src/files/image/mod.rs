@@ -63,7 +63,7 @@ impl Decodeable for Image {
 
 impl Encodeable for Image {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }

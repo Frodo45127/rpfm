@@ -580,7 +580,7 @@ impl Decodeable for ESF {
 }
 
 impl Encodeable for ESF {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer),
             _ => todo!(),

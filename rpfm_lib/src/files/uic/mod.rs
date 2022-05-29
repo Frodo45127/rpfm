@@ -76,7 +76,7 @@ impl Decodeable for UIC {
 }
 
 impl Encodeable for UIC {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         buffer.write_string_u8(SIGNATURE)?;
         buffer.write_u32(self.version)?;
 

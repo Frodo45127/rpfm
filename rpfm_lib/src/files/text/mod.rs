@@ -166,7 +166,7 @@ impl Decodeable for Text {
 }
 
 impl Encodeable for Text {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         match self.encoding {
             SupportedEncodings::Utf8 => buffer.write_string_u8(&self.contents),
             SupportedEncodings::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),

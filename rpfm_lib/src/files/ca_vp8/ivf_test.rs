@@ -33,13 +33,13 @@ fn test_decode_ca_vp8_v1_to_ivf_and_back() {
 
     data.format = SupportedFormats::Ivf;
     let mut ivf = vec![];
-    data.encode(&mut ivf).unwrap();
+    data.encode(&mut ivf, None).unwrap();
 
     let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), None).unwrap();
     second_data.format = SupportedFormats::CaVp8;
 
     let mut after = vec![];
-    second_data.encode(&mut after).unwrap();
+    second_data.encode(&mut after, None).unwrap();
 
     let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8").unwrap());
     file_out.write_all(&after).unwrap();
@@ -62,13 +62,13 @@ fn test_decode_ca_vp8_v0_to_ivf_and_back() {
 
     data.format = SupportedFormats::Ivf;
     let mut ivf = vec![];
-    data.encode(&mut ivf).unwrap();
+    data.encode(&mut ivf, None).unwrap();
 
     let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), None).unwrap();
     second_data.format = SupportedFormats::CaVp8;
 
     let mut after = vec![];
-    second_data.encode(&mut after).unwrap();
+    second_data.encode(&mut after, None).unwrap();
 
     let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v0_to_ivf_and_back.ca_vp8").unwrap());
     file_out.write_all(&after).unwrap();

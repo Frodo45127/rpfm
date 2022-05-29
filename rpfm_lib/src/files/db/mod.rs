@@ -81,10 +81,10 @@ pub struct CascadeEdition {
 impl Decodeable for DB {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let schema = extra_data.schema.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingTableMissingExtraData)?;
-        let return_incomplete = extra_data.return_incomplete.ok_or(RLibError::DecodingTableMissingExtraData)?;
+        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+        let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraData)?;
+        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
+        let return_incomplete = extra_data.return_incomplete.ok_or(RLibError::DecodingMissingExtraData)?;
 
         let (version, mysterious_byte, uuid, entry_count) = Self::read_header(data)?;
 

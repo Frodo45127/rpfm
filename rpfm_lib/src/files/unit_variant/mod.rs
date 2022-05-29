@@ -143,7 +143,7 @@ impl Decodeable for UnitVariant {
 }
 
 impl Encodeable for UnitVariant {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
 
         let mut encoded_equipments = vec![];
         let mut encoded_categories = vec![];

@@ -184,7 +184,7 @@ impl Decodeable for CaVp8 {
 }
 
 impl Encodeable for CaVp8 {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         match self.format {
             SupportedFormats::CaVp8 => self.save_cavp8(buffer),
             SupportedFormats::Ivf => self.save_ivf(buffer),
