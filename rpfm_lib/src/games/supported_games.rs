@@ -91,7 +91,7 @@ impl SupportedGames {
             locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![
                 "db/agent_subtype_ownership_content_pack_junctions_tables".to_owned(),
-                "db/allied_recruitment_unit_permissions_tables".to_owned(),
+                "db/allied_recruitment_core_units_tables".to_owned(),
                 "db/battle_ownership_content_pack_junctions_tables".to_owned(),
                 "db/building_chain_ownership_content_pack_junctions_tables".to_owned(),
                 "db/building_level_ownership_content_pack_junctions_tables".to_owned(),
