@@ -18,7 +18,7 @@
 //! | [`CAVP8`]       | Yes                | Yes                |
 //! | [`DB`]          | Yes                | Yes                |
 //! | [`ESF`]         | Limited            | Limited            |
-//! | [`Image`]       | Yes                | No                 |
+//! | [`Image`]       | Yes                | Yes                 |
 //! | [`Loc`]         | Yes                | Yes                |
 //! | [`Pack`]        | Yes                | Yes                |
 //! | [`RigidModel`]  | No                 | No                 |

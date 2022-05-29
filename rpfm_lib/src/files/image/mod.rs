@@ -8,19 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with Image PackedFiles.
+//! This is a dummy module to read images.
+//!
+//! Read support just stores the raw data of the image, so you can pass it to another
+//! lib/program to read it. Write support just writes that data back to the source.
+//!
+//! Supported extensions are:
+//! - `.jpg`
+//! - `.jpeg`
+//! - `.tga`
+//! - `.png`
+//! - `.dds`
 
-Images... we really just get their that to memory. Nothing more.
-!*/
+use getset::*;
 
-use crate::files::DecodeableExtraData;
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
+use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
 
-use crate::binary::ReadBytes;
-use crate::files::Decodeable;
-
-/// Extensions used by Image PackedFiles.
+/// Extensions used by Images.
 pub const EXTENSIONS: [&str; 5] = [
     ".jpg",
     ".jpeg",
@@ -33,11 +39,10 @@ pub const EXTENSIONS: [&str; 5] = [
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire Image PackedFile decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug)]
+/// This represents an entire Image File decoded in memory.
+#[derive(Default, PartialEq, Clone, Debug, Getters)]
+#[getset(get = "pub")]
 pub struct Image {
-
-    /// The raw_data of the image.
     data: Vec<u8>,
 }
 
@@ -45,24 +50,20 @@ pub struct Image {
 //                           Implementation of Image
 //---------------------------------------------------------------------------//
 
-/// Implementation of `Image`.
-impl Image {
-
-    /// This function returns the data the provided `Image`.
-    pub fn get_data(&self) -> &[u8] {
-        &self.data
-    }
-}
-
-/// Implementation of Decodeable for `Image` PackedFile Type.
 impl Decodeable for Image {
 
-    /// This function creates a `Image` from a `Vec<u8>`.
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let data = data.read_slice(len as usize, false)?;
         Ok(Self {
             data,
         })
+    }
+}
+
+impl Encodeable for Image {
+
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+        buffer.write_all(&self.data).map_err(From::from)
     }
 }

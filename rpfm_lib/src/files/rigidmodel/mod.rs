@@ -8,24 +8,22 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with RigidModel PackedFiles.
-
-This is really a dummy module, as all the logic for this is done in the view through Phazer's lib.
-!*/
+//! This is a dummy module to read RigidModels.
+//!
+//! Read support just stores the raw data of the model, so you can pass it to another
+//! lib/program to read it. Write support just writes that data back to the source.
 
 use getset::*;
-use crate::error::Result;
+
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::{Decodeable, Encodeable};
+use crate::error::Result;
+use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
 
-use super::DecodeableExtraData;
-
-/// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
+/// Signature/Magic Numbers/Whatever of a RigidModel.
 #[allow(dead_code)]
-const PACKED_FILE_TYPE: &str = "RMV2";
+const SIGNATURE_RIGID_MODEL: &str = "RMV2";
 
-/// Extension used by RigidModel PackedFiles.
+/// Extension used by RigidModels.
 pub const EXTENSION: &str = ".rigid_model_v2";
 
 //---------------------------------------------------------------------------//
@@ -54,6 +52,7 @@ impl Decodeable for RigidModel {
 }
 
 impl Encodeable for RigidModel {
+
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }

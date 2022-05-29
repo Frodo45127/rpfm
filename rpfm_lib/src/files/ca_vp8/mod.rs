@@ -44,7 +44,7 @@
 //! | ----- | -------- | -------------------------- |
 //! | 4     | StringU8 | Signature of the file.     |
 //! | 4     | [u32]    | Version of the file.       |
-//! | 4     | [u32]    | Length of the header.      |
+//! | 4     | [u32]    | Length of the header - 8.  |
 //! | 4     | StringU8 | FourCC of the video.       |
 //! | 2     | [u16]    | Width of the video.        |
 //! | 2     | [u16]    | Heigth of the video.       |
@@ -52,6 +52,8 @@
 //! | 4     | [u32]    | Unknown.                   |
 //! | 4     | [u32]    | Number of frames.          |
 //! | 4     | [u32]    | Offset of the frame table. |
+//! | 4     | [u32]    | Number of frames.          |
+//! | 4     | [u32]    | Largest frame.             |
 //!
 //! ## Frames Data
 //!
