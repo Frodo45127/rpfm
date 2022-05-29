@@ -18,8 +18,8 @@ use std::io::{BufReader, Cursor, prelude::*};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::encryption::Decryptable;
 use crate::error::{RLibError, Result};
-use crate::games::pfh_version::PFHVersion;
 use crate::files::{pack::*, RFile};
+use crate::games::pfh_version::PFHVersion;
 
 impl Pack {
 
@@ -54,6 +54,7 @@ impl Pack {
         let mut data_pos = data.stream_position()? + buffer_mem.stream_position()? + packs_index_size as u64 + files_index_size as u64;
 
         // If the Pack data is encrypted and it's PFH5, due to how the encryption works the data should start in a multiple of 8.
+        // TODO: This needs revision.
         if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) &&
             self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
             self.header.pfh_version == PFHVersion::PFH5 {
@@ -108,6 +109,7 @@ impl Pack {
             self.add_file(file)?;
 
             // Then we move our data position. For encrypted files in PFH5 Packs (only ARENA) we have to start the next one in a multiple of 8.
+            // TODO: Revise this.
             if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) &&
                 self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) &&
                 self.header.pfh_version == PFHVersion::PFH5 {
@@ -119,53 +121,63 @@ impl Pack {
             }
         }
 
-        // Return our PackFile.
+        // Return our current position on the data section for further checks.
         Ok(data_pos)
     }
 
     /// This function writes a `Pack` of version 5 into the provided buffer.
     pub(crate) fn write_pfh5<W: WriteBytes>(&mut self, buffer: &mut W, sevenzip_exe_path: Option<&Path>, test_mode: bool) -> Result<()> {
 
+        // We need our files sorted before trying to write them. But we don't want to duplicate
+        // them on memory. And we also need to load them to memory on the pack. So...  we do this.
         let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
-        let files_data = sorted_files.par_iter_mut().flat_map(|(_, file)| {
-            let mut data = file.encode(true, true).unwrap().unwrap();
+        // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
+        // Sadly, this requires us to make a double iterator to actually catch the errors.
+        let (files_index, files_data): (Vec<_>, Vec<_>) = sorted_files.par_iter_mut()
+            .map(|(path, file)| {
 
-            if self.compress && file.is_compressible() {
-                if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                    data = data.compress(sevenzip_exe_path).unwrap();
+                // This unwrap is actually safe.
+                let mut data = file.encode(true, true)?.unwrap();
+
+                if self.compress && file.is_compressible() {
+                    if let Some(sevenzip_exe_path) = sevenzip_exe_path {
+                        data = data.compress(sevenzip_exe_path)?;
+                    }
                 }
-            }
 
-            data
-        }).collect::<Vec<u8>>();
+                // 6 because 4 (size) + 1 (compressed?) + 1 (null), 10 because + 4 (timestamp).
+                let file_index_entry_len = if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
+                    10 + path.len()
+                } else {
+                    6 + path.len()
+                };
 
-        // First we encode the indexes and the data (just in case we compressed it).
+                let mut file_index_entry = Vec::with_capacity(file_index_entry_len);
+                file_index_entry.write_u32(data.len() as u32)?;
+
+                if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
+                    file_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32)?;
+                }
+
+                file_index_entry.write_bool(self.compress && file.is_compressible())?;
+                file_index_entry.write_string_u8_0terminated(path)?;
+                Ok((file_index_entry, data))
+            }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
+            .into_par_iter()
+            .unzip();
+
+        let files_index = files_index.into_par_iter().flatten().collect::<Vec<_>>();
+        let files_data = files_data.into_par_iter().flatten().collect::<Vec<_>>();
+
+        // Build the dependencies index on memory. This one is never big, so no need of par_iter.
         let mut dependencies_index = vec![];
-
         for dependency in &self.dependencies {
             dependencies_index.write_string_u8_0terminated(dependency)?;
         }
 
-        let files_index = sorted_files.par_iter_mut().flat_map(|(path, file)| {
-            let mut files_index_entry = Vec::with_capacity(6 + path.len());
-            files_index_entry.write_u32(file.size().unwrap() as u32).unwrap();
-
-            // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
-            // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
-            if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                files_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32).unwrap();
-            }
-
-            files_index_entry.write_bool(self.compress && file.is_compressible()).unwrap();
-
-            // TODO: fix this
-            files_index_entry.write_string_u8_0terminated(path).unwrap();
-            files_index_entry
-        }).collect::<Vec<u8>>();
-
-        // Write the entire header.
+        // Write the entire header to a memory buffer.
         let mut header = vec![];
         header.write_string_u8(self.header.pfh_version.value())?;
         header.write_u32(self.header.bitmask.bits | self.header.pfh_file_type.value())?;
@@ -174,20 +186,19 @@ impl Pack {
         header.write_u32(sorted_files.len() as u32)?;
         header.write_u32(files_index.len() as u32)?;
 
-        // Update the creation time, then save it. PFH0 files don't have timestamp in the headers.
+        // If we're not in testing mode, update the header timestamp.
         if !test_mode {
             self.header.timestamp = current_time()?;
         }
 
         header.write_u32(self.header.timestamp as u32)?;
 
-        // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
+        // Finally, write everything in one go.
         buffer.write_all(&header)?;
         buffer.write_all(&dependencies_index)?;
         buffer.write_all(&files_index)?;
         buffer.write_all(&files_data)?;
 
-        // If nothing has failed, return success.
         Ok(())
     }
 }

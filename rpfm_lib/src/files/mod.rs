@@ -187,11 +187,11 @@ pub struct DecodeableExtraData<'a> {
     disk_file_path: Option<&'a str>,
     disk_file_offset: Option<u64>,
     timestamp: Option<u64>,
-    lazy_load: Option<bool>,
-    is_encrypted: Option<bool>,
+    lazy_load: bool,
+    is_encrypted: bool,
     schema: Option<&'a Schema>,
     table_name: Option<&'a str>,
-    return_incomplete: Option<bool>,
+    return_incomplete: bool,
     sevenzip_path: Option<&'a Path>,
     test_mode: bool,
 }
@@ -414,29 +414,6 @@ impl RFile {
 
         } else {
             Ok(None)
-        }
-    }
-
-    pub fn size(&mut self) -> Result<usize> {
-        match &mut self.data {
-            RFileInnerData::Decoded(data) => {
-                let size = match data.as_mut() {
-                    RFileDecoded::Text(data) => {
-                        let mut buffer = vec![];
-                        data.encode(&mut buffer, None)?;
-                        buffer.len()
-                    }
-
-                    _ => todo!()
-                };
-                return Ok(size);
-            },
-            RFileInnerData::Cached(data) => {
-                return Ok(data.len());
-            },
-            RFileInnerData::OnDisk(data) => {
-                return Ok(data.size as usize);
-            }
         }
     }
 

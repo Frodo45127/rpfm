@@ -84,7 +84,7 @@ impl Decodeable for DB {
         let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
         let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraData)?;
         let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
-        let return_incomplete = extra_data.return_incomplete.ok_or(RLibError::DecodingMissingExtraData)?;
+        let return_incomplete = extra_data.return_incomplete;
 
         let (version, mysterious_byte, uuid, entry_count) = Self::read_header(data)?;
 

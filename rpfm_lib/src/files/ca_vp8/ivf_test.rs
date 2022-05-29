@@ -20,13 +20,15 @@ use super::*;
 
 #[test]
 fn test_decode_ca_vp8_v1_to_ivf_and_back() {
+    let path_1 = "../test_files/ca_vp8_v1_decode.ca_vp8";
+    let path_2 = "../test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let file = File::open("../test_files/ca_vp8_v1_decode.ca_vp8").unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.disk_file_path = Some("../test_files/ca_vp8_v1_decode.ca_vp8");
+    decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(&file).unwrap());
-    let mut reader = BufReader::new(file);
+    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
@@ -41,21 +43,23 @@ fn test_decode_ca_vp8_v1_to_ivf_and_back() {
     let mut after = vec![];
     second_data.encode(&mut after, None).unwrap();
 
-    let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8").unwrap());
-    file_out.write_all(&after).unwrap();
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
 }
 
 #[test]
 fn test_decode_ca_vp8_v0_to_ivf_and_back() {
+    let path_1 = "../test_files/ca_vp8_v0_decode.ca_vp8";
+    let path_2 = "../test_files/ca_vp8_v0_to_ivf_and_back.ca_vp8";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let file = File::open("../test_files/ca_vp8_v0_decode.ca_vp8").unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.disk_file_path = Some("../test_files/ca_vp8_v0_decode.ca_vp8");
+    decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(&file).unwrap());
-    let mut reader = BufReader::new(file);
+    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
     let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
@@ -70,8 +74,8 @@ fn test_decode_ca_vp8_v0_to_ivf_and_back() {
     let mut after = vec![];
     second_data.encode(&mut after, None).unwrap();
 
-    let mut file_out = BufWriter::new(File::create("../test_files/ca_vp8_v0_to_ivf_and_back.ca_vp8").unwrap());
-    file_out.write_all(&after).unwrap();
+    let mut writer = BufWriter::new(File::create(path_2).unwrap());
+    writer.write_all(&after).unwrap();
 
     assert_eq!(before, after);
 }

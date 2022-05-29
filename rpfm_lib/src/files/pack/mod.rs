@@ -98,10 +98,6 @@ const AUTHORING_TOOL_CA: &str = "CA_TOOL";
 const AUTHORING_TOOL_RPFM: &str = "RPFM";
 const AUTHORING_TOOL_SIZE: u32 = 8;
 
-/// These consts are used for dealing with Time-related operations.
-const WINDOWS_TICK: u64 = 10_000_000;
-const SEC_TO_UNIX_EPOCH: u64 = 11_644_473_600;
-
 bitflags! {
 
     /// This represents the bitmasks a PackFile can have applied to his type.
@@ -263,7 +259,7 @@ impl Decodeable for Pack {
         let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
         let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingMissingExtraData)?;
         let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingMissingExtraData)?;
-        let lazy_load = extra_data.lazy_load.ok_or(RLibError::DecodingMissingExtraData)?;
+        let lazy_load = extra_data.lazy_load;
         let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingMissingExtraData)?;
 
         Self::read(data, disk_file_path, disk_file_offset, timestamp, lazy_load)

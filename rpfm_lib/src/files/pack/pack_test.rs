@@ -12,13 +12,12 @@
 Module containing test for the `PackFile` module, just to make sure we don't break it... again...
 !*/
 
-use std::io::{BufReader, Write, BufWriter};
+use std::io::{BufReader, BufWriter};
 use std::fs::File;
-use std::time::UNIX_EPOCH;
 
 use crate::files::*;
-
 use super::Pack;
+
 /*
 #[test]
 fn test_decode_pfh6() {
@@ -28,15 +27,15 @@ fn test_decode_pfh6() {
 
 #[test]
 fn test_decode_pfh5() {
+    let path = "../test_files/PFH5_test.pack";
+    let mut reader = BufReader::new(File::open(path).unwrap());
 
-    let file = File::open("../test_files/PFH5_test.pack").unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.disk_file_path = Some("../test_files/PFH5_test.pack");
+    decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(file.metadata().unwrap().modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs());
-    decodeable_extra_data.lazy_load = Some(false);
+    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
     decodeable_extra_data.test_mode = true;
-    let mut reader = BufReader::new(file);
+
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
 }
@@ -79,26 +78,26 @@ fn test_encode_pfh6() {
 */
 #[test]
 fn test_encode_pfh5() {
+    let path_1 = "../test_files/PFH5_test.pack";
+    let path_2 = "../test_files/PFH5_test_encode.pack";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let file = File::open("../test_files/PFH5_test.pack").unwrap();
     let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.disk_file_path = Some("../test_files/PFH5_test.pack");
+    decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(file.metadata().unwrap().modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs());
-    decodeable_extra_data.lazy_load = Some(false);
+    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
     decodeable_extra_data.test_mode = true;
-    let mut reader = BufReader::new(file);
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
 
+    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
     {
-        let mut file = BufWriter::new(File::create("../test_files/PFH5_test_encode.pack").unwrap());
+        let mut file = BufWriter::new(File::create(path_2).unwrap());
         pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
     }
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
-    let mut pack_1 = BufReader::new(File::open("../test_files/PFH5_test.pack").unwrap());
-    let mut pack_2 = BufReader::new(File::open("../test_files/PFH5_test_encode.pack").unwrap());
+    let mut pack_1 = BufReader::new(File::open(path_1).unwrap());
+    let mut pack_2 = BufReader::new(File::open(path_2).unwrap());
 
     pack_1.read_to_end(&mut data_pack_1).unwrap();
     pack_2.read_to_end(&mut data_pack_2).unwrap();
