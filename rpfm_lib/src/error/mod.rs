@@ -90,6 +90,9 @@ pub enum RLibError {
     #[error("The header of the Pack is incomplete, unsupported or damaged.")]
     PackFileHeaderNotComplete,
 
+    #[error("The subheader of the Pack is incomplete, unsupported or damaged.")]
+    PackFileSubHeaderMissing,
+
     #[error("The indexes of the Pack are incomplete, unsupported or damaged")]
     PackFileIndexesNotComplete,
 

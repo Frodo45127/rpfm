@@ -8,4 +8,13 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+// These consts are used for dealing with Time-related operations.
+const WINDOWS_TICK: u64 = 10_000_000;
+const SEC_TO_UNIX_EPOCH: u64 = 11_644_473_600;
+
+mod pfh6;
 mod pfh5;
+mod pfh4;
+mod pfh3;
+mod pfh2;
+mod pfh0;

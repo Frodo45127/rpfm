@@ -327,12 +327,12 @@ impl Pack {
         // Each Pack version has its own read function, to avoid breaking support for older Packs
         // when implementing support for a new Pack version.
         let expected_data_len = match pack.header.pfh_version {
-            PFHVersion::PFH6 => todo!(),
+            PFHVersion::PFH6 => pack.read_pfh6(data)?,
             PFHVersion::PFH5 => pack.read_pfh5(data)?,
-            PFHVersion::PFH4 => todo!(),
-            PFHVersion::PFH3 => todo!(),
-            PFHVersion::PFH2 => todo!(),
-            PFHVersion::PFH0 => todo!(),
+            PFHVersion::PFH4 => pack.read_pfh4(data)?,
+            PFHVersion::PFH3 => pack.read_pfh3(data)?,
+            PFHVersion::PFH2 => pack.read_pfh2(data)?,
+            PFHVersion::PFH0 => pack.read_pfh0(data)?,
         };
 
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
@@ -375,12 +375,12 @@ impl Pack {
         }
 
         match self.header.pfh_version {
-            PFHVersion::PFH6 => todo!(),
+            PFHVersion::PFH6 => self.write_pfh6(buffer, sevenzip_exe_path, test_mode)?,
             PFHVersion::PFH5 => self.write_pfh5(buffer, sevenzip_exe_path, test_mode)?,
-            PFHVersion::PFH4 => todo!(),
-            PFHVersion::PFH3 => todo!(),
-            PFHVersion::PFH2 => todo!(),
-            PFHVersion::PFH0 => todo!(),
+            PFHVersion::PFH4 => self.write_pfh4(buffer, test_mode)?,
+            PFHVersion::PFH3 => self.write_pfh3(buffer, test_mode)?,
+            PFHVersion::PFH2 => self.write_pfh2(buffer, test_mode)?,
+            PFHVersion::PFH0 => self.write_pfh0(buffer, test_mode)?,
         };
 /*
         let pack_is_compressible = self.is_compressible();
