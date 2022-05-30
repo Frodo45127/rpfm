@@ -13,7 +13,7 @@
 //! All the functions here are internal, so they should be either private or
 //! public only within this crate.
 
-use std::io::{BufReader, Cursor, prelude::*};
+use std::io::{BufReader, Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::encryption::Decryptable;
@@ -32,21 +32,29 @@ impl Pack {
         let files_count = data.read_u32()?;
         let files_index_size = data.read_u32()?;
 
-        // The rest of the header data is 284 bytes.
-        let extra_header_size = 284;
+        self.header.timestamp = u64::from(data.read_u32()?);
+
+        // The rest of the header data is 280 bytes.
+        let extra_header_size = 280;
 
         // Optimization: we only really need the header of the Pack, not the data, and reads, if performed from disk, are expensive.
         // So we get all the data from the header to the end of the indexes to memory and put it in a buffer, so we can read it faster.
-        let buffer_data = data.read_slice((extra_header_size as u64 + packs_index_size as u64 + files_index_size as u64) as usize, true)?;
+        let indexes_size = extra_header_size + packs_index_size + files_index_size;
+        let buffer_data = data.read_slice(indexes_size as usize, false)?;
         let mut buffer_mem = BufReader::new(Cursor::new(buffer_data));
-        self.header.timestamp = u64::from(buffer_mem.read_u32()?);
+
+        // Check that the position of the data we want to get is actually valid.
+        let data_pos = data.stream_position()?;
+        if data_len < data_pos {
+            return Err(RLibError::PackFileIndexesNotComplete)
+        }
 
         // Check if we actually have the subheader we expect.
         let subheader_marker = buffer_mem.read_u32()?;
         if subheader_marker != SUBHEADER_MARK {
             return Err(RLibError::PackFileSubHeaderMissing)
         }
-        let _subheader_version = buffer_mem.read_u32();
+        let _subheader_version = buffer_mem.read_u32()?;
 
         self.header.game_version = buffer_mem.read_u32()?;
         self.header.build_number = buffer_mem.read_u32()?;
@@ -54,7 +62,7 @@ impl Pack {
         self.header.extra_subheader_data = buffer_mem.read_slice(256, false)?;
 
         // Check that the position of the data we want to get is actually valid.
-        let mut data_pos = data.stream_position()? + buffer_mem.stream_position()? + packs_index_size as u64 + files_index_size as u64;
+        let mut data_pos = data.stream_position()?;
         if data_len < data_pos {
             return Err(RLibError::PackFileIndexesNotComplete)
         }

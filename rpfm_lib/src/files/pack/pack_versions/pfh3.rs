@@ -13,7 +13,7 @@
 //! All the functions here are internal, so they should be either private or
 //! public only within this crate.
 
-use std::io::{BufReader, Cursor, prelude::*};
+use std::io::{BufReader, Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
@@ -33,18 +33,17 @@ impl Pack {
         let files_count = data.read_u32()?;
         let files_index_size = data.read_u32()?;
 
-        // The rest of the header data depends on certain flags. Check them to see what parts of the header
-        // are left to read.
-        let extra_header_size = 8;
+        // Timestamp is a windows specific one, and with this we map it to the unix one.
+        self.header.timestamp = (data.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
 
         // Optimization: we only really need the header of the Pack, not the data, and reads, if performed from disk, are expensive.
         // So we get all the data from the header to the end of the indexes to memory and put it in a buffer, so we can read it faster.
-        let buffer_data = data.read_slice((extra_header_size as u64 + packs_index_size as u64 + files_index_size as u64) as usize, true)?;
+        let indexes_size = packs_index_size + files_index_size;
+        let buffer_data = data.read_slice(indexes_size as usize, false)?;
         let mut buffer_mem = BufReader::new(Cursor::new(buffer_data));
-        self.header.timestamp = (buffer_mem.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
 
         // Check that the position of the data we want to get is actually valid.
-        let mut data_pos = data.stream_position()? + buffer_mem.stream_position()? + packs_index_size as u64 + files_index_size as u64;
+        let mut data_pos = data.stream_position()?;
         if data_len < data_pos {
             return Err(RLibError::PackFileIndexesNotComplete)
         }
@@ -61,7 +60,6 @@ impl Pack {
                 (buffer_mem.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH
             } else { 0 };
 
-            // Get the file's path. If it's encrypted, decrypt it first.
             let path = buffer_mem.read_string_u8_0terminated()?;
 
             // Build the File as a LazyLoaded file by default.
