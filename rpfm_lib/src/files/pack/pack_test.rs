@@ -8,16 +8,13 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module containing test for the `PackFile` module, just to make sure we don't break it... again...
-!*/
+//! Module containing tests for decoding/encoding Packs in multiple formats.
 
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
 
 use crate::files::*;
 use super::Pack;
-
 
 #[test]
 fn test_decode_pfh6() {

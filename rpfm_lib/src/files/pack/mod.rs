@@ -24,8 +24,8 @@ use crate::files::FileType;
 use std::path::Path;
 use crate::compression::Compressible;
 use crate::utils::current_time;
-use std::fs::File;
-use std::io::BufWriter;
+
+
 use std::io::Cursor;
 use std::io::Write;
 use getset::Setters;
@@ -90,9 +90,6 @@ pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
 
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special purposes.
 pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
-
-const SUBHEADER_MARK: u32 = 0x12345678;
-const SUBHEADER_VERSION: u32 = 1;
 
 const AUTHORING_TOOL_CA: &str = "CA_TOOL";
 const AUTHORING_TOOL_RPFM: &str = "RPFM";
@@ -382,100 +379,7 @@ impl Pack {
             PFHVersion::PFH2 => self.write_pfh2(buffer, test_mode)?,
             PFHVersion::PFH0 => self.write_pfh0(buffer, test_mode)?,
         };
-/*
-        let pack_is_compressible = self.is_compressible();
 
-        let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
-        sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
-
-        let files_data = sorted_files.par_iter_mut().flat_map(|(_, file)| {
-            let mut data = file.encode(true, true).unwrap().unwrap();
-
-            if self.compress && pack_is_compressible && file.is_compressible() {
-                if let Some(sevenzip_exe_path) = sevenzip_exe_path {
-                    data = data.compress(sevenzip_exe_path).unwrap();
-                }
-            }
-
-            data
-        }).collect::<Vec<u8>>();
-
-        // First we encode the indexes and the data (just in case we compressed it).
-        let mut dependencies_index = vec![];
-
-        for dependency in &self.dependencies {
-            dependencies_index.write_string_u8_0terminated(dependency)?;
-        }
-
-        let files_index = sorted_files.par_iter_mut().flat_map(|(path, file)| {
-            let mut files_index_entry = Vec::with_capacity(6 + path.len());
-            files_index_entry.write_u32(file.size().unwrap() as u32).unwrap();
-
-            // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
-            // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
-            match self.header.pfh_version {
-                PFHVersion::PFH6 | PFHVersion::PFH5 => {
-                    if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                        files_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32).unwrap();
-                    }
-
-                    files_index_entry.write_bool(self.compress && file.is_compressible()).unwrap();
-                }
-                PFHVersion::PFH4 => {
-                    if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                        files_index_entry.write_u32(file.timestamp().unwrap_or(0) as u32).unwrap();
-                    }
-                }
-                PFHVersion::PFH3 | PFHVersion::PFH2 => {
-                    if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
-                        files_index_entry.write_u64(file.timestamp().unwrap_or(0)).unwrap();
-                    }
-                }
-
-                // This one doesn't have timestamps, so we just skip this step.
-                PFHVersion::PFH0 => {}
-            }
-
-            // TODO: fix this
-            files_index_entry.write_string_u8_0terminated(path).unwrap();
-            files_index_entry
-        }).collect::<Vec<u8>>();
-
-        // Write the entire header.
-        let mut header = vec![];
-        header.write_string_u8(self.header.pfh_version.value())?;
-        header.write_u32(self.header.bitmask.bits | self.header.pfh_file_type.value())?;
-        header.write_u32(self.dependencies.len() as u32)?;
-        header.write_u32(dependencies_index.len() as u32)?;
-        header.write_u32(sorted_files.len() as u32)?;
-        header.write_u32(files_index.len() as u32)?;
-
-        // Update the creation time, then save it. PFH0 files don't have timestamp in the headers.
-        if !test_mode {
-            self.header.timestamp = current_time()?;
-        }
-
-        match self.header.pfh_version {
-            PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH4 => header.write_u32(self.header.timestamp as u32)?,
-            PFHVersion::PFH3 | PFHVersion::PFH2 => header.write_u64((self.header.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK)?,
-            PFHVersion::PFH0 => {}
-        }
-
-        if let PFHVersion::PFH6 = self.header.pfh_version {
-            header.write_u32(SUBHEADER_MARK)?;
-            header.write_u32(SUBHEADER_VERSION)?;
-            header.write_u32(self.header.game_version)?;
-            header.write_u32(self.header.build_number)?;
-            header.write_string_u8_0padded(&self.header.authoring_tool, 8, false)?;
-            header.write_all(&self.header.extra_subheader_data)?;
-        }
-
-        // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
-        buffer.write_all(&header)?;
-        buffer.write_all(&dependencies_index)?;
-        buffer.write_all(&files_index)?;
-        buffer.write_all(&files_data)?;
-*/
         // Remove again the reserved PackedFiles.
         self.remove(&ContainerPath::File(RESERVED_NAME_NOTES.to_owned()));
         self.remove(&ContainerPath::File(RESERVED_NAME_SETTINGS.to_owned()));

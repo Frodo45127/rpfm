@@ -20,6 +20,8 @@ use crate::encryption::Decryptable;
 use crate::error::{RLibError, Result};
 use crate::files::{pack::*, RFile};
 
+use super::*;
+
 impl Pack {
 
     /// This function reads a `Pack` of version 6 from raw data, returning the index where it finished reading.

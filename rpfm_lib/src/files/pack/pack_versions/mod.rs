@@ -12,6 +12,9 @@
 const WINDOWS_TICK: u64 = 10_000_000;
 const SEC_TO_UNIX_EPOCH: u64 = 11_644_473_600;
 
+const SUBHEADER_MARK: u32 = 0x12345678;
+const SUBHEADER_VERSION: u32 = 1;
+
 mod pfh6;
 mod pfh5;
 mod pfh4;
