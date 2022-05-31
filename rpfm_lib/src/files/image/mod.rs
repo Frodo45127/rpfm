@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a dummy module to read images.
+//! This is a dummy module to read/write images.
 //!
 //! Read support just stores the raw data of the image, so you can pass it to another
 //! lib/program to read it. Write support just writes that data back to the source.

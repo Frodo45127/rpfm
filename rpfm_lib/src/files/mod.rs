@@ -185,8 +185,8 @@ pub enum ContainerPath {
 #[derive(Clone, Default)]
 pub struct DecodeableExtraData<'a> {
     disk_file_path: Option<&'a str>,
-    disk_file_offset: Option<u64>,
-    timestamp: Option<u64>,
+    disk_file_offset: u64,
+    timestamp: u64,
     lazy_load: bool,
     is_encrypted: bool,
     schema: Option<&'a Schema>,
@@ -194,6 +194,7 @@ pub struct DecodeableExtraData<'a> {
     return_incomplete: bool,
     sevenzip_path: Option<&'a Path>,
     test_mode: bool,
+    file_name: Option<&'a str>,
 }
 
 //---------------------------------------------------------------------------//

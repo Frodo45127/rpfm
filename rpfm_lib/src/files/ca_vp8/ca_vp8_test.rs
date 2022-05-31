@@ -25,8 +25,7 @@ fn test_decode_ca_vp8_v1() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data = CaVp8::decode(&mut reader, Some(decodeable_extra_data));
     assert!(data.is_ok());
@@ -39,8 +38,7 @@ fn test_decode_ca_vp8_v0() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data = CaVp8::decode(&mut reader, Some(decodeable_extra_data));
     assert!(data.is_ok());
@@ -54,8 +52,7 @@ fn test_encode_ca_vp8_v1() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
@@ -78,8 +75,7 @@ fn test_encode_ca_vp8_v0() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();

@@ -8,19 +8,51 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with Text PackedFiles.
+//! This is a module to read/write Text files.
+//!
+//! Text files are any kind of plain-text files, really. Encodings supported by this lib are:
+//! - `ISO-8859-1`
+//! - `UTF-8`
+//! - `UTF-16` (LittleEndian)
+//!
+//! Also, the module automatically tries to guess the language of a Text file, so programs
+//! can query the guess language format and apply extended functionality.
+//!
+//! The full list of file extension this lib supports as `Text` files is:
+//!
+//! | Extension                | Language | Description                                 |
+//! | ------------------------ | -------- | ------------------------------------------- |
+//! | `.battle_speech_camera`  | `Plain`  | Camera settings file for battle speeches.   |
+//! | `.benchmark`             | `Xml`    |                                             |
+//! | `.bob`                   | `Plain`  | BoB settings file.                          |
+//! | `.cindyscene`            | `Xml`    |                                             |
+//! | `.cindyscenemanager`     | `Xml`    |                                             |
+//! | `.csv`                   | `Plain`  | Normal CSV file.                            |
+//! | `.environment`           | `Xml`    |                                             |
+//! | `.htm`                   | `Html`   | Normal HTML file.                           |
+//! | `.html`                  | `Html`   | Normal HTML file.                           |
+//! | `.inl`                   | `Cpp`    |                                             |
+//! | `.json`                  | `Json`   | Normal JSON file.                           |
+//! | `.lighting`              | `Xml`    |                                             |
+//! | `.lua`                   | `Lua`    | LUA Script file.                            |
+//! | `.tai`                   | `Plain`  |                                             |
+//! | `.technique`             | `Xml`    |                                             |
+//! | `.texture_array`         | `Plain`  |                                             |
+//! | `.tsv`                   | `Plain`  | Normal TSV file.                            |
+//! | `.txt`                   | `Plain`  | Plain TXT file.                             |
+//! | `.variantmeshdefinition` | `Xml`    |                                             |
+//! | `.wsmodel`               | `Xml`    |                                             |
+//! | `.xml`                   | `Xml`    | Normal XML file.                            |
+//! | `.xml.shader`            | `Xml`    |                                             |
+//! | `.xml.material`          | `Xml`    |                                             |
 
-Text PackedFiles are any kind of plain text packedfile, like lua, xml, txt,...
-The only thing to take into account is that this only work for UTF-8 encoded files.
-!*/
-
-use std::io::SeekFrom;
 use getset::*;
 
-use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, Encodeable};
+use std::io::SeekFrom;
+
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::error::{Result, RLibError};
+use crate::files::{Decodeable, Encodeable};
 
 use super::DecodeableExtraData;
 
@@ -30,149 +62,192 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 /// UTF-16 BOM (Byte Order Mark), Little Endian.
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
-/// List of extensions for files this lib can decode as Text PackedFiles, with their respective type.
-pub const EXTENSIONS: [(&str, TextType); 23] = [
-    (".inl", TextType::Cpp),
-    (".lua", TextType::Lua),
-    (".xml", TextType::Xml),
-    (".technique", TextType::Xml),
-    (".xml.shader", TextType::Xml),
-    (".xml.material", TextType::Xml),
-    (".variantmeshdefinition", TextType::Xml),
-    (".environment", TextType::Xml),
-    (".lighting", TextType::Xml),
-    (".wsmodel", TextType::Xml),
-    (".benchmark", TextType::Xml),
-    (".cindyscene", TextType::Xml),
-    (".cindyscenemanager", TextType::Xml),
-    (".csv", TextType::Plain),
-    (".tsv", TextType::Plain),
-    (".tai", TextType::Plain),
-    (".battle_speech_camera", TextType::Plain),
-    (".bob", TextType::Plain),
-    (".txt", TextType::Plain),
-    (".htm", TextType::Html),
-    (".html", TextType::Html),
-    (".json", TextType::Json),
-    (".texture_array", TextType::Plain),
+/// List of extensions we recognize as `Text` files, with their respective known format.
+pub const EXTENSIONS: [(&str, TextFormat); 23] = [
+    (".battle_speech_camera", TextFormat::Plain),
+    (".benchmark", TextFormat::Xml),
+    (".bob", TextFormat::Plain),
+    (".cindyscene", TextFormat::Xml),
+    (".cindyscenemanager", TextFormat::Xml),
+    (".csv", TextFormat::Plain),
+    (".environment", TextFormat::Xml),
+    (".htm", TextFormat::Html),
+    (".html", TextFormat::Html),
+    (".inl", TextFormat::Cpp),
+    (".json", TextFormat::Json),
+    (".lighting", TextFormat::Xml),
+    (".lua", TextFormat::Lua),
+    (".tai", TextFormat::Plain),
+    (".technique", TextFormat::Xml),
+    (".texture_array", TextFormat::Plain),
+    (".tsv", TextFormat::Plain),
+    (".txt", TextFormat::Plain),
+    (".variantmeshdefinition", TextFormat::Xml),
+    (".wsmodel", TextFormat::Xml),
+    (".xml", TextFormat::Xml),
+    (".xml.shader", TextFormat::Xml),
+    (".xml.material", TextFormat::Xml),
 ];
+
+#[cfg(test)] mod text_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire Text PackedFile decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, Getters, Setters)]
+/// This holds an entire `Text` file decoded in memory.
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Text {
 
-    /// The encoding used by the text of the PackedFile.
-    encoding: SupportedEncodings,
+    /// The encoding used by the file.
+    encoding: Encoding,
 
-    /// Type of text this PackedFile has.
-    text_type: TextType,
+    /// The format of the file.
+    format: TextFormat,
 
-    /// The text inside the PackedFile.
+    /// The text inside the file.
     contents: String
 }
 
-/// This enum contains the list of encoding RPFM supports.
+/// This enum represents the multiple encodings we can read/write to.
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub enum SupportedEncodings {
-    Utf8,
-    Utf16Le,
+pub enum Encoding {
     Iso8859_1,
+    Utf8,
+    Utf8Bom,
+    Utf16Le,
 }
 
-/// This enum contains the list of text types RPFM supports.
-///
-/// This is so you can do things depending on the language the text file is written.
+/// This enum represents the formats we know.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum TextType {
-    Html,
-    Xml,
-    Lua,
+pub enum TextFormat {
     Cpp,
-    Markdown,
+    Html,
     Json,
+    Lua,
+    Markdown,
     Plain,
+    Xml,
 }
 
 //---------------------------------------------------------------------------//
 //                           Implementation of Text
 //---------------------------------------------------------------------------//
 
+/// Implementation of `Default` for `Encoding`.
+impl Default for Encoding {
 
-/// Implementation of `Default` for `SupportedEncodings`.
-impl Default for SupportedEncodings {
+    /// This returns `Encoding::Utf8`, as it's our default encoding.
     fn default() -> Self {
-        SupportedEncodings::Utf8
+        Encoding::Utf8
     }
 }
 
-/// Implementation of `Default` for `TextType`.
-impl Default for TextType {
+/// Implementation of `Default` for `TextFormat`.
+impl Default for TextFormat {
+
+    /// This returns `TextFormat::Plain`, as it's our default format.
     fn default() -> Self {
-        TextType::Plain
+        TextFormat::Plain
+    }
+}
+
+impl Text {
+
+    pub fn detect_encoding<R: ReadBytes>(data: &mut R) -> Result<Encoding> {
+        let len = data.len()?;
+
+        // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8.
+        if len > 2 && data.read_slice(3, true)? == BOM_UTF_8 {
+            data.seek(SeekFrom::Start(3))?;
+            return Ok(Encoding::Utf8Bom)
+        }
+        else if len > 1 && data.read_slice(2, true)? == BOM_UTF_16_LE {
+            data.seek(SeekFrom::Start(2))?;
+            return Ok(Encoding::Utf16Le)
+        }
+
+        // If no BOM is found, we assume UTF-8 if it decodes properly.
+        else {
+            let utf8_string = data.read_string_u8(len as usize);
+            if utf8_string.is_ok() {
+                data.seek(SeekFrom::Start(0))?;
+                return Ok(Encoding::Utf8)
+            }
+
+            data.seek(SeekFrom::Start(0))?;
+            let iso_8859_1_string = data.read_string_u8_iso_8859_1(len as usize, false);
+            if iso_8859_1_string.is_ok() {
+                data.seek(SeekFrom::Start(0))?;
+                return Ok(Encoding::Iso8859_1)
+            }
+        }
+
+        // If we reach this, we do not support the format.
+        data.seek(SeekFrom::Start(0))?;
+        Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)
     }
 }
 
 impl Decodeable for Text {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
+        let encoding = Self::detect_encoding(data)?;
+        let contents = match encoding {
+            Encoding::Iso8859_1 => data.read_string_u8_iso_8859_1(len as usize, false)
+                .map_err(|_| RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)?,
 
-        // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
-        let guessed_encoding = if len > 2 && data.read_slice(3, true)? == BOM_UTF_8 {
-            data.seek(SeekFrom::Current(3))?;
-            SupportedEncodings::Utf8
-        }
-        else if len > 1 && data.read_slice(2, true)? == BOM_UTF_16_LE {
-            data.seek(SeekFrom::Current(2))?;
-            SupportedEncodings::Utf16Le
-        }
-        else {
-            SupportedEncodings::Utf8
+            Encoding::Utf8 |
+            Encoding::Utf8Bom => {
+                let curr_pos = data.stream_position()?;
+                data.read_string_u8((len - curr_pos) as usize)
+                    .map_err(|_| RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)?
+            },
+            Encoding::Utf16Le => {
+                let curr_pos = data.stream_position()?;
+                data.read_string_u16((len - curr_pos) as usize)
+                    .map_err(|_| RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)?
+            }
         };
 
-        // This is simple: we try to decode it depending on what the guesser gave us. If all fails, return error.
-        let (encoding, contents) = match guessed_encoding {
-            SupportedEncodings::Utf8 | SupportedEncodings::Iso8859_1 => {
-                match data.read_string_u8( len as usize) {
-                    Ok(string) => (SupportedEncodings::Utf8, string),
-                    Err(_) => match data.read_string_u8_iso_8859_1(len as usize) {
-                        Ok(string) => (SupportedEncodings::Iso8859_1, string),
-                        Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
+        // Try to get the format of the file.
+        let format = match extra_data {
+            Some(extra_data) => match extra_data.file_name {
+                Some(file_name) => {
+                    match EXTENSIONS.iter().find_map(|(extension, format)| if file_name.ends_with(extension) { Some(format) } else { None }) {
+                        Some(format) => *format,
+                        None => TextFormat::Plain,
                     }
                 }
+                None => TextFormat::Plain,
             }
 
-            SupportedEncodings::Utf16Le => {
-                match data.read_string_u16(len as usize) {
-                    Ok(string) => (SupportedEncodings::Utf16Le, string),
-                    Err(_) => return Err(RLibError::DecodingTextUnsupportedEncodingOrNotATextFile),
-                }
-            }
+            None => TextFormat::Plain,
         };
-
-        // Without the path we can't know the text type, so we left it as plain, and overwrite it later.
-        let text_type = TextType::Plain;
 
         Ok(Self {
             encoding,
-            text_type,
+            format,
             contents,
         })
     }
 }
 
 impl Encodeable for Text {
+
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         match self.encoding {
-            SupportedEncodings::Utf8 => buffer.write_string_u8(&self.contents),
-            SupportedEncodings::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
+            Encoding::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
+            Encoding::Utf8 => buffer.write_string_u8(&self.contents),
+            Encoding::Utf8Bom => {
+                buffer.write_all(&mut BOM_UTF_8.to_vec())?;
+                buffer.write_string_u8(&self.contents)
+            },
 
             // For UTF-16 we always have to add the BOM. Otherwise we have no way to easily tell what this file is.
-            SupportedEncodings::Utf16Le => {
+            Encoding::Utf16Le => {
                 buffer.write_all(&mut BOM_UTF_16_LE.to_vec())?;
                 buffer.write_string_u16(&self.contents)
             },

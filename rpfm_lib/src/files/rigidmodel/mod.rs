@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This is a dummy module to read RigidModels.
+//! This is a dummy module to read/write RigidModels.
 //!
 //! Read support just stores the raw data of the model, so you can pass it to another
 //! lib/program to read it. Write support just writes that data back to the source.

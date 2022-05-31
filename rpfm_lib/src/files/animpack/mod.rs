@@ -92,8 +92,8 @@ impl Decodeable for AnimPack {
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
         let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingMissingExtraData)?;
-        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingMissingExtraData)?;
-        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingMissingExtraData)?;
+        let disk_file_offset = extra_data.disk_file_offset;
+        let timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
 
         let file_count = data.read_u32()?;

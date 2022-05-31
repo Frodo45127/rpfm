@@ -26,8 +26,7 @@ fn test_encode_animpack() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_offset = Some(0);
-    decodeable_extra_data.timestamp = Some(last_modified_time_from_file(reader.get_ref()).unwrap());
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();

@@ -255,9 +255,9 @@ impl Decodeable for Pack {
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
         let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingMissingExtraData)?;
-        let disk_file_offset = extra_data.disk_file_offset.ok_or(RLibError::DecodingMissingExtraData)?;
+        let disk_file_offset = extra_data.disk_file_offset;
         let lazy_load = extra_data.lazy_load;
-        let timestamp = extra_data.timestamp.ok_or(RLibError::DecodingMissingExtraData)?;
+        let timestamp = extra_data.timestamp;
 
         Self::read(data, disk_file_path, disk_file_offset, timestamp, lazy_load)
     }

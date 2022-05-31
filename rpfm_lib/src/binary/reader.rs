@@ -490,6 +490,9 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
     ///
+    /// If `replace_on_error` is false, it'll fail the moment it fails to decode a character. If it's
+    /// true, it'll replace said character with an invalid character symbol.
+    ///
     /// ```rust
     /// use std::io::Cursor;
     ///
@@ -497,15 +500,22 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// let data = vec![87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97];
     /// let mut cursor = Cursor::new(data);
-    /// let data = cursor.read_string_u8_iso_8859_1(11).unwrap();
+    /// let data = cursor.read_string_u8_iso_8859_1(11, false).unwrap();
     ///
     /// assert_eq!(data, "Wahaÿhahaha");
-    /// assert_eq!(cursor.read_string_u8_iso_8859_1(10).is_err(), true);
+    /// assert_eq!(cursor.read_string_u8_iso_8859_1(10, false).is_err(), true);
     /// ```
-    fn read_string_u8_iso_8859_1(&mut self, size: usize) -> Result<String> {
+    fn read_string_u8_iso_8859_1(&mut self, size: usize, replace_on_error: bool) -> Result<String> {
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
-        ISO_8859_1.decode(&data, DecoderTrap::Replace).map_err(|error| RLibError::DecodeUTF8FromISO8859Error(error.to_string()))
+
+        let decoder_trap = if replace_on_error {
+            DecoderTrap::Replace
+        } else {
+            DecoderTrap::Strict
+        };
+
+        ISO_8859_1.decode(&data, decoder_trap).map_err(|error| RLibError::DecodeUTF8FromISO8859Error(error.to_string()))
     }
 
     /// This function tries to read a 00-Padded UTF-8 String value of the provided `size` from `self`.
@@ -662,7 +672,7 @@ pub trait ReadBytes: Read + Seek {
         }
     }
 
-    /// This function tries to read an UTF-16 String value of the provided `size` (in characters) from `self`.
+    /// This function tries to read an UTF-16 String value of the provided `size` (in bytes) from `self`.
     ///
     /// It may fail if there are not enough bytes to read the value, the value contains invalid
     /// characters for an UTF-16 String, or `self` cannot be read.
@@ -674,22 +684,22 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// let data = vec![87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0];
     /// let mut cursor = Cursor::new(data);
-    /// let data = cursor.read_string_u16(6).unwrap();
+    /// let data = cursor.read_string_u16(12).unwrap();
     ///
     /// assert_eq!(data, "Wahaha");
-    /// assert_eq!(cursor.read_string_u16(6).is_err(), true);
+    /// assert_eq!(cursor.read_string_u16(12).is_err(), true);
     /// ```
     fn read_string_u16(&mut self, size: usize) -> Result<String> {
-        let mut data = vec![0; size.wrapping_mul(2)];
+        let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let iter = (0..size).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
+        let iter = (0..size.wrapping_div(2)).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
         decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
     }
 
     /// This function tries to read a 00-Padded UTF-16 String value of the provided `size` from `self`.
     ///
-    /// Note that `size` here is the full lenght of the String, including the 00 bytes that act as padding.
+    /// Note that `size` here is the full lenght of the String in bytes, including the 00 bytes that act as padding.
     ///
     /// It may fail if there are not enough bytes to read the value, the value contains invalid
     /// characters for an UTF-16 String, or `self` cannot be read.
@@ -701,16 +711,16 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// let data = vec![87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     /// let mut cursor = Cursor::new(data);
-    /// let data = cursor.read_string_u16_0padded(10).unwrap();
+    /// let data = cursor.read_string_u16_0padded(20).unwrap();
     ///
     /// assert_eq!(data, "Wahaha");
-    /// assert_eq!(cursor.read_string_u16_0padded(10).is_err(), true);
+    /// assert_eq!(cursor.read_string_u16_0padded(20).is_err(), true);
     /// ```
     fn read_string_u16_0padded(&mut self, size: usize) -> Result<String> {
-        let mut data = vec![0; size.wrapping_mul(2)];
+        let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let size_no_zeros = (0..size).position(|x| data[x * 2] == 0).map_or(size, |x| x);
+        let size_no_zeros = (0..size.wrapping_div(2)).position(|x| data[x * 2] == 0).map_or(size.wrapping_div(2), |x| x);
         let iter = (0..size_no_zeros).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
         decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
     }
@@ -738,7 +748,7 @@ pub trait ReadBytes: Read + Seek {
     fn read_sized_string_u16(&mut self) -> Result<String> {
         if let Ok(size) = self.read_u16() {
             // TODO: check if we have to restore cursor pos on failure.
-            self.read_string_u16(size as usize)
+            self.read_string_u16(size.wrapping_mul(2) as usize)
         }
         else {
             return Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned()))
