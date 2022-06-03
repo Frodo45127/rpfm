@@ -8,13 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with ESF PackedFiles.
+//! This is a module to read/write ESF files.
+//!
+//! ESF files are special files used to hold a variety of data, ranging from trade routes info
+//! to entire campaign savestates.
 
-ESF are like savestates of the game.
-!*/
-
-use crate::files::DecodeableExtraData;
 use bitflags::bitflags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -23,7 +21,7 @@ use std::{fmt, fmt::Display};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
 
 /// Extensions used by CEO/ESF PackedFiles.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];

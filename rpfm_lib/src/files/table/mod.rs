@@ -16,9 +16,10 @@ This module contains the struct `Table`, used to manage the decoded data of a ta
 
 //use bincode::serialize;
 
-use r2d2_sqlite::SqliteConnectionManager;
-use r2d2::Pool;
-use rusqlite::params_from_iter;
+#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
+#[cfg(feature = "integration_sqlite")] use rusqlite::params_from_iter;
+
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap};
@@ -400,6 +401,7 @@ impl Table {
         }
     }
 
+    #[cfg(feature = "integration_sqlite")]
     pub fn insert(&self, pool: &Pool<SqliteConnectionManager>, data: &[Vec<DecodedData>], key_first: bool) {
         let mut params = vec![];
         let values = data.iter().map(|row| {

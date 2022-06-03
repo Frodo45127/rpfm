@@ -23,7 +23,9 @@
 #[cfg(feature = "integration_assembly_kit")] pub mod assembly_kit;
 #[cfg(feature = "integration_git")] pub mod git;
 #[cfg(feature = "integration_log")] pub mod log;
+#[cfg(feature = "integration_sqlite")] pub mod sqlite;
 
 #[cfg(feature = "integration_assembly_kit")] pub use self::assembly_kit::*;
 #[cfg(feature = "integration_git")] pub use self::git::*;
 #[cfg(feature = "integration_log")] pub use self::log::*;
+#[cfg(feature = "integration_sqlite")] pub use self::sqlite::*;

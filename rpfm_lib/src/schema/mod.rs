@@ -68,7 +68,7 @@ use ron::de::from_bytes;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
-use rusqlite::types::Type;
+#[cfg(feature = "integration_sqlite")] use rusqlite::types::Type;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
@@ -480,6 +480,7 @@ impl Definition {
     }
 
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
+    #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
         let fields_sorted = self.fields_processed_sorted(key_first);
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(Some(table_name), game_key, schema_patches)).collect::<Vec<_>>().join(",");
@@ -741,6 +742,7 @@ impl Field {
     }
 
     /// This function maps our field to a String ready to be used in a SQL `CREATE TABLE` command.
+    #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_string(&self, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
         let mut string = format!(" \"{}\" {:?} ", self.name(), self.field_type().map_to_sql_type());
 
@@ -755,6 +757,7 @@ impl Field {
 impl FieldType {
 
     /// This function maps our type to a SQLite Type.
+    #[cfg(feature = "integration_sqlite")]
     pub fn map_to_sql_type(&self) -> Type {
         match self {
             FieldType::Boolean => Type::Integer,

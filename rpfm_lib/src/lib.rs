@@ -25,5 +25,4 @@ pub mod files;
 pub mod games;
 pub mod integrations;
 pub mod schema;
-pub mod sqlite;
 pub mod utils;

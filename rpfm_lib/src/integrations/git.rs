@@ -8,6 +8,8 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! This module contains the code for the limited Git support.
+
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 
 use std::fs::DirBuilder;

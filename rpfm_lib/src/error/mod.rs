@@ -198,6 +198,7 @@ pub enum RLibError {
     SystemTimeError(#[from] std::time::SystemTimeError),
 
     /// Represents all other cases of `r2d2::Error`.
+    #[cfg(feature = "integration_sqlite")]
     #[error(transparent)]
     R2D2Error(#[from] r2d2::Error),
 

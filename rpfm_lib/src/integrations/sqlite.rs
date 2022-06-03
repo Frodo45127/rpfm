@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to interact with a SQLite Instance.
-!*/
+//! This module contains the code for the SQLite backend for DB Tables.
 
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
