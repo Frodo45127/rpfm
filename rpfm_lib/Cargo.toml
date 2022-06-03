@@ -4,10 +4,21 @@ version = "3.0.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Lib with all the common functions and utils used by all the RPFM crates."
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
+
+[features]
+default = []
+
+integration_assembly_kit = []
+integration_git = ["dep:git2"]
+integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep:simplelog"]
+
+support_rigidmodel = []
+support_uic = []
+support_tip_uploads = []
+
 
 [dependencies]
-rpfm_logging = { path = "../rpfm_logging" }
 
 # Basic get/set support.
 getset = "^0.1"
@@ -16,8 +27,9 @@ getset = "^0.1"
 serde = "^1.0"
 serde_derive = "^1.0"
 serde_json = "^1.0"
-ron = "^0.7"
 csv = "^1.1"
+ron = "^0.7"
+toml = "^0.5"
 
 # Error handling.
 thiserror = "1.0"
@@ -31,7 +43,7 @@ bitflags = "^1.0"
 rand = "^0.8"
 
 # Git support.
-git2 = "^0.13"
+git2 = { version = "^0.13", optional = true }
 
 # Pelite, because we need it to get the current version of a game's exe, and I have not a fucking clue how to pass a path to WinApi.
 pelite = "^0.9"
@@ -55,3 +67,10 @@ uuid = { version = "^0.8", features = ["v4"] }
 
 # Quick char search support.
 memchr = "^2.5"
+
+# Logging support.
+backtrace = { version = "^0.3", optional = true }
+log = { version = "^0.4", optional = true, features = ["std"] }
+os_info = { version = "^3.0", optional = true }
+sentry = { version = "^0.25", optional = true, features = ["log"] }
+simplelog = { version = "^0.11", optional = true }

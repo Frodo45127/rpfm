@@ -170,13 +170,10 @@ pub enum RLibError {
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
-    RLoggingError(#[from] rpfm_logging::error::RLoggingError),
-
-    /// Represents all other cases of `std::io::Error`.
-    #[error(transparent)]
     IOError(#[from] std::io::Error),
 
     /// Represents all other cases of `git2::Error`.
+    #[cfg(feature = "integration_git")]
     #[error(transparent)]
     GitError(#[from] git2::Error),
 
@@ -203,4 +200,13 @@ pub enum RLibError {
     /// Represents all other cases of `r2d2::Error`.
     #[error(transparent)]
     R2D2Error(#[from] r2d2::Error),
+
+    /// Represents all other cases of `toml::ser::Error`.
+    #[error(transparent)]
+    TomlError(#[from] toml::ser::Error),
+
+    /// Represents all other cases of `log::SetLoggerError`.
+    #[cfg(feature = "integration_log")]
+    #[error(transparent)]
+    LogError(#[from] log::SetLoggerError),
 }

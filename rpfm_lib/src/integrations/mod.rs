@@ -8,9 +8,22 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module that contains util functions for git integration.
-!*/
+//! This module contains integrations of this crate with another tools.
+//!
+//! The following integrations are included:
+//! - **Assembly Kit**: enables importing tables from the Assembly Kit.
+//!   Requires the feature `integration_assembly_kit` to be enabled.
+//! - **Git**: enables basic management of git repositories. Requires the feature
+//!   `integration_git` to be enabled.
+//! - **Log**: enables logging and automatic upload crash reports. Requires the
+//!   feature `integration_log` to be enabled.
+//!
+//! Each integration is opt-in, so you can ignore them unless you really want to use them.
 
-//pub mod assembly_kit;
-pub mod git;
+#[cfg(feature = "integration_assembly_kit")] pub mod assembly_kit;
+#[cfg(feature = "integration_git")] pub mod git;
+#[cfg(feature = "integration_log")] pub mod log;
+
+#[cfg(feature = "integration_assembly_kit")] pub use self::assembly_kit::*;
+#[cfg(feature = "integration_git")] pub use self::git::*;
+#[cfg(feature = "integration_log")] pub use self::log::*;

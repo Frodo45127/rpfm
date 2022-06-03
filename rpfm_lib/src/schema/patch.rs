@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::io::BufWriter;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rpfm_logging::*;
+#[cfg(feature = "integration_log")] use integrations::log::*;
 use getset::*;
 
 use super::*;
@@ -114,6 +114,7 @@ impl SchemaPatch {
     }
 
     /// This function uploads a patch to sentry's service.
+    #[cfg(feature = "integration_log")]
     pub fn upload(&self, sentry_guard: &ClientInitGuard, game_name: &str) -> Result<()> {
         let level = Level::Info;
         let message = format!("Summited Schema Patch for: {} - {}.", game_name, SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());

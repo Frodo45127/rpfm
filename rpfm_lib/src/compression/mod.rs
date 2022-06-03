@@ -12,19 +12,19 @@
 //!
 //! Total War games use the Non-Streamed LZMA1 format with the following custom header:
 //!
-//! | Bytes | Type | Data |
-//! | ----- | ---- | ---- |
-//! |  4    | [u32] | Uncompressed size (as u32, max at 4GB). |
+//! | Bytes | Type  | Data                                                                                |
+//! | ----- | ----- | ----------------------------------------------------------------------------------- |
+//! |  4    | [u32] | Uncompressed size (as u32, max at 4GB).                                             |
 //! |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form... I think. Usually it's `0x5D`. |
-//! |  4    | [u32] | Dictionary size (as u32)... I think. It's usually `[0x00, 0x00, 0x40, 0x00]`. |
+//! |  4    | [u32] | Dictionary size (as u32)... I think. It's usually `[0x00, 0x00, 0x40, 0x00]`.       |
 //!
 //! For reference, a normal Non-Streamed LZMA1 header (from the original spec) contains:
 //!
-//! | Bytes | Type | Data |
-//! | ----- | ---- | ---- |
-//! |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form |
-//! |  4    | [u32] | Dictionary size (32-bit unsigned integer, little-endian) |
-//! |  8    | [prim@u64] | Uncompressed size (64-bit unsigned integer, little-endian) |
+//! | Bytes | Type  | Data                                                        |
+//! | ----- | ----- | ----------------------------------------------------------- |
+//! |  1    | [u8]  | LZMA model properties (lc, lp, pb) in encoded form.         |
+//! |  4    | [u32] | Dictionary size (32-bit unsigned integer, little-endian).   |
+//! |  8    | [prim@u64] | Uncompressed size (64-bit unsigned integer, little-endian). |
 //!
 //! The traits [`Compressible`] and [`Decompressible`] within this module contain functions to compress/decompress
 //! data from/to CA's LZMA1 custom implementation. Implementations of these two traits for &[[`u8`]] are provided within this module.

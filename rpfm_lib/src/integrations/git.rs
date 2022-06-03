@@ -8,10 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module that contains util functions for git integration.
-!*/
-
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 
 use std::fs::DirBuilder;

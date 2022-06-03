@@ -8,11 +8,9 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with utility functions that don't fit anywhere else.
-
-Basically, if you need a function, but it's kinda a generic function, it goes here.
-!*/
+//! Module with generic functions used by the crate.
+//!
+//! If a function doesn't fit anywhere, it goes here.
 
 use pelite::pe64;
 use pelite::resources::{FindError, Resources, version_info::VersionInfo};
@@ -23,6 +21,28 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{RLibError, Result};
+
+//--------------------------------------------------------//
+// Generic utils.
+//--------------------------------------------------------//
+
+/// This function parses strings to booleans, properly.
+pub fn parse_str_as_bool(string: &str) -> Result<bool> {
+    let str_lower_case = string.to_lowercase();
+    if str_lower_case == "true" || str_lower_case == "1" {
+        Ok(true)
+    }
+    else if str_lower_case == "false" || str_lower_case == "0" {
+        Ok(false)
+    }
+    else {
+        Err(RLibError::ParseBoolError(string.to_owned()))
+    }
+}
+
+//--------------------------------------------------------//
+// Path utils.
+//--------------------------------------------------------//
 
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<PathBuf>> {
@@ -36,8 +56,12 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
                     Ok(file) => {
                         let file_path = file.path();
 
-                        // If it's a file, add it to the list. If it's a folder, add his files to the list.
-                        if file_path.is_file() { file_list.push(file_path); }
+                        // If it's a file, add it to the list.
+                        if file_path.is_file() {
+                            file_list.push(file_path);
+                        }
+
+                        // If it's a folder, add his files to the list.
                         else if file_path.is_dir() && scan_subdirs {
                             let mut subfolder_files_path = files_from_subdir(&file_path, scan_subdirs)?;
                             file_list.append(&mut subfolder_files_path);
@@ -54,32 +78,6 @@ pub fn files_from_subdir(current_path: &Path, scan_subdirs: bool) -> Result<Vec<
 
     // Return the list of paths.
     Ok(file_list)
-}
-
-/// This function gets the current date and return it, as an u64.
-pub fn current_time() -> Result<u64> {
-    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())
-}
-
-/// This function gets the last modified date from a file and return it, as an u64.
-pub fn last_modified_time_from_file(file: &File) -> Result<u64> {
-    Ok(file.metadata()?.modified()?.duration_since(UNIX_EPOCH)?.as_secs())
-}
-
-/// This function gets the newer last modified time from the provided list.
-pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
-    let mut last_time = 0;
-    for path in paths {
-        if path.is_file() {
-            let file = File::open(path)?;
-            let time = last_modified_time_from_file(&file)?;
-            if time > last_time {
-                last_time = time
-            }
-        }
-    }
-
-    Ok(last_time)
 }
 
 /// This function gets the oldest modified file in a folder and return it.
@@ -107,27 +105,47 @@ pub fn files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<
     Ok(files)
 }
 
-/// This function parses strings to booleans, properly.
-pub fn parse_str_as_bool(string: &str) -> Result<bool> {
-    let str_lower_case = string.to_lowercase();
-    if str_lower_case == "true" || str_lower_case == "1" {
-        Ok(true)
-    }
-    else if str_lower_case == "false" || str_lower_case == "0" {
-        Ok(false)
-    }
-    else {
-        Err(RLibError::ParseBoolError(string.to_owned()))
-    }
+//--------------------------------------------------------//
+// Time utils.
+//--------------------------------------------------------//
+
+/// This function gets the current date and return it, as an u64.
+pub fn current_time() -> Result<u64> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs())
 }
 
+/// This function gets the last modified date from a file and return it, as an u64.
+pub fn last_modified_time_from_file(file: &File) -> Result<u64> {
+    Ok(file.metadata()?.modified()?.duration_since(UNIX_EPOCH)?.as_secs())
+}
+
+/// This function gets the newer last modified time from the provided list.
+pub fn last_modified_time_from_files(paths: &[PathBuf]) -> Result<u64> {
+    let mut last_time = 0;
+    for path in paths {
+        if path.is_file() {
+            let file = File::open(path)?;
+            let time = last_modified_time_from_file(&file)?;
+            if time > last_time {
+                last_time = time
+            }
+        }
+    }
+
+    Ok(last_time)
+}
+
+//--------------------------------------------------------//
+// Pelite utils.
+//--------------------------------------------------------//
+
 /// Function to get the version info of a file, courtesy of TES Loot team.
-pub fn pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
+pub(crate) fn pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
     pe_resources(bytes)?.version_info()
 }
 
 /// Function to get the resources of a file, courtesy of TES Loot team.
-pub fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
+pub(crate) fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
     match pe64::PeFile::from_bytes(bytes) {
         Ok(file) => {
             use pelite::pe64::Pe;
@@ -143,10 +161,11 @@ pub fn pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Erro
     }
 }
 
-/// Function to check for a size mismatch error, to see if we left data to decode.
-pub(crate) fn check_size_mismatch(curr_pos: usize, data_len: usize) -> Result<()> {
-    if curr_pos != data_len {
-        return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
+/// Function to check for a size mismatch error (we expected the cursor to be at `expected_pos`,
+/// but instead we're at `curr_pos`).
+pub(crate) fn check_size_mismatch(curr_pos: usize, expected_pos: usize) -> Result<()> {
+    if curr_pos != expected_pos {
+        return Err(RLibError::DecodingMismatchSizeError(expected_pos, curr_pos));
     }
 
     Ok(())

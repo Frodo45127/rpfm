@@ -1297,6 +1297,7 @@ dependencies = [
 name = "rpfm_lib"
 version = "3.0.6"
 dependencies = [
+ "backtrace",
  "bitflags",
  "byteorder",
  "csv",
@@ -1304,36 +1305,25 @@ dependencies = [
  "fraction",
  "getset",
  "git2",
+ "log",
  "memchr",
+ "os_info",
  "pelite",
  "r2d2",
  "r2d2_sqlite",
  "rand",
  "rayon",
  "ron",
- "rpfm_logging",
  "rusqlite",
- "serde",
- "serde_derive",
- "serde_json",
- "thiserror",
- "uuid",
- "xz2",
-]
-
-[[package]]
-name = "rpfm_logging"
-version = "3.0.7"
-dependencies = [
- "backtrace",
- "log",
- "os_info",
  "sentry",
  "serde",
  "serde_derive",
+ "serde_json",
  "simplelog",
  "thiserror",
  "toml",
+ "uuid",
+ "xz2",
 ]
 
 [[package]]

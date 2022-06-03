@@ -23,10 +23,10 @@
 //! | Extension                | Language | Description                                 |
 //! | ------------------------ | -------- | ------------------------------------------- |
 //! | `.battle_speech_camera`  | `Plain`  | Camera settings file for battle speeches.   |
-//! | `.benchmark`             | `Xml`    |                                             |
+//! | `.benchmark`             | `Xml`    | Benchmark settings.                         |
 //! | `.bob`                   | `Plain`  | BoB settings file.                          |
-//! | `.cindyscene`            | `Xml`    |                                             |
-//! | `.cindyscenemanager`     | `Xml`    |                                             |
+//! | `.cindyscene`            | `Xml`    | Cutscene editor data.                       |
+//! | `.cindyscenemanager`     | `Xml`    | Cutscene editor data.                       |
 //! | `.csv`                   | `Plain`  | Normal CSV file.                            |
 //! | `.environment`           | `Xml`    |                                             |
 //! | `.htm`                   | `Html`   | Normal HTML file.                           |
@@ -37,13 +37,13 @@
 //! | `.lua`                   | `Lua`    | LUA Script file.                            |
 //! | `.tai`                   | `Plain`  |                                             |
 //! | `.technique`             | `Xml`    |                                             |
-//! | `.texture_array`         | `Plain`  |                                             |
+//! | `.texture_array`         | `Plain`  | List of Campaign Map textures.              |
 //! | `.tsv`                   | `Plain`  | Normal TSV file.                            |
 //! | `.txt`                   | `Plain`  | Plain TXT file.                             |
 //! | `.variantmeshdefinition` | `Xml`    |                                             |
 //! | `.wsmodel`               | `Xml`    |                                             |
 //! | `.xml`                   | `Xml`    | Normal XML file.                            |
-//! | `.xml.shader`            | `Xml`    |                                             |
+//! | `.xml.shader`            | `Xml`    | Shader setup metadata.                      |
 //! | `.xml.material`          | `Xml`    |                                             |
 
 use getset::*;
