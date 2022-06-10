@@ -63,6 +63,8 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use std::fmt::Display;
+use std::fmt;
 use rayon::prelude::*;
 use ron::de::from_bytes;
 use ron::ser::{to_string_pretty, PrettyConfig};
@@ -81,6 +83,7 @@ use getset::*;
 //use crate::dependencies::Dependencies;
 
 use crate::error::Result;
+use crate::files::table::DecodedData;
 use self::patch::SchemaPatches;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
@@ -98,6 +101,7 @@ pub const BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purposes.
 const CURRENT_STRUCTURAL_VERSION: u16 = 5;
+const INVALID_VERSION: i32 = -100;
 
 /// Name for unamed colour groups.
 pub const MERGE_COLOUR_NO_NAME: &str = "Unnamed Colour Group";
@@ -492,9 +496,22 @@ impl Definition {
             .collect::<Vec<_>>()
             .join(",");
 
-        let create_table_query = format!("CREATE TABLE {}_v{} (table_unique_id INTEGER DEFAULT 0, {}, {}, {})", table_name, self.version(), fields_query, local_keys, foreign_keys);
-
-        create_table_query
+        if foreign_keys.is_empty() {
+            format!("CREATE TABLE {}_v{} (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                table_name.replace(".", "____"),
+                self.version(),
+                fields_query,
+                local_keys
+            )
+        } else {
+            format!("CREATE TABLE {}_v{} (\"table_unique_id\" INTEGER DEFAULT 0, {}, {}, {})",
+                table_name.replace(".", "____"),
+                self.version(),
+                fields_query,
+                local_keys,
+                foreign_keys
+            )
+        }
     }
 
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
@@ -814,7 +831,7 @@ impl Default for Field {
         }
     }
 }
-/*
+
 /// Display implementation of `FieldType`.
 impl Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -828,14 +845,42 @@ impl Display for FieldType {
             FieldType::ColourRGB => write!(f, "ColourRGB"),
             FieldType::StringU8 => write!(f, "StringU8"),
             FieldType::StringU16 => write!(f, "StringU16"),
+            FieldType::OptionalI16 => write!(f, "OptionalI16"),
+            FieldType::OptionalI32 => write!(f, "OptionalI32"),
+            FieldType::OptionalI64 => write!(f, "OptionalI64"),
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
-            FieldType::SequenceU16(sequence) => write!(f, "SequenceU16 of: {:#?}", sequence),
-            FieldType::SequenceU32(sequence) => write!(f, "SequenceU32 of: {:#?}", sequence),
+            FieldType::SequenceU16(_) => write!(f, "SequenceU16"),
+            FieldType::SequenceU32(_) => write!(f, "SequenceU32"),
         }
     }
 }
 
+/// Implementation of `From<&RawDefinition>` for `Definition.
+impl From<&DecodedData> for FieldType {
+    fn from(data: &DecodedData) -> Self {
+        match data {
+            DecodedData::Boolean(_) => FieldType::Boolean,
+            DecodedData::F32(_) => FieldType::F32,
+            DecodedData::F64(_) => FieldType::F64,
+            DecodedData::I16(_) => FieldType::I16,
+            DecodedData::I32(_) => FieldType::I32,
+            DecodedData::I64(_) => FieldType::I64,
+            DecodedData::ColourRGB(_) => FieldType::ColourRGB,
+            DecodedData::StringU8(_) => FieldType::StringU8,
+            DecodedData::StringU16(_) => FieldType::StringU16,
+            DecodedData::OptionalI16(_) => FieldType::OptionalI16,
+            DecodedData::OptionalI32(_) => FieldType::OptionalI32,
+            DecodedData::OptionalI64(_) => FieldType::OptionalI64,
+            DecodedData::OptionalStringU8(_) => FieldType::OptionalStringU8,
+            DecodedData::OptionalStringU16(_) => FieldType::OptionalStringU16,
+            DecodedData::SequenceU16(_) => FieldType::SequenceU16(Box::new(Definition::new(INVALID_VERSION))),
+            DecodedData::SequenceU32(_) => FieldType::SequenceU32(Box::new(Definition::new(INVALID_VERSION))),
+        }
+    }
+}
+
+/*
 /// Implementation of `From<&RawDefinition>` for `Definition.
 impl From<&RawDefinition> for Definition {
     fn from(raw_definition: &RawDefinition) -> Self {

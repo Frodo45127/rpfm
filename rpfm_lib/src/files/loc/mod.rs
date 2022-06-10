@@ -15,14 +15,14 @@ Loc Tables are the files which contain all the localisation strings used by the 
 They're just tables with a key, a text, and a boolean column.
 !*/
 
-use crate::files::DecodeableExtraData;
-use std::io::SeekFrom;
+use rusqlite::params_from_iter;
 
 use std::{collections::BTreeMap};
 
-use crate::{binary::ReadBytes, schema::*};
+use crate::{binary::{ReadBytes, WriteBytes}, schema::*};
 use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, table::Table};
+use crate::files::{DecodeableExtraData, Decodeable, Encodeable, table::Table};
+use crate::utils::check_size_mismatch;
 
 /// This represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -38,6 +38,10 @@ pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
 /// Extension used by Loc PackedFiles.
 pub const EXTENSION: &str = ".loc";
+
+const VERSION: i32 = 1;
+
+#[cfg(test)] mod loc_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -55,45 +59,6 @@ pub struct Loc {
 //                           Implementation of Loc
 //---------------------------------------------------------------------------//
 
-
-impl Decodeable for Loc {
-
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let table_name = extra_data
-            .ok_or(RLibError::DecodingMissingExtraData)?
-            .table_name
-            .ok_or(RLibError::DecodingMissingExtraData)?;
-
-        let (version, entry_count) = Self::read_header(data)?;
-
-        // Then try to decode all the entries.
-        data.seek(SeekFrom::Start(HEADER_SIZE as u64))?;
-
-        // TODO: Move this to its own function.
-        let mut definition = Definition::new(version);
-        let mut fields = Vec::with_capacity(3);
-        fields.push(Field::new("key".to_owned(), FieldType::StringU16, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("text".to_owned(), FieldType::StringU16, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        definition.set_fields(fields);
-
-        let table_data = Table::decode_table(data, &definition, Some(entry_count), false)?;
-        let table = Table::new(&definition, table_name);
-
-        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        let len = data.len()?;
-        let curr_pos = data.stream_position()?;
-        if len != curr_pos {
-            return Err(RLibError::DecodingMismatchSizeError(len as usize, curr_pos as usize));
-        }
-
-        // If we've reached this, we've successfully decoded the table.
-        Ok(Self {
-            table,
-        })
-    }
-}
-
 /// Implementation of `Loc`.
 impl Loc {
 
@@ -102,6 +67,16 @@ impl Loc {
         Self {
             table: Table::new(definition, table_name),
         }
+    }
+
+    pub(crate) fn definition() -> Definition {
+        let mut definition = Definition::new(VERSION);
+        let mut fields = Vec::with_capacity(3);
+        fields.push(Field::new("key".to_owned(), FieldType::StringU16, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("text".to_owned(), FieldType::StringU16, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        definition.set_fields(fields);
+        definition
     }
     /*
     /// This function returns if the provided data corresponds to a LOC Table or not.
@@ -337,3 +312,49 @@ impl From<Table> for Loc {
     }
 }
 */
+
+
+impl Decodeable for Loc {
+
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
+        let pool = extra_data.pool;
+
+        // Version is always 1, so we ignore it.
+        let (_version, entry_count) = Self::read_header(data)?;
+
+        let definition = Self::definition();
+
+        // If we want to use sql, build the create table query and execute it.
+        // Ignore a failure here, as the table may exists already.
+        if let Some(pool) = pool {
+            let params: Vec<String> = vec![];
+            let create_table = definition.map_to_sql_create_table_string(true, table_name, None, None);
+            let _ = pool.get()?.execute(&create_table, params_from_iter(params.into_iter())).map(|_| ());
+        }
+        let table = Table::decode(data, &definition, Some(entry_count), false, table_name, pool)?;
+
+        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
+        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
+
+        Ok(Self {
+            table,
+        })
+    }
+}
+
+impl Encodeable for Loc {
+
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()> {
+        let pool = if let Some (extra_data) = extra_data { extra_data.pool } else { None };
+
+        buffer.write_u16(BYTEORDER_MARK)?;
+        buffer.write_string_u8(PACKED_FILE_TYPE)?;
+        buffer.write_u8(0)?;
+        buffer.write_i32(*self.table.definition().version())?;
+        buffer.write_u32(self.table.len(pool)? as u32)?;
+
+        self.table.encode(buffer, &None, &None, &pool)
+    }
+}

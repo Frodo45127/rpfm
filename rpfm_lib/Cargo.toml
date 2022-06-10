@@ -7,7 +7,7 @@ edition = "2021"
 rust-version = "1.60"
 
 [features]
-default = []
+default = ["integration_sqlite"]
 
 integration_assembly_kit = []
 integration_git = ["dep:git2"]
@@ -68,6 +68,9 @@ uuid = { version = "^0.8", features = ["v4"] }
 
 # Quick char search support.
 memchr = "^2.5"
+
+# Float equality support.
+float_eq = "^0.7"
 
 # Logging support.
 backtrace = { version = "^0.3", optional = true }

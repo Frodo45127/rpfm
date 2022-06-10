@@ -12,6 +12,9 @@
 //!
 //! ESF files are special files used to hold a variety of data, ranging from trade routes info
 //! to entire campaign savestates.
+//!
+//! Due to the huge complexity of these files, the spec is defined in the submodules containing
+//! the logic for each variation of this file.
 
 use bitflags::bitflags;
 use getset::*;
@@ -23,101 +26,100 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
 
-/// Extensions used by CEO/ESF PackedFiles.
+/// Extensions used by ESF files.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];
 
-/// Signatured/Magic Numbers/Whatever of a ESF PackedFile.
+/// Signatured/Magic Numbers/Whatever of a ESF file.
 pub const SIGNATURE_CAAB: &[u8; 4] = &[0xCA, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CEAB: &[u8; 4] = &[0xCE, 0xAB, 0x00, 0x00];
 pub const SIGNATURE_CFAB: &[u8; 4] = &[0xCF, 0xAB, 0x00, 0x00];
 
 pub mod caab;
-//pub mod diff;
 
 //---------------------------------------------------------------------------//
 //                              Markers, from ESFEdit
 //---------------------------------------------------------------------------//
 
-/// Invalid marker.
+// Invalid marker.
 pub const INVALID: u8 = 0x00;
 
-/// Primitives
-pub const BOOL: u8 = 0x01;
-pub const I8: u8 = 0x02;
-pub const I16: u8 = 0x03;
-pub const I32: u8 = 0x04;
-pub const I64: u8 = 0x05;
-pub const U8: u8 = 0x06;
-pub const U16: u8 = 0x07;
-pub const U32: u8 = 0x08;
-pub const U64: u8 = 0x09;
-pub const F32: u8 = 0x0a;
-pub const F64: u8 = 0x0b;
-pub const COORD_2D: u8 = 0x0c;
-pub const COORD_3D: u8 = 0x0d;
-pub const UTF16: u8 = 0x0e;
-pub const ASCII: u8 = 0x0f;
-pub const ANGLE: u8 = 0x10;
+// Primitives
+const BOOL: u8 = 0x01;
+const I8: u8 = 0x02;
+const I16: u8 = 0x03;
+const I32: u8 = 0x04;
+const I64: u8 = 0x05;
+const U8: u8 = 0x06;
+const U16: u8 = 0x07;
+const U32: u8 = 0x08;
+const U64: u8 = 0x09;
+const F32: u8 = 0x0a;
+const F64: u8 = 0x0b;
+const COORD_2D: u8 = 0x0c;
+const COORD_3D: u8 = 0x0d;
+const UTF16: u8 = 0x0e;
+const ASCII: u8 = 0x0f;
+const ANGLE: u8 = 0x10;
 
-/// Optimized Primitives
-pub const BOOL_TRUE: u8 = 0x12;
-pub const BOOL_FALSE: u8 = 0x13;
-pub const U32_ZERO: u8 = 0x14;
-pub const U32_ONE: u8 = 0x15;
-pub const U32_BYTE: u8 = 0x16;
-pub const U32_16BIT: u8 = 0x17;
-pub const U32_24BIT: u8 = 0x18;
-pub const I32_ZERO: u8 = 0x19;
-pub const I32_BYTE: u8 = 0x1a;
-pub const I32_16BIT: u8 = 0x1b;
-pub const I32_24BIT: u8 = 0x1c;
-pub const F32_ZERO: u8 = 0x1d;
+// Optimized Primitives
+const BOOL_TRUE: u8 = 0x12;
+const BOOL_FALSE: u8 = 0x13;
+const U32_ZERO: u8 = 0x14;
+const U32_ONE: u8 = 0x15;
+const U32_BYTE: u8 = 0x16;
+const U32_16BIT: u8 = 0x17;
+const U32_24BIT: u8 = 0x18;
+const I32_ZERO: u8 = 0x19;
+const I32_BYTE: u8 = 0x1a;
+const I32_16BIT: u8 = 0x1b;
+const I32_24BIT: u8 = 0x1c;
+const F32_ZERO: u8 = 0x1d;
 
-/// Unknown Types
-pub const UNKNOWN_21: u8 = 0x21;
-pub const UNKNOWN_23: u8 = 0x23;
-pub const UNKNOWN_24: u8 = 0x24;
-pub const UNKNOWN_25: u8 = 0x25;
+// Unknown Types
+const UNKNOWN_21: u8 = 0x21;
+const UNKNOWN_23: u8 = 0x23;
+const UNKNOWN_24: u8 = 0x24;
+const UNKNOWN_25: u8 = 0x25;
 
-/// Three Kingdoms DLC Eight Princes types
-pub const UNKNOWN_26: u8 = 0x26;
+// Three Kingdoms DLC Eight Princes types
+const UNKNOWN_26: u8 = 0x26;
 
-/// Primitive Arrays
-pub const BOOL_ARRAY: u8 = 0x41;
-pub const I8_ARRAY: u8 = 0x42;
-pub const I16_ARRAY: u8 = 0x43;
-pub const I32_ARRAY: u8 = 0x44;
-pub const I64_ARRAY: u8 = 0x45;
-pub const U8_ARRAY: u8 = 0x46;
-pub const U16_ARRAY: u8 = 0x47;
-pub const U32_ARRAY: u8 = 0x48;
-pub const U64_ARRAY: u8 = 0x49;
-pub const F32_ARRAY: u8 = 0x4a;
-pub const F64_ARRAY: u8 = 0x4b;
-pub const COORD_2D_ARRAY: u8 = 0x4c;
-pub const COORD_3D_ARRAY: u8 = 0x4d;
-pub const UTF16_ARRAY: u8 = 0x4e;
-pub const ASCII_ARRAY: u8 = 0x4f;
-pub const ANGLE_ARRAY: u8 = 0x50;
+// Primitive Arrays
+const BOOL_ARRAY: u8 = 0x41;
+const I8_ARRAY: u8 = 0x42;
+const I16_ARRAY: u8 = 0x43;
+const I32_ARRAY: u8 = 0x44;
+const I64_ARRAY: u8 = 0x45;
+const U8_ARRAY: u8 = 0x46;
+const U16_ARRAY: u8 = 0x47;
+const U32_ARRAY: u8 = 0x48;
+const U64_ARRAY: u8 = 0x49;
+const F32_ARRAY: u8 = 0x4a;
+const F64_ARRAY: u8 = 0x4b;
+const COORD_2D_ARRAY: u8 = 0x4c;
+const COORD_3D_ARRAY: u8 = 0x4d;
+const UTF16_ARRAY: u8 = 0x4e;
+const ASCII_ARRAY: u8 = 0x4f;
+const ANGLE_ARRAY: u8 = 0x50;
 
-/// Optimized Arrays
-pub const BOOL_TRUE_ARRAY: u8 = 0x52; // makes no sense
-pub const BOOL_FALSE_ARRAY: u8 = 0x53; // makes no sense
-pub const U32_ZERO_ARRAY: u8 = 0x54; // makes no sense
-pub const U32_ONE_ARRAY: u8 = 0x55; // makes no sense
-pub const U32_BYTE_ARRAY: u8 = 0x56;
-pub const U32_16BIT_ARRAY: u8 = 0x57;
-pub const U32_24BIT_ARRAY: u8 = 0x58;
-pub const I32_ZERO_ARRAY: u8 = 0x59; // makes no sense
-pub const I32_BYTE_ARRAY: u8 = 0x5a;
-pub const I32_16BIT_ARRAY: u8 = 0x5b;
-pub const I32_24BIT_ARRAY: u8 = 0x5c;
-pub const F32_ZERO_ARRAY: u8 = 0x5d;  // makes no sense
+// Optimized Arrays
+const BOOL_TRUE_ARRAY: u8 = 0x52; // makes no sense
+const BOOL_FALSE_ARRAY: u8 = 0x53; // makes no sense
+const U32_ZERO_ARRAY: u8 = 0x54; // makes no sense
+const U32_ONE_ARRAY: u8 = 0x55; // makes no sense
+const U32_BYTE_ARRAY: u8 = 0x56;
+const U32_16BIT_ARRAY: u8 = 0x57;
+const U32_24BIT_ARRAY: u8 = 0x58;
+const I32_ZERO_ARRAY: u8 = 0x59; // makes no sense
+const I32_BYTE_ARRAY: u8 = 0x5a;
+const I32_16BIT_ARRAY: u8 = 0x5b;
+const I32_24BIT_ARRAY: u8 = 0x5c;
+const F32_ZERO_ARRAY: u8 = 0x5d;  // makes no sense
 
-pub const COMPRESSED_DATA_TAG: &str = "COMPRESSED_DATA";
-pub const COMPRESSED_DATA_INFO_TAG: &str = "COMPRESSED_DATA_INFO";
+const COMPRESSED_DATA_TAG: &str = "COMPRESSED_DATA";
+const COMPRESSED_DATA_INFO_TAG: &str = "COMPRESSED_DATA_INFO";
 
-// Blocks have quite a few bits that can toggle their behavior.
+// Blocks have quite a few bits that can be toggle to change their behavior.
 bitflags! {
 
     /// This represents the bitmasks a Record Block can have applied to its type byte.
@@ -139,36 +141,44 @@ bitflags! {
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This holds an entire ESF PackedFile decoded in memory.
+/// This holds an entire ESF decoded in memory.
 #[derive(Getters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct ESF {
+
+    /// Signature of the ESF.
     signature: ESFSignature,
+
+    /// Unknown value.
     unknown_1: u32,
+
+    /// Creation date of the ESF.
     creation_date: u32,
+
+    /// Root node of the node tree, containing the entire ESF data on it.
     root_node: NodeType,
 }
 
-/// This enum contains the different signatures of ESF files.
+/// This enum represents the different signatures of ESF files.
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum ESFSignature {
 
-    /// Signature found on 3K files.
+    // Signature found on 3K files.
     CAAB,
     CEAB,
     CFAB
 }
 
-/// Node types supported by the ESF.
+/// This enum represents all known node types present on ESF files.
 ///
 /// NOTE: These are partially extracted from EditSF.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum NodeType {
 
-    /// Invalid type.
+    // Invalid type.
     Invalid,
 
-    /// Primitive nodes.
+    // Primitive nodes.
     Bool(BoolNode),
     I8(i8),
     I16(i16),
@@ -186,14 +196,14 @@ pub enum NodeType {
     Ascii(String),
     Angle(i16),
 
-    /// Unknown Types
+    // Unknown Types
     Unknown21(u32),
     Unknown23(u8),
     //Unknown24(u32),
     Unknown25(u32),
     Unknown26(Vec<u8>),
 
-    /// Primitive Arrays
+    // Primitive Arrays
     BoolArray(Vec<bool>),
     I8Array(Vec<i8>),
     I16Array(Vec<i16>),
@@ -211,7 +221,7 @@ pub enum NodeType {
     AsciiArray(Vec<String>),
     AngleArray(Vec<i16>),
 
-    /// Record nodes
+    // Record nodes
     Record(RecordNode),
 }
 
@@ -284,9 +294,17 @@ pub struct Coordinates3DNode {
 #[derive(Getters, Setters, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct RecordNode {
+
+    /// Flags applied to this record node.
     record_flags: RecordNodeFlags,
+
+    /// Version of this record node.
     version: u8,
+
+    /// Name of the record node.
     name: String,
+
+    /// Children nodes of this record node.
     children: Vec<Vec<NodeType>>
 }
 
@@ -296,16 +314,8 @@ pub struct RecordNode {
 
 /// Implementation of `ESF`.
 impl ESF {
-    /*
-    /// This function returns if the provided data corresponds to a ESF or not.
-    pub fn is_esf(data: &[u8]) -> bool {
-        match data.decode_bytes_checked(0, 4) {
-            Ok(signature) => signature == SIGNATURE_CAAB,
-            Err(_) => false,
-        }
-    }*/
 
-    /// This function creates a copy of an ESF without the root node..
+    /// This function creates a copy of an ESF without the root node.
     pub fn clone_without_root_node(&self) -> Self {
         Self {
             signature: self.signature,
@@ -334,183 +344,6 @@ impl NodeType {
             _ => self.clone()
         }
     }
-
-    /*pub fn get_removed_nodes(&self, vanilla_node: &NodeType) -> NodeType {
-        match vanilla_node {
-            Self::Record(vanilla_node) => {
-                match self {
-                    Self::Record(node) => {
-
-                        // If there's a difference in the nodes, it may be due to missing nodes.
-                        // We need to dig deeper.
-                        if vanilla_node.get_ref_children() != node.get_ref_children() {
-
-                        }
-                    }
-                }
-            }
-        }
-    }*/
-/*
-    /// This function checks if the provided NodeType values are "equal", even if the type is different.
-    pub fn eq_value(&self, other: &Self) -> bool {
-        match self {
-           // Invalid type.
-            Self::Invalid => other == &Self::Invalid,
-
-            // Primitive nodes.
-            Self::Bool(value) => match other {
-                Self::Bool(other_value) => value.optimized == other_value.optimized && value.value == other_value.value,
-                Self::BoolTrue => value.optimized && value.value,
-                Self::BoolFalse => value.optimized && !value.value,
-                _ => false
-            },
-            Self::I8(value) => match other {
-                Self::I8(other_value) => value == other_value,
-                _ => false
-            },
-            Self::I16(value) => match other {
-                Self::I16(other_value) => value == other_value,
-                _ => false
-            },
-            Self::I32(value) => match other {
-                Self::I32Zero => *value == 0,
-                Self::I32Byte(other_value) => value == other_value,
-                Self::I32_16bit(other_value) => value == other_value,
-                Self::I32_24bit(other_value) => value == other_value,
-                Self::I32(other_value) => value == other_value,
-                _ => false
-            },
-            Self::I64(value) => match other {
-                Self::I64(other_value) => value == other_value,
-                _ => false
-            },
-            Self::U8(value) => match other {
-                Self::U8(other_value) => value == other_value,
-                _ => false
-            },
-            Self::U16(value) => match other {
-                Self::U16(other_value) => value == other_value,
-                _ => false
-            },
-            Self::U32(value) => match other {
-                Self::U32Zero => *value == 0,
-                Self::U32One => *value == 1,
-                Self::U32Byte(other_value) => value == other_value,
-                Self::U32_16bit(other_value) => value == other_value,
-                Self::U32_24bit(other_value) => value == other_value,
-                Self::U32(other_value) => value == other_value,
-                _ => false
-            },
-            Self::U64(value) => match other {
-                Self::U64(other_value) => value == other_value,
-                _ => false
-            },
-            Self::F32(value) => match other {
-                Self::F32(other_value) =>  (value - other_value).abs() >= std::f32::EPSILON,
-                Self::F32Zero =>  (value - 0.0).abs() >= std::f32::EPSILON,
-                _ => false
-            },
-            Self::F64(value) => match other {
-                Self::F64(other_value) => value == other_value,
-                _ => false
-            },
-            Self::Coord2d(value) => match other {
-                Self::Coord2d(other_value) => value == other_value,
-                _ => false
-            },
-            Self::Coord3d(value) => match other {
-                Self::Coord3d(other_value) => value == other_value,
-                _ => false
-            },
-            Self::Utf16(value) => match other {
-                Self::Utf16(other_value) => value == other_value,
-                _ => false
-            },
-            Self::Ascii(value) => match other {
-                Self::Ascii(other_value) => value == other_value,
-                _ => false
-            },
-            Self::Angle(value) => match other {
-                Self::Angle(other_value) => value == other_value,
-                _ => false
-            },
-
-            // Optimized Primitives
-            Self::BoolTrue => match other {
-                Self::Bool(other_value) => other_value.optimized && other_value.value,
-                Self::BoolTrue => true,
-                _ => false
-            },
-            Self::BoolFalse => match other {
-                Self::Bool(other_value) => other_value.optimized && !other_value.value,
-                Self::BoolFalse => true,
-                _ => false
-            },
-            Self::U32Zero => match other {
-                Self::U32Zero => true,
-                Self::U32One => false,
-                Self::U32Byte(other_value) => *other_value == 0,
-                Self::U32_16bit(other_value) => *other_value == 0,
-                Self::U32_24bit(other_value) => *other_value == 0,
-                Self::U32(other_value) => *other_value == 0,
-                _ => false
-            },
-            Self::U32One => match other {
-                Self::U32Zero => false,
-                Self::U32One => true,
-                Self::U32Byte(other_value) => *other_value == 1,
-                Self::U32_16bit(other_value) => *other_value == 1,
-                Self::U32_24bit(other_value) => *other_value == 1,
-                Self::U32(other_value) => *other_value == 1,
-                _ => false
-            },
-            Self::U32Byte(value) => {false},
-            Self::U32_16bit(value) => {false},
-            Self::U32_24bit(value) => {false},
-            Self::I32Zero => {false},
-            Self::I32Byte(value) => {false},
-            Self::I32_16bit(value) => {false},
-            Self::I32_24bit(value) => {false},
-            Self::F32Zero => {false},
-
-            // Unknown Types
-            Self::Unknown21(value) => {false},
-            Self::Unknown23(value) => {false},
-            //Self::Unknown24(u32) => {false},
-            Self::Unknown25(value) => {false},
-            Self::Unknown26(value) => {false},
-
-            // Primitive Arrays
-            Self::BoolArray(value) => {false},
-            Self::I8Array(value) => {false},
-            Self::I16Array(value) => {false},
-            Self::I32Array(value) => {false},
-            Self::I64Array(value) => {false},
-            Self::U8Array(value) => {false},
-            Self::U16Array(value) => {false},
-            Self::U32Array(value) => {false},
-            Self::U64Array(value) => {false},
-            Self::F32Array(value) => {false},
-            Self::F64Array(value) => {false},
-            Self::Coord2dArray(value) => {false},
-            Self::Coord3dArray(value) => {false},
-            Self::Utf16Array(value) => {false},
-            Self::AsciiArray(value) => {false},
-            Self::AngleArray(value) => {false},
-
-            // Optimized Arrays
-            Self::U32ByteArray(value) => {false},
-            Self::U32_16bitArray(value) => {false},
-            Self::U32_24bitArray(value) => {false},
-            Self::I32ByteArray(value) => {false},
-            Self::I32_16bitArray(value) => {false},
-            Self::I32_24bitArray(value) => {false},
-
-            // Record nodes
-            Self::Record(value) => {false},
-        }
-    }*/
 }
 
 /// Default implementation for `ESF`.
@@ -536,14 +369,16 @@ impl Display for ESFSignature {
     }
 }
 
-/// Implementation to create an `ESFSignature` from a `&str`.
-impl From<&str> for ESFSignature {
-    fn from(data: &str) -> Self {
-        match data {
-            "CAAB" => Self::CAAB,
-            "CEAB" => Self::CEAB,
-            "CFAB" => Self::CFAB,
-            _ => unimplemented!()
+/// TryFrom implementation of `ESFSignature`.
+impl TryFrom<&str> for ESFSignature {
+    type Error = RLibError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "CAAB" => Ok(Self::CAAB),
+            "CEAB" => Ok(Self::CEAB),
+            "CFAB" => Ok(Self::CFAB),
+            _ => Err(RLibError::UnknownESFSignature(value.to_string())),
         }
     }
 }
@@ -569,6 +404,7 @@ impl Decodeable for ESF {
             _ => return Err(RLibError::DecodingESFUnsupportedSignature(signature_bytes[0], signature_bytes[1])),
         };
 
+        // Debugging code.
         //use std::io::Write;
         //let mut x = std::fs::File::create("ceo.json")?;
         //x.write_all(&serde_json::to_string_pretty(&esf).unwrap().as_bytes())?;
@@ -578,10 +414,11 @@ impl Decodeable for ESF {
 }
 
 impl Encodeable for ESF {
+
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer),
-            _ => todo!(),
+            _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),
         }
     }
 }

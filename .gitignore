@@ -94,6 +94,8 @@ shortcuts.ron
 /test_files/test_encode_utf16_le.html
 /test_files/test_encode_v1.unit_variant
 /test_files/test_encode_v2.unit_variant
+/test_files/test_encode_no_sqlite.loc
+/test_files/test_encode_sqlite.loc
 
 # Secret tokens.
 gh-token

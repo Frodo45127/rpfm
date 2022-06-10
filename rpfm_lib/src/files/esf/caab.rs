@@ -8,17 +8,13 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code needed to support the CAAB format for ESF files.
-!*/
-
-use crate::error::{RLibError, Result};
+//! Module with the logic and documentation for the CAAB ESF files.
 
 use std::collections::BTreeMap;
 use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
-
+use crate::error::{RLibError, Result};
 
 use super::*;
 

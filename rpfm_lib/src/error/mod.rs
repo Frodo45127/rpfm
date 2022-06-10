@@ -45,6 +45,9 @@ pub enum RLibError {
     DecodeIntError(#[from] std::num::ParseIntError),
 
     #[error(transparent)]
+    DecodeFloatError(#[from] std::num::ParseFloatError),
+
+    #[error(transparent)]
     DecodeUTF8Error(#[from] std::string::FromUtf8Error),
 
     #[error(transparent)]
@@ -102,6 +105,9 @@ pub enum RLibError {
     #[error("Unknown PFH Version: {0}")]
     UnknownPFHVersion(String),
 
+    #[error("Unknown ESF Signature: {0}")]
+    UnknownESFSignature(String),
+
     #[error("This is either not a Text File, or a Text File using an unsupported encoding")]
     DecodingTextUnsupportedEncodingOrNotATextFile,
 
@@ -123,6 +129,9 @@ pub enum RLibError {
     #[error("String not found: {0}.")]
     DecodingESFStringNotFound(u32),
 
+    #[error("Unsupported signature: {0}.")]
+    EncodingESFUnsupportedSignature(String),
+
     #[error("Error decoding combined colour.")]
     DecodingTableCombinedColour,
 
@@ -137,6 +146,12 @@ pub enum RLibError {
 
     #[error("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files.")]
     DecodingMissingExtraData,
+
+    #[error("Error while trying to save a row from a table: We expected a row with \"{0}\" fields, but we got a row with \"{1}\" fields instead.")]
+    TableRowWrongFieldCount(usize, usize),
+
+    #[error("Error while trying to save a row from a table: We expected a field of type \"{0}\", but we got a field of type \"{1}\".")]
+    EncodingTableWrongFieldType(String, String),
 
     #[error("There are no definitions for this specific version of the table in the Schema and the table is empty. This means this table cannot be open nor decoded.")]
     DecodingDBNoDefinitionsFoundAndEmptyFile,
@@ -167,6 +182,9 @@ pub enum RLibError {
 
     #[error("The file's data has been altered on disk by another program since the last time it was accessed by us.")]
     FileSourceChanged,
+
+    #[error("The SQLite connection pool hasn't been initialized yet.")]
+    MissingSQLitePool,
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
@@ -201,6 +219,11 @@ pub enum RLibError {
     #[cfg(feature = "integration_sqlite")]
     #[error(transparent)]
     R2D2Error(#[from] r2d2::Error),
+
+    /// Represents all other cases of `rustqlite::Error`.
+    #[cfg(feature = "integration_sqlite")]
+    #[error(transparent)]
+    RusqliteError(#[from] rusqlite::Error),
 
     /// Represents all other cases of `toml::ser::Error`.
     #[error(transparent)]

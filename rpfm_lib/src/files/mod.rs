@@ -40,6 +40,9 @@
 //! [`UIC`]: crate::files::uic
 //! [`UnitVariant`]: crate::files::unit_variant
 
+#[cfg(feature = "integration_sqlite")] use r2d2::Pool;
+#[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
+
 use std::path::Path;
 use crate::compression::Decompressible;
 use crate::encryption::Decryptable;
@@ -195,6 +198,9 @@ pub struct DecodeableExtraData<'a> {
     sevenzip_path: Option<&'a Path>,
     test_mode: bool,
     file_name: Option<&'a str>,
+
+    #[cfg(feature = "integration_sqlite")]
+    pool: Option<&'a Pool<SqliteConnectionManager>>,
 }
 
 //---------------------------------------------------------------------------//
