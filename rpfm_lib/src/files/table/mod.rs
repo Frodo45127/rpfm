@@ -56,7 +56,12 @@ pub enum TableData {
     Local(Vec<Vec<DecodedData>>),
 
     /// Variant to hold the unique key of this table in the SQL backend.
-    Sql(u64)
+    Sql(SQLData)
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SQLData {
+    table_unique_id: u64,
 }
 
 /// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
@@ -363,15 +368,19 @@ impl DecodedData {
 impl Table {
 
     /// This function creates a new Table from an existing definition.
-    pub fn new(definition: &Definition, table_name: &str) -> Self {
+    pub fn new(definition: &Definition, table_name: &str, use_sql_backend: bool) -> Self {
+        let table_data = if use_sql_backend {
+            TableData::Sql(SQLData {
+                table_unique_id: rand::random::<u64>(),
+            })
+        } else {
+            TableData::Local(vec![])
+        };
+
         Self {
             definition: definition.clone(),
             table_name: table_name.to_owned(),
-            table_data: if cfg!(feature = "integration_sqlite") {
-                TableData::Sql(rand::random::<u64>())
-            } else {
-                TableData::Local(vec![])
-            },
+            table_data
         }
     }
 
@@ -492,12 +501,10 @@ impl Table {
     pub fn len(&self, pool: Option<&Pool<SqliteConnectionManager>>) -> Result<usize> {
         match &self.table_data {
             TableData::Local(data) => Ok(data.len()),
-            TableData::Sql(table_unique_id) => {
-                match pool {
-                    Some(pool) => Self::count_table(pool, &self.table_name, *self.definition().version(), *table_unique_id).map(|x| x as usize),
-                    None => Err(RLibError::MissingSQLitePool),
-                }
-            },
+            TableData::Sql(sqldata) => match pool {
+                Some(pool) => Self::count_table(pool, &self.table_name, *self.definition().version(), sqldata.table_unique_id).map(|x| x as usize),
+                None => Err(RLibError::MissingSQLitePool),
+            }
         }
     }
 
@@ -737,21 +744,7 @@ impl Table {
     pub(crate) fn encode<W: WriteBytes>(&self, data: &mut W, game_key: &Option<&str>, schema_patches: &Option<&SchemaPatches>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
 
         // Get the table data in local format, no matter in what backend we stored it.
-        let entries = match self.table_data {
-            TableData::Local(ref data) => Cow::from(data),
-            TableData::Sql(table_unique_id) => {
-                match pool {
-                    Some(pool) => {
-                        let fields_processed = self.definition().fields_processed();
-                        let version = self.definition().version();
-                        let data = Self::select_all_from_table(pool, &self.table_name, *version, table_unique_id, &fields_processed)?;
-                        Cow::from(data)
-                    }
-                    None => return Err(RLibError::MissingSQLitePool),
-                }
-            },
-        };
-
+        let entries = self.data(pool)?;
         let fields = self.definition.fields();
         let fields_processed = self.definition.fields_processed();
 
@@ -931,6 +924,24 @@ impl Table {
         }
 
         Ok(())
+    }
+
+    /// This function returns the data stored in the table.
+    pub fn data(&self, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<Cow<[Vec<DecodedData>]>> {
+
+        // Get the table data in local format, no matter in what backend we stored it.
+        match self.table_data {
+            TableData::Local(ref data) => Ok(Cow::from(data)),
+            TableData::Sql(ref sqldata) => match pool {
+                Some(pool) => {
+                    let fields_processed = self.definition().fields_processed();
+                    let version = self.definition().version();
+                    let data = Self::select_all_from_table(pool, &self.table_name, *version, sqldata.table_unique_id, &fields_processed)?;
+                    Ok(Cow::from(data))
+                }
+                None => Err(RLibError::MissingSQLitePool),
+            },
+        }
     }
 
 /*

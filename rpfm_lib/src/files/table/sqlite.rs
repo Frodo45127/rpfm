@@ -10,6 +10,7 @@
 
 //! Module to hold all table functions specific of the SQLite backend.
 
+use crate::files::table::SQLData;
 use crate::schema::Field;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -41,7 +42,9 @@ impl Table {
         let table_data = if let Some(pool) = use_sqlite_backend {
             let table_unique_id = rand::random::<u64>();
             Self::insert(&pool, &table_data, definition, table_name, table_unique_id, true)?;
-            TableData::Sql(table_unique_id)
+            TableData::Sql(SQLData {
+                table_unique_id,
+            })
         } else {
             TableData::Local(table_data)
         };

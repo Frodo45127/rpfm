@@ -107,7 +107,7 @@ impl Decodeable for DB {
                 if let Ok(table_data) = Table::decode_table(data, definition, Some(entry_count), return_incomplete) {
                     let curr_pos = data.stream_position()?;
                     if curr_pos == len {
-                        result = Ok((Table::new(definition, table_name), table_data));
+                        result = Ok((Table::new(definition, table_name, false), table_data));
                         break;
                     }
                 }
@@ -124,7 +124,7 @@ impl Decodeable for DB {
             })?;
 
             let table_data = Table::decode_table(data, definition, Some(entry_count), return_incomplete)?;
-            let table = Table::new(definition, table_name);
+            let table = Table::new(definition, table_name, false);
             (table, table_data)
         };
 
