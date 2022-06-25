@@ -250,7 +250,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
             game_selected_icon: "gs_3k.png".to_owned(),
             game_selected_big_icon: "gs_big_3k.png".to_owned(),
@@ -259,8 +259,59 @@ impl SupportedGames {
             install_data: {
                 let mut data = HashMap::new();
                 data.insert(InstallType::WinSteam, InstallData {
-                    vanilla_packs: vec![],
-                    use_manifest: true,
+                    vanilla_packs: vec![
+                        "audio.pack".to_owned(),
+                        "audio_bl.pack".to_owned(),
+                        "boot.pack".to_owned(),
+                        "data.pack".to_owned(),
+                        "data_bl.pack".to_owned(),
+                        "data_dlc06.pack".to_owned(),
+                        "data_dlc07.pack".to_owned(),
+                        "data_ep.pack".to_owned(),
+                        "data_mh.pack".to_owned(),
+                        "data_yt.pack".to_owned(),
+                        "data_yt_bl.pack".to_owned(),
+                        "database.pack".to_owned(),
+                        "fast.pack".to_owned(),
+                        "fast_bl.pack".to_owned(),
+                        "local_en.pack".to_owned(),     // English
+                        "local_br.pack".to_owned(),     // Brazilian
+                        "local_cz.pack".to_owned(),     // Czech
+                        "local_ge.pack".to_owned(),     // German
+                        "local_sp.pack".to_owned(),     // Spanish
+                        "local_fr.pack".to_owned(),     // French
+                        "local_it.pack".to_owned(),     // Italian
+                        "local_kr.pack".to_owned(),     // Korean
+                        "local_pl.pack".to_owned(),     // Polish
+                        "local_ru.pack".to_owned(),     // Russian
+                        "local_tr.pack".to_owned(),     // Turkish
+                        "local_cn.pack".to_owned(),     // Simplified Chinese
+                        "local_zh.pack".to_owned(),     // Traditional Chinese
+                        "models.pack".to_owned(),
+                        "models2.pack".to_owned(),
+                        "movies.pack".to_owned(),
+                        "movies_bl.pack".to_owned(),
+                        "movies_dlc06.pack".to_owned(),
+                        "movies_ep.pack".to_owned(),
+                        "movies_mh.pack".to_owned(),
+                        "movies_wb.pack".to_owned(),
+                        "movies_yt.pack".to_owned(),
+                        "movies_yt_bl.pack".to_owned(),
+                        "movies2.pack".to_owned(),
+                        "shaders.pack".to_owned(),
+                        "shaders_bl.pack".to_owned(),
+                        "terrain.pack".to_owned(),
+                        "terrain2.pack".to_owned(),
+                        "terrain3.pack".to_owned(),
+                        "terrain4.pack".to_owned(),
+                        "terrain5.pack".to_owned(),
+                        "variants.pack".to_owned(),
+                        "variants_bl.pack".to_owned(),
+                        "variants_dds.pack".to_owned(),
+                        "variants_dds_bl.pack".to_owned(),
+                        "vegetation.pack".to_owned(),
+                    ],
+                    use_manifest: false,
                     store_id: 779_340,
                     executable: "Three_Kingdoms.exe".to_owned(),
                     data_path: "data".to_owned(),
