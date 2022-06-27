@@ -21,7 +21,7 @@
 //! | Bytes | Type     | Data                                           |
 //! | ----- | -------- | ---------------------------------------------- |
 //! | 2     | [u16]    | Byteorder mark. Always 0xFF0xFE.               |
-//! | 3     | StringU8 | FileType String. Always LOC.                    |
+//! | 3     | StringU8 | FileType String. Always LOC.                   |
 //! | 1     | [u8]     | Unknown, always 0. Maybe part of the fileType? |
 //! | 4     | [u32]    | Version of the table. Always 1.                |
 //! | 4     | [u32]    | Amount of entries on the table.                |
@@ -37,7 +37,6 @@
 use getset::{Getters, Setters};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params_from_iter;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -168,7 +167,7 @@ impl Loc {
             return Err(RLibError::DecodingLocNotALocTable)
         }
 
-        // More checks to ensure this is a valid Loc PAckedFile.
+        // More checks to ensure this is a valid Loc file.
         if BYTEORDER_MARK != data.read_u16()? {
             return Err(RLibError::DecodingLocNotALocTable)
         }
@@ -289,15 +288,7 @@ impl Decodeable for Loc {
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-
-        // If we want to use sql, build the create table query and execute it.
-        // Ignore a failure here, as the table may exists already.
-        if let Some(pool) = pool {
-            let params: Vec<String> = vec![];
-            let create_table = definition.map_to_sql_create_table_string(true, table_name, None, None);
-            let _ = pool.get()?.execute(&create_table, params_from_iter(params.into_iter())).map(|_| ());
-        }
-        let table = Table::decode(data, &definition, Some(entry_count), false, table_name, pool)?;
+        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, table_name)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

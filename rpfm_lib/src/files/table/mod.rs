@@ -22,10 +22,11 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::io::SeekFrom;
 
 use crate::error::{RLibError, Result};
-use crate::schema::patch::SchemaPatches;
-use crate::{binary::{ReadBytes, WriteBytes}, schema::*};
+use crate::schema::{*, patch::SchemaPatches};
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::utils::parse_str_as_bool;
 
 mod local;
@@ -38,13 +39,17 @@ mod local;
 /// This struct contains the data of a Table-like PackedFile after being decoded.
 ///
 /// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
-#[derive(Clone, Debug, PartialEq, Getters, Serialize, Deserialize)]
-#[getset(get = "pub")]
+#[derive(Clone, Debug, PartialEq, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
-    definition: Definition,
     table_name: String,
+
+    #[getset(skip)]
+    definition: Definition,
+
+    #[getset(skip)]
     table_data: TableData
 }
 
@@ -384,12 +389,13 @@ impl Table {
         }
     }
 
+    /// This function returns a reference of the definition of this Table.
+    pub fn definition(&self) -> &Definition {
+        &self.definition
+    }
+
     /*
 
-    /// This function returns a copy of the definition of this Table.
-    pub fn get_definition(&self) -> Definition {
-        self.definition.clone()
-    }
 
     /// This function returns a reference to the definition of this Table.
     pub fn get_ref_definition(&self) -> &Definition {
@@ -614,9 +620,12 @@ impl Table {
             }
 
             FieldType::SequenceU16(definition) => {
-                match Self::decode_table(data, definition, None, false) {
+                let start = data.stream_position()?;
+                let entry_count = data.read_u16()?;
+                match Self::decode_table(data, definition, Some(entry_count as u32), false) {
                     Ok(_) => {
-                        let end = data.stream_position()?;
+                        let end = data.stream_position()? - start;
+                        data.seek(SeekFrom::Start(start))?;
                         let blob = data.read_slice(end as usize, false)?;
                         Ok(DecodedData::SequenceU16(blob))
                     }
@@ -625,11 +634,14 @@ impl Table {
             }
 
             FieldType::SequenceU32(definition) => {
-                match Self::decode_table(data, definition, None, false) {
+                let start = data.stream_position()?;
+                let entry_count = data.read_u32()?;
+                match Self::decode_table(data, definition, Some(entry_count), false) {
                     Ok(_) => {
-                        let end = data.stream_position()?;
+                        let end = data.stream_position()? - start;
+                        data.seek(SeekFrom::Start(start))?;
                         let blob = data.read_slice(end as usize, false)?;
-                        Ok(DecodedData::SequenceU16(blob))
+                        Ok(DecodedData::SequenceU32(blob))
                     }
                     Err(error) => Err(RLibError::DecodingTableFieldSequenceDataError(row + 1, column + 1, error.to_string(), "SequenceU32".to_string()))
                 }
@@ -805,6 +817,7 @@ impl Table {
                                     _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
                                 }
 
+
                             },
                             _ => return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(&row[*data_column]).to_string(), field.field_type().to_string()))
                         }
@@ -849,7 +862,7 @@ impl Table {
                         DecodedData::I16(field_data) => data.write_i16(*field_data)?,
                         DecodedData::I32(field_data) => data.write_i32(*field_data)?,
                         DecodedData::I64(field_data) => data.write_i64(*field_data)?,
-                        DecodedData::ColourRGB(field_data) => data.write_string_u8(&field_data)?,
+                        DecodedData::ColourRGB(field_data) => data.write_string_colour_rgb(&field_data)?,
                         DecodedData::OptionalI16(field_data) => {
                             data.write_bool(true)?;
                             data.write_i16(*field_data)?
@@ -914,8 +927,21 @@ impl Table {
                             }
                         }
 
-                        DecodedData::SequenceU16(field_data) |
-                        DecodedData::SequenceU32(field_data) => data.write_all(&field_data)?,
+                        // Make sure we at least have the counter before writing. We need at least that.
+                        DecodedData::SequenceU16(field_data) => {
+                            if field_data.len() < 2 {
+                                data.write_all(&vec![0, 0])?
+                            } else {
+                                data.write_all(&field_data)?
+                            }
+                        },
+                        DecodedData::SequenceU32(field_data) => {
+                            if field_data.len() < 4 {
+                                data.write_all(&vec![0, 0, 0, 0])?
+                            } else {
+                                data.write_all(&field_data)?
+                            }
+                        }
                     }
 
                     data_column += 1;
@@ -942,6 +968,159 @@ impl Table {
                 None => Err(RLibError::MissingSQLitePool),
             },
         }
+    }
+
+    /// This function returns a new empty row for the provided definition.
+    pub fn new_row(definition: &Definition, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> Vec<DecodedData> {
+        definition.fields_processed().iter()
+            .map(|field|
+                match field.field_type() {
+                    FieldType::Boolean => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if default_value.to_lowercase() == "true" {
+                                DecodedData::Boolean(true)
+                            } else {
+                                DecodedData::Boolean(false)
+                            }
+                        } else {
+                            DecodedData::Boolean(false)
+                        }
+                    }
+                    FieldType::F32 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<f32>() {
+                                DecodedData::F32(default_value)
+                            } else {
+                                DecodedData::F32(0.0)
+                            }
+                        } else {
+                            DecodedData::F32(0.0)
+                        }
+                    },
+                    FieldType::F64 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<f64>() {
+                                DecodedData::F64(default_value)
+                            } else {
+                                DecodedData::F64(0.0)
+                            }
+                        } else {
+                            DecodedData::F64(0.0)
+                        }
+                    },
+                    FieldType::I16 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                DecodedData::I16(default_value)
+                            } else {
+                                DecodedData::I16(0)
+                            }
+                        } else {
+                            DecodedData::I16(0)
+                        }
+                    },
+                    FieldType::I32 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                DecodedData::I32(default_value)
+                            } else {
+                                DecodedData::I32(0)
+                            }
+                        } else {
+                            DecodedData::I32(0)
+                        }
+                    },
+                    FieldType::I64 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                DecodedData::I64(default_value)
+                            } else {
+                                DecodedData::I64(0)
+                            }
+                        } else {
+                            DecodedData::I64(0)
+                        }
+                    },
+
+                    FieldType::ColourRGB => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if u32::from_str_radix(&default_value, 16).is_ok() {
+                                DecodedData::ColourRGB(default_value)
+                            } else {
+                                DecodedData::ColourRGB("000000".to_owned())
+                            }
+                        } else {
+                            DecodedData::ColourRGB("000000".to_owned())
+                        }
+                    },
+                    FieldType::StringU8 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            DecodedData::StringU8(default_value.to_owned())
+                        } else {
+                            DecodedData::StringU8(String::new())
+                        }
+                    }
+                    FieldType::StringU16 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            DecodedData::StringU16(default_value.to_owned())
+                        } else {
+                            DecodedData::StringU16(String::new())
+                        }
+                    }
+
+                    FieldType::OptionalI16 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                DecodedData::OptionalI16(default_value)
+                            } else {
+                                DecodedData::OptionalI16(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI16(0)
+                        }
+                    },
+                    FieldType::OptionalI32 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                DecodedData::OptionalI32(default_value)
+                            } else {
+                                DecodedData::OptionalI32(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI32(0)
+                        }
+                    },
+                    FieldType::OptionalI64 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                DecodedData::OptionalI64(default_value)
+                            } else {
+                                DecodedData::OptionalI64(0)
+                            }
+                        } else {
+                            DecodedData::OptionalI64(0)
+                        }
+                    },
+
+                    FieldType::OptionalStringU8 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            DecodedData::OptionalStringU8(default_value.to_owned())
+                        } else {
+                            DecodedData::OptionalStringU8(String::new())
+                        }
+                    }
+                    FieldType::OptionalStringU16 => {
+                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                            DecodedData::OptionalStringU16(default_value.to_owned())
+                        } else {
+                            DecodedData::OptionalStringU16(String::new())
+                        }
+                    },
+                    FieldType::SequenceU16(_) => DecodedData::SequenceU16(vec![0, 0]),
+                    FieldType::SequenceU32(_) => DecodedData::SequenceU32(vec![0, 0, 0, 0])
+                }
+            )
+            .collect()
     }
 
 /*

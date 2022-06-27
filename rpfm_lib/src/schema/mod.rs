@@ -420,14 +420,25 @@ impl Definition {
                 }
 
                 else if let Some(colour_index) = x.is_part_of_colour() {
-                    if split_colour_fields.get(&colour_index).is_none() {
-                        let colour_split = x.name().rsplitn(2, "_").collect::<Vec<&str>>();
-                        let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                    match split_colour_fields.get_mut(&colour_index) {
 
-                        let mut field = x.clone();
-                        field.set_name(colour_field_name);
-                        field.set_field_type(FieldType::ColourRGB);
-                        split_colour_fields.insert(colour_index, field);
+                        // If found, add the default value to the other previously known default value.
+                        // TODO: fix the combined default value of colour columns.
+                        Some(field) => {}
+                        None => {
+                            let colour_split = x.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                            let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+
+                            let mut field = x.clone();
+                            field.set_name(colour_field_name);
+                            field.set_field_type(FieldType::ColourRGB);
+
+                            // We need to fix the default value so it's a ColourRGB one.
+                            //let default_value = Some("0".to_owned());
+                            //field.set_default_value(default_value);
+
+                            split_colour_fields.insert(colour_index, field);
+                        }
                     }
 
                     None
@@ -489,7 +500,8 @@ impl Definition {
         let fields_sorted = self.fields_processed_sorted(key_first);
         let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(Some(table_name), game_key, schema_patches)).collect::<Vec<_>>().join(",");
 
-        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(","));
+        let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
+        let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", local_keys_join);
         let foreign_keys = fields_sorted.iter()
             .filter_map(|field| field.is_reference().clone().map(|(ref_table, ref_column)| (field.name(), ref_table, ref_column)))
             .map(|(loc_name, ref_table, ref_field)| format!("CONSTRAINT fk_{} FOREIGN KEY (\"{}\") REFERENCES {}(\"{}\") ON UPDATE CASCADE ON DELETE CASCADE", table_name, loc_name, ref_table, ref_field))
@@ -497,15 +509,30 @@ impl Definition {
             .join(",");
 
         if foreign_keys.is_empty() {
-            format!("CREATE TABLE {}_v{} (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
-                table_name.replace(".", "____"),
+            if local_keys_join.is_empty() {
+                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {})",
+                    table_name.replace("\"", "'"),
+                    self.version(),
+                    fields_query
+                )
+            } else {
+                format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                    table_name.replace("\"", "'"),
+                    self.version(),
+                    fields_query,
+                    local_keys
+                )
+            }
+        } else if local_keys_join.is_empty() {
+            format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
+                table_name.replace("\"", "'"),
                 self.version(),
                 fields_query,
-                local_keys
+                foreign_keys
             )
         } else {
-            format!("CREATE TABLE {}_v{} (\"table_unique_id\" INTEGER DEFAULT 0, {}, {}, {})",
-                table_name.replace(".", "____"),
+            format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {}, {})",
+                table_name.replace("\"", "'"),
                 self.version(),
                 fields_query,
                 local_keys,

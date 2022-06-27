@@ -62,12 +62,15 @@ use crate::{error::{Result, RLibError}, games::pfh_version::PFHVersion, schema::
 use self::loc::Loc;
 use self::text::Text;
 
+pub mod anim_fragment;
 pub mod animpack;
+pub mod anims_table;
 pub mod ca_vp8;
 pub mod db;
 pub mod esf;
 pub mod image;
 pub mod loc;
+pub mod matched_combat;
 pub mod pack;
 pub mod rigidmodel;
 pub mod table;
@@ -198,6 +201,9 @@ pub struct DecodeableExtraData<'a> {
     sevenzip_path: Option<&'a Path>,
     test_mode: bool,
     file_name: Option<&'a str>,
+
+    table_has_guid: bool,
+    regenerate_table_guid: bool,
 
     #[cfg(feature = "integration_sqlite")]
     pool: Option<&'a Pool<SqliteConnectionManager>>,

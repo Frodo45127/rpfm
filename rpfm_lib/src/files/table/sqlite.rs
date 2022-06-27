@@ -29,24 +29,31 @@ use super::{DecodedData, Table, TableData};
 impl Table {
 
     pub(crate) fn decode<R: ReadBytes>(
+        pool: &Option<&Pool<SqliteConnectionManager>>,
         data: &mut R,
         definition: &Definition,
         entry_count: Option<u32>,
         return_incomplete: bool,
         table_name: &str,
-        use_sqlite_backend: Option<&Pool<SqliteConnectionManager>>,
     ) -> Result<Self> {
 
         let table_data = Self::decode_table(data, definition, entry_count, return_incomplete)?;
+        let table_data = match pool {
+            Some(pool) => {
 
-        let table_data = if let Some(pool) = use_sqlite_backend {
-            let table_unique_id = rand::random::<u64>();
-            Self::insert(&pool, &table_data, definition, table_name, table_unique_id, true)?;
-            TableData::Sql(SQLData {
-                table_unique_id,
-            })
-        } else {
-            TableData::Local(table_data)
+                // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
+                let params: Vec<String> = vec![];
+                let create_table = definition.map_to_sql_create_table_string(true, table_name, None, None);
+                let _ = pool.get()?.execute(&create_table, params_from_iter(params.into_iter())).map(|_| ());
+
+                // Load the data to the database.
+                let table_unique_id = rand::random::<u64>();
+                Self::insert(&pool, &table_data, definition, table_name, table_unique_id, true)?;
+                TableData::Sql(SQLData {
+                    table_unique_id,
+                })
+            },
+            None => TableData::Local(table_data),
         };
 
         let table = Self {
@@ -97,8 +104,8 @@ impl Table {
             }).collect::<Vec<_>>().join(","))
         }).collect::<Vec<_>>().join(",");
 
-        let query = format!("INSERT OR REPLACE INTO {}_v{} {} VALUES {}",
-            table_name.replace(".", "____"),
+        let query = format!("INSERT OR REPLACE INTO \"{}_v{}\" {} VALUES {}",
+            table_name.replace("\"", "'"),
             definition.version(),
             definition.map_to_sql_insert_into_string(key_first),
             values
@@ -118,9 +125,9 @@ impl Table {
         fields: &[Field],
     ) -> Result<Vec<Vec<DecodedData>>> {
         let field_names = fields.iter().map(|field| field.name()).collect::<Vec<&str>>().join(",");
-        let query = format!("SELECT {} FROM {}_v{} WHERE table_unique_id = {} order by ROWID",
+        let query = format!("SELECT {} FROM \"{}_v{}\" WHERE table_unique_id = {} order by ROWID",
             field_names,
-            table_name.replace(".", "____"),
+            table_name.replace("\"", "'"),
             table_version,
             table_unique_id
         );
@@ -155,10 +162,8 @@ impl Table {
 
         let mut data = vec![];
         for row in rows {
-
             data.push(row?);
         }
-        dbg!(&data);
 
         Ok(data)
     }
@@ -170,8 +175,8 @@ impl Table {
         table_version: i32,
         table_unique_id: u64,
     ) -> Result<u64> {
-        let query = format!("SELECT COUNT(*) FROM {}_v{} WHERE table_unique_id = {}",
-            table_name.replace(".", "____"),
+        let query = format!("SELECT COUNT(*) FROM \"{}_v{}\" WHERE table_unique_id = {}",
+            table_name.replace("\"", "'"),
             table_version,
             table_unique_id
         );

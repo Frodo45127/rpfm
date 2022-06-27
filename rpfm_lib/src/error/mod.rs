@@ -165,6 +165,9 @@ pub enum RLibError {
     #[error("This is either not a Loc Table, or it's a Loc Table but it's corrupted.")]
     DecodingLocNotALocTable,
 
+    #[error("This is either not a Matched Combat Table, or it's a Matched Combat Table but it's corrupted.")]
+    DecodingMatchedCombatNotAMatchedCombatTable,
+
     #[error("This is either not an Unit Variant, or it's an Unit Variant but it's corrupted.")]
     DecodingUnitVariantNotAUnitVariant,
 
