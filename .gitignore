@@ -96,6 +96,11 @@ shortcuts.ron
 /test_files/test_encode_v2.unit_variant
 /test_files/test_encode_no_sqlite.loc
 /test_files/test_encode_sqlite.loc
+/test_files/test_encode_db_no_sqlite
+/test_files/test_encode_db_sqlite
+/test_files/test_encode_matched_combat.bin
+/test_files/test_encode_anim_fragment.frg
+/test_files/test_encode_anims_table.bin
 
 # Secret tokens.
 gh-token
