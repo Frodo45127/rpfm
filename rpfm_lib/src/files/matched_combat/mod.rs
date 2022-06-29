@@ -41,7 +41,7 @@ use std::collections::BTreeMap;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable, table::{DecodedData, Table}};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
@@ -175,7 +175,7 @@ impl Decodeable for MatchedCombat {
 
 impl Encodeable for MatchedCombat {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_i32(*self.table.definition().version())?;
         buffer.write_u32(self.table.len(None)? as u32)?;
 

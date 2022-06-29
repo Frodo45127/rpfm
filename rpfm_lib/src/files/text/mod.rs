@@ -52,7 +52,7 @@ use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{Decodeable, Encodeable};
+use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::DecodeableExtraData;
 
@@ -237,7 +237,7 @@ impl Decodeable for Text {
 
 impl Encodeable for Text {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         match self.encoding {
             Encoding::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
             Encoding::Utf8 => buffer.write_string_u8(&self.contents),

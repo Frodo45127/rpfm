@@ -17,7 +17,7 @@ use getset::*;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Signature/Magic Numbers/Whatever of a RigidModel.
 #[allow(dead_code)]
@@ -53,7 +53,7 @@ impl Decodeable for RigidModel {
 
 impl Encodeable for RigidModel {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }

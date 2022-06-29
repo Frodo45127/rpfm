@@ -147,6 +147,9 @@ pub enum RLibError {
     #[error("Missing extra data required to decode the file. This means the programmer messed up the code while that tries to decode files.")]
     DecodingMissingExtraData,
 
+    #[error("Missing or invalid extra data provided: \"{0}\"")]
+    DecodingMissingExtraDataField(String),
+
     #[error("Error while trying to save a row from a table: We expected a row with \"{0}\" fields, but we got a row with \"{1}\" fields instead.")]
     TableRowWrongFieldCount(usize, usize),
 

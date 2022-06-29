@@ -43,7 +43,7 @@ use std::collections::BTreeMap;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable, table::{DecodedData, Table}};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
@@ -301,7 +301,7 @@ impl Decodeable for Loc {
 
 impl Encodeable for Loc {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
         let pool = if let Some (extra_data) = extra_data { extra_data.pool } else { None };
 
         buffer.write_u16(BYTEORDER_MARK)?;

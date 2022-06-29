@@ -24,7 +24,7 @@ use std::{fmt, fmt::Display};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by ESF files.
 pub const EXTENSIONS: [&str; 3] = [".ccd", ".esf", ".save"];
@@ -415,7 +415,7 @@ impl Decodeable for ESF {
 
 impl Encodeable for ESF {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer),
             _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),

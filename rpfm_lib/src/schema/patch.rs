@@ -21,7 +21,6 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::collections::HashMap;
 use std::io::BufWriter;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "integration_log")] use integrations::log::*;
 use getset::*;
@@ -117,7 +116,7 @@ impl SchemaPatch {
     #[cfg(feature = "integration_log")]
     pub fn upload(&self, sentry_guard: &ClientInitGuard, game_name: &str) -> Result<()> {
         let level = Level::Info;
-        let message = format!("Summited Schema Patch for: {} - {}.", game_name, SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis());
+        let message = format!("Summited Schema Patch for: {} - {}.", game_name, crate::utils::current_time());
         let config = PrettyConfig::default();
         let mut data = vec![];
         to_writer_pretty(&mut data, &self, config)?;

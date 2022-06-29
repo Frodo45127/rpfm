@@ -24,12 +24,10 @@ fn test_decode_pfh6() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
 }
-
 
 #[test]
 fn test_decode_pfh5() {
@@ -39,7 +37,6 @@ fn test_decode_pfh5() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -53,7 +50,6 @@ fn test_decode_pfh4() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -67,7 +63,6 @@ fn test_decode_pfh3() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -81,7 +76,6 @@ fn test_decode_pfh2() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
@@ -95,12 +89,10 @@ fn test_decode_pfh0() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
     let pack = Pack::decode(&mut reader, Some(decodeable_extra_data));
     assert!(pack.is_ok());
 }
-
 
 #[test]
 fn test_encode_pfh6() {
@@ -111,13 +103,13 @@ fn test_encode_pfh6() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
@@ -139,13 +131,13 @@ fn test_encode_pfh5() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
@@ -167,13 +159,13 @@ fn test_encode_pfh4() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
@@ -195,13 +187,13 @@ fn test_encode_pfh3() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
@@ -224,13 +216,13 @@ fn test_encode_pfh2() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];
@@ -243,7 +235,6 @@ fn test_encode_pfh2() {
     assert_eq!(data_pack_1, data_pack_2);
 }
 
-
 #[test]
 fn test_encode_pfh0() {
 
@@ -254,13 +245,13 @@ fn test_encode_pfh0() {
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
-    decodeable_extra_data.test_mode = true;
 
-    let mut pack_1 = Pack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
-    {
-        let mut file = BufWriter::new(File::create(path_2).unwrap());
-        pack_1.encode(&mut file, Some(decodeable_extra_data)).unwrap();
-    }
+    let mut pack = Pack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut file = BufWriter::new(File::create(path_2).unwrap());
+
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.test_mode = true;
+    pack.encode(&mut file, Some(encodeable_extra_data)).unwrap();
 
     let mut data_pack_1 = vec![];
     let mut data_pack_2 = vec![];

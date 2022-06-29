@@ -12,52 +12,59 @@
 //!
 //! # Known file types
 //!
-//! | File Type       | Decoding Supported | Encoding Supported |
-//! | --------------- | ------------------ | ------------------ |
-//! | [`AnimPack`]    | Yes                | Yes                |
-//! | [`CAVP8`]       | Yes                | Yes                |
-//! | [`DB`]          | Yes                | Yes                |
-//! | [`ESF`]         | Limited            | Limited            |
-//! | [`Image`]       | Yes                | Yes                 |
-//! | [`Loc`]         | Yes                | Yes                |
-//! | [`Pack`]        | Yes                | Yes                |
-//! | [`RigidModel`]  | No                 | No                 |
-//! | [`Text`]        | Yes                | Yes                |
-//! | [`UIC`]         | No                 | No                 |
-//! | [`UnitVariant`] | Yes                | Yes                |
+//! | File Type         | Decoding Supported | Encoding Supported |
+//! | ----------------- | ------------------ | ------------------ |
+//! | [`AnimFragment`]  | Yes                | Yes                |
+//! | [`AnimPack`]      | Yes                | Yes                |
+//! | [`AnimsTable`]    | Yes                | Yes                |
+//! | [`CAVP8`]         | Yes                | Yes                |
+//! | [`DB`]            | Yes                | Yes                |
+//! | [`ESF`]           | Limited            | Limited            |
+//! | [`Image`]         | Yes                | Yes                |
+//! | [`Loc`]           | Yes                | Yes                |
+//! | [`MatchedCombat`] | Yes                | Yes                |
+//! | [`Pack`]          | Yes                | Yes                |
+//! | [`RigidModel`]    | No                 | No                 |
+//! | [`Text`]          | Yes                | Yes                |
+//! | [`UIC`]           | No                 | No                 |
+//! | [`UnitVariant`]   | Yes                | Yes                |
 //!
 //! For more information about specific file types, including their binary format spec, please **check their respective modules**.
 //!
-//! [`AnimPack`]: crate::files::animpack
-//! [`CAVP8`]: crate::files::ca_vp8
-//! [`DB`]: crate::files::db
-//! [`ESF`]: crate::files::esf
-//! [`Image`]: crate::files::image
-//! [`Loc`]: crate::files::loc
-//! [`Pack`]: crate::files::pack
-//! [`RigidModel`]: crate::files::rigidmodel
-//! [`Text`]: crate::files::text
-//! [`UIC`]: crate::files::uic
-//! [`UnitVariant`]: crate::files::unit_variant
+//! [`AnimFragment`]: crate::files::anim_fragment::AnimFragment
+//! [`AnimPack`]: crate::files::animpack::AnimPack
+//! [`AnimsTable`]: crate::files::anims_table::AnimsTable
+//! [`CAVP8`]: crate::files::ca_vp8::CaVp8
+//! [`DB`]: crate::files::db::DB
+//! [`ESF`]: crate::files::esf::ESF
+//! [`Image`]: crate::files::image::Image
+//! [`Loc`]: crate::files::loc::Loc
+//! [`MatchedCombat`]: crate::files::matched_combat::MatchedCombat
+//! [`Pack`]: crate::files::pack::Pack
+//! [`RigidModel`]: crate::files::rigidmodel::RigidModel
+//! [`Text`]: crate::files::text::Text
+//! [`UIC`]: crate::files::uic::UIC
+//! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 
 #[cfg(feature = "integration_sqlite")] use r2d2::Pool;
 #[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 
-use std::path::Path;
-use crate::compression::Decompressible;
-use crate::encryption::Decryptable;
-use std::io::Read;
-use std::io::Seek;
-use std::io::SeekFrom;
-use std::fs::File;
 use getset::*;
 use rayon::prelude::*;
 
-use std::io::BufReader;
-use std::{collections::HashMap, fmt::Debug, io::Cursor};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::fs::File;
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
+use std::path::Path;
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::{error::{Result, RLibError}, games::pfh_version::PFHVersion, schema::Schema, utils::*};
+use crate::compression::Decompressible;
+use crate::encryption::Decryptable;
+use crate::error::{Result, RLibError};
+use crate::games::pfh_version::PFHVersion;
+use crate::schema::Schema;
+use crate::utils::*;
 
 use self::loc::Loc;
 use self::text::Text;
@@ -82,26 +89,33 @@ pub mod unit_variant;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents an individual file, either in the disk, inside a container like a PackFile,
-/// or already decoded on memory. It's used to perform file-level actions in a generic way, without
-/// interfering with their file's data, type or format.
+/// This struct represents an individual file, including the metadata associated with it.
+///
+/// It can represent both, a file within a Pack (or anything implementing [Container] really), or a single
+/// file on disk.
+///
+/// It supports Lazy-Loading to reduce RAM usage.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RFile {
 
     /// Path of the file within a [`Container`]. It may be an empty string if the file is not in one.
-    path: String,
+    path_in_container: String,
 
     /// Last modified date of the file. Optional.
     timestamp: Option<u64>,
 
+    /// The type of this file.
     file_type: FileType,
 
     /// Inner data of the file.
+    ///
+    /// Internal only. Users should use the [`RFile`] methods instead of using this directly.
     data: RFileInnerData,
 }
 
-/// This enum contains the inner data of each [`RFile`]. Despite being public, is not recommended to
-/// manipulate this data directly unless you know what you're doing.
+/// This enum contains the data of each [`RFile`].
+///
+/// This is internal only.
 #[derive(Clone, Debug, PartialEq)]
 enum RFileInnerData {
 
@@ -115,17 +129,28 @@ enum RFileInnerData {
     OnDisk(OnDisk)
 }
 
-/// This struct represents a file on disk. This may be a file directly on disk, or one inside another file
-/// (like inside a Pack).
+/// This struct represents a file on disk, which data has not been loaded to memory yet.
+///
+/// This may be a file directly on disk, or one inside another file (like inside a [Container]).
+///
+/// This is internal only. Users should not use it directly.
 #[derive(Clone, Debug, PartialEq, Getters)]
 struct OnDisk {
 
-    /// Path of the file or the containing file.
+    /// Path of the file on disk where the data is.
+    ///
+    /// This may be a singular file or a file containing it
     path: String,
 
+    /// Last modified date of the file that contains the data.
+    ///
+    /// This is used to both, get the last modified data into the file's metadata
+    /// and to check if the file has been manipulated since we created the OnDisk of it.
     timestamp: u64,
 
-    /// Offset of the start of the file's data. 0 if the data is not inside another file.
+    /// Offset of the start of the file's data.
+    ///
+    /// `0` if the whole file is the data we want.
     start: u64,
 
     /// Size in bytes of the file's data.
@@ -138,73 +163,118 @@ struct OnDisk {
     is_encrypted: Option<PFHVersion>,
 }
 
+/// This enum allow us to store any kind of decoded file type on a common place.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RFileDecoded {
-    Text(self::text::Text),
-    Loc(self::loc::Loc)
+    Text(Text),
+    Loc(Loc)
 }
 
 /// This enum specifies the known types of files we can find in a Total War game.
 ///
-/// This list is not exhaustive and it may get bigger in the future as more files are added to the list.
-/// For each file info, please check their dedicated submodule.
+/// This list is not exhaustive and it may get bigger in the future as more files are added.
+///
+/// For each file info, please check their dedicated submodule if exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FileType {
     Anim,
     AnimFragment,
     AnimPack,
-    AnimTable,
+    AnimsTable,
     CaVp8,
     CEO,
     DB,
     ESF,
-    Image,
     GroupFormations,
+    Image,
     Loc,
     MatchedCombat,
+    Pack,
     RigidModel,
+    Text,
     UIC,
     UnitVariant,
-
-    /// This one is an exception, as it contains the TextType of the Text PackedFile, so we can do things depending on the type.
-    Text,
-
-    /// This one is special. It's used just in case we want to open the Dependency PackFile List as a PackedFile.
-    DependencyPackFilesList,
-
-    /// To identify PackFiles in a PackedFile context.
-    Pack,
-    PackFileSettings,
     Unknown,
 }
 
-/// This enum represents a ***Path*** inside a container.
+/// This enum represents a ***Path*** inside a [Container].
 pub enum ContainerPath {
 
     /// This variant represents the path of a single file.
     File(String),
 
     /// This variant represents the path of a single folder.
+    ///
+    /// If this is empty, it represents the root of the container.
     Folder(String),
 }
 
-#[derive(Clone, Default)]
+/// This is a generic struct to easily pass additional data to a [Decodeable::decode] method.
+///
+/// To know what you need to provide to each file type, please check their documentation.
+#[derive(Clone, Default, Getters, Setters)]
+#[getset(get = "pub", set = "pub")]
 pub struct DecodeableExtraData<'a> {
+
+    /// Path of a file on disk, if any.
     disk_file_path: Option<&'a str>,
+
+    /// Offset of a file on disk where the data we're interested on starts.
     disk_file_offset: u64,
+
+    /// Timestamp of a file on disk.
     timestamp: u64,
+
+    /// For [Container] implementors, if they should use LazyLoading for their files.
     lazy_load: bool,
+
+    /// If the data was encrypted (all data that reach the decode functions should be already decrypted).
     is_encrypted: bool,
+
+    /// Schema for the decoder to use. Mainly for tables.
     schema: Option<&'a Schema>,
+
+    /// Name of the folder that contains a table fragment.
     table_name: Option<&'a str>,
+
+    /// If the decoder should return incomplete data on failure (only for tables).
     return_incomplete: bool,
-    sevenzip_path: Option<&'a Path>,
-    test_mode: bool,
+
+    /// Name of the file we're trying to decode.
     file_name: Option<&'a str>,
 
+    /// SQLite Database Pool. For allowing connections to the database.
+    #[cfg(feature = "integration_sqlite")]
+    pool: Option<&'a Pool<SqliteConnectionManager>>,
+}
+
+
+/// This is a generic struct to easily pass additional data to a [Encodeable::encode] method.
+///
+/// To know what you need to provide to each file type, please check their documentation.
+#[derive(Clone, Default, Getters, Setters)]
+#[getset(get = "pub", set = "pub")]
+pub struct EncodeableExtraData<'a> {
+
+    /// If we're running the encode method on test mode.
+    test_mode: bool,
+
+    /// Name of the folder that contains a table fragment.
+    table_name: Option<&'a str>,
+
+    /// Path of 7z.exe. Used for compressing.
+    sevenzip_path: Option<&'a Path>,
+
+    /// Name of the file we're trying to encode.
+    file_name: Option<&'a str>,
+
+    /// Only for tables. If we should add a GUID to its header or not.
     table_has_guid: bool,
+
+    /// Only for tables. If we should regenerate the GUID of the table (if it even has one) or keep the current one.
     regenerate_table_guid: bool,
 
+    /// SQLite Database Pool. For allowing connections to the database.
     #[cfg(feature = "integration_sqlite")]
     pool: Option<&'a Pool<SqliteConnectionManager>>,
 }
@@ -213,22 +283,49 @@ pub struct DecodeableExtraData<'a> {
 //                           Trait Definitions
 //---------------------------------------------------------------------------//
 
+/// A generic trait to implement decoding logic from anything implementing [ReadBytes](crate::binary::ReadBytes)
+/// into structured types.
 pub trait Decodeable: Send + Sync {
+
+    /// This method provides a generic and expandable way to decode anything implementing [ReadBytes](crate::binary::ReadBytes)
+    /// into the implementor's structure.
+    ///
+    /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the decoding process.
     fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> where Self: Sized;
 }
 
+/// A generic trait to implement encoding logic from structured types into anything implementing [WriteBytes](crate::binary::WriteBytes).
 pub trait Encodeable: Send + Sync {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()>;
+
+    /// This method provides a generic and expandable way to encode any implementor's structure into anything
+    /// implementing [WriteBytes](crate::binary::WriteBytes)
+    ///
+    /// The parameter `extra_data` contains arguments that can be used to provide additional data needed for the encoding process.
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()>;
 }
 
+/// An interface to easily work with container-like files.
+///
+/// This trait allow any implementor to provide methods to manipulate them like [RFile] Containers.
 pub trait Container {
+
+    /// This method allow us to insert an [RFile] within a Container, replacing any old [RFile]
+    /// with the same path, in case it already existed one.
+    ///
+    /// Returns the [ContainerPath] of the inserted [RFile].
     fn insert(&mut self, file: RFile) -> ContainerPath {
-        let path = file.path();
-        let path_raw = file.path_raw();
+        let path = file.path_in_container();
+        let path_raw = file.path_in_container_raw();
         self.files_mut().insert(path_raw.to_owned(), file);
         path
     }
 
+    /// This method allow us to remove any [RFile] matching the provided [ContainerPath] from a Container.
+    ///
+    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
+    /// meaning passing this will delete all the RFiles within the container.
+    ///
+    /// Returns the list of removed [ContainerPath], always using the [File](ContainerPath::File) variant.
     fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath> {
         match path {
             ContainerPath::File(path) => {
@@ -257,11 +354,26 @@ pub trait Container {
         }
     }
 
+    /// This method returns the path on disk of the provided Container.
+    ///
+    /// Implementors should return `""` if the provided Container is not from a disk file.
     fn disk_file_path(&self) -> &str;
-    fn disk_file_offset(&self) -> u64;
-    fn files(&self) -> &HashMap<std::string::String, RFile>;
-    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile>;
 
+    /// This method returns the offset of the data of this Container in its disk file.
+    ///
+    /// Implementors should return `0` if the provided Container is not within another Container.
+    fn disk_file_offset(&self) -> u64;
+
+    /// This method returns a reference to the RFiles inside the provided Container.
+    fn files(&self) -> &HashMap<String, RFile>;
+
+    /// This method returns a mutable reference to the RFiles inside the provided Container.
+    fn files_mut(&mut self) -> &mut HashMap<String, RFile>;
+
+    /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    ///
+    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
+    /// meaning passing this will return all RFiles within the container.
     fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile> {
         match path {
             ContainerPath::File(path) => {
@@ -288,17 +400,22 @@ pub trait Container {
         }
     }
 
+    /// This method returns the list of [ContainerPath] corresponding to RFiles within the provided Container.
     fn paths(&self) -> Vec<ContainerPath> {
         self.files().par_iter().map(|(path, _)| ContainerPath::File(path.to_owned())).collect()
     }
 
-    fn paths_raw(&self) -> Vec<String> {
+    /// This method returns the list of paths (as [&str]) corresponding to RFiles within the provided Container.
+    fn paths_raw(&self) -> Vec<&str> {
         self.files()
             .par_iter()
-            .map(|(path, _)| path.to_owned())
+            .map(|(path, _)| &**path)
             .collect()
     }
 
+    /// This method returns the `Last modified date` of the provided Container on disk, in seconds.
+    ///
+    /// Implementors should return `0` if the Container doesn't have a file on disk yet.
     fn timestamp(&self) -> u64;
 }
 
@@ -313,7 +430,7 @@ impl RFile {
         is_encrypted: Option<PFHVersion>,
         data_pos: u64,
         timestamp: u64,
-        path: &str,
+        path_in_container: &str,
     ) -> Self {
         let on_disk = OnDisk {
             path: container.disk_file_path().to_owned(),
@@ -325,7 +442,7 @@ impl RFile {
         };
 
         Self {
-            path: path.to_owned(),
+            path_in_container: path_in_container.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
@@ -350,9 +467,9 @@ impl RFile {
             };
 */
 
-    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Self {
+    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path_in_container: &str) -> Self {
         Self {
-            path: path.to_owned(),
+            path_in_container: path_in_container.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Cached(data.to_vec())
@@ -454,11 +571,11 @@ impl RFile {
         self.file_type.clone()
     }
 
-    pub fn path(&self) -> ContainerPath {
-        ContainerPath::File(self.path.to_owned())
+    pub fn path_in_container(&self) -> ContainerPath {
+        ContainerPath::File(self.path_in_container.to_owned())
     }
-    pub fn path_raw(&self) -> &str {
-        &self.path
+    pub fn path_in_container_raw(&self) -> &str {
+        &self.path_in_container
     }
 
     pub fn is_compressible(&self) -> bool {

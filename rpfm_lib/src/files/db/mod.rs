@@ -44,7 +44,7 @@ use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable, table::{DecodedData, Table}};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
 use crate::schema::{Definition, Field, FieldType, patch::SchemaPatches};
 use crate::utils::check_size_mismatch;
 
@@ -176,7 +176,7 @@ impl Decodeable for DB {
 
 impl Encodeable for DB {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
         let pool = if let Some (ref extra_data) = extra_data { extra_data.pool } else { None };
         let table_has_guid = if let Some (ref extra_data) = extra_data { extra_data.table_has_guid } else { false };
         let regenerate_table_guid = if let Some (ref extra_data) = extra_data { extra_data.regenerate_table_guid } else { false };

@@ -49,7 +49,7 @@ use crate::games::pfh_file_type::PFHFileType;
 use crate::files::RFile;
 
 use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, Encodeable};
+use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use crate::files::Container;
 //use crate::files::table::DecodedData;
 //use crate::files::db::DB;
@@ -265,7 +265,7 @@ impl Decodeable for Pack {
 
 impl Encodeable for Pack {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
         let (sevenzip_path, test_mode) = if let Some(extra_data) = extra_data {
             (extra_data.sevenzip_path, extra_data.test_mode)
         } else { (None, false) };
@@ -396,7 +396,7 @@ impl Pack {
     fn add_file(&mut self, mut file: RFile) -> Result<()> {
 
         // Filter out special files, so we only leave the normal files in.
-        let path = file.path_raw();
+        let path = file.path_in_container_raw();
         if path == RESERVED_NAME_NOTES {
             let mut data = Cursor::new(file.encode(false, true)?.unwrap());
             let data_len = data.len()?;

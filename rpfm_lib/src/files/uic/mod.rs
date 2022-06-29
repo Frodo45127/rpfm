@@ -17,7 +17,7 @@
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Signature/Magic Numbers/Whatever of an UnitVariant.
 const SIGNATURE: &str = "Version";
@@ -65,7 +65,7 @@ impl Decodeable for UIC {
 
 impl Encodeable for UIC {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_string_u8(SIGNATURE)?;
         buffer.write_u32(self.version)?;
 

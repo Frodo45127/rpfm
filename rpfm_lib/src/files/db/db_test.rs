@@ -10,18 +10,19 @@
 
 //! Module containing tests for decoding/encoding `DB` files.
 
-use crate::files::table::TableData;
-use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 
 use crate::binary::ReadBytes;
 use crate::files::*;
-use crate::files::table::Table;
 
 use super::DB;
 /*
 #[test]
 fn test_generate_table() {
+    use crate::files::table::Table;
+    use crate::files::table::TableData;
+
     let definition = DB::test_definition();
     let mut table: DB = From::from(Table::new(&definition, "test_decode_db", false));
     let row_1 = table.new_row(None, None);
@@ -37,7 +38,6 @@ fn test_generate_table() {
     writer.write_all(&after).unwrap();
     panic!();
 }*/
-
 
 #[test]
 fn test_encode_db_no_sqlite() {
@@ -85,10 +85,12 @@ fn test_encode_db_sqlite() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = DB::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
+    let mut data = DB::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, Some(decodeable_extra_data)).unwrap();
+    let mut encodeable_extra_data = EncodeableExtraData::default();
+    encodeable_extra_data.pool = Some(&pool);
+    data.encode(&mut after, Some(encodeable_extra_data)).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();

@@ -88,7 +88,7 @@ use getset::*;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by CaVp8 Files.
 pub const EXTENSION: &str = ".ca_vp8";
@@ -184,7 +184,7 @@ impl Decodeable for CaVp8 {
 }
 
 impl Encodeable for CaVp8 {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         match self.format {
             SupportedFormats::CaVp8 => self.save_cavp8(buffer),
             SupportedFormats::Ivf => self.save_ivf(buffer),

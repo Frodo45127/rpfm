@@ -72,7 +72,7 @@ use getset::*;
 
 use crate::error::{RLibError, Result};
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
 /// Signature/Magic Numbers/Whatever of an UnitVariant.
@@ -218,7 +218,7 @@ impl Decodeable for UnitVariant {
 
 impl Encodeable for UnitVariant {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
 
         let mut encoded_variants = vec![];
         let mut encoded_categories = vec![];

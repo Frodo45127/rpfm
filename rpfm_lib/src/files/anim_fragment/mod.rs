@@ -41,7 +41,7 @@ use std::collections::BTreeMap;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
-use crate::files::{DecodeableExtraData, Decodeable, Encodeable, table::{DecodedData, Table}};
+use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
 use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
@@ -188,7 +188,7 @@ impl Decodeable for AnimFragment {
 
 impl Encodeable for AnimFragment {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<DecodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.skeleton_1)?;
         buffer.write_sized_string_u8(&self.skeleton_2)?;
         buffer.write_i32(self.min_id)?;
