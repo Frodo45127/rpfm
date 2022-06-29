@@ -29,7 +29,11 @@
 //! | [`UIC`]           | No                 | No                 |
 //! | [`UnitVariant`]   | Yes                | Yes                |
 //!
-//! For more information about specific file types, including their binary format spec, please **check their respective modules**.
+//! There is an additional type: [`Unknown`]. This type is used as a wildcard,
+//! so you can get the raw data of any non-supported file type and manipulate it yourself in a safe way.
+//!
+//! For more information about specific file types, including their binary format spec, please
+//! **check their respective documentation**.
 //!
 //! [`AnimFragment`]: crate::files::anim_fragment::AnimFragment
 //! [`AnimPack`]: crate::files::animpack::AnimPack
@@ -45,6 +49,7 @@
 //! [`Text`]: crate::files::text::Text
 //! [`UIC`]: crate::files::uic::UIC
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
+//! [`Unknown`]: crate::files::unknown::Unknown
 
 #[cfg(feature = "integration_sqlite")] use r2d2::Pool;
 #[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
@@ -66,8 +71,21 @@ use crate::games::pfh_version::PFHVersion;
 use crate::schema::Schema;
 use crate::utils::*;
 
+use self::anim_fragment::AnimFragment;
+use self::animpack::AnimPack;
+use self::anims_table::AnimsTable;
+use self::ca_vp8::CaVp8;
+use self::db::DB;
+use self::esf::ESF;
+use self::image::Image;
 use self::loc::Loc;
+use self::matched_combat::MatchedCombat;
+use self::pack::Pack;
+use self::rigidmodel::RigidModel;
 use self::text::Text;
+use self::uic::UIC;
+use self::unit_variant::UnitVariant;
+use self::unknown::Unknown;
 
 pub mod anim_fragment;
 pub mod animpack;
@@ -84,6 +102,7 @@ pub mod table;
 pub mod text;
 pub mod uic;
 pub mod unit_variant;
+pub mod unknown;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -166,8 +185,24 @@ struct OnDisk {
 /// This enum allow us to store any kind of decoded file type on a common place.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RFileDecoded {
+    Anim(Unknown),
+    AnimFragment(AnimFragment),
+    AnimPack(AnimPack),
+    AnimsTable(AnimsTable),
+    CaVp8(CaVp8),
+    CEO(ESF),
+    DB(DB),
+    ESF(ESF),
+    GroupFormations(Unknown),
+    Image(Image),
+    Loc(Loc),
+    MatchedCombat(MatchedCombat),
+    Pack(Pack),
+    RigidModel(RigidModel),
     Text(Text),
-    Loc(Loc)
+    UIC(UIC),
+    UnitVariant(UnitVariant),
+    Unknown(Unknown),
 }
 
 /// This enum specifies the known types of files we can find in a Total War game.
@@ -247,7 +282,6 @@ pub struct DecodeableExtraData<'a> {
     #[cfg(feature = "integration_sqlite")]
     pool: Option<&'a Pool<SqliteConnectionManager>>,
 }
-
 
 /// This is a generic struct to easily pass additional data to a [Encodeable::encode] method.
 ///
