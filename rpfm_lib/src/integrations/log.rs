@@ -20,22 +20,18 @@ Otherwise, none of them will work.
 !*/
 
 use backtrace::Backtrace;
-use log::{error, info, warn};
+pub use log::{error, info, warn};
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*};
 use serde_derive::Serialize;
 use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode, WriteLogger};
 
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
-use std::panic::PanicInfo;
+use std::{panic, panic::PanicInfo};
 use std::path::Path;
-use std::panic;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::Result;
 use crate::utils::current_time;
-
-pub mod error;
 
 /// Log files to log execution steps and other messages.
 const LOG_FILE_CURRENT: &str = "rpfm.log";
@@ -177,7 +173,7 @@ impl Logger {
 
     /// This function tries to save a generated Crash Report to the provided folder.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let file_path = path.join(format!("error/error-report-{}.toml", current_time()));
+        let file_path = path.join(format!("error/error-report-{}.toml", current_time()?));
         let mut file = BufWriter::new(File::create(&file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
@@ -221,6 +217,7 @@ impl Logger {
                 let attatchment = Attachment {
                     buffer: buffer.to_vec(),
                     filename: filename.to_owned(),
+                    content_type: Some("application/json".to_owned()),
                     ty: None
                 };
 

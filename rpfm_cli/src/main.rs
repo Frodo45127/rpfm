@@ -8,37 +8,47 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+
 /*!
 This crate is the `CLI` version of RPFM, who fought in the splitting war as a new power and managed to stablish itself by the end of the war.
 !*/
 
-use colored::*;
-use log::{error, info, warn};
 
-use std::env;
-use std::process::exit;
+//use colored::*;
+//use log::{error, info, warn};
 
 use crate::config::Config;
-use crate::logger::initialize_logs;
-use crate::app::initialize_app;
+use app::CommandsPack;
+//use std::env;
+use clap::Parser;
+use std::path::PathBuf;
+use std::process::exit;
+
+use rpfm_lib::integrations::log::*;
+//use crate::config::Config;
+//use crate::logger::initialize_logs;
+use crate::app::{Cli, Commands};
+
+use rpfm_lib::error::Result;
 
 // Modules used by this tool.
 pub mod app;
 pub mod commands;
 pub mod config;
-pub mod logger;
+//pub mod logger;
 
 /// Guess you know what this function does....
 fn main() {
 
     // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    if initialize_logs().is_err() {
+    let logger = Logger::init(&PathBuf::from("."));
+    if logger.is_err() {
         warn!("Logging initialization has failed. No logs will be saved.");
     }
 
-    // Initialize the App itself.
-    let mut app = initialize_app();
+    let cli = Cli::parse();
 
+    /*
     // If no arguments where provided, trigger the "help" message. Otherwise, get the matches and continue.
     if env::args_os().len() <= 1 { app.print_help().unwrap(); exit(0) }
     let matches = app.get_matches();
@@ -51,31 +61,34 @@ fn main() {
         Some(game) => game.to_owned(),
         None => "three_kingdoms".to_owned(),
     };
-
+    */
     // By default, print the game selected we're using, just in case some asshole starts complaining about broken PackFiles.
-    if verbosity_level > 0 {
-        info!("Game Selected: {}", game_selected);
-        info!("Verbosity level: {}", verbosity_level);
+    if cli.verbose {
+        info!("Game: {}", cli.game);
+        info!("Verbose: {}", cli.verbose);
     }
 
     // Build the Config struct to remember the current configuration when processing stuff.
-    let config = match Config::new(game_selected, verbosity_level) {
-        Ok(config) => config,
-        Err(error) => { error!("{} {}","Error:".red().bold(), error.to_terminal()); exit(1) }
-    };
+    let config = Config::new(&cli.game, cli.verbose);
 
     // If we reached here, execute the commands.
-    let result = match matches.subcommand() {
-        Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
-        Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
-        Some(("table", matches)) => commands::command_table(&config, matches, packfile),
-        Some(("schema", matches)) => commands::command_schema(&config, matches),
-        _ => { Ok(()) }
+    let result: Result<()> = match cli.command {
+        Commands::Pack { commands } => match commands {
+            CommandsPack::List { path } => crate::commands::pack::list(&config, &path),
+        }
+        //Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
+        //Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
+        //Some(("table", matches)) => commands::command_table(&config, matches, packfile),
+        //Some(("schema", matches)) => commands::command_schema(&config, matches),
+        //_ => { Ok(()) }
     };
 
     // Output the result of the commands.
     match result {
         Ok(_) => exit(0),
-        Err(error) => { error!("{}", error.to_terminal()); exit(1) },
+        Err(error) => {
+            error!("{}", error);
+            exit(1)
+        },
     }
 }

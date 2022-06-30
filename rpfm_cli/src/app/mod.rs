@@ -12,22 +12,55 @@
 //!
 //! This contains the helpers for the initialization of the app.
 
-use clap::{Arg, Command};
+use std::path::PathBuf;
 
-/// Version of the program, to get it more easily if needed.
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+use clap::{builder::ValueParser, Parser, Subcommand};
 
-/// Full name of the program, to get it more easily.
-const PROGRAM_NAME: &str = "Rusted PackFile Manager - CLI Version";
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+pub(crate) struct Cli {
 
-/// Author of the program, to get it more easily.
-const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
+    /// Turn debugging information on
+    #[clap(short, long)]
+    pub verbose: bool,
 
+    /// Optional name to operate on
+    #[clap(value_parser)]
+    pub schema: Option<PathBuf>,
 
+    /// Sets a custom config file
+    #[clap(short, long, value_parser, value_name = "GAME")]
+    pub game: String,
+
+    #[clap(subcommand)]
+    pub command: Commands,
+}
+
+// TODO: Move value_parser to proper functions.
+
+#[derive(Subcommand)]
+pub enum Commands {
+    Pack {
+
+        #[clap(subcommand)]
+        commands: CommandsPack,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum CommandsPack {
+
+    /// List the contents of the provided Pack.
+    List {
+
+        #[clap(short, long, action, value_parser, name = "PATH")]
+        path: PathBuf,
+    },
+}
 //---------------------------------------------------------------------------//
 //                          App helpers
 //---------------------------------------------------------------------------//
-
+/*
 /// This function initialize the main app with all its commands. To be used at the start of the program.
 pub fn initialize_app<'a>() -> Command<'a> {
 
@@ -204,3 +237,4 @@ pub fn initialize_app<'a>() -> Command<'a> {
                 .takes_value(false)))
 
 }
+*/

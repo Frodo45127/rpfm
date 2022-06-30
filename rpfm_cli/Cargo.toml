@@ -8,23 +8,22 @@ edition = "2021"
 rust-version = "1.56"
 
 [dependencies]
+
 # Internal dependencies.
-rpfm_common = { path = "../rpfm_common" }
-rpfm_error = { path = "../rpfm_error" }
-rpfm_lib = { path = "../rpfm_lib" }
+rpfm_lib = { path = "../rpfm_lib", features = ["integration_log"] }
 
 # CLI parsing, formatting and color support.
-clap = "^3.1"
-colored = "^2.0"
-prettytable-rs = "^0.8"
-bytesize = "^1.0"
+clap = { version = "^3.2", features = ["derive"] }
+#colored = "^2.0"
+#prettytable-rs = "^0.8"
+#bytesize = "^1.0"
 
 # Logging support.
-log = "^0.4"
-simplelog = "^0.11"
+#log = "^0.4"
+#simplelog = "^0.11"
 
 # Serialize support
-serde_json = "^1.0"
+#serde_json = "^1.0"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

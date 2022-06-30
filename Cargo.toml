@@ -5,7 +5,7 @@ members = [
     "rpfm_lib",
 
     # Executables
-    # "rpfm_cli",
+    "rpfm_cli",
     # "rpfm_mod_checker",
     # "rpfm_ui",
 ]

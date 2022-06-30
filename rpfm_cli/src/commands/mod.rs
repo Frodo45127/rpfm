@@ -11,21 +11,15 @@
 
 //! This module contains the different commands RPFM-CLI can execute.
 
-use clap::ArgMatches;
-
-use rpfm_error::{ErrorKind, Result};
-
-use crate::config::Config;
-
-mod diagnostic;
-mod table;
-mod packfile;
-mod schema;
+//mod diagnostic;
+//mod table;
+pub mod pack;
+//mod schema;
 
 //---------------------------------------------------------------------------//
 // 								Command Variants
 //---------------------------------------------------------------------------//
-
+/*
 /// This function triggers functions that require the `PackFile` command.
 pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<&str>) -> Result<()> {
     match packfile {
@@ -104,7 +98,8 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
         None => Err(ErrorKind::NoHTMLError("No PackFile provided.".to_owned()).into()),
     }
 }
-
+*/
+/*
 /// This function triggers functions that require the `Table` command.
 pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&str>) -> Result<()> {
     if matches.is_present("import") {
@@ -160,3 +155,4 @@ pub fn command_diagnostic(config: &Config, matches: &ArgMatches, asskit_db_path:
 
     else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }
+*/

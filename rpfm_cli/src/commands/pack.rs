@@ -10,22 +10,22 @@
 
 //! This module contains the `PackFile` command's functions.
 
-use bytesize::ByteSize;
-use log::info;
-use prettytable::{Table, row, cell};
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
 
-use std::path::PathBuf;
-
-use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packfile::{PackFile, PathType, PFHFileType};
+use rpfm_lib::{error::Result, files::Decodeable};
+use rpfm_lib::files::{Container, DecodeableExtraData, pack::Pack};
+use rpfm_lib::integrations::log::*;
+use rpfm_lib::utils::last_modified_time_from_file;
 
 use crate::config::Config;
 
 //---------------------------------------------------------------------------//
 // 							PackFile Command Variants
 //---------------------------------------------------------------------------//
-
+/*
 /// This function adds one or more Files to a PackFile, then saves it.
 pub fn add_files(
 	config: &Config,
@@ -200,27 +200,30 @@ pub fn extract_folders(
 
     Ok(())
 }
-
+*/
 /// This function list the contents of the provided Packfile.
-pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
-	if config.verbosity_level > 0 {
+pub fn list(config: &Config, path: &Path) -> Result<()> {
+
+    if config.verbose {
 		info!("Listing PackFile Contents.");
 	}
-	let packfile_path = PathBuf::from(packfile);
-	let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let mut table = Table::new();
-    table.add_row(row!["PackedFile Path", "Type", "Size"]);
-    for file in packfile.get_ref_packed_files_all() {
-    	let packedfile_type = PackedFileType::get_packed_file_type(file.get_ref_raw(), true);
-    	let size = ByteSize::kib((file.get_raw_data_size() / 1024).into());
-    	table.add_row(row![file.get_path().join("/"), packedfile_type, size]);
+    let mut reader = BufReader::new(File::open(path)?);
+    let path_str = path.to_str().unwrap();
+
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.set_disk_file_path(Some(&path_str));
+    extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+
+    let pack = Pack::decode(&mut reader, Some(extra_data))?;
+    let files: BTreeMap<_, _> = pack.files().iter().collect();
+    for (path, _) in files {
+        println!("{}", path);
     }
 
-	table.printstd();
 	Ok(())
 }
-
+/*
 /// This function creates a new packfile with the provided path.
 pub fn new_packfile(config: &Config, packfile: &str) -> Result<()> {
     if config.verbosity_level > 0 {
@@ -236,3 +239,4 @@ pub fn new_packfile(config: &Config, packfile: &str) -> Result<()> {
         None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),
     }
 }
+*/

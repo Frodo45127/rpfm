@@ -13,7 +13,8 @@
 //! This crate provides utilities to read/write multiple types of files used by Creative Assembly (CA)
 //! in Total War Games since Empire: Total War.
 //!
-//! For information about ann specific file, please check their modules under the [`files`] module.
+//! For information about an specific file type (support, docs, specs,...), please check their modules
+//! under the [`files`] module.
 //!
 //! # TODO: Write some examples.
 

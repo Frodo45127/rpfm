@@ -12,26 +12,23 @@
 //!
 //! It has to be initialized at the beginning, before any command gets executed.
 
-use rpfm_error::Result;
-use rpfm_lib::games::*;
-use rpfm_lib::settings::init_config_path;
-use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::games::{*, supported_games::SupportedGames};
 
 /// This struct serves to hold the configuration used during the execution of the program.
 pub struct Config {
-	pub game_selected: Option<GameInfo>,
-	pub verbosity_level: u8,
+	pub game: Option<GameInfo>,
+	pub verbose: bool,
 }
 
 /// Implementation of `Config`.
 impl Config {
 
 	/// This function creates a new Config struct configured for the provided game.
-	pub fn new(game_selected: String, verbosity_level: u8) -> Result<Self> {
-		init_config_path()?;
-		Ok(Self {
-            game_selected: Some(SUPPORTED_GAMES.get_supported_game_from_key(&game_selected)?.clone()),
-			verbosity_level,
-		})
+	pub fn new(game: &str, verbose: bool) -> Self {
+        let supported_games = SupportedGames::new();
+		Self {
+            game: supported_games.game(game).cloned(),
+			verbose,
+		}
 	}
 }

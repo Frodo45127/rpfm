@@ -22,7 +22,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::io::BufWriter;
 
-#[cfg(feature = "integration_log")] use integrations::log::*;
+#[cfg(feature = "integration_log")] use crate::integrations::log::*;
 use getset::*;
 
 use super::*;
@@ -116,7 +116,7 @@ impl SchemaPatch {
     #[cfg(feature = "integration_log")]
     pub fn upload(&self, sentry_guard: &ClientInitGuard, game_name: &str) -> Result<()> {
         let level = Level::Info;
-        let message = format!("Summited Schema Patch for: {} - {}.", game_name, crate::utils::current_time());
+        let message = format!("Summited Schema Patch for: {} - {}.", game_name, crate::utils::current_time()?);
         let config = PrettyConfig::default();
         let mut data = vec![];
         to_writer_pretty(&mut data, &self, config)?;
