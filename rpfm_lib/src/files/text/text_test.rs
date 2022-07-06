@@ -29,10 +29,10 @@ fn test_encode_iso_8859_1() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = Text::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = Text::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, None).unwrap();
+    data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
@@ -51,10 +51,10 @@ fn test_encode_utf8_bom() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = Text::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = Text::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, None).unwrap();
+    data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
@@ -73,10 +73,10 @@ fn test_encode_utf8() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = Text::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = Text::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, None).unwrap();
+    data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
@@ -95,10 +95,10 @@ fn test_encode_utf16_le() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = Text::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = Text::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, None).unwrap();
+    data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();

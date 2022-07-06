@@ -21,6 +21,7 @@ so you don't have to worry about that.
 
 use crate::files::ContainerPath;
 use crate::files::FileType;
+use std::str::FromStr;
 use std::path::Path;
 use crate::compression::Compressible;
 use crate::utils::current_time;
@@ -252,25 +253,15 @@ impl Container for Pack {
 
 impl Decodeable for Pack {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
-        let disk_file_path = extra_data.disk_file_path.ok_or(RLibError::DecodingMissingExtraData)?;
-        let disk_file_offset = extra_data.disk_file_offset;
-        let lazy_load = extra_data.lazy_load;
-        let timestamp = extra_data.timestamp;
-
-        Self::read(data, disk_file_path, disk_file_offset, timestamp, lazy_load)
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        Self::read(data, extra_data)
     }
 }
 
 impl Encodeable for Pack {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
-        let (sevenzip_path, test_mode) = if let Some(extra_data) = extra_data {
-            (extra_data.sevenzip_path, extra_data.test_mode)
-        } else { (None, false) };
-
-        self.write(buffer, sevenzip_path, test_mode)
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        self.write(buffer, extra_data)
     }
 }
 
@@ -297,11 +288,34 @@ impl Pack {
     /// This function tries to read a `Pack` from raw data.
     ///
     /// If `lazy_load` is false, the data of all the files inside the `Pack` will be preload to memory.
-    fn read<R: ReadBytes>(data: &mut R, disk_file_path: &str, disk_file_offset: u64, timestamp: u64, lazy_load: bool) -> Result<Self> {
+    fn read<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
+
+        // If we're reading from a file on disk, we require a valid path.
+        // If we're reading from a file on memory, we don't need a valid path.
+        let disk_file_path = match extra_data.disk_file_path {
+            Some(path) => {
+                let file_path = PathBuf::from_str(path).map_err(|_|RLibError::DecodingMissingExtraDataField("disk_file_path".to_owned()))?;
+                if file_path.is_file() {
+                    path.to_owned()
+                } else {
+                    return Err(RLibError::DecodingMissingExtraData)
+                }
+            }
+            None => String::new()
+        };
+
+        let disk_file_offset = extra_data.disk_file_offset;
+        let disk_file_size = extra_data.disk_file_size;
+        let timestamp = extra_data.timestamp;
+        let is_encrypted = extra_data.is_encrypted;
+
+        // If we don't have a path, or the file is encrypted, we can't lazy-load.
+        let lazy_load = !disk_file_path.is_empty() && !is_encrypted && extra_data.lazy_load;
 
         // First, we do some quick checks to ensure it's a valid Pack.
         // A valid PackFile, bare and empty, needs at least 24 bytes, regardless of game or type.
-        let data_len = data.len()?;
+        let data_len = disk_file_size as u64;
         if data_len < 24 {
             return Err(RLibError::PackFileHeaderNotComplete);
         }
@@ -324,12 +338,12 @@ impl Pack {
         // Each Pack version has its own read function, to avoid breaking support for older Packs
         // when implementing support for a new Pack version.
         let expected_data_len = match pack.header.pfh_version {
-            PFHVersion::PFH6 => pack.read_pfh6(data)?,
-            PFHVersion::PFH5 => pack.read_pfh5(data)?,
-            PFHVersion::PFH4 => pack.read_pfh4(data)?,
-            PFHVersion::PFH3 => pack.read_pfh3(data)?,
-            PFHVersion::PFH2 => pack.read_pfh2(data)?,
-            PFHVersion::PFH0 => pack.read_pfh0(data)?,
+            PFHVersion::PFH6 => pack.read_pfh6(data, extra_data)?,
+            PFHVersion::PFH5 => pack.read_pfh5(data, extra_data)?,
+            PFHVersion::PFH4 => pack.read_pfh4(data, extra_data)?,
+            PFHVersion::PFH3 => pack.read_pfh3(data, extra_data)?,
+            PFHVersion::PFH2 => pack.read_pfh2(data, extra_data)?,
+            PFHVersion::PFH0 => pack.read_pfh0(data, extra_data)?,
         };
 
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
@@ -349,7 +363,13 @@ impl Pack {
     }
 
     /// This function writes a `Pack` of version 5 into the provided buffer.
-    fn write<W: WriteBytes>(&mut self, buffer: &mut W, sevenzip_exe_path: Option<&Path>, test_mode: bool) -> Result<()> {
+    fn write<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let test_mode = if let Some(extra_data) = extra_data {
+            extra_data.test_mode
+        } else {
+            false
+        };
+
         if !test_mode {
 
             // Only do this in non-vanilla files.
@@ -372,12 +392,12 @@ impl Pack {
         }
 
         match self.header.pfh_version {
-            PFHVersion::PFH6 => self.write_pfh6(buffer, sevenzip_exe_path, test_mode)?,
-            PFHVersion::PFH5 => self.write_pfh5(buffer, sevenzip_exe_path, test_mode)?,
-            PFHVersion::PFH4 => self.write_pfh4(buffer, test_mode)?,
-            PFHVersion::PFH3 => self.write_pfh3(buffer, test_mode)?,
-            PFHVersion::PFH2 => self.write_pfh2(buffer, test_mode)?,
-            PFHVersion::PFH0 => self.write_pfh0(buffer, test_mode)?,
+            PFHVersion::PFH6 => self.write_pfh6(buffer, extra_data)?,
+            PFHVersion::PFH5 => self.write_pfh5(buffer, extra_data)?,
+            PFHVersion::PFH4 => self.write_pfh4(buffer, extra_data)?,
+            PFHVersion::PFH3 => self.write_pfh3(buffer, extra_data)?,
+            PFHVersion::PFH2 => self.write_pfh2(buffer, extra_data)?,
+            PFHVersion::PFH0 => self.write_pfh0(buffer, extra_data)?,
         };
 
         // Remove again the reserved PackedFiles.
@@ -398,13 +418,13 @@ impl Pack {
         // Filter out special files, so we only leave the normal files in.
         let path = file.path_in_container_raw();
         if path == RESERVED_NAME_NOTES {
-            let mut data = Cursor::new(file.encode(false, true)?.unwrap());
+            let mut data = Cursor::new(file.encode(&None, false, false, true)?.unwrap());
             let data_len = data.len()?;
             if let Ok(data) = data.read_string_u8(data_len as usize) {
                 self.notes = data;
             }
         } else if path == RESERVED_NAME_SETTINGS {
-            self.settings = PackFileSettings::load(&file.encode(false, true)?.unwrap())?
+            self.settings = PackFileSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
         }
 
         // If it's not filtered out, add it to the Pack.

@@ -9,14 +9,14 @@
 //---------------------------------------------------------------------------//
 
 //! This module contains the `PackFile` command's functions.
+use anyhow::{anyhow, Result};
 
 use std::collections::BTreeMap;
+use std::io::{BufReader, BufWriter};
 use std::fs::File;
-use std::io::BufReader;
 use std::path::Path;
 
-use rpfm_lib::{error::Result, files::Decodeable};
-use rpfm_lib::files::{Container, DecodeableExtraData, pack::Pack};
+use rpfm_lib::files::{Container, Decodeable, DecodeableExtraData, Encodeable, pack::Pack};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::last_modified_time_from_file;
 
@@ -201,11 +201,11 @@ pub fn extract_folders(
     Ok(())
 }
 */
-/// This function list the contents of the provided Packfile.
+/// This function list the contents of the provided Pack.
 pub fn list(config: &Config, path: &Path) -> Result<()> {
 
     if config.verbose {
-		info!("Listing PackFile Contents.");
+		info!("Listing Pack Contents.");
 	}
 
     let mut reader = BufReader::new(File::open(path)?);
@@ -215,7 +215,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     extra_data.set_disk_file_path(Some(&path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
 
-    let pack = Pack::decode(&mut reader, Some(extra_data))?;
+    let pack = Pack::decode(&mut reader, &Some(extra_data))?;
     let files: BTreeMap<_, _> = pack.files().iter().collect();
     for (path, _) in files {
         println!("{}", path);
@@ -223,20 +223,22 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
 
 	Ok(())
 }
-/*
+
 /// This function creates a new packfile with the provided path.
-pub fn new_packfile(config: &Config, packfile: &str) -> Result<()> {
-    if config.verbosity_level > 0 {
-        info!("Creating New Packfile.");
+pub fn create(config: &Config, path: &Path) -> Result<()> {
+    if config.verbose {
+        info!("Creating New Pack.");
     }
 
-    match &config.game_selected {
-        Some(game_selected) => {
-            let packfile_path = PathBuf::from(packfile);
-            let mut packfile = PackFile::new_with_name("x", game_selected.get_pfh_version_by_file_type(PFHFileType::Mod));
-            packfile.save(Some(packfile_path))
+    // TODO: Make this generate the correct type and version.
+    match &config.game {
+        Some(game) => {
+            let mut file = BufWriter::new(File::create(path)?);
+            let mut pack = Pack::default();
+            let _ = pack.encode(&mut file, &None)?;
+            Ok(())
         }
-        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),
+        None => Err(anyhow!("No Game Selected provided.")),
     }
 }
-*/
+

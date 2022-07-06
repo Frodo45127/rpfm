@@ -386,7 +386,7 @@ impl TryFrom<&str> for ESFSignature {
 
 impl Decodeable for ESF {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let signature_bytes = data.read_slice(4, false)?;
         let signature_bytes = signature_bytes.as_slice().try_into()?;
 
@@ -415,7 +415,7 @@ impl Decodeable for ESF {
 
 impl Encodeable for ESF {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match self.signature {
             ESFSignature::CAAB => self.save_caab(buffer),
             _ => Err(RLibError::EncodingESFUnsupportedSignature(self.signature.to_string())),

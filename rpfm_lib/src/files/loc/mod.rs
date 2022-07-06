@@ -279,8 +279,8 @@ impl Loc {
 
 impl Decodeable for Loc {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
         let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
         let pool = extra_data.pool;
 
@@ -301,7 +301,7 @@ impl Decodeable for Loc {
 
 impl Encodeable for Loc {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let pool = if let Some (extra_data) = extra_data { extra_data.pool } else { None };
 
         buffer.write_u16(BYTEORDER_MARK)?;

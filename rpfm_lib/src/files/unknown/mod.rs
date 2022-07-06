@@ -34,7 +34,7 @@ pub struct Unknown {
 
 impl Decodeable for Unknown {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let data = data.read_slice(len as usize, false)?;
         Ok(Self {
@@ -45,7 +45,7 @@ impl Decodeable for Unknown {
 
 impl Encodeable for Unknown {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }

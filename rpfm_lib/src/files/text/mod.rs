@@ -192,7 +192,7 @@ impl Text {
 
 impl Decodeable for Text {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let encoding = Self::detect_encoding(data)?;
         let contents = match encoding {
@@ -237,7 +237,7 @@ impl Decodeable for Text {
 
 impl Encodeable for Text {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match self.encoding {
             Encoding::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
             Encoding::Utf8 => buffer.write_string_u8(&self.contents),

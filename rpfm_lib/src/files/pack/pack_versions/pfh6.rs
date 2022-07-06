@@ -25,8 +25,8 @@ use super::*;
 impl Pack {
 
     /// This function reads a `Pack` of version 6 from raw data, returning the index where it finished reading.
-    pub(crate) fn read_pfh6<R: ReadBytes>(&mut self, data: &mut R) -> Result<u64> {
-        let data_len = data.len()?;
+    pub(crate) fn read_pfh6<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
+        let data_len = extra_data.disk_file_size as u64;
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -46,7 +46,7 @@ impl Pack {
         let mut buffer_mem = BufReader::new(Cursor::new(buffer_data));
 
         // Check that the position of the data we want to get is actually valid.
-        let data_pos = data.stream_position()?;
+        let data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
             return Err(RLibError::PackFileIndexesNotComplete)
         }
@@ -64,7 +64,7 @@ impl Pack {
         self.header.extra_subheader_data = buffer_mem.read_slice(256, false)?;
 
         // Check that the position of the data we want to get is actually valid.
-        let mut data_pos = data.stream_position()?;
+        let mut data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
             return Err(RLibError::PackFileIndexesNotComplete)
         }
@@ -121,7 +121,12 @@ impl Pack {
     }
 
     /// This function writes a `Pack` of version 6 into the provided buffer.
-    pub(crate) fn write_pfh6<W: WriteBytes>(&mut self, buffer: &mut W, sevenzip_exe_path: Option<&Path>, test_mode: bool) -> Result<()> {
+    pub(crate) fn write_pfh6<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let (sevenzip_exe_path, test_mode) = if let Some(extra_data) = extra_data {
+            (extra_data.sevenzip_path, extra_data.test_mode)
+        } else {
+            (None, false)
+        };
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
@@ -134,7 +139,7 @@ impl Pack {
             .map(|(path, file)| {
 
                 // This unwrap is actually safe.
-                let mut data = file.encode(true, true)?.unwrap();
+                let mut data = file.encode(extra_data, false, false, true)?.unwrap();
 
                 if self.compress && file.is_compressible() {
                     if let Some(sevenzip_exe_path) = sevenzip_exe_path {

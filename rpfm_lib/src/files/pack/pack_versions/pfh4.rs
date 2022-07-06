@@ -23,8 +23,8 @@ use crate::files::{pack::*, RFile};
 impl Pack {
 
     /// This function reads a `Pack` of version 4 from raw data, returning the index where it finished reading.
-    pub(crate) fn read_pfh4<R: ReadBytes>(&mut self, data: &mut R) -> Result<u64> {
-        let data_len = data.len()?;
+    pub(crate) fn read_pfh4<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
+        let data_len = extra_data.disk_file_size as u64;
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -52,7 +52,7 @@ impl Pack {
         let mut buffer_mem = BufReader::new(Cursor::new(buffer_data));
 
         // Check that the position of the data we want to get is actually valid.
-        let mut data_pos = data.stream_position()?;
+        let mut data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
             return Err(RLibError::PackFileIndexesNotComplete)
         }
@@ -105,7 +105,12 @@ impl Pack {
     }
 
     /// This function writes a `Pack` of version 4 into the provided buffer.
-    pub(crate) fn write_pfh4<W: WriteBytes>(&mut self, buffer: &mut W, test_mode: bool) -> Result<()> {
+    pub(crate) fn write_pfh4<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        let test_mode = if let Some(extra_data) = extra_data {
+            extra_data.test_mode
+        } else {
+            false
+        };
 
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
@@ -118,7 +123,7 @@ impl Pack {
             .map(|(path, file)| {
 
                 // This unwrap is actually safe.
-                let data = file.encode(true, true)?.unwrap();
+                let data = file.encode(extra_data, false, false, true)?.unwrap();
 
                 // 5 because 4 (size) + 1 (null), 9 because + 4 (timestamp).
                 let file_index_entry_len = if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {

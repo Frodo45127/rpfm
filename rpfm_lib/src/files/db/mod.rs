@@ -100,8 +100,8 @@ pub struct CascadeEdition {
 
 impl Decodeable for DB {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
         let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraData)?;
         let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
         let return_incomplete = extra_data.return_incomplete;
@@ -131,8 +131,6 @@ impl Decodeable for DB {
                 // Then, check if the definition works.
                 data.seek(SeekFrom::Start(index_reset))?;
                 let db = Table::decode_table(data, definition, Some(entry_count), return_incomplete);
-                        dbg!(&db);
-                        dbg!(data.stream_position()?, len);
                 if db.is_ok() {
                     if data.stream_position()? == len {
                         working_definition = Ok(definition);
@@ -176,7 +174,7 @@ impl Decodeable for DB {
 
 impl Encodeable for DB {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let pool = if let Some (ref extra_data) = extra_data { extra_data.pool } else { None };
         let table_has_guid = if let Some (ref extra_data) = extra_data { extra_data.table_has_guid } else { false };
         let regenerate_table_guid = if let Some (ref extra_data) = extra_data { extra_data.regenerate_table_guid } else { false };

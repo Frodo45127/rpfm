@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use clap::{builder::ValueParser, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -52,6 +52,13 @@ pub enum CommandsPack {
 
     /// List the contents of the provided Pack.
     List {
+
+        #[clap(short, long, action, value_parser, name = "PATH")]
+        path: PathBuf,
+    },
+
+    /// Creates a new Pack in the provided path.
+    Create {
 
         #[clap(short, long, action, value_parser, name = "PATH")]
         path: PathBuf,

@@ -26,14 +26,15 @@ fn test_encode_animpack() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
+    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = AnimPack::decode(&mut reader, Some(decodeable_extra_data.clone())).unwrap();
+    let mut data = AnimPack::decode(&mut reader, &Some(decodeable_extra_data.clone())).unwrap();
 
     let mut after = vec![];
-    data.encode(&mut after, None).unwrap();
+    data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();

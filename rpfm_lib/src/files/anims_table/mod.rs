@@ -144,8 +144,8 @@ impl AnimsTable {
 
 impl Decodeable for AnimsTable {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
         let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
 
         let (version, entry_count) = Self::read_header(data)?;
@@ -163,7 +163,7 @@ impl Decodeable for AnimsTable {
 
 impl Encodeable for AnimsTable {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_i32(*self.table.definition().version())?;
         buffer.write_u32(self.table.len(None)? as u32)?;
 

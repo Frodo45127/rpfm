@@ -52,7 +52,7 @@ pub struct Image {
 
 impl Decodeable for Image {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let len = data.len()?;
         let data = data.read_slice(len as usize, false)?;
         Ok(Self {
@@ -63,7 +63,7 @@ impl Decodeable for Image {
 
 impl Encodeable for Image {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }

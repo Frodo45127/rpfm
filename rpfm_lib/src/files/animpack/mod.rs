@@ -133,10 +133,10 @@ impl Decodeable for AnimPack {
     ///decodeable_extra_data.disk_file_path = Some(path);
     ///decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
     ///
-    ///let data = AnimPack::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    ///let data = AnimPack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     /// ```
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.ok_or(RLibError::DecodingMissingExtraData)?;
+    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
+        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
 
         // If we're reading from a file on disk, we require a valid path.
         // If we're reading from a file on memory, we don't need a valid path.
@@ -153,6 +153,7 @@ impl Decodeable for AnimPack {
         };
 
         let disk_file_offset = extra_data.disk_file_offset;
+        let disk_file_size = extra_data.disk_file_size;
         let timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
 
@@ -161,7 +162,7 @@ impl Decodeable for AnimPack {
         let file_count = data.read_u32()?;
 
         let mut anim_pack = Self {
-            disk_file_path: disk_file_path.to_string(),
+            disk_file_path,
             disk_file_offset,
             timestamp,
             files: if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() },
@@ -193,7 +194,7 @@ impl Decodeable for AnimPack {
             }
         }
 
-        check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
+        check_size_mismatch(data.stream_position()? as usize - anim_pack.disk_file_offset as usize, disk_file_size as usize)?;
         Ok(anim_pack)
     }
 }
@@ -220,7 +221,7 @@ impl Encodeable for AnimPack {
     ///let mut writer = BufWriter::new(File::create(path).unwrap());
     ///writer.write_all(&encoded).unwrap();
     /// ```
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_u32(self.files.len() as u32)?;
 
         let mut sorted_files = self.files.iter_mut().collect::<Vec<(&String, &mut RFile)>>();
@@ -229,7 +230,7 @@ impl Encodeable for AnimPack {
         for (path, file) in sorted_files {
             buffer.write_sized_string_u8(&path)?;
 
-            let data = file.encode(true, true)?.unwrap();
+            let data = file.encode(extra_data, false, false, true)?.unwrap();
             buffer.write_u32(data.len() as u32)?;
             buffer.write_all(&data)?;
         }

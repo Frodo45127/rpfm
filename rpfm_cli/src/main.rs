@@ -29,7 +29,7 @@ use rpfm_lib::integrations::log::*;
 //use crate::logger::initialize_logs;
 use crate::app::{Cli, Commands};
 
-use rpfm_lib::error::Result;
+use anyhow::Result;
 
 // Modules used by this tool.
 pub mod app;
@@ -75,6 +75,7 @@ fn main() {
     let result: Result<()> = match cli.command {
         Commands::Pack { commands } => match commands {
             CommandsPack::List { path } => crate::commands::pack::list(&config, &path),
+            CommandsPack::Create { path } => crate::commands::pack::create(&config, &path),
         }
         //Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
         //Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),

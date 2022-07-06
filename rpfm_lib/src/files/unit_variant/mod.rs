@@ -169,7 +169,7 @@ impl UnitVariant {
 
 impl Decodeable for UnitVariant {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let (version, categories_count, unknown_1) = Self::read_header(data)?;
 
         // Get the categories.
@@ -218,7 +218,7 @@ impl Decodeable for UnitVariant {
 
 impl Encodeable for UnitVariant {
 
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
 
         let mut encoded_variants = vec![];
         let mut encoded_categories = vec![];

@@ -12,6 +12,9 @@ rust-version = "1.56"
 # Internal dependencies.
 rpfm_lib = { path = "../rpfm_lib", features = ["integration_log"] }
 
+# Error managing.
+anyhow = "1.0"
+
 # CLI parsing, formatting and color support.
 clap = { version = "^3.2", features = ["derive"] }
 #colored = "^2.0"

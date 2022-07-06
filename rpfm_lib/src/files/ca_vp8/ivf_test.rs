@@ -30,17 +30,17 @@ fn test_decode_ca_vp8_v1_to_ivf_and_back() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     data.format = SupportedFormats::Ivf;
     let mut ivf = vec![];
-    data.encode(&mut ivf, None).unwrap();
+    data.encode(&mut ivf, &None).unwrap();
 
-    let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), None).unwrap();
+    let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), &None).unwrap();
     second_data.format = SupportedFormats::CaVp8;
 
     let mut after = vec![];
-    second_data.encode(&mut after, None).unwrap();
+    second_data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();
@@ -60,17 +60,17 @@ fn test_decode_ca_vp8_v0_to_ivf_and_back() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = CaVp8::decode(&mut reader, Some(decodeable_extra_data)).unwrap();
+    let mut data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     data.format = SupportedFormats::Ivf;
     let mut ivf = vec![];
-    data.encode(&mut ivf, None).unwrap();
+    data.encode(&mut ivf, &None).unwrap();
 
-    let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), None).unwrap();
+    let mut second_data = CaVp8::decode(&mut Cursor::new(ivf), &None).unwrap();
     second_data.format = SupportedFormats::CaVp8;
 
     let mut after = vec![];
-    second_data.encode(&mut after, None).unwrap();
+    second_data.encode(&mut after, &None).unwrap();
 
     let mut writer = BufWriter::new(File::create(path_2).unwrap());
     writer.write_all(&after).unwrap();

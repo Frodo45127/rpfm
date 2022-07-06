@@ -174,7 +174,7 @@ pub enum SupportedFormats {
 
 impl Decodeable for CaVp8 {
 
-    fn decode<R: ReadBytes>(data: &mut R, _extra_data: Option<DecodeableExtraData>) -> Result<Self> {
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         match &*data.read_string_u8(4)? {
             SIGNATURE_IVF => Self::read_ivf(data),
             SIGNATURE_CAVP8 => Self::read_cavp8(data),
@@ -184,7 +184,7 @@ impl Decodeable for CaVp8 {
 }
 
 impl Encodeable for CaVp8 {
-    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: Option<EncodeableExtraData>) -> Result<()> {
+    fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match self.format {
             SupportedFormats::CaVp8 => self.save_cavp8(buffer),
             SupportedFormats::Ivf => self.save_ivf(buffer),
