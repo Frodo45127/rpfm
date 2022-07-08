@@ -124,16 +124,17 @@ impl Decodeable for AnimPack {
     ///use std::fs::File;
     ///use std::io::{BufReader, BufWriter, Write};
     ///
-    ///use crate::binary::ReadBytes;
-    ///use crate::files::{*, animpack::AnimPack};
+    ///use rpfm_lib::binary::ReadBytes;
+    ///use rpfm_lib::files::{*, animpack::AnimPack};
+    ///use rpfm_lib::utils::last_modified_time_from_file;
     ///
     ///let path = "../test_files/test_decode.animpack";
     ///let mut reader = BufReader::new(File::open(path).unwrap());
     ///
     ///let mut decodeable_extra_data = DecodeableExtraData::default();
-    ///decodeable_extra_data.disk_file_path = Some(path);
-    ///decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
-    ///decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    ///decodeable_extra_data.set_disk_file_path(Some(path));
+    ///decodeable_extra_data.set_data_size(reader.len().unwrap());
+    ///decodeable_extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref()).unwrap());
     ///
     ///let data = AnimPack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
     /// ```
@@ -212,12 +213,12 @@ impl Encodeable for AnimPack {
     ///use std::fs::File;
     ///use std::io::{BufReader, BufWriter, Write};
     ///
-    ///use crate::binary::ReadBytes;
-    ///use crate::files::{*, animpack::AnimPack};
+    ///use rpfm_lib::binary::ReadBytes;
+    ///use rpfm_lib::files::{*, animpack::AnimPack};
     ///
-    ///let data = AnimPack::default();
+    ///let mut data = AnimPack::default();
     ///let mut encoded = vec![];
-    ///data.encode(&mut encoded, None).unwrap();
+    ///data.encode(&mut encoded, &None).unwrap();
     ///
     ///let path = "../test_files/test_encode.animpack";
     ///let mut writer = BufWriter::new(File::create(path).unwrap());
