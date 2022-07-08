@@ -101,6 +101,7 @@ shortcuts.ron
 /test_files/test_encode_matched_combat.bin
 /test_files/test_encode_anim_fragment.frg
 /test_files/test_encode_anims_table.bin
+/test_files/test_encode_rfile.pack
 
 # Secret tokens.
 gh-token

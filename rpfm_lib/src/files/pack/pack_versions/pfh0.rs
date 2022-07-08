@@ -23,7 +23,7 @@ impl Pack {
 
     /// This function reads a `Pack` of version 0 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh0<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
-        let data_len = extra_data.disk_file_size as u64;
+        let data_len = extra_data.data_size;
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -51,10 +51,10 @@ impl Pack {
         // Get the Files in the Pack.
         for _ in 0..files_count {
             let size = buffer_mem.read_u32()?;
-            let path = buffer_mem.read_string_u8_0terminated()?;
+            let path = buffer_mem.read_string_u8_0terminated()?.replace('\\', "/");
 
             // Build the File as a LazyLoaded file by default.
-            let file = RFile::new_from_container(self, size, false, None, data_pos, 0, &path);
+            let file = RFile::new_from_container(self, size as u64, false, None, data_pos, 0, &path);
             self.add_file(file)?;
 
             data_pos += u64::from(size);
@@ -84,8 +84,13 @@ impl Pack {
                 let file_index_entry_len = 5 + path.len();
                 let mut file_index_entry = Vec::with_capacity(file_index_entry_len);
 
+                // Error on files too big for the Pack.
+                if data.len() > u32::MAX as usize {
+                    return Err(RLibError::DataTooBigForContainer("Pack".to_owned(), u32::MAX as u64, data.len(), path.to_owned()));
+                }
+
                 file_index_entry.write_u32(data.len() as u32)?;
-                file_index_entry.write_string_u8_0terminated(path)?;
+                file_index_entry.write_string_u8_0terminated(&path.replace('/', "\\"))?;
 
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?

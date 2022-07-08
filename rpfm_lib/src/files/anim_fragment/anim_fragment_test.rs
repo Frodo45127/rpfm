@@ -26,7 +26,6 @@ fn test_encode_anim_fragment_frg() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.file_name = Some("test_decode_anim_fragment.frg");
-    decodeable_extra_data.table_name = Some("test_decode_anim_fragment.frg");
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();

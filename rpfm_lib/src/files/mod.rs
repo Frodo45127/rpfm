@@ -61,7 +61,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::compression::Decompressible;
@@ -104,6 +104,8 @@ pub mod uic;
 pub mod unit_variant;
 pub mod unknown;
 
+#[cfg(test)] mod rfile_test;
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -117,8 +119,10 @@ pub mod unknown;
 #[derive(Clone, Debug, PartialEq)]
 pub struct RFile {
 
-    /// Path of the file within a [`Container`]. It may be an empty string if the file is not in one.
-    path_in_container: String,
+    /// Path of the file, either within a [`Container`] or in the FileSystem.
+    ///
+    /// It may be an empty string if the file exists only in memory.
+    path: String,
 
     /// Last modified date of the file. Optional.
     timestamp: Option<u64>,
@@ -173,7 +177,7 @@ struct OnDisk {
     start: u64,
 
     /// Size in bytes of the file's data.
-    size: u32,
+    size: u64,
 
     /// Is the data compressed?.
     is_compressed: bool,
@@ -267,10 +271,9 @@ pub struct DecodeableExtraData<'a> {
     /// Schema for the decoder to use. Mainly for tables.
     schema: Option<&'a Schema>,
 
-    //-----------------------//
-    // Optional config data  //
-    //-----------------------//
-
+    //----------------------------//
+    // OnDisk-related config data //
+    //----------------------------//
 
     /// Path of a file on disk, if any.
     disk_file_path: Option<&'a str>,
@@ -278,21 +281,29 @@ pub struct DecodeableExtraData<'a> {
     /// Offset of a file on disk where the data we're interested on starts.
     disk_file_offset: u64,
 
-    /// Size of the data in a file on disk.
-    disk_file_size: u32,
-
     /// Timestamp of a file on disk.
     timestamp: u64,
+
+    //----------------------------//
+    // Table-related config data  //
+    //----------------------------//
 
     /// Name of the folder that contains a table fragment.
     table_name: Option<&'a str>,
 
-    /// Name of the file we're trying to decode.
-    file_name: Option<&'a str>,
-
     /// SQLite Database Pool. For allowing connections to the database.
     #[cfg(feature = "integration_sqlite")]
     pool: Option<&'a Pool<SqliteConnectionManager>>,
+
+    //------------------------------//
+    // General-purpouse config data //
+    //------------------------------//
+
+    /// Name of the file we're trying to decode.
+    file_name: Option<&'a str>,
+
+    /// Size of the data in a file, either on disk or in memory.
+    data_size: u64,
 }
 
 /// This is a generic struct to easily pass additional data to a [Encodeable::encode] method.
@@ -461,10 +472,19 @@ pub trait Container {
             .collect()
     }
 
-    /// This method returns the `Last modified date` of the provided Container on disk, in seconds.
+    /// This method returns the `Last modified date` stored on the provided Container, in seconds.
+    ///
+    /// A default implementation that returns `0` is provided for Container types that don't support internal timestamps.
     ///
     /// Implementors should return `0` if the Container doesn't have a file on disk yet.
-    fn timestamp(&self) -> u64;
+    fn internal_timestamp(&self) -> u64 {
+       0
+    }
+
+    /// This method returns the `Last modified date` the filesystem reports for the container file, in seconds.
+    ///
+    /// Implementors should return `0` if the Container doesn't have a file on disk yet.
+    fn local_timestamp(&self) -> u64;
 }
 
 // TODO: Implement "possible types" logic, to have some flexibility when opening files.
@@ -474,18 +494,24 @@ pub trait Container {
 //----------------------------------------------------------------//
 
 impl RFile {
+
+    /// This function creates a RFile from a lazy-loaded file inside a Container.
+    ///
+    /// About the parameters:
+    ///
+    /// TBD
     pub fn new_from_container<C: Container>(
         container: &C,
-        size: u32,
+        size: u64,
         is_compressed: bool,
         is_encrypted: Option<PFHVersion>,
         data_pos: u64,
-        timestamp: u64,
+        file_timestamp: u64,
         path_in_container: &str,
     ) -> Self {
         let on_disk = OnDisk {
             path: container.disk_file_path().to_owned(),
-            timestamp: container.timestamp(),
+            timestamp: container.local_timestamp(),
             start: container.disk_file_offset() + data_pos,
             size,
             is_compressed,
@@ -493,25 +519,54 @@ impl RFile {
         };
 
         Self {
-            path_in_container: path_in_container.to_owned(),
-            timestamp: if timestamp == 0 { None } else { Some(timestamp) },
+            path: path_in_container.to_owned(),
+            timestamp: if file_timestamp == 0 { None } else { Some(file_timestamp) },
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
         }
     }
 
-    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path_in_container: &str) -> Self {
+    /// This function creates a RFile from an disk file.
+    ///
+    /// This may fail if the file doesn't exist or errors out when trying to be read for metadata.
+    pub fn new_from_file(path: &str) -> Result<Self> {
+        let path_checked = PathBuf::from(path);
+        if !path_checked.is_file() {
+            return Err(RLibError::FileNotFound(path.to_owned()));
+        }
+
+        let mut file = File::open(path)?;
+        let on_disk = OnDisk {
+            path: path.to_owned(),
+            timestamp: last_modified_time_from_file(&file)?,
+            start: 0,
+            size: file.len()?,
+            is_compressed: false,
+            is_encrypted: None,
+        };
+
+        Ok(Self {
+            path: path.to_owned(),
+            timestamp: Some(on_disk.timestamp),
+            file_type: FileType::Unknown,
+            data: RFileInnerData::OnDisk(on_disk)
+        })
+    }
+
+    /// This function creates a RFile from raw data on memory.
+    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Self {
         Self {
-            path_in_container: path_in_container.to_owned(),
+            path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Cached(data.to_vec())
         }
     }
 
-    pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path_in_container: &str) -> Self {
+    /// This function creates a RFile from an RFileDecoded on memory.
+    pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path: &str) -> Self {
         Self {
-            path_in_container: path_in_container.to_owned(),
+            path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Decoded(Box::new(data.clone()))
@@ -521,6 +576,7 @@ impl RFile {
     /// This function decodes an RFile from binary data, optionally caching and returning the decoded RFile.
     ///
     /// About the arguments:
+    ///
     /// - `extra_data`: any data needed to decode specific file types. Check each file type for info about what do each file type need.
     /// - `keep_in_cache`: if true, the data will be cached on memory.
     /// - `return_data`: if true, the decoded data will be returned.
@@ -530,36 +586,64 @@ impl RFile {
     pub fn decode(&mut self, extra_data: &Option<DecodeableExtraData>, keep_in_cache: bool, return_data: bool) -> Result<Option<RFileDecoded>> {
         let mut already_decoded = false;
         let decoded = match &self.data {
+
+            // If the data is already decoded, just return a copy of it.
             RFileInnerData::Decoded(data) => {
                 already_decoded = true;
                 *data.clone()
             },
 
+            // If the data is on memory but not yet decoded, decode it.
             RFileInnerData::Cached(data) => {
-                let mut data = Cursor::new(data);
 
+                // Copy the provided extra data (if any), then replace the file-specific stuff.
+                let mut extra_data = match extra_data {
+                    Some(extra_data) => extra_data.clone(),
+                    None => DecodeableExtraData::default(),
+                };
+                extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+                extra_data.data_size = data.len() as u64;
+
+                // Some types require extra data specific for them to be added to the extra data before decoding.
+                let mut data = Cursor::new(data);
                 match self.file_type {
-                    FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, extra_data)?),
-                    FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, extra_data)?),
-                    FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, extra_data)?),
-                    FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, extra_data)?),
-                    FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, extra_data)?),
-                    FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, extra_data)?),
-                    FileType::DB => RFileDecoded::DB(DB::decode(&mut data, extra_data)?),
-                    FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, extra_data)?),
-                    FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, extra_data)?),
-                    FileType::Image => RFileDecoded::Image(Image::decode(&mut data, extra_data)?),
-                    FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, extra_data)?),
-                    FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, extra_data)?),
-                    FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, extra_data)?),
-                    FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, extra_data)?),
-                    FileType::Text => RFileDecoded::Text(Text::decode(&mut data, extra_data)?),
-                    FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, extra_data)?),
-                    FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, extra_data)?),
-                    FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, extra_data)?),
+                    FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
+                    FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
+                    FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
+                    FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, &Some(extra_data))?),
+                    FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
+                    FileType::DB => {
+
+                        // This one is tricky. On one side, DB from disk are expected to, either provide a table_name
+                        // or be inside a folder with the table_name. On the other side, if it's in a container it has
+                        // to be in a folder with a table_name inside "db". So, if we don't receive a name, we "guess" it.
+                        if extra_data.table_name.is_none() {
+                            let split_path = self.path.rsplitn(3, '/').collect::<Vec<_>>();
+                            if split_path.len() < 3 || split_path[2].to_lowercase() != "db" {
+                                return Err(RLibError::DecodingDBNotADBTable);
+                            }
+                            extra_data.table_name = Some(split_path[1]);
+                        }
+                        RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
+                    },
+                    FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
+                    FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
+                    FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
+                    FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
+                    FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
+                    FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
+                    FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
+                    FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
+                    FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
+                    FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
                 }
             },
 
+            // If the data is not yet in memory, it depends:
+            // - If it's something we can lazy-load and we want to, decode it directly from disk.
+            // - If it's not, load it to memory and decode it from there.
             RFileInnerData::OnDisk(data) => {
                 match self.file_type {
                     FileType::Anim |
@@ -578,27 +662,35 @@ impl RFile {
                     FileType::UIC |
                     FileType::UnitVariant |
                     FileType::Unknown => {
+
+                        // Copy the provided extra data (if any), then replace the file-specific stuff.
                         let raw_data = data.read(data.is_compressed, data.is_encrypted)?;
-                        let mut data = Cursor::new(raw_data);
+                        let mut extra_data = match extra_data {
+                            Some(extra_data) => extra_data.clone(),
+                            None => DecodeableExtraData::default(),
+                        };
+                        extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+                        extra_data.data_size = raw_data.len() as u64;
 
                         // These are the easy types: just load the data to memory, and decode.
+                        let mut data = Cursor::new(raw_data);
                         match self.file_type {
-                            FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, extra_data)?),
-                            FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, extra_data)?),
-                            FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, extra_data)?),
-                            FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, extra_data)?),
-                            FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, extra_data)?),
-                            FileType::DB => RFileDecoded::DB(DB::decode(&mut data, extra_data)?),
-                            FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, extra_data)?),
-                            FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, extra_data)?),
-                            FileType::Image => RFileDecoded::Image(Image::decode(&mut data, extra_data)?),
-                            FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, extra_data)?),
-                            FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, extra_data)?),
-                            FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, extra_data)?),
-                            FileType::Text => RFileDecoded::Text(Text::decode(&mut data, extra_data)?),
-                            FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, extra_data)?),
-                            FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, extra_data)?),
-                            FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, extra_data)?),
+                            FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
+                            FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
+                            FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, &Some(extra_data))?),
+                            FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
+                            FileType::DB => RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?),
+                            FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
+                            FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
+                            FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
+                            FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
+                            FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
+                            FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
+                            FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
+                            FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
+                            FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
 
                             FileType::AnimPack |
                             FileType::Pack => unreachable!()
@@ -608,37 +700,28 @@ impl RFile {
                     FileType::AnimPack |
                     FileType::Pack => {
 
-                        // These two require extra data and may require lazy-loading. For lazy-loading, disable it if we detect encryption.
-                        let mut extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?.clone();
+                        // These two require extra data and may require lazy-loading.
+                        // For lazy-loading, disable it if we detect encryption.
+                        let mut extra_data = match extra_data {
+                            Some(extra_data) => extra_data.clone(),
+                            None => DecodeableExtraData::default(),
+                        };
                         extra_data.lazy_load = !extra_data.is_encrypted && extra_data.lazy_load;
-                        if extra_data.lazy_load {
+                        extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+                        extra_data.data_size = data.size as u64;
 
-                            // If we're lazy-loading we need to fix some of the extra data to match the ondisk data.
+                        // If we're lazy-loading we also need extra data to read from disk on-demand.
+                        if extra_data.lazy_load {
                             extra_data.disk_file_path = Some(&data.path);
                             extra_data.disk_file_offset = data.start;
-                            extra_data.disk_file_size = data.size;
-                            let mut data = data.read_lazily()?;
+                            extra_data.data_size = data.size as u64;
+                            extra_data.timestamp = last_modified_time_from_file(&File::open(&data.path)?)?;
 
+                            let mut data = data.read_lazily()?;
                             match self.file_type {
                                 FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                                 FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
-
-                                FileType::Anim |
-                                FileType::AnimFragment |
-                                FileType::AnimsTable |
-                                FileType::CaVp8 |
-                                FileType::CEO |
-                                FileType::DB |
-                                FileType::ESF |
-                                FileType::GroupFormations |
-                                FileType::Image |
-                                FileType::Loc |
-                                FileType::MatchedCombat |
-                                FileType::RigidModel |
-                                FileType::Text |
-                                FileType::UIC |
-                                FileType::UnitVariant |
-                                FileType::Unknown => unreachable!()
+                                _ => unreachable!()
                             }
                         }
 
@@ -650,23 +733,7 @@ impl RFile {
                             match self.file_type {
                                 FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                                 FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
-
-                                FileType::Anim |
-                                FileType::AnimFragment |
-                                FileType::AnimsTable |
-                                FileType::CaVp8 |
-                                FileType::CEO |
-                                FileType::DB |
-                                FileType::ESF |
-                                FileType::GroupFormations |
-                                FileType::Image |
-                                FileType::Loc |
-                                FileType::MatchedCombat |
-                                FileType::RigidModel |
-                                FileType::Text |
-                                FileType::UIC |
-                                FileType::UnitVariant |
-                                FileType::Unknown => unreachable!()
+                                _ => unreachable!()
                             }
                         }
                     }
@@ -806,11 +873,11 @@ impl RFile {
 
     /// This function returns the [ContainerPath] corresponding to this file.
     pub fn path_in_container(&self) -> ContainerPath {
-        ContainerPath::File(self.path_in_container.to_owned())
+        ContainerPath::File(self.path.to_owned())
     }
     /// This function returns the [ContainerPath] corresponding to this file as an [&str].
     pub fn path_in_container_raw(&self) -> &str {
-        &self.path_in_container
+        &self.path
     }
 
     /// This function returns if the RFile can be compressed or not.
@@ -833,6 +900,8 @@ impl OnDisk {
         // Date check, to ensure the source file or container hasn't been modified since we got the indexes to read it.
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
+        dbg!(timestamp);
+        dbg!(self.timestamp);
         if timestamp != self.timestamp {
             return Err(RLibError::FileSourceChanged.into());
         }

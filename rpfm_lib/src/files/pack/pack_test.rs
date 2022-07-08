@@ -23,7 +23,7 @@ fn test_decode_pfh6() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -37,7 +37,7 @@ fn test_decode_pfh5() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -51,7 +51,7 @@ fn test_decode_pfh4() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -65,7 +65,7 @@ fn test_decode_pfh3() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -79,7 +79,7 @@ fn test_decode_pfh2() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -93,7 +93,7 @@ fn test_decode_pfh0() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let pack = Pack::decode(&mut reader, &Some(decodeable_extra_data));
@@ -108,7 +108,7 @@ fn test_encode_pfh6() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -137,7 +137,7 @@ fn test_encode_pfh5() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -166,7 +166,7 @@ fn test_encode_pfh4() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -195,7 +195,7 @@ fn test_encode_pfh3() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -225,7 +225,7 @@ fn test_encode_pfh2() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -255,7 +255,7 @@ fn test_encode_pfh0() {
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
     decodeable_extra_data.disk_file_path = Some(path_1);
-    decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
+    decodeable_extra_data.data_size = reader.len().unwrap();
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
     let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();

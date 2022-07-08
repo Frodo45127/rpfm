@@ -26,7 +26,7 @@ impl Pack {
 
     /// This function reads a `Pack` of version 6 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh6<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
-        let data_len = extra_data.disk_file_size as u64;
+        let data_len = extra_data.data_size as u64;
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -34,7 +34,7 @@ impl Pack {
         let files_count = data.read_u32()?;
         let files_index_size = data.read_u32()?;
 
-        self.header.timestamp = u64::from(data.read_u32()?);
+        self.header.internal_timestamp = u64::from(data.read_u32()?);
 
         // The rest of the header data is 280 bytes.
         let extra_header_size = 280;
@@ -106,10 +106,10 @@ impl Pack {
                 buffer_mem.decrypt_string(size as u8)?
             } else {
                 buffer_mem.read_string_u8_0terminated()?
-            };
+            }.replace('\\', "/");
 
             // Build the File as a LazyLoaded file by default.
-            let file = RFile::new_from_container(self, size, is_compressed, files_are_encrypted, data_pos, timestamp, &path);
+            let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path);
             self.add_file(file)?;
 
             // Then we move our data position.
@@ -155,6 +155,12 @@ impl Pack {
                 };
 
                 let mut file_index_entry = Vec::with_capacity(file_index_entry_len);
+
+                // Error on files too big for the Pack.
+                if data.len() > u32::MAX as usize {
+                    return Err(RLibError::DataTooBigForContainer("Pack".to_owned(), u32::MAX as u64, data.len(), path.to_owned()));
+                }
+
                 file_index_entry.write_u32(data.len() as u32)?;
 
                 if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
@@ -162,7 +168,7 @@ impl Pack {
                 }
 
                 file_index_entry.write_bool(self.compress && file.is_compressible())?;
-                file_index_entry.write_string_u8_0terminated(path)?;
+                file_index_entry.write_string_u8_0terminated(&path.replace('/', "\\"))?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()
@@ -188,10 +194,10 @@ impl Pack {
 
         // If we're not in testing mode, update the header timestamp.
         if !test_mode {
-            self.header.timestamp = current_time()?;
+            self.header.internal_timestamp = current_time()?;
         }
 
-        header.write_u32(self.header.timestamp as u32)?;
+        header.write_u32(self.header.internal_timestamp as u32)?;
         header.write_u32(SUBHEADER_MARK)?;
         header.write_u32(SUBHEADER_VERSION)?;
         header.write_u32(self.header.game_version)?;

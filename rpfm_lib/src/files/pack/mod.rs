@@ -130,7 +130,7 @@ pub struct Pack {
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
     disk_file_path: String,
     disk_file_offset: u64,
-    timestamp: u64,
+    local_timestamp: u64,
 
     compress: bool,
 
@@ -165,7 +165,7 @@ pub struct PackHeader {
     bitmask: PFHFlags,
 
     /// The timestamp of the last time the PackFile was saved.
-    timestamp: u64,
+    internal_timestamp: u64,
 
     /// Game version this mod is intended for. This usually triggers the "outdated mod" warning in the launcher if it doesn't match the current exe version.
     game_version: u32,
@@ -205,7 +205,7 @@ pub struct PackFileInfo {
     pub compression_state: bool,
 
     /// The timestamp of the last time the PackFile was saved.
-    pub timestamp: i64,
+    pub timestamp: u64,
 }
 
 /// This struct hold PackFile-specific settings.
@@ -246,8 +246,12 @@ impl Container for Pack {
        self.disk_file_offset
     }
 
-    fn timestamp(&self) -> u64 {
-       self.timestamp
+    fn internal_timestamp(&self) -> u64 {
+       self.header.internal_timestamp
+    }
+
+    fn local_timestamp(&self) -> u64 {
+       self.local_timestamp
     }
 }
 
@@ -271,7 +275,7 @@ impl Default for Pack {
             /// The path of the PackFile on disk, if exists. If not, then this should be empty.
             disk_file_path: String::new(),
             disk_file_offset: 0,
-            timestamp: 0,
+            local_timestamp: 0,
             compress: false,
             header: PackHeader::default(),
             dependencies: vec![],
@@ -306,7 +310,7 @@ impl Pack {
         };
 
         let disk_file_offset = extra_data.disk_file_offset;
-        let disk_file_size = extra_data.disk_file_size;
+        let disk_file_size = extra_data.data_size;
         let timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
 
@@ -328,7 +332,7 @@ impl Pack {
         let mut pack = Self::default();
         pack.disk_file_path = disk_file_path.to_owned();
         pack.disk_file_offset = disk_file_offset;
-        pack.timestamp = timestamp;
+        pack.local_timestamp = timestamp;
         pack.header.pfh_version = PFHVersion::version(&data.read_string_u8(4)?)?;
 
         let pack_type = data.read_u32()?;

@@ -64,7 +64,7 @@ pub struct AnimPack {
 
     /// Timestamp of the file. Needed for detecting edits on disk outside our control, in case
     /// we use LazyLoading.
-    timestamp: u64,
+    local_timestamp: u64,
 
     /// List of files within this AnimPack.
     files: HashMap<String, RFile>,
@@ -101,9 +101,9 @@ impl Container for AnimPack {
        self.disk_file_offset
     }
 
-    /// This function returns the `Last modified date` of this file on disk, in seconds.
-    fn timestamp(&self) -> u64 {
-       self.timestamp
+    /// This method returns the `Last modified date` the filesystem reports for the container file, in seconds.
+    fn local_timestamp(&self) -> u64 {
+        self.local_timestamp
     }
 }
 
@@ -117,6 +117,7 @@ impl Decodeable for AnimPack {
     /// - `is_encrypted`: If this AnimPack's data is encrypted. If it is, `lazy_load` is ignored.
     /// - `disk_file_path`: If provided, it must correspond to a valid file on disk.
     /// - `disk_file_offset`: If the file is within another file, it's the offset where this AnimPack's data starts. If not, it should be 0.
+    /// - `disk_file_size`: The size of the data belonging to this AnimPack.
     /// - `timestamp`: `Last modified date` of this AnimPack, in seconds. If the AnimPack is not a disk file, it should be 0.
     ///
     /// ```rust
@@ -131,6 +132,7 @@ impl Decodeable for AnimPack {
     ///
     ///let mut decodeable_extra_data = DecodeableExtraData::default();
     ///decodeable_extra_data.disk_file_path = Some(path);
+    ///decodeable_extra_data.disk_file_size = reader.len().unwrap() as u32;
     ///decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
     ///
     ///let data = AnimPack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
@@ -153,8 +155,8 @@ impl Decodeable for AnimPack {
         };
 
         let disk_file_offset = extra_data.disk_file_offset;
-        let disk_file_size = extra_data.disk_file_size;
-        let timestamp = extra_data.timestamp;
+        let disk_file_size = extra_data.data_size;
+        let local_timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
 
         // If we don't have a path, or the file is encrypted, we can't lazy-load.
@@ -164,7 +166,7 @@ impl Decodeable for AnimPack {
         let mut anim_pack = Self {
             disk_file_path,
             disk_file_offset,
-            timestamp,
+            local_timestamp,
             files: if file_count < 50_000 { HashMap::with_capacity(file_count as usize) } else { HashMap::new() },
         };
 
@@ -176,7 +178,7 @@ impl Decodeable for AnimPack {
             if !lazy_load || is_encrypted {
                 let data = data.read_slice(size as usize, false)?;
                 let file = RFile {
-                    path_in_container: path_in_container.to_owned(),
+                    path: path_in_container.to_owned(),
                     timestamp: None,
                     file_type: FileType::AnimPack,
                     data: RFileInnerData::Cached(data),
@@ -187,7 +189,7 @@ impl Decodeable for AnimPack {
 
             // Unencrypted and files are not read, but lazy-loaded, unless specified otherwise.
             else {
-                let file = RFile::new_from_container(&anim_pack, size, false, None, data.stream_position()?, timestamp, &path_in_container);
+                let file = RFile::new_from_container(&anim_pack, size as u64, false, None, data.stream_position()?, local_timestamp, &path_in_container);
                 data.seek(SeekFrom::Current(size as i64))?;
 
                 anim_pack.files.insert(path_in_container, file);
@@ -231,6 +233,12 @@ impl Encodeable for AnimPack {
             buffer.write_sized_string_u8(&path)?;
 
             let data = file.encode(extra_data, false, false, true)?.unwrap();
+
+            // Error on files too big for the AnimPack.
+            if data.len() > u32::MAX as usize {
+                return Err(RLibError::DataTooBigForContainer("AnimPack".to_owned(), u32::MAX as u64, data.len(), path.to_owned()));
+            }
+
             buffer.write_u32(data.len() as u32)?;
             buffer.write_all(&data)?;
         }

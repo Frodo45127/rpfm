@@ -25,7 +25,7 @@ impl Pack {
 
     /// This function reads a `Pack` of version 3 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh3<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
-        let data_len = extra_data.disk_file_size as u64;
+        let data_len = extra_data.data_size;
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -34,7 +34,7 @@ impl Pack {
         let files_index_size = data.read_u32()?;
 
         // Timestamp is a windows specific one, and with this we map it to the unix one.
-        self.header.timestamp = (data.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
+        self.header.internal_timestamp = (data.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
 
         // Optimization: we only really need the header of the Pack, not the data, and reads, if performed from disk, are expensive.
         // So we get all the data from the header to the end of the indexes to memory and put it in a buffer, so we can read it faster.
@@ -60,10 +60,10 @@ impl Pack {
                 (buffer_mem.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH
             } else { 0 };
 
-            let path = buffer_mem.read_string_u8_0terminated()?;
+            let path = buffer_mem.read_string_u8_0terminated()?.replace('\\', "/");
 
             // Build the File as a LazyLoaded file by default.
-            let file = RFile::new_from_container(self, size, false, None, data_pos, timestamp, &path);
+            let file = RFile::new_from_container(self, size as u64, false, None, data_pos, timestamp, &path);
             self.add_file(file)?;
 
             data_pos += u64::from(size);
@@ -102,13 +102,19 @@ impl Pack {
                 };
 
                 let mut file_index_entry = Vec::with_capacity(file_index_entry_len);
+
+                // Error on files too big for the Pack.
+                if data.len() > u32::MAX as usize {
+                    return Err(RLibError::DataTooBigForContainer("Pack".to_owned(), u32::MAX as u64, data.len(), path.to_owned()));
+                }
+
                 file_index_entry.write_u32(data.len() as u32)?;
 
                 if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                     file_index_entry.write_u64((file.timestamp().unwrap_or(0) + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK)?;
                 }
 
-                file_index_entry.write_string_u8_0terminated(path)?;
+                file_index_entry.write_string_u8_0terminated(&path.replace('/', "\\"))?;
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()
@@ -134,10 +140,10 @@ impl Pack {
 
         // If we're not in testing mode, update the header timestamp.
         if !test_mode {
-            self.header.timestamp = current_time()?;
+            self.header.internal_timestamp = current_time()?;
         }
 
-        header.write_u64((self.header.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK)?;
+        header.write_u64((self.header.internal_timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK)?;
 
         // Finally, write everything in one go.
         buffer.write_all(&header)?;
