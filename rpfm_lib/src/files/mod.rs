@@ -58,6 +58,7 @@ use getset::*;
 use rayon::prelude::*;
 use regex::Regex;
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -240,6 +241,7 @@ pub enum FileType {
 }
 
 /// This enum represents a ***Path*** inside a [Container].
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ContainerPath {
 
     /// This variant represents the path of a single file.
@@ -1042,6 +1044,103 @@ impl OnDisk {
         Ok(file)
     }
 }
+
+impl ContainerPath {
+
+    /// This function removes collided items from the provided list of `ContainerPath`.
+    ///
+    /// This means, if you have a file and a folder containing the file, it removes the file.
+    pub fn dedup(paths: &[Self]) -> Vec<Self> {
+
+        // As this operation can get very expensive very fast, we first check if we have a path containing the root of the container.
+        let root = ContainerPath::Folder("".to_string());
+        if paths.contains(&root) {
+            return vec![root; 1];
+        }
+
+        // If we don't have the root of the container, second optimization: check if we have at least one folder.
+        // If not, we just need to dedup the file list.
+        if paths.par_iter().any(|item| matches!(item, ContainerPath::Folder(_))) {
+            let mut paths = paths.to_vec();
+            paths.sort();
+            paths.dedup();
+            return paths;
+        }
+
+        // If we reached this point, we have a mix of files and folders, or only folders.
+        // In any case, we need to filter them, then dedup the resultant paths.
+        let items_to_remove = paths.par_iter().filter(|item_type_to_add| {
+            match item_type_to_add {
+
+                // If it's a file, we have to check if there is a folder containing it.
+                ContainerPath::File(ref path_to_add) => {
+                    paths.par_iter().filter(|x| {
+                        !matches!(x, ContainerPath::File(_))
+                    }).any(|item_type| {
+
+                        // If the other one is a folder that contains it, dont add it.
+                        if let ContainerPath::Folder(ref path) = item_type {
+                            path_to_add.starts_with(path)
+                        } else { false }
+                    })
+                }
+
+                // If it's a folder, we have to check if there is already another folder containing it.
+                ContainerPath::Folder(ref path_to_add) => {
+                    paths.par_iter().filter(|x| {
+                        !matches!(x, ContainerPath::File(_))
+                    }).any(|item_type| {
+
+                        // If the other one is a folder that contains it, dont add it.
+                        if let ContainerPath::Folder(ref path) = item_type {
+                            path_to_add.starts_with(path) && path_to_add.len() > path.len()
+                        } else { false }
+                    })
+                }
+            }
+        }).cloned().collect::<Vec<Self>>();
+
+        let mut paths = paths.to_vec();
+        paths.retain(|x| items_to_remove.contains(x));
+        paths.sort();
+        paths.dedup();
+        paths
+    }
+}
+
+impl Ord for ContainerPath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self {
+            ContainerPath::File(a) => match other {
+                ContainerPath::File(b) => if a == b {
+                    Ordering::Equal
+                } else if a > b {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                },
+                ContainerPath::Folder(_) => Ordering::Less,
+            }
+            ContainerPath::Folder(a) => match other {
+                ContainerPath::File(_) => Ordering::Greater,
+                ContainerPath::Folder(b) => if a == b {
+                    Ordering::Equal
+                } else if a > b {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                },
+            }
+        }
+    }
+}
+
+impl PartialOrd for ContainerPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /*
 //----------------------------------------------------------------//
 // Implementations for `DecodedPackedFile`.
