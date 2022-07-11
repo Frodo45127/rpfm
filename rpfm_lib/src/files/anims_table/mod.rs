@@ -46,7 +46,7 @@ use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
 /// Base path of an animation table. This is an special type of bin, stored only in this folder.
-pub const BASE_PATH: [&str; 1] = ["animations"];
+pub const BASE_PATH: &str = "animations";
 
 pub const EXTENSION: &str = "_tables.bin";
 

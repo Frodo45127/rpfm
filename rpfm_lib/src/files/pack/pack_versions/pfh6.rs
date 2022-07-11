@@ -109,7 +109,7 @@ impl Pack {
             }.replace('\\', "/");
 
             // Build the File as a LazyLoaded file by default.
-            let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path);
+            let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path)?;
             self.add_file(file)?;
 
             // Then we move our data position.

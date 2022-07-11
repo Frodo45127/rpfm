@@ -63,7 +63,7 @@ impl Pack {
             let path = buffer_mem.read_string_u8_0terminated()?.replace('\\', "/");
 
             // Build the File as a LazyLoaded file by default.
-            let file = RFile::new_from_container(self, size as u64, false, None, data_pos, timestamp, &path);
+            let file = RFile::new_from_container(self, size as u64, false, None, data_pos, timestamp, &path)?;
             self.add_file(file)?;
 
             data_pos += u64::from(size);

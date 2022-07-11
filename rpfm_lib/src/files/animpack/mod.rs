@@ -190,7 +190,8 @@ impl Decodeable for AnimPack {
 
             // Unencrypted and files are not read, but lazy-loaded, unless specified otherwise.
             else {
-                let file = RFile::new_from_container(&anim_pack, size as u64, false, None, data.stream_position()?, local_timestamp, &path_in_container);
+                let data_pos = data.stream_position()? - disk_file_offset;
+                let file = RFile::new_from_container(&anim_pack, size as u64, false, None, data_pos, local_timestamp, &path_in_container)?;
                 data.seek(SeekFrom::Current(size as i64))?;
 
                 anim_pack.files.insert(path_in_container, file);

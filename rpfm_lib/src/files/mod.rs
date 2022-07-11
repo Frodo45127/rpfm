@@ -56,6 +56,7 @@
 
 use getset::*;
 use rayon::prelude::*;
+use regex::Regex;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -203,6 +204,7 @@ pub enum RFileDecoded {
     MatchedCombat(MatchedCombat),
     Pack(Pack),
     RigidModel(RigidModel),
+    Save(ESF),
     Text(Text),
     UIC(UIC),
     UnitVariant(UnitVariant),
@@ -230,6 +232,7 @@ pub enum FileType {
     MatchedCombat,
     Pack,
     RigidModel,
+    Save,
     Text,
     UIC,
     UnitVariant,
@@ -508,7 +511,7 @@ impl RFile {
         data_pos: u64,
         file_timestamp: u64,
         path_in_container: &str,
-    ) -> Self {
+    ) -> Result<Self> {
         let on_disk = OnDisk {
             path: container.disk_file_path().to_owned(),
             timestamp: container.local_timestamp(),
@@ -518,12 +521,15 @@ impl RFile {
             is_encrypted,
         };
 
-        Self {
+        let mut rfile = Self {
             path: path_in_container.to_owned(),
             timestamp: if file_timestamp == 0 { None } else { Some(file_timestamp) },
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
-        }
+        };
+
+        rfile.guess_file_type()?;
+        Ok(rfile)
     }
 
     /// This function creates a RFile from an disk file.
@@ -545,32 +551,42 @@ impl RFile {
             is_encrypted: None,
         };
 
-        Ok(Self {
+
+        let mut rfile = Self {
             path: path.to_owned(),
             timestamp: Some(on_disk.timestamp),
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
-        })
+        };
+
+        rfile.guess_file_type()?;
+        Ok(rfile)
     }
 
     /// This function creates a RFile from raw data on memory.
-    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Self {
-        Self {
+    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
+        let mut rfile = Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Cached(data.to_vec())
-        }
+        };
+
+        rfile.guess_file_type()?;
+        Ok(rfile)
     }
 
     /// This function creates a RFile from an RFileDecoded on memory.
-    pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path: &str) -> Self {
-        Self {
+    pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
+        let mut rfile = Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Decoded(Box::new(data.clone()))
-        }
+        };
+
+        rfile.guess_file_type()?;
+        Ok(rfile)
     }
 
     /// This function decodes an RFile from binary data, optionally caching and returning the decoded RFile.
@@ -634,6 +650,7 @@ impl RFile {
                     FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                     FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
+                    FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
@@ -658,6 +675,7 @@ impl RFile {
                     FileType::Loc |
                     FileType::MatchedCombat |
                     FileType::RigidModel |
+                    FileType::Save |
                     FileType::Text |
                     FileType::UIC |
                     FileType::UnitVariant |
@@ -687,6 +705,7 @@ impl RFile {
                             FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                             FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                             FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
+                            FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
                             FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                             FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
@@ -714,7 +733,6 @@ impl RFile {
                         if extra_data.lazy_load {
                             extra_data.disk_file_path = Some(&data.path);
                             extra_data.disk_file_offset = data.start;
-                            extra_data.data_size = data.size as u64;
                             extra_data.timestamp = last_modified_time_from_file(&File::open(&data.path)?)?;
 
                             let mut data = data.read_lazily()?;
@@ -783,6 +801,7 @@ impl RFile {
                     RFileDecoded::MatchedCombat(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Pack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::RigidModel(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Save(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Text(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UIC(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UnitVariant(data) => data.encode(&mut buffer, extra_data)?,
@@ -888,6 +907,91 @@ impl RFile {
             _ => true
         }
     }
+
+    /// This function guesses the [`FileType`] of the provided RFile and stores it on it for later queries.
+    ///
+    /// The way it works is: first it tries to guess it by extension (fast), then by full path (not as fast), then by data (slow and it may fail on lazy-loaded files).
+    ///
+    /// This may fail for some files, so if you doubt set the type manually.
+    fn guess_file_type(&mut self) -> Result<()> {
+
+        // First, try with extensions.
+        let path = self.path.to_lowercase();
+
+        // TODO: Add autodetection to these, somehow
+        //--Anim,
+        //--GroupFormations,
+        //--UIC,
+
+        if path.ends_with(pack::EXTENSION) {
+            self.file_type = FileType::Pack;
+        }
+
+        else if path.ends_with(loc::EXTENSION) {
+            self.file_type = FileType::Loc;
+        }
+
+        else if path.ends_with(rigidmodel::EXTENSION) {
+            self.file_type = FileType::RigidModel
+        }
+
+        else if path.ends_with(animpack::EXTENSION) {
+            self.file_type =  FileType::AnimPack
+        }
+
+        else if path.ends_with(ca_vp8::EXTENSION) {
+            self.file_type =  FileType::CaVp8;
+        }
+
+        else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
+            self.file_type =  FileType::Image;
+        }
+
+        else if text::EXTENSIONS.iter().any(|(x, _)| path.ends_with(x)) {
+            self.file_type = FileType::Text;
+        }
+
+        else if path.ends_with(unit_variant::EXTENSION) {
+            self.file_type = FileType::UnitVariant
+        }
+
+        else if path.ends_with(esf::EXTENSION_CEO) {
+            self.file_type = FileType::CEO;
+        }
+
+        else if path.ends_with(esf::EXTENSION_ESF) {
+            self.file_type = FileType::ESF;
+        }
+
+        else if path.ends_with(esf::EXTENSION_SAVE) {
+            self.file_type = FileType::Save;
+        }
+
+        // If that failed, try types that need to be in a specific path.
+        else if path.starts_with(&matched_combat::BASE_PATH) && path.ends_with(matched_combat::EXTENSION) {
+            self.file_type = FileType::MatchedCombat;
+        }
+
+        else if path.starts_with(&anims_table::BASE_PATH) && path.ends_with(anims_table::EXTENSION) {
+            self.file_type =  FileType::AnimsTable;
+        }
+
+        else if path.starts_with(&anim_fragment::BASE_PATH) && anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+            self.file_type = FileType::AnimFragment;
+        }
+
+        // If that failed, check if it's in a folder which is known to only have specific files.
+        else if Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
+            self.file_type = FileType::DB;
+        }
+
+        // If we reach this... we're clueless. Leave it unknown.
+        else {
+            self.file_type = FileType::Unknown;
+        }
+
+        Ok(())
+    }
 }
 
 impl OnDisk {
@@ -900,8 +1004,6 @@ impl OnDisk {
         // Date check, to ensure the source file or container hasn't been modified since we got the indexes to read it.
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
-        dbg!(timestamp);
-        dbg!(self.timestamp);
         if timestamp != self.timestamp {
             return Err(RLibError::FileSourceChanged.into());
         }

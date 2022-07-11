@@ -70,6 +70,8 @@ use super::DecodeableExtraData;
 mod pack_test;
 mod pack_versions;
 
+pub const EXTENSION: &str = ".pack";
+
 /// These are the different Preamble/Id the PackFiles can have.
 const MFH_PREAMBLE: &str = "MFH"; // Weird format of some packs downloaded from Steam.
 
@@ -326,7 +328,8 @@ impl Pack {
 
         // Check if it has the weird steam-only header, and skip it if found.
         let start = if data.read_string_u8(3)? == MFH_PREAMBLE { 8 } else { 0 };
-        data.seek(SeekFrom::Start(start))?;
+        data.seek(SeekFrom::Current(-3))?;
+        data.seek(SeekFrom::Current(start))?;
 
         // Create the default Pack and start populating it.
         let mut pack = Self::default();
@@ -383,14 +386,14 @@ impl Pack {
                 if !self.notes.is_empty() {
                     let mut data = vec![];
                     data.write_string_u8(&self.notes)?;
-                    let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES);
+                    let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES)?;
                     self.files.insert(RESERVED_NAME_NOTES.to_owned(), file);
                 }
 
                 // Saving PackFile settings.
                 let mut data = vec![];
                 data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
-                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_SETTINGS);
+                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_SETTINGS)?;
                 self.files.insert(RESERVED_NAME_SETTINGS.to_owned(), file);
             }
         }
@@ -402,7 +405,7 @@ impl Pack {
             PFHVersion::PFH3 => self.write_pfh3(buffer, extra_data)?,
             PFHVersion::PFH2 => self.write_pfh2(buffer, extra_data)?,
             PFHVersion::PFH0 => self.write_pfh0(buffer, extra_data)?,
-        };
+        }
 
         // Remove again the reserved PackedFiles.
         self.remove(&ContainerPath::File(RESERVED_NAME_NOTES.to_owned()));

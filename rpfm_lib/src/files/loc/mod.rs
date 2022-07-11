@@ -281,14 +281,14 @@ impl Decodeable for Loc {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
+        let file_name = extra_data.file_name.ok_or(RLibError::DecodingMissingExtraDataField("file_name".to_string()))?;
         let pool = extra_data.pool;
 
         // Version is always 1, so we ignore it.
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, table_name)?;
+        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, file_name)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

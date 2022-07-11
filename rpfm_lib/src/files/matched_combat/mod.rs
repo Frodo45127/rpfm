@@ -46,10 +46,7 @@ use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
 /// Matched combat files go under this folder.
-pub const BASE_PATH: [&str; 2] = [
-    "animations",
-    "matched_combat"
-];
+pub const BASE_PATH: &str = "animations/matched_combat";
 
 /// Extension of MatchedCombat files.
 pub const EXTENSION: &str = ".bin";

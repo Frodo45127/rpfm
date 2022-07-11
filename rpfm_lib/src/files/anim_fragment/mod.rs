@@ -49,7 +49,7 @@ use crate::utils::check_size_mismatch;
 pub const HEADER_SIZE: usize = 0;
 
 /// Base path of an animation table. This is an special type of bin, stored only in this folder.
-pub const BASE_PATH: [&str; 1] = ["animations"];
+pub const BASE_PATH: &str = "animations";
 
 /// Extension of AnimFragment PackedFiles.
 pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];

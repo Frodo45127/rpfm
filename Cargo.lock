@@ -1395,6 +1395,7 @@ dependencies = [
  "r2d2_sqlite",
  "rand",
  "rayon",
+ "regex",
  "ron",
  "rusqlite",
  "sentry",
