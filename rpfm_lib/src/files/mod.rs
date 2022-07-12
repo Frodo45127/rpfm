@@ -377,11 +377,11 @@ pub trait Container {
     /// with the same path, in case it already existed one.
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
-    fn insert(&mut self, file: RFile) -> ContainerPath {
+    fn insert(&mut self, file: RFile) -> Result<ContainerPath> {
         let path = file.path_in_container();
         let path_raw = file.path_in_container_raw();
         self.files_mut().insert(path_raw.to_owned(), file);
-        path
+        Ok(path)
     }
 
     /// This method allow us to remove any [RFile] matching the provided [ContainerPath] from a Container.

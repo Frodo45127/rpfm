@@ -55,7 +55,7 @@ impl Pack {
 
             // Build the File as a LazyLoaded file by default.
             let file = RFile::new_from_container(self, size as u64, false, None, data_pos, 0, &path)?;
-            self.add_file(file)?;
+            self.insert(file)?;
 
             data_pos += u64::from(size);
         }

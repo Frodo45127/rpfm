@@ -232,15 +232,39 @@ pub struct PackFileSettings {
 //---------------------------------------------------------------------------//
 
 impl Container for Pack {
+
+    fn insert(&mut self, mut file: RFile) -> Result<ContainerPath> {
+
+        // Filter out special files, so we only leave the normal files in.
+        let path_container = file.path_in_container();
+        let path = file.path_in_container_raw();
+        if path == RESERVED_NAME_NOTES {
+            let mut data = Cursor::new(file.encode(&None, false, false, true)?.unwrap());
+            let data_len = data.len()?;
+            if let Ok(data) = data.read_string_u8(data_len as usize) {
+                self.notes = data;
+            }
+        } else if path == RESERVED_NAME_SETTINGS {
+            self.settings = PackFileSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
+        }
+
+        // If it's not filtered out, add it to the Pack.
+        else {
+            self.files.insert(path.to_owned(), file);
+        }
+
+        Ok(path_container)
+    }
+
     fn disk_file_path(&self) -> &str {
        &self.disk_file_path
     }
 
-    fn files(&self) -> &HashMap<std::string::String, RFile> {
+    fn files(&self) -> &HashMap<String, RFile> {
         &self.files
     }
 
-    fn files_mut(&mut self) -> &mut HashMap<std::string::String, RFile> {
+    fn files_mut(&mut self) -> &mut HashMap<String, RFile> {
         &mut self.files
     }
 
@@ -290,6 +314,13 @@ impl Default for Pack {
 
 /// Implementation of `Pack`.
 impl Pack {
+
+    /// This function creates a new empty Pack with a specific PFHVersion.
+    pub fn new_with_version(pfh_version: PFHVersion) -> Self {
+        let mut pack = Self::default();
+        pack.header.pfh_version = pfh_version;
+        pack
+    }
 
     /// This function tries to read a `Pack` from raw data.
     ///
@@ -418,29 +449,6 @@ impl Pack {
     //-----------------------------------------------------------------------//
     //                             Util functions
     //-----------------------------------------------------------------------//
-
-    /// This function adds a file into a Pack, filtering out reserved files.
-    fn add_file(&mut self, mut file: RFile) -> Result<()> {
-
-        // Filter out special files, so we only leave the normal files in.
-        let path = file.path_in_container_raw();
-        if path == RESERVED_NAME_NOTES {
-            let mut data = Cursor::new(file.encode(&None, false, false, true)?.unwrap());
-            let data_len = data.len()?;
-            if let Ok(data) = data.read_string_u8(data_len as usize) {
-                self.notes = data;
-            }
-        } else if path == RESERVED_NAME_SETTINGS {
-            self.settings = PackFileSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
-        }
-
-        // If it's not filtered out, add it to the Pack.
-        else {
-            self.files.insert(path.to_owned(), file);
-        }
-
-        Ok(())
-    }
 
     pub fn is_compressible(&self) -> bool {
         match self.header.pfh_version {

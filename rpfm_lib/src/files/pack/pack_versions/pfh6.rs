@@ -110,7 +110,7 @@ impl Pack {
 
             // Build the File as a LazyLoaded file by default.
             let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path)?;
-            self.add_file(file)?;
+            self.insert(file)?;
 
             // Then we move our data position.
             data_pos += u64::from(size);

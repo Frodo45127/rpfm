@@ -17,6 +17,7 @@ use std::fs::File;
 use std::path::Path;
 
 use rpfm_lib::files::{Container, Decodeable, DecodeableExtraData, Encodeable, pack::Pack};
+use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::last_modified_time_from_file;
 
@@ -230,11 +231,10 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
         info!("Creating New Pack.");
     }
 
-    // TODO: Make this generate the correct type and version.
     match &config.game {
         Some(game) => {
             let mut file = BufWriter::new(File::create(path)?);
-            let mut pack = Pack::default();
+            let mut pack = Pack::new_with_version(game.pfh_version_by_file_type(PFHFileType::Mod));
             let _ = pack.encode(&mut file, &None)?;
             Ok(())
         }

@@ -108,7 +108,7 @@ impl Pack {
 
             // Build the File as a LazyLoaded file by default.
             let file = RFile::new_from_container(self, size as u64, is_compressed, files_are_encrypted, data_pos, timestamp, &path)?;
-            self.add_file(file)?;
+            self.insert(file)?;
 
             // Then we move our data position. For encrypted files in PFH5 Packs (only ARENA) we have to start the next one in a multiple of 8.
             // TODO: Revise this.
