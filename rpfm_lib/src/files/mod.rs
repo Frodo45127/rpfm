@@ -384,6 +384,50 @@ pub trait Container {
         Ok(path)
     }
 
+    /// This method allow us to insert a file from disk into an specific path within a Container,
+    /// replacing any old [RFile] with the same path, in case it already existed one.
+    ///
+    /// Returns the [ContainerPath] of the inserted [RFile].
+    fn insert_file(&mut self, source_path: &Path, container_path_folder: &str) -> Result<ContainerPath> {
+        let mut container_path_folder = container_path_folder.to_owned();
+        if container_path_folder.ends_with("/") {
+            container_path_folder.push('/');
+        }
+
+        let trimmed_path = source_path.file_name()
+            .ok_or(RLibError::PathMissingFileName(source_path.to_string_lossy().to_string()))?
+            .to_string_lossy().to_string();
+        let file_container_path = container_path_folder.to_owned() + &trimmed_path;
+
+        let mut rfile = RFile::new_from_file_path(&source_path)?;
+        rfile.set_path_in_container_raw(&file_container_path);
+        self.insert(rfile)
+    }
+
+    /// This method allow us to insert an entire folder from disk, including subfolders and files,
+    /// into an specific path within a Container, replacing any old [RFile] in a path collision.
+    ///
+    /// Returns the list of [ContainerPath] inserted.
+    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str) -> Result<Vec<ContainerPath>> {
+        let mut container_path_folder = container_path_folder.to_owned();
+        if container_path_folder.ends_with("/") {
+            container_path_folder.push('/');
+        }
+
+        let file_paths = files_from_subdir(source_path, true)?;
+        let mut inserted_paths = Vec::with_capacity(file_paths.len());
+        for file_path in file_paths {
+            let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().to_string();
+            let file_container_path = container_path_folder.to_owned() + &trimmed_path;
+
+            let mut rfile = RFile::new_from_file_path(&file_path)?;
+            rfile.set_path_in_container_raw(&file_container_path);
+            inserted_paths.push(self.insert(rfile)?);
+        }
+
+        Ok(inserted_paths)
+    }
+
     /// This method allow us to remove any [RFile] matching the provided [ContainerPath] from a Container.
     ///
     /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
@@ -490,9 +534,96 @@ pub trait Container {
     ///
     /// Implementors should return `0` if the Container doesn't have a file on disk yet.
     fn local_timestamp(&self) -> u64;
-}
 
-// TODO: Implement "possible types" logic, to have some flexibility when opening files.
+    /// This function allows to rename the last item (file or folder) from multiple [ContainerPath] at the same time.
+    fn rename_paths(&mut self, renaming_data: &[(ContainerPath, String)]) -> Result<Vec<(ContainerPath, Vec<ContainerPath>)>> {
+        let mut successes = vec![];
+        for (source_path, new_name) in renaming_data {
+
+            // Skip items with empty new names.
+            if new_name.is_empty() {
+                continue;
+            }
+
+            match source_path {
+                ContainerPath::File(ref path) => {
+                    let mut new_path = path.rsplit_once('/').unwrap().0.to_owned();
+                    new_path.push('/');
+                    new_path.push_str(new_name);
+
+                    let new_path = ContainerPath::File(new_path);
+                    let destination_path = self.move_path(source_path.clone(), new_path)?;
+                    successes.push((source_path.clone(), destination_path));
+                }
+
+                ContainerPath::Folder(ref path) => {
+                    let mut path = path.to_owned();
+                    if path.ends_with('/') {
+                        path.pop();
+                    }
+
+                    let mut new_path = path.rsplit_once('/').unwrap().0.to_owned();
+                    new_path.push('/');
+                    new_path.push_str(new_name);
+
+                    let new_path = ContainerPath::Folder(new_path);
+                    let destination_path = self.move_path(source_path.clone(), new_path)?;
+                    successes.push((source_path.clone(), destination_path));
+                }
+            }
+        }
+
+        // Return the list of successes.
+        Ok(successes)
+    }
+
+    /// This function allows you to *move* any RFile of folder of RFiles from one folder to another.
+    ///
+    /// It returns a list with all the new [ContainerPath].
+    fn move_path(
+        &mut self,
+        source_path: ContainerPath,
+        destination_path: ContainerPath,
+    ) -> Result<Vec<ContainerPath>> {
+
+        match source_path {
+            ContainerPath::File(source_path) => match destination_path {
+                ContainerPath::File(destination_path) => {
+                    if destination_path.is_empty() {
+                        return Err(RLibError::EmptyDestiny);
+                    }
+
+                    let mut moved = self.files_mut().remove(&source_path).ok_or(RLibError::FileNotFound(source_path.to_string()))?;
+                    moved.set_path_in_container_raw(&destination_path);
+                    self.insert(moved).map(|x| vec![x; 1])
+                },
+                ContainerPath::Folder(_) => unreachable!(),
+            },
+            ContainerPath::Folder(source_path) => match destination_path {
+                ContainerPath::File(_) => unreachable!(),
+                ContainerPath::Folder(destination_path) => {
+                    if destination_path.is_empty() {
+                        return Err(RLibError::EmptyDestiny);
+                    }
+
+                    let moved_paths = self.files()
+                        .par_iter()
+                        .filter_map(|(path, _)| if path.starts_with(&source_path) { Some(path.to_owned()) } else { None })
+                        .collect::<Vec<_>>();
+                    let moved = moved_paths.iter().filter_map(|x| self.files_mut().remove(x)).collect::<Vec<_>>();
+                    let mut new_paths = Vec::with_capacity(moved.len());
+                    for mut moved in moved {
+                        let path = moved.path_in_container_raw().replacen(&source_path, &destination_path, 1);
+                        moved.set_path_in_container_raw(&path);
+                        new_paths.push(self.insert(moved)?);
+                    }
+
+                    Ok(new_paths)
+                },
+            },
+        }
+    }
+}
 
 //----------------------------------------------------------------//
 //                        Implementations
@@ -563,6 +694,12 @@ impl RFile {
 
         rfile.guess_file_type()?;
         Ok(rfile)
+    }
+
+    /// This function creates a RFile from a path on disk.
+    pub fn new_from_file_path(path: &Path) -> Result<Self> {
+        let path = path.to_string_lossy().to_string();
+        Self::new_from_file(&path)
     }
 
     /// This function creates a RFile from raw data on memory.
@@ -899,6 +1036,11 @@ impl RFile {
     /// This function returns the [ContainerPath] corresponding to this file as an [&str].
     pub fn path_in_container_raw(&self) -> &str {
         &self.path
+    }
+
+    /// This function sets the [ContainerPath] of the provided RFile to the provided path..
+    pub fn set_path_in_container_raw(&mut self, path: &str) {
+        self.path = path.to_owned();
     }
 
     /// This function returns if the RFile can be compressed or not.

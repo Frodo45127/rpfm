@@ -35,7 +35,7 @@ fn test_encode_rfile() {
 
     match decoded {
         RFileDecoded::Pack(ref mut pack) => {
-            for (path, file) in pack.files_mut() {
+            for (_, file) in pack.files_mut() {
                 file.decode(&Some(decodeable_extra_data.clone()), true, true).unwrap();
             }
 

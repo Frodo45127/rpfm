@@ -92,7 +92,7 @@ pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
 pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
 
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special purposes.
-pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
+pub const RESERVED_RFILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
 
 const AUTHORING_TOOL_CA: &str = "CA_TOOL";
 const AUTHORING_TOOL_RPFM: &str = "RPFM";
@@ -278,6 +278,56 @@ impl Container for Pack {
 
     fn local_timestamp(&self) -> u64 {
        self.local_timestamp
+    }
+
+    /// This function allows you to *move* any RFile of folder of RFiles from one folder to another.
+    ///
+    /// It returns a list with all the new [ContainerPath].
+    fn move_path(
+        &mut self,
+        source_path: ContainerPath,
+        destination_path: ContainerPath,
+    ) -> Result<Vec<ContainerPath>> {
+        match source_path {
+            ContainerPath::File(source_path) => match destination_path {
+                ContainerPath::File(destination_path) => {
+                    if RESERVED_RFILE_NAMES.contains(&&*destination_path) {
+                        return Err(RLibError::ReservedFiles);
+                    }
+
+                    if destination_path.is_empty() {
+                        return Err(RLibError::EmptyDestiny);
+                    }
+
+                    let mut moved = self.files_mut().remove(&source_path).ok_or(RLibError::FileNotFound(source_path.to_string()))?;
+                    moved.set_path_in_container_raw(&destination_path);
+                    self.insert(moved).map(|x| vec![x; 1])
+                },
+                ContainerPath::Folder(_) => unreachable!(),
+            },
+            ContainerPath::Folder(source_path) => match destination_path {
+                ContainerPath::File(_) => unreachable!(),
+                ContainerPath::Folder(destination_path) => {
+                    if destination_path.is_empty() {
+                        return Err(RLibError::EmptyDestiny);
+                    }
+
+                    let moved_paths = self.files()
+                        .par_iter()
+                        .filter_map(|(path, _)| if path.starts_with(&source_path) { Some(path.to_owned()) } else { None })
+                        .collect::<Vec<_>>();
+                    let moved = moved_paths.iter().filter_map(|x| self.files_mut().remove(x)).collect::<Vec<_>>();
+                    let mut new_paths = Vec::with_capacity(moved.len());
+                    for mut moved in moved {
+                        let path = moved.path_in_container_raw().replacen(&source_path, &destination_path, 1);
+                        moved.set_path_in_container_raw(&path);
+                        new_paths.push(self.insert(moved)?);
+                    }
+
+                    Ok(new_paths)
+                },
+            },
+        }
     }
 }
 

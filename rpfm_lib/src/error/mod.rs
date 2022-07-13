@@ -195,8 +195,17 @@ pub enum RLibError {
     #[error("The following file hasn't been found: {0}.")]
     FileNotFound(String),
 
+    #[error("Operation not allowed: reserved file detected.")]
+    ReservedFiles,
+
+    #[error("Operation not allowed: destiny is blank for your file.")]
+    EmptyDestiny,
+
     #[error("The SQLite connection pool hasn't been initialized yet.")]
     MissingSQLitePool,
+
+    #[error("The path {0} doesn't have an identifiable filename.")]
+    PathMissingFileName(String),
 
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
@@ -226,6 +235,10 @@ pub enum RLibError {
     /// Represents all other cases of `std::time::SystemTimeError`.
     #[error(transparent)]
     SystemTimeError(#[from] std::time::SystemTimeError),
+
+    /// Represents all other cases of `std::path::StripPrefixError`.
+    #[error(transparent)]
+    StripPrefixError(#[from] std::path::StripPrefixError),
 
     /// Represents all other cases of `r2d2::Error`.
     #[cfg(feature = "integration_sqlite")]
