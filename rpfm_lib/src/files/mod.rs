@@ -390,17 +390,19 @@ pub trait Container {
     /// Returns the [ContainerPath] of the inserted [RFile].
     fn insert_file(&mut self, source_path: &Path, container_path_folder: &str) -> Result<ContainerPath> {
         let mut container_path_folder = container_path_folder.to_owned();
-        if container_path_folder.ends_with("/") {
-            container_path_folder.push('/');
+        if container_path_folder.starts_with("/") {
+            container_path_folder.remove(0);
         }
 
-        let trimmed_path = source_path.file_name()
-            .ok_or(RLibError::PathMissingFileName(source_path.to_string_lossy().to_string()))?
-            .to_string_lossy().to_string();
-        let file_container_path = container_path_folder.to_owned() + &trimmed_path;
+        if container_path_folder.ends_with('/') || container_path_folder.is_empty() {
+            let trimmed_path = source_path.file_name()
+                .ok_or(RLibError::PathMissingFileName(source_path.to_string_lossy().to_string()))?
+                .to_string_lossy().to_string();
+            container_path_folder = container_path_folder.to_owned() + &trimmed_path;
+        }
 
         let mut rfile = RFile::new_from_file_path(&source_path)?;
-        rfile.set_path_in_container_raw(&file_container_path);
+        rfile.set_path_in_container_raw(&container_path_folder);
         self.insert(rfile)
     }
 
@@ -410,8 +412,12 @@ pub trait Container {
     /// Returns the list of [ContainerPath] inserted.
     fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.to_owned();
-        if container_path_folder.ends_with("/") {
+        if !container_path_folder.is_empty() && !container_path_folder.ends_with("/") {
             container_path_folder.push('/');
+        }
+
+        if container_path_folder.starts_with("/") {
+            container_path_folder.remove(0);
         }
 
         let file_paths = files_from_subdir(source_path, true)?;
@@ -437,21 +443,42 @@ pub trait Container {
     fn remove(&mut self, path: &ContainerPath) -> Vec<ContainerPath> {
         match path {
             ContainerPath::File(path) => {
-                self.files_mut().remove(path);
+                let mut path = path.to_owned();
+                if path.starts_with("/") {
+                    path.remove(0);
+                }
+
+                self.files_mut().remove(&path);
                 return vec![ContainerPath::File(path.to_owned())];
             },
             ContainerPath::Folder(path) => {
+                let mut path = path.to_owned();
+                if path.starts_with("/") {
+                    path.remove(0);
+                }
 
                 // If the path is empty, we mean the root of the container, including everything on it.
                 if path.is_empty() {
+                    let paths = self.files().keys().map(|x| ContainerPath::File(x.to_string())).collect();
                     self.files_mut().clear();
-                    return vec![ContainerPath::Folder(path.to_string())];
+                    return paths;
                 }
 
                 // Otherwise, it's a normal folder.
                 else {
+                    let mut path_full = path.to_owned();
+                    path_full.push('/');
+
                     let paths_to_remove = self.files().par_iter()
-                        .filter_map(|(key, _)| if key.starts_with(path) { Some(key.to_owned()) } else { None }).collect::<Vec<String>>();
+                        .filter_map(|(key, _)| {
+
+                            // Make sure to only pick folders, not files matching folder names or partial folder matches!
+                            if key.starts_with(&path_full) {
+                                Some(key.to_owned())
+                            } else {
+                                None
+                            }
+                        }).collect::<Vec<String>>();
 
                     paths_to_remove.iter().for_each(|path| {
                         self.files_mut().remove(path);
@@ -534,6 +561,13 @@ pub trait Container {
     ///
     /// Implementors should return `0` if the Container doesn't have a file on disk yet.
     fn local_timestamp(&self) -> u64;
+
+    /// This function preloads to memory any lazy-loaded RFile within this container.
+    fn preload(&mut self) -> Result<()> {
+        self.files_mut()
+            .into_par_iter()
+            .try_for_each(|(_, rfile)| rfile.encode(&None, false, true, false).map(|_| ()))
+    }
 
     /// This function allows to rename the last item (file or folder) from multiple [ContainerPath] at the same time.
     fn rename_paths(&mut self, renaming_data: &[(ContainerPath, String)]) -> Result<Vec<(ContainerPath, Vec<ContainerPath>)>> {
@@ -1033,6 +1067,7 @@ impl RFile {
     pub fn path_in_container(&self) -> ContainerPath {
         ContainerPath::File(self.path.to_owned())
     }
+
     /// This function returns the [ContainerPath] corresponding to this file as an [&str].
     pub fn path_in_container_raw(&self) -> &str {
         &self.path

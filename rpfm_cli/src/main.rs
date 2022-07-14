@@ -74,8 +74,11 @@ fn main() {
     // If we reached here, execute the commands.
     let result: Result<()> = match cli.command {
         Commands::Pack { commands } => match commands {
-            CommandsPack::List { path } => crate::commands::pack::list(&config, &path),
-            CommandsPack::Create { path } => crate::commands::pack::create(&config, &path),
+            CommandsPack::List { pack_path } => crate::commands::pack::list(&config, &pack_path),
+            CommandsPack::Create { pack_path } => crate::commands::pack::create(&config, &pack_path),
+            CommandsPack::Add { pack_path, file_path, folder_path } => crate::commands::pack::add(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
         }
         //Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
         //Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),

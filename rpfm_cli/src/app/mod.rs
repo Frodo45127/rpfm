@@ -12,9 +12,11 @@
 //!
 //! This contains the helpers for the initialization of the app.
 
-use std::path::PathBuf;
-
+use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
+use csv::ReaderBuilder;
+
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -54,16 +56,134 @@ pub enum CommandsPack {
     List {
 
         #[clap(short, long, action, value_parser, name = "PATH")]
-        path: PathBuf,
+        pack_path: PathBuf,
     },
 
     /// Creates a new Pack in the provided path.
     Create {
 
         #[clap(short, long, action, value_parser, name = "PATH")]
-        path: PathBuf,
+        pack_path: PathBuf,
+    },
+
+    /// Adds a path to the Pack in the provided path.
+    Add {
+
+        #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
+        pack_path: PathBuf,
+
+        #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH")]
+        file_path: Vec<(PathBuf, String)>,
+
+        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH")]
+        folder_path: Vec<(PathBuf, String)>,
+    },
+
+
+    /// Adds a path to the Pack in the provided path.
+    Delete {
+
+        #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
+        pack_path: PathBuf,
+
+        #[clap(short, long, action, required = false, multiple = true, value_parser, name = "FILE_PATH")]
+        file_path: Vec<String>,
+
+        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser, name = "FOLDER_PATH")]
+        folder_path: Vec<String>,
+    },
+
+    /// Adds a path to the Pack in the provided path.
+    Extract {
+
+        #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
+        pack_path: PathBuf,
+
+        #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH")]
+        file_path: Vec<(PathBuf, String)>,
+
+        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH")]
+        folder_path: Vec<(PathBuf, String)>,
     },
 }
+
+fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b',')
+        .quoting(true)
+        .has_headers(false)
+        .flexible(true)
+        .from_reader(src.as_bytes());
+
+    // If we successfully load the TSV file into a reader, check the first line to get the column list.
+    for record in reader.records() {
+        let record = record?;
+
+        if record.len() == 2 {
+            let source = PathBuf::from(&record[0]);
+            if !source.is_file() {
+                return Err(anyhow!("Path {} doesn't belong to a valid file.", &record[0]));
+            }
+
+            let dest = if record[1].ends_with('/') {
+                record[1].to_owned() + &source.file_name().unwrap().to_string_lossy()
+            } else {
+                record[1].to_owned()
+            };
+
+            return Ok((source, dest))
+        } else if record.len() == 1 {
+            let source = PathBuf::from(&record[0]);
+            if !source.is_file() {
+                return Err(anyhow!("Path {} doesn't belong to a valid file.", &record[0]));
+            }
+
+            let dest = String::new();
+            return Ok((source, dest))
+        } else {
+            return Err(anyhow!("Incorrect CSV input."));
+        }
+    }
+
+    Ok((PathBuf::new(), String::new()))
+}
+
+fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b',')
+        .quoting(true)
+        .has_headers(false)
+        .flexible(true)
+        .from_reader(src.as_bytes());
+
+    // If we successfully load the TSV file into a reader, check the first line to get the column list.
+    for record in reader.records() {
+        let record = record?;
+
+        if record.len() == 2 {
+            let source = PathBuf::from(&record[0]);
+            if !source.is_dir() {
+                return Err(anyhow!("Path {} doesn't belong to a valid folder.", &record[0]));
+            }
+
+            let dest = record[1].to_owned();
+            return Ok((source, dest))
+        } else if record.len() == 1 {
+            let source = PathBuf::from(&record[0]);
+            if !source.is_dir() {
+                return Err(anyhow!("Path {} doesn't belong to a valid folder.", &record[0]));
+            }
+
+            let dest = String::new();
+            return Ok((source, dest))
+        } else {
+            return Err(anyhow!("Incorrect CSV input."));
+        }
+    }
+
+    Ok((PathBuf::new(), String::new()))
+}
+
 //---------------------------------------------------------------------------//
 //                          App helpers
 //---------------------------------------------------------------------------//

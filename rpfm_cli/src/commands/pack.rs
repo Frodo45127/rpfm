@@ -9,14 +9,16 @@
 //---------------------------------------------------------------------------//
 
 //! This module contains the `PackFile` command's functions.
+
 use anyhow::{anyhow, Result};
 
 use std::collections::BTreeMap;
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use rpfm_lib::files::{Container, Decodeable, DecodeableExtraData, Encodeable, pack::Pack};
+use rpfm_lib::binary::ReadBytes;
+use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, pack::Pack};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::last_modified_time_from_file;
@@ -215,6 +217,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     let mut extra_data = DecodeableExtraData::default();
     extra_data.set_disk_file_path(Some(&path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    extra_data.set_data_size(reader.len()?);
 
     let pack = Pack::decode(&mut reader, &Some(extra_data))?;
     let files: BTreeMap<_, _> = pack.files().iter().collect();
@@ -240,5 +243,101 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
         }
         None => Err(anyhow!("No Game Selected provided.")),
     }
+}
+
+/// This function creates a new packfile with the provided path.
+pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
+    if config.verbose {
+        info!("Adding to a Pack.");
+    }
+
+    let pack_path_str = pack_path.to_string_lossy().to_string();
+    let mut reader = BufReader::new(File::open(pack_path)?);
+    let mut extra_data = DecodeableExtraData::default();
+
+    extra_data.set_disk_file_path(Some(&pack_path_str));
+    extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    extra_data.set_data_size(reader.len()?);
+
+    let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
+
+    for (folder_path, container_path) in folder_path {
+        pack.insert_folder(&folder_path, container_path)?;
+    }
+
+    for (file_path, container_path) in file_path {
+        pack.insert_file(&file_path, container_path)?;
+    }
+
+    pack.preload()?;
+
+    let mut writer = BufWriter::new(File::create(pack_path)?);
+    pack.encode(&mut writer, &None)?;
+
+    Ok(())
+}
+
+/// This function creates a new packfile with the provided path.
+pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_path: &[String]) -> Result<()> {
+    if config.verbose {
+        info!("Delete to a Pack.");
+    }
+
+    let pack_path_str = pack_path.to_string_lossy().to_string();
+    let mut reader = BufReader::new(File::open(pack_path)?);
+    let mut extra_data = DecodeableExtraData::default();
+
+    extra_data.set_disk_file_path(Some(&pack_path_str));
+    extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    extra_data.set_data_size(reader.len()?);
+
+    let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
+
+    let mut container_paths = folder_path.iter().map(|x| ContainerPath::Folder(x.to_string())).collect::<Vec<_>>();
+    container_paths.append(&mut file_path.iter().map(|x| ContainerPath::File(x.to_string())).collect::<Vec<_>>());
+    let container_paths = ContainerPath::dedup(&container_paths);
+
+    for container_path in container_paths {
+        pack.remove(&container_path);
+    }
+
+    pack.preload()?;
+
+    let mut writer = BufWriter::new(File::create(pack_path)?);
+    pack.encode(&mut writer, &None)?;
+
+    Ok(())
+}
+
+/// This function creates a new packfile with the provided path.
+pub fn extract(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
+    if config.verbose {
+        info!("extra to a Pack.");
+    }
+
+    let pack_path_str = pack_path.to_string_lossy().to_string();
+    let mut reader = BufReader::new(File::open(pack_path)?);
+    let mut extra_data = DecodeableExtraData::default();
+
+    extra_data.set_disk_file_path(Some(&pack_path_str));
+    extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    extra_data.set_data_size(reader.len()?);
+
+    let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
+
+    for (folder_path, container_path) in folder_path {
+        pack.insert_folder(&folder_path, container_path)?;
+    }
+
+    for (file_path, container_path) in file_path {
+        pack.insert_file(&file_path, container_path)?;
+    }
+
+    pack.preload()?;
+
+    let mut writer = BufWriter::new(File::create(pack_path)?);
+    pack.encode(&mut writer, &None)?;
+
+    Ok(())
 }
 
