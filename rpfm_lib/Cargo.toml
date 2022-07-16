@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "3.0.6"
+version = "3.99.99"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Lib with all the common functions and utils used by all the RPFM crates."
 edition = "2021"
@@ -17,7 +17,6 @@ integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
 support_rigidmodel = []
 support_uic = []
 support_tip_uploads = []
-
 
 [dependencies]
 
@@ -67,17 +66,17 @@ xz2 = "^0.1"
 fraction = "^0.10"
 
 # UUID Generation support.
-uuid = { version = "^0.8", features = ["v4"] }
+uuid = { version = "^1.1", features = ["v4"] }
 
 # Quick char search support.
 memchr = "^2.5"
 
 # Float equality support.
-float_eq = "^0.7"
+float_eq = "^1"
 
 # Logging support.
 backtrace = { version = "^0.3", optional = true }
 log = { version = "^0.4", optional = true, features = ["std"] }
 os_info = { version = "^3.0", optional = true }
 sentry = { version = "^0", optional = true, features = ["log"] }
-simplelog = { version = "^0.11", optional = true }
+simplelog = { version = "^0.12", optional = true }

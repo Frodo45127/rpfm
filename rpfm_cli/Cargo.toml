@@ -1,11 +1,11 @@
 [package]
 name = "rpfm_cli"
-version = "3.0.8"
+version = "3.99.99"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A CLI tool to automate all your modding needs."
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.60"
 
 [dependencies]
 
@@ -17,13 +17,6 @@ anyhow = "1.0"
 
 # CLI parsing, formatting and color support.
 clap = { version = "^3.2", features = ["derive"] }
-#colored = "^2.0"
-#prettytable-rs = "^0.8"
-#bytesize = "^1.0"
-
-# Logging support.
-#log = "^0.4"
-#simplelog = "^0.11"
 
 # Serialize support.
 serde = "^1.0"
