@@ -59,6 +59,7 @@ pub enum CommandsPack {
     /// List the contents of the provided Pack.
     List {
 
+        /// Path of the Pack this operation will use.
         #[clap(short, long, action, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
@@ -66,6 +67,7 @@ pub enum CommandsPack {
     /// Creates a new empty Pack in the provided path.
     Create {
 
+        /// Path of the Pack this operation will use.
         #[clap(short, long, action, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
@@ -73,12 +75,15 @@ pub enum CommandsPack {
     /// Adds a file/folder from disk to the Pack in the provided path.
     Add {
 
+        /// Path of the Pack this operation will use.
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
+        /// File to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the file in the root of the Pack.
         #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH")]
         file_path: Vec<(PathBuf, String)>,
 
+        /// Folder to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the folder in the root of the Pack.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH")]
         folder_path: Vec<(PathBuf, String)>,
     },
@@ -87,12 +92,15 @@ pub enum CommandsPack {
     /// Deletes a file/folder from the Pack in the provided path.
     Delete {
 
+        /// Path of the Pack this operation will use.
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
+        /// Full path of the file to delete.
         #[clap(short, long, action, required = false, multiple = true, value_parser, name = "FILE_PATH")]
         file_path: Vec<String>,
 
+        /// Full path of the folder to delete.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser, name = "FOLDER_PATH")]
         folder_path: Vec<String>,
     },
@@ -100,13 +108,16 @@ pub enum CommandsPack {
     /// Extracts a file/folder from the Pack in the provided path to the specified path on disk, keeping the internal folder structure.
     Extract {
 
+        /// Path of the Pack this operation will use.
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
-        #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH")]
+        /// File to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the file to the current folder.
+        #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         file_path: Vec<(String, PathBuf)>,
 
-        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH")]
+        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder.
+        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         folder_path: Vec<(String, PathBuf)>,
     },
 }
