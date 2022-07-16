@@ -20,7 +20,7 @@ use std::process::exit;
 
 use rpfm_lib::integrations::log::*;
 
-use crate::app::{Cli, Commands, CommandsPack};
+use crate::app::{Cli, Commands, CommandsAnimPack, CommandsPack};
 use crate::config::Config;
 
 mod app;
@@ -71,6 +71,14 @@ fn main() {
             CommandsPack::Add { pack_path, file_path, folder_path } => crate::commands::pack::add(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
+        }
+
+        Commands::AnimPack { commands } => match commands {
+            CommandsAnimPack::List { pack_path } => crate::commands::animpack::list(&config, &pack_path),
+            CommandsAnimPack::Create { pack_path } => crate::commands::animpack::create(&config, &pack_path),
+            CommandsAnimPack::Add { pack_path, file_path, folder_path } => crate::commands::animpack::add(&config, &pack_path, &file_path, &folder_path),
+            CommandsAnimPack::Delete { pack_path, file_path, folder_path } => crate::commands::animpack::delete(&config, &pack_path, &file_path, &folder_path),
+            CommandsAnimPack::Extract { pack_path, file_path, folder_path } => crate::commands::animpack::extract(&config, &pack_path, &file_path, &folder_path),
         }
     };
 

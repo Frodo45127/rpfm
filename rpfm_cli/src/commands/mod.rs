@@ -13,6 +13,7 @@
 
 //mod diagnostic;
 //mod table;
+pub mod animpack;
 pub mod pack;
 //mod schema;
 
