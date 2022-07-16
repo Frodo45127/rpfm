@@ -8,34 +8,24 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! This is a small CLI tool to interact with files used by Total War games.
+//!
+//! The purpouse of this tool is to allow users to automate certain parts of the mod building process.
 
-/*!
-This crate is the `CLI` version of RPFM, who fought in the splitting war as a new power and managed to stablish itself by the end of the war.
-!*/
-
-
-//use colored::*;
-//use log::{error, info, warn};
-
-use crate::config::Config;
-use app::CommandsPack;
-//use std::env;
+use anyhow::Result;
 use clap::Parser;
+
 use std::path::PathBuf;
 use std::process::exit;
 
 use rpfm_lib::integrations::log::*;
-//use crate::config::Config;
-//use crate::logger::initialize_logs;
-use crate::app::{Cli, Commands};
 
-use anyhow::Result;
+use crate::app::{Cli, Commands, CommandsPack};
+use crate::config::Config;
 
-// Modules used by this tool.
-pub mod app;
-pub mod commands;
-pub mod config;
-//pub mod logger;
+mod app;
+mod commands;
+mod config;
 
 /// Guess you know what this function does....
 fn main() {
@@ -46,6 +36,7 @@ fn main() {
         warn!("Logging initialization has failed. No logs will be saved.");
     }
 
+    // Parse the entire cli command.
     let cli = Cli::parse();
 
     /*
@@ -62,7 +53,8 @@ fn main() {
         None => "three_kingdoms".to_owned(),
     };
     */
-    // By default, print the game selected we're using, just in case some asshole starts complaining about broken PackFiles.
+
+    // By default, print the game selected we're using, just in case some asshole starts complaining about broken Packs.
     if cli.verbose {
         info!("Game: {}", cli.game);
         info!("Verbose: {}", cli.verbose);
@@ -71,7 +63,7 @@ fn main() {
     // Build the Config struct to remember the current configuration when processing stuff.
     let config = Config::new(&cli.game, cli.verbose);
 
-    // If we reached here, execute the commands.
+    // Execute the commands.
     let result: Result<()> = match cli.command {
         Commands::Pack { commands } => match commands {
             CommandsPack::List { pack_path } => crate::commands::pack::list(&config, &pack_path),
@@ -80,11 +72,6 @@ fn main() {
             CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
         }
-        //Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
-        //Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
-        //Some(("table", matches)) => commands::command_table(&config, matches, packfile),
-        //Some(("schema", matches)) => commands::command_schema(&config, matches),
-        //_ => { Ok(()) }
     };
 
     // Output the result of the commands.

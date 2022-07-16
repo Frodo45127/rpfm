@@ -61,8 +61,8 @@ use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
-use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
+use std::fs::{DirBuilder, File};
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use crate::binary::{ReadBytes, WriteBytes};
@@ -373,6 +373,63 @@ pub trait Encodeable: Send + Sync {
 /// This trait allow any implementor to provide methods to manipulate them like [RFile] Containers.
 pub trait Container {
 
+
+    /// This method allow us to extract anything on a [ContainerPath] from a Container to disk, replacing any old file
+    /// with the same path, in case it already existed one.
+    ///
+    /// If `keep_container_path_structure` is true, the folder structure the file in question has within the container will be replicated on disk.
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool) -> Result<()> {
+        match container_path {
+            ContainerPath::File(container_path) => {
+                let mut container_path = container_path.to_owned();
+                if container_path.starts_with("/") {
+                    container_path.remove(0);
+                }
+
+                let destination_path = if keep_container_path_structure {
+                    destination_path.to_owned().join(&container_path)
+                } else {
+                    destination_path.to_owned()
+                };
+
+                let mut destination_folder = destination_path.to_owned();
+                destination_folder.pop();
+                DirBuilder::new().recursive(true).create(&destination_folder)?;
+
+                let mut file = BufWriter::new(File::create(&destination_path)?);
+                let rfile = self.files_mut().get_mut(&container_path).ok_or(RLibError::FileNotFound(container_path.to_string()))?;
+                let data = rfile.encode(&None, false, false, true)?.unwrap();
+                file.write_all(&data).map_err(From::from)
+            }
+            ContainerPath::Folder(container_path) => {
+                let mut container_path = container_path.to_owned();
+                if container_path.starts_with("/") {
+                    container_path.remove(0);
+                }
+
+                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path));
+                for rfile in &mut rfiles {
+                    let container_path = rfile.path_in_container_raw();
+                    let destination_path = if keep_container_path_structure {
+                        destination_path.to_owned().join(&container_path)
+                    } else {
+                        destination_path.to_owned()
+                    };
+
+                    let mut destination_folder = destination_path.to_owned();
+                    destination_folder.pop();
+                    DirBuilder::new().recursive(true).create(&destination_folder)?;
+
+                    let mut file = BufWriter::new(File::create(&destination_path)?);
+                    let data = rfile.encode(&None, false, false, true)?.unwrap();
+                    file.write_all(&data)?;
+                }
+
+                Ok(())
+            }
+        }
+    }
+
     /// This method allow us to insert an [RFile] within a Container, replacing any old [RFile]
     /// with the same path, in case it already existed one.
     ///
@@ -535,9 +592,42 @@ pub trait Container {
         }
     }
 
+    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    ///
+    /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
+    /// meaning passing this will return all RFiles within the container.
+    fn files_by_path_mut(&mut self, path: &ContainerPath) -> Vec<&mut RFile> {
+        match path {
+            ContainerPath::File(path) => {
+                match self.files_mut().get_mut(path) {
+                    Some(file) => vec![file],
+                    None => vec![],
+                }
+            },
+            ContainerPath::Folder(path) => {
+
+                // If the path is empty, get everything.
+                if path.is_empty() {
+                    self.files_mut().values_mut().collect()
+                }
+
+                // Otherwise, only get the files under our folder.
+                else {
+                    self.files_mut().par_iter_mut()
+                        .filter_map(|(key, file)|
+                            if key.starts_with(path) { Some(file) } else { None }
+                        ).collect::<Vec<&mut RFile>>()
+                }
+            },
+        }
+    }
+
     /// This method returns the list of [ContainerPath] corresponding to RFiles within the provided Container.
     fn paths(&self) -> Vec<ContainerPath> {
-        self.files().par_iter().map(|(path, _)| ContainerPath::File(path.to_owned())).collect()
+        self.files()
+            .par_iter()
+            .map(|(path, _)| ContainerPath::File(path.to_owned()))
+            .collect()
     }
 
     /// This method returns the list of paths (as [&str]) corresponding to RFiles within the provided Container.

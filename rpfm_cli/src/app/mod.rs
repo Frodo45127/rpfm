@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! App module for the CLI tool.
-//!
-//! This contains the helpers for the initialization of the app.
+//! This module contains the input and command definitions for the tool.
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
@@ -18,30 +16,36 @@ use csv::ReaderBuilder;
 
 use std::path::PathBuf;
 
+//---------------------------------------------------------------------------//
+//                          Struct/Enum Definitions
+//---------------------------------------------------------------------------//
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 pub(crate) struct Cli {
 
-    /// Turn debugging information on
+    /// Make output more detailed.
     #[clap(short, long)]
     pub verbose: bool,
 
-    /// Optional name to operate on
-    #[clap(value_parser)]
+    /// Path to the schema file to use, if any.
+    #[clap(short, long, value_parser)]
     pub schema: Option<PathBuf>,
 
-    /// Sets a custom config file
-    #[clap(short, long, value_parser, value_name = "GAME")]
+    // TODO: move this to a function that gets the games supported from then lib.
+    /// Game we are using this tool for.
+    #[clap(short, long, value_parser, value_name = "GAME", possible_values = &["warhammer_3", "troy", "three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])]
     pub game: String,
 
     #[clap(subcommand)]
     pub command: Commands,
 }
 
-// TODO: Move value_parser to proper functions.
 
 #[derive(Subcommand)]
 pub enum Commands {
+
+    /// Command to perform operations over Pack files.
     Pack {
 
         #[clap(subcommand)]
@@ -59,14 +63,14 @@ pub enum CommandsPack {
         pack_path: PathBuf,
     },
 
-    /// Creates a new Pack in the provided path.
+    /// Creates a new empty Pack in the provided path.
     Create {
 
         #[clap(short, long, action, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
 
-    /// Adds a path to the Pack in the provided path.
+    /// Adds a file/folder from disk to the Pack in the provided path.
     Add {
 
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
@@ -80,7 +84,7 @@ pub enum CommandsPack {
     },
 
 
-    /// Adds a path to the Pack in the provided path.
+    /// Deletes a file/folder from the Pack in the provided path.
     Delete {
 
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
@@ -93,20 +97,21 @@ pub enum CommandsPack {
         folder_path: Vec<String>,
     },
 
-    /// Adds a path to the Pack in the provided path.
+    /// Extracts a file/folder from the Pack in the provided path to the specified path on disk, keeping the internal folder structure.
     Extract {
 
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
-        #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH")]
-        file_path: Vec<(PathBuf, String)>,
+        #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH")]
+        file_path: Vec<(String, PathBuf)>,
 
-        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH")]
-        folder_path: Vec<(PathBuf, String)>,
+        #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH")]
+        folder_path: Vec<(String, PathBuf)>,
     },
 }
 
+/// Add file to Pack validation function.
 fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
         .delimiter(b',')
@@ -115,7 +120,6 @@ fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
         .flexible(true)
         .from_reader(src.as_bytes());
 
-    // If we successfully load the TSV file into a reader, check the first line to get the column list.
     for record in reader.records() {
         let record = record?;
 
@@ -148,6 +152,7 @@ fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
     Ok((PathBuf::new(), String::new()))
 }
 
+/// Add folder to Pack validation function.
 fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
         .delimiter(b',')
@@ -156,7 +161,6 @@ fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
         .flexible(true)
         .from_reader(src.as_bytes());
 
-    // If we successfully load the TSV file into a reader, check the first line to get the column list.
     for record in reader.records() {
         let record = record?;
 
@@ -182,6 +186,36 @@ fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
     }
 
     Ok((PathBuf::new(), String::new()))
+}
+
+/// Extract file/folder from Pack validation function.
+fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b',')
+        .quoting(true)
+        .has_headers(false)
+        .flexible(true)
+        .from_reader(src.as_bytes());
+
+    for record in reader.records() {
+        let record = record?;
+
+        if record.len() == 2 {
+            let source = record[0].to_owned();
+            let dest = PathBuf::from(&record[1]);
+
+            return Ok((source, dest))
+        } else if record.len() == 1 {
+            let source = record[0].to_owned();
+            let dest = PathBuf::new();
+
+            return Ok((source, dest))
+        } else {
+            return Err(anyhow!("Incorrect CSV input."));
+        }
+    }
+
+    Ok((String::new(), PathBuf::new()))
 }
 
 //---------------------------------------------------------------------------//

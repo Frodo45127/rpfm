@@ -1543,4 +1543,9 @@ impl SupportedGames {
     pub fn games(&self) -> Vec<&GameInfo> {
         self.games.values().collect::<Vec<&GameInfo>>()
     }
+
+    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports.
+    pub fn game_keys(&self) -> Vec<&str> {
+        self.games.keys().cloned().collect::<Vec<&str>>()
+    }
 }

@@ -20,7 +20,6 @@ pub struct Config {
 	pub verbose: bool,
 }
 
-/// Implementation of `Config`.
 impl Config {
 
 	/// This function creates a new Config struct configured for the provided game.
