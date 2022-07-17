@@ -71,6 +71,7 @@ fn main() {
             CommandsPack::Add { pack_path, file_path, folder_path } => crate::commands::pack::add(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
         }
 
         Commands::AnimPack { commands } => match commands {

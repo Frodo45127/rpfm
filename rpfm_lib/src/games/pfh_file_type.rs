@@ -95,3 +95,18 @@ impl TryFrom<u32> for PFHFileType {
         }
     }
 }
+
+impl TryFrom<&str> for PFHFileType {
+    type Error = RLibError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "boot" => Ok(PFHFileType::Boot),
+            "release" => Ok(PFHFileType::Release),
+            "patch" => Ok(PFHFileType::Patch),
+            "mod" => Ok(PFHFileType::Mod),
+            "movie" => Ok(PFHFileType::Movie),
+            _ => Err(RLibError::UnknownPFHFileType(value.to_string())),
+        }
+    }
+}

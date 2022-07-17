@@ -16,6 +16,8 @@ use csv::ReaderBuilder;
 
 use std::path::PathBuf;
 
+use rpfm_lib::games::pfh_file_type::PFHFileType;
+
 //---------------------------------------------------------------------------//
 //                          Struct/Enum Definitions
 //---------------------------------------------------------------------------//
@@ -68,7 +70,7 @@ pub enum CommandsAnimPack {
     List {
 
         /// Path of the Pack this operation will use.
-        #[clap(short, long, action, value_parser, name = "PATH")]
+        #[clap(short, long, action, required = true, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
 
@@ -76,7 +78,7 @@ pub enum CommandsAnimPack {
     Create {
 
         /// Path of the AnimPack this operation will use.
-        #[clap(short, long, action, value_parser, name = "PATH")]
+        #[clap(short, long, action, required = true, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
 
@@ -134,10 +136,22 @@ pub enum CommandsAnimPack {
 pub enum CommandsPack {
 
     /// List the contents of the provided Pack.
+    SetFileType {
+
+        /// Path of the Pack this operation will use.
+        #[clap(short, long, action, required = true, value_parser, name = "PATH")]
+        pack_path: PathBuf,
+
+        /// Full path of the file to delete.
+        #[clap(short, long, required = true, multiple = false, value_parser = pfh_file_type_from_str, name = "PACK_TYPE", possible_values = &["boot", "release", "patch", "mod", "movie"])]
+        file_type: PFHFileType,
+    },
+
+    /// List the contents of the provided Pack.
     List {
 
         /// Path of the Pack this operation will use.
-        #[clap(short, long, action, value_parser, name = "PATH")]
+        #[clap(short, long, action, required = true, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
 
@@ -145,22 +159,29 @@ pub enum CommandsPack {
     Create {
 
         /// Path of the Pack this operation will use.
-        #[clap(short, long, action, value_parser, name = "PATH")]
+        #[clap(short, long, action, required = true, value_parser, name = "PATH")]
         pack_path: PathBuf,
     },
 
     /// Adds a file/folder from disk to the Pack in the provided path.
     Add {
 
+
         /// Path of the Pack this operation will use.
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
-        /// File to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the file in the root of the Pack.
+        /// File to add, and folder within the Pack where to add it to, separated by comma.
+        ///
+        /// If the folder ends with /, the file will be added in that folder with its original name.
+        /// If it doesn't, the last part of the path will be the new file's name.
+        ///
+        /// If no folder to add to is provided, it'll add the file in the root of the Pack.
         #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH")]
         file_path: Vec<(PathBuf, String)>,
 
-        /// Folder to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the folder in the root of the Pack.
+        /// Folder to add, and folder within the Pack where to add it to, separated by comma.
+        /// If no folder to add to is provided, it'll add the folder in the root of the Pack.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH")]
         folder_path: Vec<(PathBuf, String)>,
     },
@@ -198,6 +219,10 @@ pub enum CommandsPack {
         folder_path: Vec<(String, PathBuf)>,
     },
 }
+
+//---------------------------------------------------------------------------//
+//                                Validators
+//---------------------------------------------------------------------------//
 
 /// Add file to Pack validation function.
 fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
@@ -304,6 +329,11 @@ fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
     }
 
     Ok((String::new(), PathBuf::new()))
+}
+
+/// PFHFileType from &str validator.
+fn pfh_file_type_from_str(src: &str) -> Result<PFHFileType> {
+    PFHFileType::try_from(src).map_err(From::from)
 }
 
 //---------------------------------------------------------------------------//

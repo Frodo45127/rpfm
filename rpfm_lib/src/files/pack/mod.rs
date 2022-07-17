@@ -499,6 +499,15 @@ impl Pack {
     }
 
     //-----------------------------------------------------------------------//
+    //                           Getters & Setters
+    //-----------------------------------------------------------------------//
+
+    /// This function sets the current Pack PFH File Type to the provided one.
+    pub fn set_pfh_file_type(&mut self, file_type: PFHFileType) {
+        self.header.pfh_file_type = file_type;
+    }
+
+    //-----------------------------------------------------------------------//
     //                             Util functions
     //-----------------------------------------------------------------------//
 

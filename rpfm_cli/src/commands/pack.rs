@@ -29,6 +29,34 @@ use crate::config::Config;
 // 							Pack Command Variants
 //---------------------------------------------------------------------------//
 
+/// This function changes the Pack Type of the provided Pack.
+pub fn set_pack_type(config: &Config, pack_path: &Path, pfh_file_type: PFHFileType) -> Result<()> {
+    if config.verbose {
+        info!("Changing PFH Type for Pack at {}.", pack_path.to_string_lossy().to_string());
+    }
+
+    let pack_path_str = pack_path.to_string_lossy().to_string();
+    let mut reader = BufReader::new(File::open(pack_path)?);
+    let mut extra_data = DecodeableExtraData::default();
+
+    extra_data.set_disk_file_path(Some(&pack_path_str));
+    extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
+    extra_data.set_data_size(reader.len()?);
+
+    let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
+    pack.preload()?;
+    pack.set_pfh_file_type(pfh_file_type);
+
+    let mut writer = BufWriter::new(File::create(pack_path)?);
+    pack.encode(&mut writer, &None)?;
+
+    if config.verbose {
+        info!("Changed PFH Type to {}.", pfh_file_type);
+    }
+
+    Ok(())
+}
+
 /// This function list the contents of the provided Pack.
 pub fn list(config: &Config, path: &Path) -> Result<()> {
 

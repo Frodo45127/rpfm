@@ -10,7 +10,7 @@
 
 //! This module contains the `AnimPack` command functions.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use std::collections::BTreeMap;
 use std::io::{BufReader, BufWriter};
@@ -19,7 +19,6 @@ use std::path::{Path, PathBuf};
 
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, animpack::AnimPack};
-use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::last_modified_time_from_file;
 
