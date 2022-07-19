@@ -14,6 +14,7 @@
 //! lib/program to read it. Write support just writes that data back to the source.
 
 use getset::*;
+use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
@@ -31,7 +32,7 @@ pub const EXTENSION: &str = ".rigid_model_v2";
 //---------------------------------------------------------------------------//
 
 /// This struct contains a RigidModel decoded in memory.
-#[derive(Clone, Debug,PartialEq, Getters, Setters)]
+#[derive(Clone, Debug,PartialEq, Getters, Setters, Serialize, Deserialize)]
 pub struct RigidModel {
     data: Vec<u8>,
 }

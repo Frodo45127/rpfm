@@ -13,6 +13,8 @@
 //! [Anim Fragments](crate::files::anim_fragment::AnimFragment) and
 //! [Matched Combat Tables](crate::files::matched_combat::MatchedCombat).
 
+use serde_derive::{Serialize, Deserialize};
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -53,7 +55,7 @@ pub const EXTENSION: &str = ".animpack";
 /// | 4           | [u32]          | File Length in bytes. |
 /// | File Lenght | &\[[u8]\]      | File Data.            |
 ///
-#[derive(PartialEq, Clone, Debug, Default)]
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnimPack {
 
     /// File Path on disk of this AnimPack.

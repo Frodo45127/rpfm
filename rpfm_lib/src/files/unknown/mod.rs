@@ -13,6 +13,7 @@
 //! Internally, this just stores the raw data so you can manipulate it at will.
 
 use getset::*;
+use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
@@ -23,7 +24,7 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 //---------------------------------------------------------------------------//
 
 /// This struct contains an unknown file in memory.
-#[derive(Clone, Debug,PartialEq, Getters, Setters)]
+#[derive(Clone, Debug, PartialEq, Getters, Setters, Serialize, Deserialize)]
 pub struct Unknown {
     data: Vec<u8>,
 }

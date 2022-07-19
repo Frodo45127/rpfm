@@ -443,7 +443,7 @@ impl GameInfo {
 
         // Check if we can use the manifest for this.
         if !self.use_manifest(game_path)? {
-            self.get_all_ca_packfiles_paths_no_manifest(game_path)
+            self.get_all_ca_packfiles_paths_no_manifest(game_path, &language)
         } else {
 
             // Try to get the manifest, if exists.
@@ -482,21 +482,44 @@ impl GameInfo {
                 }
 
                 // If there is no manifest, use the hardcoded file list for the game, if it has one.
-                Err(_) => self.get_all_ca_packfiles_paths_no_manifest(game_path)
+                Err(_) => self.get_all_ca_packfiles_paths_no_manifest(game_path, &language)
             }
         }
     }
 
     /// This function tries to get the ca PackFiles without depending on a Manifest. For internal use only.
-    fn get_all_ca_packfiles_paths_no_manifest(&self, game_path: &Path) -> Result<Vec<PathBuf>> {
+    fn get_all_ca_packfiles_paths_no_manifest(&self, game_path: &Path, language: &Option<String>) -> Result<Vec<PathBuf>> {
         let data_path = self.get_data_path(game_path)?;
         let install_type = self.get_install_type(game_path)?;
         let vanilla_packs = &self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
+        let language_pack = language.clone().map(|lang| format!("local_{}", lang));
         if !vanilla_packs.is_empty() {
-            Ok(vanilla_packs.iter().filter_map(|x| {
-                let mut pack_file_path = data_path.to_path_buf();
-                pack_file_path.push(x);
-                std::fs::canonicalize(pack_file_path).ok()
+            Ok(vanilla_packs.iter().filter_map(|pack_name| {
+
+                match language_pack {
+                    Some(ref language_pack) => {
+
+                        // Filter out other language's packfiles.
+                        if pack_name.contains("local_") {
+                            if !language_pack.is_empty() && pack_name.contains(language_pack) {
+                                let mut pack_file_path = data_path.to_path_buf();
+                                pack_file_path.push(pack_name);
+                                std::fs::canonicalize(pack_file_path).ok()
+                            } else {
+                                None
+                            }
+                        } else {
+                            let mut pack_file_path = data_path.to_path_buf();
+                            pack_file_path.push(pack_name);
+                            std::fs::canonicalize(pack_file_path).ok()
+                        }
+                    }
+                    None => {
+                        let mut pack_file_path = data_path.to_path_buf();
+                        pack_file_path.push(pack_name);
+                        std::fs::canonicalize(pack_file_path).ok()
+                    }
+                }
             }).collect::<Vec<PathBuf>>())
         }
 

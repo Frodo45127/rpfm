@@ -21,23 +21,23 @@ default = []
 rpfm_lib = { path = "../rpfm_lib" }
 
 # Config dependencies.
-lazy_static = "^1.2"
+#lazy_static = "^1.2"
 
 # Serialization dependencies.
-serde = "^1.0"
-serde_derive = "^1.0"
-serde_json = "^1.0"
-ron = "^0.7"
-bincode = "^1.1"
+#serde = "^1.0"
+#serde_derive = "^1.0"
+#serde_json = "^1.0"
+#ron = "^0.7"
+#bincode = "^1.1"
 
 # Date conversion support.
-chrono = "^0.4"
+#chrono = "^0.4"
 
 # Support for Regex operations.
-regex = "^1"
+#regex = "^1"
 
 # Support for open files in a native way.
-open = "^2.0"
+#open = "^2.0"
 
 # Qt dependencies.
 cpp_core = "^0.6"
@@ -47,33 +47,33 @@ qt_widgets = "^0.5"
 qt_ui_tools = "^0.5"
 
 # Support for formatting math operations.
-meval = "^0.2"
+#meval = "^0.2"
 
 # Float equality
-float_eq = "^0.7"
+#float_eq = "^0.7"
 
 # UUID Generation support.
-uuid = { version = "^0.8", features = ["v4"] }
+#uuid = { version = "^0.8", features = ["v4"] }
 
 # Translation support.
-fluent = "^0.16"
-fluent-bundle = "^0.15"
-unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
+#fluent = "^0.16"
+#fluent-bundle = "^0.15"
+#unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
-crossbeam = "^0.8"
-rayon = "^1.3"
+#crossbeam = "^0.8"
+#rayon = "^1.3"
 
 # Logging support.
-log = { version = "^0.4", features = ["std"] }
-simplelog = "^0.11"
-sentry = { version = "^0.25", features = ["log"] }
+#log = { version = "^0.4", features = ["std"] }
+#simplelog = "^0.11"
+#sentry = { version = "^0.25", features = ["log"] }
 
 # Better iterator support.
-itertools = "^0.10"
+#itertools = "^0.10"
 
 # Caseless matching.
-unicase = "^2.6"
+#unicase = "^2.6"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

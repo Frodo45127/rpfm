@@ -23,9 +23,8 @@
     clippy::mutex_atomic                    // Disabled because in the only instance it triggers, we do it on purpose.
 )]
 
-// This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
-// It also disables a lot of debugging messages on windows, so remember to comment it when needed.
-#![windows_subsystem = "windows"]
+// This disables the terminal window on windows on release builds.
+#[cfg(all(target_os = "windows", not(debug_assertions)))] #[windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
@@ -37,7 +36,7 @@ use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QString;
-
+/*
 use lazy_static::lazy_static;
 use log::info;
 
@@ -276,8 +275,8 @@ lazy_static! {
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = "I forgot about this message";
 const QT_ORG: &str = "FrodoWazEre";
-const QT_PROGRAM: &str = "rpfm";
-
+const QT_PROGRAM: &str = "rpfm";*/
+/*
 /// Main function.
 fn main() {
 
@@ -314,3 +313,4 @@ fn main() {
         exit_code
     })
 }
+*/

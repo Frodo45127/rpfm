@@ -19,8 +19,11 @@ and that is handled automagically by RPFM. All the data you'll ever see will be 
 so you don't have to worry about that.
 !*/
 
+use std::fs::File;
 use crate::files::ContainerPath;
 use crate::files::FileType;
+use crate::games::GameInfo;
+use std::io::BufReader;
 use std::str::FromStr;
 use std::path::Path;
 use crate::compression::Compressible;
@@ -104,6 +107,7 @@ bitflags! {
     ///
     /// Keep in mind that this lib supports decoding PackFiles with any of these flags enabled,
     /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag.
+    #[derive(Serialize, Deserialize)]
     pub struct PFHFlags: u32 {
 
         /// Used to specify that the header of the PackFile is extended by 20 bytes. Used in Arena.
@@ -125,7 +129,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug, Clone, PartialEq, Setters)]
+#[derive(Debug, Clone, PartialEq, Setters, Serialize, Deserialize)]
 #[getset(set = "pub")]
 pub struct Pack {
 
@@ -154,7 +158,7 @@ pub struct Pack {
     settings: PackFileSettings,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PackHeader {
 
     /// The version of the PackFile.
@@ -496,6 +500,58 @@ impl Pack {
 
         // If nothing has failed, return success.
         Ok(())
+    }
+
+    /// This function reads and returns all CA Packs for the provided game merged as one, for easy manipulation.
+    ///
+    /// This needs a [GameInfo] to get the Packs from, and a game path to search the Packs on.
+    pub fn read_and_merge_ca_packs(game: &GameInfo, game_path: &Path) -> Result<Self> {
+        let paths = game.get_all_ca_packfiles_paths(game_path)?;
+        Self::read_and_merge(&paths, true, true)
+    }
+
+    /// Convenience function to open multiple Packs as one, taking care of overwriting files when needed.
+    ///
+    /// If this function receives only one path, it works as a normal read_from_disk function. If it receives none, an error will be returned.
+    pub fn read_and_merge(pack_paths: &[PathBuf], lazy_load: bool, ignore_mods: bool) -> Result<Self> {
+        if pack_paths.is_empty() {
+            return Err(RLibError::NoPacksProvided);
+        }
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.lazy_load = lazy_load;
+
+        // If we only got one path, just decode the Pack on it.
+        if pack_paths.len() == 1 {
+            let mut data = BufReader::new(File::open(&pack_paths[0])?);
+            return Self::read(&mut data, &Some(extra_data))
+        }
+
+        // Generate a new empty Pack to act as merged one.
+        let mut pack_new = Pack::default();
+        let mut packs = pack_paths.par_iter()
+            .map(|path| {
+                let mut data = BufReader::new(File::open(path)?);
+                Self::read(&mut data, &Some(extra_data.clone()))
+            }).collect::<Result<Vec<Pack>>>()?;
+
+        // Sort the decoded Packs by name and type, so each type has their own Packs also sorted by name.
+        packs.sort_by_key(|pack| pack.disk_file_path.to_owned());
+        packs.sort_by_key(|pack| pack.header.pfh_file_type as u8);
+
+        packs.iter_mut()
+            .filter(|pack| {
+                if let PFHFileType::Mod = pack.header.pfh_file_type {
+                    if ignore_mods {
+                        false
+                    } else { true }
+                } else { true }
+            })
+            .for_each(|pack| {
+                pack_new.files_mut().extend(pack.files().clone())
+            });
+
+        Ok(pack_new)
     }
 
     //-----------------------------------------------------------------------//

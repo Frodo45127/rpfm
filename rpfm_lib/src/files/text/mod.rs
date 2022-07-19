@@ -47,6 +47,7 @@
 //! | `.xml.material`          | `Xml`    |                                             |
 
 use getset::*;
+use serde_derive::{Serialize, Deserialize};
 
 use std::io::SeekFrom;
 
@@ -96,7 +97,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 23] = [
 //---------------------------------------------------------------------------//
 
 /// This holds an entire `Text` file decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters)]
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Text {
 
@@ -111,7 +112,7 @@ pub struct Text {
 }
 
 /// This enum represents the multiple encodings we can read/write to.
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Encoding {
     Iso8859_1,
     Utf8,
@@ -120,7 +121,7 @@ pub enum Encoding {
 }
 
 /// This enum represents the formats we know.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum TextFormat {
     Cpp,
     Html,

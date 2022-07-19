@@ -21,6 +21,7 @@
 //! - `.dds`
 
 use getset::*;
+use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
@@ -40,7 +41,7 @@ pub const EXTENSIONS: [&str; 5] = [
 //---------------------------------------------------------------------------//
 
 /// This represents an entire Image File decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, Getters)]
+#[derive(Default, PartialEq, Clone, Debug, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct Image {
     data: Vec<u8>,

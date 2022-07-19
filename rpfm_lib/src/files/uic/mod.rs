@@ -15,6 +15,8 @@
 //!
 //! Unifinished module, do not use.
 
+use serde_derive::{Serialize, Deserialize};
+
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::Result;
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
@@ -31,7 +33,7 @@ pub const EXTENSION: &str = ".cml";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UI Component decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default)]
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UIC {
     version: u32,
 }

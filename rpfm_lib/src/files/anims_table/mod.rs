@@ -35,6 +35,7 @@
 //! | 1     | [bool]          | Unknown.          |
 
 use getset::{Getters, Setters};
+use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -60,7 +61,7 @@ pub const HEADER_SIZE: usize = 8;
 //---------------------------------------------------------------------------//
 
 /// This stores the data of a decoded matched combat file in memory.
-#[derive(PartialEq, Clone, Debug, Getters, Setters)]
+#[derive(PartialEq, Clone, Debug, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct AnimsTable {
 

@@ -57,6 +57,7 @@
 use getset::*;
 use rayon::prelude::*;
 use regex::Regex;
+use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -118,7 +119,7 @@ pub mod unknown;
 /// file on disk.
 ///
 /// It supports Lazy-Loading to reduce RAM usage.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RFile {
 
     /// Path of the file, either within a [`Container`] or in the FileSystem.
@@ -141,7 +142,7 @@ pub struct RFile {
 /// This enum contains the data of each [`RFile`].
 ///
 /// This is internal only.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum RFileInnerData {
 
     /// This variant represents a file whose data has been loaded to memory and decoded.
@@ -159,7 +160,7 @@ enum RFileInnerData {
 /// This may be a file directly on disk, or one inside another file (like inside a [Container]).
 ///
 /// This is internal only. Users should not use it directly.
-#[derive(Clone, Debug, PartialEq, Getters)]
+#[derive(Clone, Debug, PartialEq, Getters, Serialize, Deserialize)]
 struct OnDisk {
 
     /// Path of the file on disk where the data is.
@@ -189,7 +190,7 @@ struct OnDisk {
 }
 
 /// This enum allow us to store any kind of decoded file type on a common place.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RFileDecoded {
     Anim(Unknown),
     AnimFragment(AnimFragment),
@@ -217,7 +218,7 @@ pub enum RFileDecoded {
 /// This list is not exhaustive and it may get bigger in the future as more files are added.
 ///
 /// For each file info, please check their dedicated submodule if exists.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FileType {
     Anim,
     AnimFragment,

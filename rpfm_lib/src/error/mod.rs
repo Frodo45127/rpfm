@@ -201,6 +201,9 @@ pub enum RLibError {
     #[error("Operation not allowed: destiny is blank for your file.")]
     EmptyDestiny,
 
+    #[error("No Packs provided.")]
+    NoPacksProvided,
+
     #[error("The SQLite connection pool hasn't been initialized yet.")]
     MissingSQLitePool,
 

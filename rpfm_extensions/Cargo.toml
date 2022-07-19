@@ -1,0 +1,20 @@
+[package]
+name = "rpfm_extensions"
+version = "3.99.100"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+description = "This crate contains extended functionality over the RPFM Lib crate, meaning stuff that didn't fit in there, it's here."
+edition = "2021"
+rust-version = "1.60"
+
+[dependencies]
+
+# Internal dependencies.
+rpfm_lib = { path = "../rpfm_lib", features = ["integration_log"] }
+
+# Basic get/set support.
+getset = "^0.1"
+
+# Serialization support.
+serde = "^1.0"
+serde_derive = "^1.0"
+bincode = "^1.1"

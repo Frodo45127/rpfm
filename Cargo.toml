@@ -3,11 +3,12 @@
 members = [
     # Libs
     "rpfm_lib",
+    "rpfm_extensions",
 
     # Executables
     "rpfm_cli",
     # "rpfm_mod_checker",
-    # "rpfm_ui",
+    #"rpfm_ui",
 ]
 
 [profile.dev]

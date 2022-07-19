@@ -69,6 +69,7 @@
 //! | 2     | [u16]     | Unknown, possibly a termination.                    |
 
 use getset::*;
+use serde_derive::{Serialize, Deserialize};
 
 use crate::error::{RLibError, Result};
 use crate::binary::{ReadBytes, WriteBytes};
@@ -91,7 +92,7 @@ pub const EXTENSION: &str = ".unit_variant";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UnitVariant decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct UnitVariant {
 
     /// Version of the UnitVariant.
@@ -105,7 +106,7 @@ pub struct UnitVariant {
 }
 
 /// This holds a variant category.
-#[derive(PartialEq, Clone, Debug, Default,  Getters, Setters)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Category {
 
     /// Name of the category.
@@ -119,7 +120,7 @@ pub struct Category {
 }
 
 /// This holds a `Variant` of a Category.
-#[derive(PartialEq, Clone, Debug, Default,  Getters, Setters)]
+#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Variant {
 
     /// The file path (case insensitive) of the mesh file of this variant.

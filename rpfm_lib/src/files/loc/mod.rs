@@ -37,6 +37,7 @@
 use getset::{Getters, Setters};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -75,7 +76,7 @@ const SQL_TABLE_NAME: &str = "localisation";
 //---------------------------------------------------------------------------//
 
 /// This stores the data of a decoded Localisation file in memory.
-#[derive(PartialEq, Clone, Debug, Getters, Setters)]
+#[derive(PartialEq, Clone, Debug, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct Loc {
 
