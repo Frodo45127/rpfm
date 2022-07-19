@@ -86,7 +86,6 @@ impl Logger {
     /// - Log CTD to sentry (release only)
     /// - Log execution steps to file/sentry.
     pub fn init(logging_path: &Path) -> Result<ClientInitGuard> {
-        println!("Initializing Logger.");
 
         // Make sure the provided folder exists.
         if let Some(parent_folder) = logging_path.parent() {
@@ -100,7 +99,7 @@ impl Logger {
         //
         // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
         let mut file_logger_failed = true;
-        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
+        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Warn, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
         if let Ok(write_logger_file) = File::create(logging_path.join(LOG_FILE_CURRENT)) {
             let write_logger = WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), write_logger_file);
             loggers.push(write_logger);
@@ -126,7 +125,7 @@ impl Logger {
         let orig_hook = panic::take_hook();
         let logging_path = logging_path.to_owned();
         panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
-            info!("Panic detected. Generating backtraces and crash logs...");
+            warn!("Panic detected. Generating backtraces and crash logs...");
             if Self::new(info, VERSION).save(&logging_path).is_err() {
                 error!("Failed to generate crash log.");
             }

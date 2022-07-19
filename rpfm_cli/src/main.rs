@@ -30,12 +30,6 @@ mod config;
 /// Guess you know what this function does....
 fn main() {
 
-    // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    let logger = Logger::init(&PathBuf::from("."));
-    if logger.is_err() {
-        warn!("Logging initialization has failed. No logs will be saved.");
-    }
-
     // Parse the entire cli command.
     let cli = Cli::parse();
 
@@ -58,6 +52,12 @@ fn main() {
     if cli.verbose {
         info!("Game: {}", cli.game);
         info!("Verbose: {}", cli.verbose);
+    }
+
+    // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
+    let logger = Logger::init(&PathBuf::from("."));
+    if logger.is_err() && cli.verbose {
+        warn!("Logging initialization has failed. No logs will be saved.");
     }
 
     // Build the Config struct to remember the current configuration when processing stuff.
