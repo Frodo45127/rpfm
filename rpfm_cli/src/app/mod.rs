@@ -248,7 +248,7 @@ pub enum CommandsPack {
 /// Add file to Pack validation function.
 fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b',')
+        .delimiter(b':')
         .quoting(true)
         .has_headers(false)
         .flexible(true)
@@ -289,7 +289,7 @@ fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
 /// Add folder to Pack validation function.
 fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b',')
+        .delimiter(b':')
         .quoting(true)
         .has_headers(false)
         .flexible(true)
@@ -325,7 +325,7 @@ fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
 /// Extract file/folder from Pack validation function.
 fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b',')
+        .delimiter(b':')
         .quoting(true)
         .has_headers(false)
         .flexible(true)
