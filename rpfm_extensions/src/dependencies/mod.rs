@@ -10,25 +10,25 @@
 
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
 /*
-use rayon::prelude::*;
 use rayon::iter::Either;
 use unicase::UniCase;
 */
 
 use getset::*;
-use rpfm_lib::games::GameInfo;
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::TryFrom;
+use std::collections::HashMap;
+
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::{Container, RFile, db::DB, pack::Pack};
-use rpfm_lib::utils::current_time;
+use rpfm_lib::files::{DecodeableExtraData, FileType, RFile, db::DB, pack::Pack};
+use rpfm_lib::games::GameInfo;
+use rpfm_lib::schema::Schema;
+use rpfm_lib::utils::{current_time, last_modified_time_from_files};
 /*
 use rpfm_common::utils::*;
 use rpfm_error::{Result, Error, ErrorKind};
@@ -159,47 +159,56 @@ impl<T> Default for LazyLoadedData<T> {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `Dependencies`.
 impl Dependencies {
-/*
+
+    //-----------------------------------//
+    // Generation and disk IO
+    //-----------------------------------//
+
     /// This function takes care of rebuilding the whole dependencies cache.
     ///
     /// Use it when changing the game selected or opening a new PackFile.
-    pub fn rebuild(&mut self, packfile_list: &[String], only_parent_mods: bool) -> Result<()> {
+    pub fn rebuild(&mut self, schema: &Schema, pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
-        if !only_parent_mods {
+        if let Some(file_path) = file_path {
 
             // First, clear the current data, so we're not left with broken data afterwards if the next operations fail.
             *self = Self::default();
 
             // Try to load the binary file and check if it's even valid.
-            let stored_data = Self::load_from_binary()?;
-            if !stored_data.needs_updating()? {
+            let stored_data = Self::load(file_path, schema)?;
+            if !stored_data.needs_updating(game_info, game_path)? {
                 *self = stored_data;
             }
         }
 
         // Clear the table's cached data, to ensure it gets rebuild properly when needed.
-        self.cached_data.write().unwrap().clear();
+        //self.cached_data.write().unwrap().clear();
 
         // Preload parent mods of the currently open PackFile.
-        PackFile::load_custom_dependency_packfiles(&mut self.parent_packed_files_cache.write().unwrap(), &mut self.parent_cached_packed_files, packfile_list);
+        self.load_parent_packs(pack_names, game_info, game_path)?;
 
         // Build the casing-related HashSets.
-        self.parent_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
-        self.parent_cached_folders_cased = LazyLoadedData::NotYetLoaded;
-        self.parent_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
+        //self.parent_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
+        //self.parent_cached_folders_cased = LazyLoadedData::NotYetLoaded;
+        //self.parent_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
 
         // Pre-decode all tables/locs to memory.
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            self.parent_packed_files_cache.write().unwrap().par_iter_mut().for_each(|x| {
-                let _ = x.1.decode_no_locks(schema);
-            });
-        };
+        let mut decode_extra_data = DecodeableExtraData::default();
+        decode_extra_data.set_schema(Some(&schema));
+        let extra_data = Some(decode_extra_data);
+
+        self.parent_files.par_iter_mut().try_for_each(|(_, file)| {
+            match file.file_type() {
+                FileType::DB |
+                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
+                _ => Ok(())
+            }
+        })?;
 
         Ok(())
-    }*/
+    }
 
     /// This function generates the entire dependency cache for the currently selected game.
     pub fn generate_dependencies_cache(&mut self, game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, version: i16) -> Result<Self> {
@@ -232,8 +241,108 @@ impl Dependencies {
         self.asskit_only_db_tables = raw_tables.par_iter().map(From::from).collect::<Vec<DB>>();
 
         Ok(())
+    }*/
+
+    /// This function loads a `Dependencies` to memory from a file in the `dependencies/` folder.
+    pub fn load(file_path: &Path, schema: &Schema) -> Result<Self> {
+        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+
+        // Never deserialize directly from the file. It's bloody slow!!!
+        let mut dependencies: Self = bincode::deserialize(&data)?;
+
+        // Pre-decode all tables/locs to memory.
+        let mut decode_extra_data = DecodeableExtraData::default();
+        decode_extra_data.set_schema(Some(&schema));
+        let extra_data = Some(decode_extra_data);
+
+        dependencies.vanilla_files.par_iter_mut().try_for_each(|(_, file)| {
+            match file.file_type() {
+                FileType::DB |
+                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
+                _ => Ok(())
+            }
+        })?;
+
+        // Build the casing-related HashSets.
+        //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
+        //dependencies.vanilla_cached_folders_cased = LazyLoadedData::NotYetLoaded;
+        //dependencies.vanilla_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
+
+        Ok(dependencies)
     }
 
+    /// This function saves a `Dependencies` from memory to a file in the `dependencies/` folder.
+    pub fn save(&mut self, file_path: &Path) -> Result<()> {
+        let mut folder_path = file_path.to_owned();
+        folder_path.pop();
+        DirBuilder::new().recursive(true).create(&folder_path)?;
+
+        // Never serialize directly into the file. It's bloody slow!!!
+        let mut file = File::create(&file_path)?;
+        let serialized: Vec<u8> = bincode::serialize(&self)?;
+        file.write_all(&serialized).map_err(From::from)
+    }
+
+    /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
+    pub fn needs_updating(&self, game_info: &GameInfo, game_path: &Path) -> Result<bool> {
+        let ca_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
+        let last_date = last_modified_time_from_files(&ca_paths)?;
+        Ok(last_date > self.build_date)
+    }
+
+
+    /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `pack_names` as dependencies,
+    /// taking care of also loading all dependencies of all of them, if they're not already loaded.
+    fn load_parent_packs(&mut self, pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
+        let data_packs_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
+        let content_packs_paths = game_info.get_content_packfiles_paths(game_path);
+        let mut loaded_packfiles = vec![];
+
+        pack_names.iter().for_each(|pack_name| self.load_parent_pack(&pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
+
+        Ok(())
+    }
+
+    /// This function loads a parent [Pack](rpfm_lib::files::pack::Pack) as a dependency, taking care of also loading all dependencies of it, if they're not already loaded.
+    fn load_parent_pack(
+        &mut self,
+        pack_name: &str,
+        already_loaded: &mut Vec<String>,
+        data_paths: &[PathBuf],
+        external_path: &Option<Vec<PathBuf>>,
+    ) {
+        // Do not process Packs twice.
+        if !already_loaded.contains(&pack_name.to_owned()) {
+
+            // First, if the game has an external path (not in /data) for Packs, we load the external Packs.
+            if let Some(ref paths) = external_path {
+                if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
+                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
+                        already_loaded.push(pack_name.to_owned());
+                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(&pack_name, already_loaded, data_paths, external_path));
+                        self.parent_files.extend(pack.files().clone());
+                    }
+                }
+            }
+
+            // Then we load the Packs from /data, so they take priority over the other ones when overwriting.
+            if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
+                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
+                    already_loaded.push(pack_name.to_owned());
+                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(&pack_name, already_loaded, data_paths, external_path));
+                    self.parent_files.extend(pack.files().clone());
+                }
+            }
+        }
+    }
+
+    //-----------------------------------//
+    // Getters
+    //-----------------------------------//
+
+/*
     /// This function returns the db/locs from the cache, according to the params you pass it.
     pub fn get_db_and_loc_tables_from_cache(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_modded: bool) -> Result<Vec<PackedFile>> {
         if self.needs_updating()? {
@@ -380,58 +489,6 @@ impl Dependencies {
         !self.asskit_only_db_tables.is_empty()
     }
 
-    /// This function loads a `Dependencies` to memory from a file in the `dependencies/` folder.
-    pub fn load_from_binary() -> Result<Self> {
-        let mut file_path = get_config_path()?.join(DEPENDENCIES_FOLDER);
-        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
-        file_path.set_extension(BINARY_EXTENSION);
-
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
-        file.read_to_end(&mut data)?;
-
-        // Never deserialize directly from the file. It's bloody slow!!!
-        let mut dependencies: Self = bincode::deserialize(&data).map_err(Error::from)?;
-
-        // Preload all tables/locs to cache.
-        if let Some(schema) = &*SCHEMA.read().unwrap() {
-            dependencies.vanilla_packed_files_cache.write().unwrap().extend(dependencies.vanilla_cached_packed_files.par_iter()
-                .filter_map(|(path, cached_packed_file)| {
-                    let packed_file_type = PackedFileType::get_cached_packed_file_type(cached_packed_file, false);
-                    if packed_file_type.eq_non_strict_slice(&[PackedFileType::DB, PackedFileType::Loc]) {
-                        if let Ok(mut packed_file) = PackedFile::try_from(cached_packed_file) {
-
-                            // Only allow files that actually decode.
-                            if packed_file.decode_no_locks(&schema).is_ok() {
-                                Some((path.to_owned(), packed_file))
-                            } else { None }
-                        } else { None }
-                    } else { None }
-                }).collect::<HashMap<String, PackedFile>>());
-        }
-
-        // Build the casing-related HashSets.
-        dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
-        dependencies.vanilla_cached_folders_cased = LazyLoadedData::NotYetLoaded;
-        dependencies.vanilla_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
-
-        Ok(dependencies)
-    }
-
-    /// This function saves a `Dependencies` from memory to a file in the `dependencies/` folder.
-    pub fn save_to_binary(&mut self) -> Result<()> {
-        let mut file_path = get_config_path()?.join(DEPENDENCIES_FOLDER);
-        DirBuilder::new().recursive(true).create(&file_path)?;
-
-        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
-        file_path.set_extension(BINARY_EXTENSION);
-        let mut file = File::create(&file_path)?;
-
-        // Never serialize directly into the file. It's bloody slow!!!
-        let serialized: Vec<u8> = bincode::serialize(&self)?;
-        file.write_all(&serialized).map_err(From::from)
-    }
-
     /// This function is used to kinda-lazily initialize the vanilla paths from the dependencies checks. This speeds up reloads at the cost of a slight delay later.
     pub fn initialize_vanilla_paths(&mut self) {
 
@@ -494,13 +551,6 @@ impl Dependencies {
                 self.parent_cached_folders_caseless = LazyLoadedData::Loaded(Box::new(parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>()));
             }
         }
-    }
-
-    /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
-    pub fn needs_updating(&self) -> Result<bool> {
-        let ca_paths = GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths()?;
-        let last_date = last_modified_time_from_files(&ca_paths)?;
-        Ok(last_date > self.build_date)
     }
 
     /// This function returns the provided file, if exists, or an error if not, from the game files.
