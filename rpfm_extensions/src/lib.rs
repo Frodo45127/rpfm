@@ -11,3 +11,4 @@
 //! This crate contains certain functionality extensions that, for one reason or another, didn't fit in the main RPFM lib crate.
 
 pub mod dependencies;
+pub mod optimizer;
