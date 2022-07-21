@@ -257,6 +257,11 @@ pub enum RLibError {
     #[error(transparent)]
     TomlError(#[from] toml::ser::Error),
 
+    /// Represents all other cases of `bincode::Error`.
+    #[cfg(feature = "support_error_bincode")]
+    #[error(transparent)]
+    BindcodeError(#[from] bincode::Error),
+
     /// Represents all other cases of `log::SetLoggerError`.
     #[cfg(feature = "integration_log")]
     #[error(transparent)]

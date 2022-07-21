@@ -9,6 +9,8 @@ rust-version = "1.60"
 [features]
 default = ["integration_sqlite"]
 
+support_error_bincode = ["dep:bincode"]
+
 integration_assembly_kit = []
 integration_git = ["dep:git2"]
 integration_log = ["dep:backtrace", "dep:log", "dep:os_info", "dep:sentry", "dep:simplelog"]
@@ -30,6 +32,7 @@ serde_json = "^1.0"
 csv = "^1.1"
 ron = "^0.7"
 toml = "^0.5"
+bincode = { version = "^1.3", optional = true }
 
 # Error handling.
 thiserror = "1.0"
