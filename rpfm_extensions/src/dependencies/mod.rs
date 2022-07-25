@@ -18,13 +18,13 @@ use getset::*;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
-use rpfm_lib::error::Result;
+use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::{DecodeableExtraData, FileType, RFile, db::DB, pack::Pack};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::schema::Schema;
@@ -90,12 +90,25 @@ pub struct Dependencies {
     /// Data to quickly load dependencies from parent mods from disk.
     #[serde(skip_serializing, skip_deserializing)]
     parent_files: HashMap<String, RFile>,
+
 /*
     /// Cached data for already checked tables. This is for runtime caching, and it must not be serialized to disk.
     #[serde(skip_serializing, skip_deserializing)]
     cached_data: Arc<RwLock<BTreeMap<String, BTreeMap<i32, DependencyData>>>>,
 
 */
+
+    /// List of DB tables on the CA files.
+    vanilla_tables: HashMap<String, Vec<String>>,
+
+    /// List of DB tables on the parent files.
+    parent_tables: HashMap<String, Vec<String>>,
+
+    /// List of Loc tables on the CA files.
+    vanilla_locs: HashSet<String>,
+
+    /// List of Loc tables on the parent files.
+    parent_locs: HashSet<String>,
 /*
 
     /// Data to quickly check if a path exists in the vanilla files as a case insensitive file.
@@ -207,6 +220,28 @@ impl Dependencies {
             }
         })?;
 
+        self.parent_files.iter()
+            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
+            .for_each(|(path, file)| {
+                match file.file_type() {
+                    FileType::DB => {
+                        let path_split = path.split('/').collect::<Vec<_>>();
+                        if path_split.len() == 3 {
+                            let table_name = path_split[1].replace("_tables", "");
+                            match self.parent_tables.get_mut(&table_name) {
+                                Some(table_paths) => table_paths.push(path.to_owned()),
+                                None => { self.parent_tables.insert(table_name, vec![path.to_owned()]); },
+                            }
+                        }
+                    }
+                    FileType::Loc => {
+                        self.parent_locs.insert(path.to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        );
+
         Ok(())
     }
 
@@ -264,6 +299,28 @@ impl Dependencies {
                 _ => Ok(())
             }
         })?;
+
+        dependencies.vanilla_files.iter()
+            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
+            .for_each(|(path, file)| {
+                match file.file_type() {
+                    FileType::DB => {
+                        let path_split = path.split('/').collect::<Vec<_>>();
+                        if path_split.len() == 3 {
+                            let table_name = path_split[1].replace("_tables", "");
+                            match dependencies.vanilla_tables.get_mut(&table_name) {
+                                Some(table_paths) => table_paths.push(path.to_owned()),
+                                None => { dependencies.vanilla_tables.insert(table_name, vec![path.to_owned()]); },
+                            }
+                        }
+                    }
+                    FileType::Loc => {
+                        dependencies.vanilla_locs.insert(path.to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        );
 
         // Build the casing-related HashSets.
         //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
@@ -341,6 +398,41 @@ impl Dependencies {
     //-----------------------------------//
     // Getters
     //-----------------------------------//
+
+    /// This function returns the db/locs from the cache, according to the params you pass it.
+    ///
+    /// It returns them in the order the game will load them.
+    pub fn loc_data(&mut self, game_info: &GameInfo, game_path: &Path, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+        if self.needs_updating(game_info, game_path)? {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
+
+            if include_vanilla {
+                let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
+                vanilla_locs.sort();
+
+                for path in &vanilla_locs {
+                    if let Some(file) = self.vanilla_files.get_mut(*path) {
+                        cache.push(file.clone());
+                    }
+                }
+            }
+
+            if include_parent {
+                let mut parent_locs = self.parent_locs.iter().collect::<Vec<_>>();
+                parent_locs.sort();
+
+                for path in &parent_locs {
+                    if let Some(file) = self.parent_files.get_mut(*path) {
+                        cache.push(file.clone());
+                    }
+                }
+            }
+
+            Ok(cache)
+        }
+    }
 
 /*
     /// This function returns the db/locs from the cache, according to the params you pass it.

@@ -121,6 +121,18 @@ impl Loc {
         self.table.data(pool)
     }
 
+    /// This function returns a valid empty (with default values if any) row for this table.
+    pub fn new_row(&self) -> Vec<DecodedData> {
+        Table::new_row(self.definition(), None, None, None)
+    }
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not in the format defined by the definition of the table.
+    pub fn set_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        self.table.set_data(None, data)
+    }
+
     /*
     /// This function returns if the provided data corresponds to a LOC Table or not.
     pub fn is_loc(data: &[u8]) -> bool {
@@ -145,18 +157,6 @@ impl Loc {
     /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
     pub fn set_definition(&mut self, new_definition: &Definition) {
         self.table.set_definition(new_definition);
-    }
-
-    /// This function replaces the data of this table with the one provided.
-    ///
-    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
-    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-        self.table.set_table_data(data)
-    }
-
-    /// This function returns a valid empty row for this table.
-    pub fn get_new_row(&self) -> Vec<DecodedData> {
-        Table::get_new_row(self.get_ref_definition(), None)
     }
 
     */
@@ -184,38 +184,6 @@ impl Loc {
         Ok((version, entry_count))
     }
 /*
-
-    /// This function is used to optimize the size of a Loc Table.
-    ///
-    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire
-    /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
-    pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
-
-        // For each vanilla table, if it's the same table/version as our own, we check it
-        let mut entries = self.get_ref_table_data().to_vec();
-        let definition = self.get_ref_definition();
-        let first_key = definition.get_fields_sorted().iter().position(|x| x.get_is_key()).unwrap_or(0);
-
-        // To do it faster, make a freaking big table with all the vanilla entries together.
-        let vanilla_table = vanilla_tables.iter()
-            .filter(|x| x.get_ref_definition().get_version() == definition.get_version())
-            .map(|x| x.get_ref_table_data().to_vec())
-            .flatten()
-            .map(|x| serde_json::to_string(&x).unwrap())
-            .collect::<HashSet<String>>();
-
-        // Remove ITM and ITNR entries, sort the remaining ones by keys, and dedup them.
-        let new_row = self.get_new_row();
-        entries.retain(|entry| !vanilla_table.contains(&serde_json::to_string(entry).unwrap()) && entry != &new_row);
-
-        // Sort the table so it can be dedupd. Sorting floats is a pain in the ass.
-        entries.par_sort_by(|a, b| a[first_key].partial_cmp(&b[first_key]).unwrap_or(Ordering::Equal));
-        entries.dedup();
-
-        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
-        let _ = self.table.set_table_data(&entries);
-        self.table.get_ref_table_data().is_empty()
-    }
 
     /// This function returns the table/column/key from the provided key, if it exists in the current PackFile.
     ///

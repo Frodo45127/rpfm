@@ -210,6 +210,9 @@ pub enum RLibError {
     #[error("The path {0} doesn't have an identifiable filename.")]
     PathMissingFileName(String),
 
+    #[error("The dependencies cache has not been generated or it's outdated and need regenerating.")]
+    DependenciesCacheNotGeneratedorOutOfDate,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),

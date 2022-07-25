@@ -396,30 +396,9 @@ impl Table {
 
     /*
 
-
-    /// This function returns a reference to the definition of this Table.
-    pub fn get_ref_definition(&self) -> &Definition {
-        &self.definition
-    }
-
-    /// This function returns a copy of the entries of this Table.
-    pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
-        self.entries.to_vec()
-    }
-
-    /// This function returns a reference to the entries of this Table.
-    pub fn get_ref_table_data(&self) -> &[Vec<DecodedData>] {
-        &self.entries
-    }
-
     /// This function returns the position of a column in a definition, or an error if the column is not found.
     pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
         self.get_ref_definition().get_column_position_by_name(column_name)
-    }
-
-    /// This function returns the amount of entries in this Table.
-    pub fn get_entry_count(&self) -> usize {
-        self.entries.len()
     }
 
     /// This function replaces the definition of this table with the one provided.
@@ -477,32 +456,46 @@ impl Table {
         // Then, we finally replace our definition and our data.
         self.definition = new_definition.clone();
         self.entries = new_entries;
-    }
+    }*/
 
     /// This function replaces the data of this table with the one provided.
     ///
     /// This can (and will) fail if the data is not of the format defined by the definition of the table.
-    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-        for row in data {
+    pub fn set_data(&mut self, pool: Option<&Pool<SqliteConnectionManager>>, data: &[Vec<DecodedData>]) -> Result<()> {
+        match self.table_data {
+            TableData::Local(ref mut table_data) => {
+                for row in data {
 
-            // First, we need to make sure all rows we have are exactly what we expect.
-            let fields_processed = self.definition.get_fields_processed();
+                    // First, we need to make sure all rows we have are exactly what we expect.
+                    let fields_processed = self.definition.fields_processed();
+                    if row.len() != fields_processed.len() {
+                        return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()).into())
+                    }
 
-            if row.len() != fields_processed.len() { return Err(ErrorKind::TableRowWrongFieldCount(fields_processed.len() as u32, row.len() as u32).into()) }
-            for (index, cell) in row.iter().enumerate() {
+                    for (index, cell) in row.iter().enumerate() {
 
-                // Next, we need to ensure each file is of the type we expected.
-                let field = if let Some(field) = fields_processed.get(index) { field } else { return Err(ErrorKind::Generic.into()) };
-                if !cell.is_field_type_correct(field.get_ref_field_type()) {
-                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", field.get_ref_field_type())).into())
+                        // Next, we need to ensure each file is of the type we expected.
+                        let field = fields_processed.get(index).unwrap();
+                        if !cell.is_field_type_correct(field.field_type()) {
+                            return Err(RLibError::EncodingTableWrongFieldType(FieldType::from(cell).to_string(), field.field_type().to_string()))
+                        }
+                    }
+                }
+
+                // If we passed all the checks, replace the data.
+                *table_data = data.to_vec();
+                Ok(())
+            }
+
+            // TODO: Make this work for sql_backed tables.
+            TableData::Sql(ref mut _table_data) => {
+                match pool {
+                    Some(_pool) => todo!(),
+                    None => Err(RLibError::MissingSQLitePool),
                 }
             }
         }
-
-        // If we passed all the checks, replace the data.
-        self.entries = data.to_vec();
-        Ok(())
-    }*/
+    }
 
     pub fn len(&self, pool: Option<&Pool<SqliteConnectionManager>>) -> Result<usize> {
         match &self.table_data {
