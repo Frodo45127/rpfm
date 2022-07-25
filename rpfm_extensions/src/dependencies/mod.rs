@@ -399,7 +399,7 @@ impl Dependencies {
     // Getters
     //-----------------------------------//
 
-    /// This function returns the db/locs from the cache, according to the params you pass it.
+    /// This function returns the vanilla/parent locs from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.
     pub fn loc_data(&mut self, game_info: &GameInfo, game_path: &Path, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
