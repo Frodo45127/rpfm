@@ -399,6 +399,28 @@ impl Dependencies {
     // Getters
     //-----------------------------------//
 
+    /// This function returns a specific file from the cache, if exists.
+    pub fn file(&mut self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<RFile>> {
+        if self.needs_updating(game_info, game_path)? {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+
+            if include_parent {
+                if let Some(file) = self.parent_files.get_mut(file_path) {
+                    return Ok(Some(file.clone()));
+                }
+            }
+
+            if include_vanilla {
+                if let Some(file) = self.vanilla_files.get_mut(file_path) {
+                    return Ok(Some(file.clone()));
+                }
+            }
+
+            Ok(None)
+        }
+    }
+
     /// This function returns the vanilla/parent locs from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.
@@ -474,6 +496,113 @@ impl Dependencies {
             Ok(cache)
         }
     }
+
+    /// This function returns the vanilla/parent DB and Loc tables from the cache, according to the params you pass it.
+    ///
+    /// It returns them in the order the game will load them.
+    pub fn db_and_loc_data(&mut self, game_info: &GameInfo, game_path: &Path, include_db: bool, include_loc: bool, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+        if self.needs_updating(game_info, game_path)? {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
+
+            if include_vanilla {
+                if include_db {
+                    let mut vanilla_tables = self.vanilla_tables.values().flatten().collect::<Vec<_>>();
+                    vanilla_tables.sort();
+
+                    for path in &vanilla_tables {
+                        if let Some(file) = self.vanilla_files.get_mut(*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+
+                if include_loc {
+                    let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
+                    vanilla_locs.sort();
+
+                    for path in &vanilla_locs {
+                        if let Some(file) = self.vanilla_files.get_mut(*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+            }
+
+            if include_parent {
+                if include_db {
+                    let mut parent_tables = self.parent_tables.values().flatten().collect::<Vec<_>>();
+                    parent_tables.sort();
+
+                    for path in &parent_tables {
+                        if let Some(file) = self.parent_files.get_mut(*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+
+                if include_loc {
+                    let mut parent_locs = self.parent_locs.iter().collect::<Vec<_>>();
+                    parent_locs.sort();
+
+                    for path in &parent_locs {
+                        if let Some(file) = self.parent_files.get_mut(*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+            }
+
+            Ok(cache)
+        }
+    }
+
+    //-----------------------------------//
+    // Utility functions.
+    //-----------------------------------//
+
+    /// This function returns if a specific file exists in the dependencies cache.
+    pub fn file_exists(&self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<bool> {
+        if self.needs_updating(game_info, game_path)? {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+
+            if include_parent {
+                if self.parent_files.get(file_path).is_some() {
+                    return Ok(true)
+                }
+            }
+
+            if include_vanilla {
+                if self.vanilla_files.get(file_path).is_some() {
+                    return Ok(true);
+                }
+            }
+
+            Ok(false)
+        }
+    }
+
+    /// This function checks if the dependencies cache file exists on disk.
+    pub fn are_dependencies_generated(file_path: &Path) -> bool {
+        file_path.is_file()
+    }
+
+    /// This function checks if there is vanilla data loaded in the provided cache.
+    pub fn is_vanilla_data_loaded(&self, include_asskit: bool) -> bool {
+        if include_asskit {
+            !self.vanilla_files.is_empty() && self.is_asskit_data_loaded()
+        } else {
+            !self.vanilla_files.is_empty()
+        }
+    }
+
+    /// This function checks if there is assembly kit data loaded in the provided cache.
+    pub fn is_asskit_data_loaded(&self) -> bool {
+        !self.asskit_only_db_tables.is_empty()
+    }
+
 
 /*
     /// This function returns the db/locs from the cache, according to the params you pass it.

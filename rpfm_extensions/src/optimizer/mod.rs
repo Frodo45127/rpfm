@@ -16,10 +16,10 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use rpfm_lib::error::Result;
-use rpfm_lib::files::{Container, db::DB, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
+use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::GameInfo;
-use rpfm_lib::schema::patch::SchemaPatches;
+use rpfm_lib::schema::{patch::SchemaPatches, Schema};
 
 use crate::dependencies::Dependencies;
 
@@ -42,7 +42,7 @@ pub trait OptimizableContainer: Container {
     /// This function optimizes the provided [Container](rpfm_lib::files::Container) to reduce its size and improve compatibility.
     ///
     /// It returns the list of files that has been safetly deleted during the optimization process.
-    fn optimize(&mut self, dependencies: &mut Dependencies) -> Result<Vec<String>>;
+    fn optimize(&mut self, game_info: &GameInfo, game_path: &Path, dependencies: &mut Dependencies, schema: &Schema, schema_patches: Option<&SchemaPatches>, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
 }
 
 //-------------------------------------------------------------------------------//
@@ -50,12 +50,118 @@ pub trait OptimizableContainer: Container {
 //-------------------------------------------------------------------------------//
 
 impl OptimizableContainer for Pack {
-    fn optimize(&mut self, _dependencies: &mut Dependencies) -> Result<Vec<String>> {
-        todo!()
+
+    /// This function optimizes the provided [Pack](rpfm_lib::files::pack::Pack) file in order to make it smaller and more compatible.
+    ///
+    /// Specifically, it performs the following optimizations:
+    ///
+    /// - DB/Loc tables (except if the table has the same name as his vanilla/parent counterpart and `optimize_datacored_tables` is false):
+    ///     - Removal of duplicated entries.
+    ///     - Removal of ITM (Identical To Master) entries.
+    ///     - Removal of ITNR (Identical To New Row) entries.
+    ///     - Removal of empty tables.
+    ///
+    /// NOTE: due to a consequence of the optimization, all tables are also sorted by their first key.
+    ///
+    /// Not yet working:
+    /// - Remove XML files in map folders.
+    /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
+    fn optimize(&mut self, game_info: &GameInfo, game_path: &Path, dependencies: &mut Dependencies, schema: &Schema, schema_patches: Option<&SchemaPatches>, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
+
+        // We can only optimize if we have vanilla data available.
+        if !dependencies.is_vanilla_data_loaded(true) {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        }
+
+        // List of files to delete.
+        let mut files_to_delete: HashSet<String> = HashSet::new();
+        /*
+        // First, do a hash pass over all the files, and mark for removal those that match by path and hash with vanilla/parent ones.
+        let packedfiles_paths = self.get_ref_packed_files_all_paths().iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>();
+        let mut dependencies_overwritten_files = dependencies.get_most_relevant_files_by_paths(&packedfiles_paths);
+        files_to_delete.append(&mut dependencies_overwritten_files.iter_mut().filter_map(|dep_packed_file| {
+            if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(dep_packed_file.get_path()) {
+                if let Ok(local_hash) = packed_file.get_hash_from_data() {
+                    if let Ok(dependency_hash) = dep_packed_file.get_hash_from_data() {
+                        if local_hash == dependency_hash {
+                            Some(packed_file.get_path().to_vec())
+                        } else { None }
+                    } else { None }
+                } else { None }
+            } else { None }
+        }).collect());
+        */
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+        let extra_data = Some(extra_data);
+
+        // Then, do a second pass, this time over the decodeable files that we can optimize.
+        files_to_delete.extend(self.files_mut().iter_mut().filter_map(|(path, rfile)|{
+
+            // Only check it if it's not already marked for deletion.
+            if files_to_delete.get(path).is_none() {
+
+                match rfile.file_type() {
+                    FileType::DB => {
+
+                        // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
+                        // as those are probably intended to overwrite vanilla files, not to be optimized.
+                        if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(game_info, game_path, path, true, true).ok().unwrap_or(false)) {
+                            if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
+                                if db.optimize(game_info, game_path, dependencies, schema_patches) {
+                                    return Some(path.to_owned());
+                                }
+                            }
+                        }
+                    }
+
+                    FileType::Loc => {
+
+                        // Same as with tables, don't optimize them if they're overwriting.
+                        if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(game_info, game_path, path, true, true).ok().unwrap_or(false)) {
+                            if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
+                                if loc.optimize(game_info, game_path, dependencies, schema_patches) {
+                                    return Some(path.to_owned());
+                                }
+                            }
+                        }
+                    }
+
+                    /*
+                    PackedFileType::Text(text_type) => {
+                        if !path.is_empty() && path.starts_with(&Self::get_terry_map_path()) && text_type == TextType::Xml {
+                            return Some(path.to_vec());
+                        }
+                    }*/
+
+                    // Ignore the rest.
+                    _ => {}
+                }
+            }
+
+            None
+        }).collect::<Vec<String>>());
+
+        // Delete all the files marked for deletion.
+        files_to_delete.iter().for_each(|x| { self.remove(&ContainerPath::File(x.to_owned())); });
+
+        // Return the deleted files, so the caller can know what got removed.
+        Ok(files_to_delete)
     }
 }
 
 impl Optimizable for DB {
+
+    /// This function optimizes the provided [DB](rpfm_lib::files::db::DB) file in order to make it smaller and more compatible.
+    ///
+    /// Specifically, it performs the following optimizations:
+    ///
+    /// - Removal of duplicated entries.
+    /// - Removal of ITM (Identical To Master) entries.
+    /// - Removal of ITNR (Identical To New Row) entries.
+    ///
+    /// It returns if the DB is empty, meaning it can be safetly deleted.
     fn optimize(&mut self, game_info: &GameInfo, game_path: &Path, dependencies: &mut Dependencies, schema_patches: Option<&SchemaPatches>) -> bool {
         match self.data(&None) {
             Ok(entries) => {
