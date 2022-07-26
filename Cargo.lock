@@ -1378,11 +1378,13 @@ name = "rpfm_extensions"
 version = "3.99.100"
 dependencies = [
  "bincode",
+ "float_eq",
  "getset",
  "rayon",
  "rpfm_lib",
  "serde",
  "serde_derive",
+ "serde_json",
 ]
 
 [[package]]

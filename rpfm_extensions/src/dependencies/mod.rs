@@ -434,6 +434,47 @@ impl Dependencies {
         }
     }
 
+    /// This function returns the vanilla/parent db tables from the cache, according to the params you pass it.
+    ///
+    /// NOTE: table_name is expected to be the table's folder name, without "_tables" at the end.
+    ///
+    /// It returns them in the order the game will load them.
+    pub fn db_data(&mut self, game_info: &GameInfo, game_path: &Path, table_name: &str, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+        if self.needs_updating(game_info, game_path)? {
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+        } else {
+            let mut cache = vec![];
+
+            if include_vanilla {
+                if let Some(vanilla_tables) = self.vanilla_tables.get(table_name) {
+                    let mut vanilla_tables = vanilla_tables.to_vec();
+                    vanilla_tables.sort();
+
+                    for path in &vanilla_tables {
+                        if let Some(file) = self.vanilla_files.get_mut(&*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+            }
+
+            if include_parent {
+                if let Some(parent_tables) = self.parent_tables.get(table_name) {
+                    let mut parent_tables = parent_tables.to_vec();
+                    parent_tables.sort();
+
+                    for path in &parent_tables {
+                        if let Some(file) = self.parent_files.get_mut(&*path) {
+                            cache.push(file.clone());
+                        }
+                    }
+                }
+            }
+
+            Ok(cache)
+        }
+    }
+
 /*
     /// This function returns the db/locs from the cache, according to the params you pass it.
     pub fn get_db_and_loc_tables_from_cache(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_modded: bool) -> Result<Vec<PackedFile>> {

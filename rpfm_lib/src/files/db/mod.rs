@@ -36,9 +36,12 @@
 //!
 //! The data structure depends on the definition of the table.
 
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::SeekFrom;
 
@@ -254,12 +257,17 @@ impl DB {
         self.table.table_name()
     }
 
-    // This function replaces the data of this table with the one provided.
-    //
-    // This can (and will) fail if the data is not of the format defined by the definition of the table.
-    //pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-    //    self.table.set_table_data(data)
-    //}
+    /// This function returns a reference to the entries of this DB table.
+    pub fn data(&self, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<Cow<[Vec<DecodedData>]>> {
+        self.table.data(pool)
+    }
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not in the format defined by the definition of the table.
+    pub fn set_data(&mut self, pool: Option<&Pool<SqliteConnectionManager>>, data: &[Vec<DecodedData>]) -> Result<()> {
+        self.table.set_data(pool, data)
+    }
 
     /// This function returns a valid empty (with default values if any) row for this table.
     pub fn new_row(&self, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> Vec<DecodedData> {
@@ -589,79 +597,6 @@ impl DB {
 
         // Return the fake DB Table list.
         db_files
-    }
-
-    /// This function is used to optimize the size of a DB Table.
-    ///
-    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire
-    /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
-    pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
-
-        // For each vanilla table, if it's the same table/version as our own, we check it
-        let mut entries = self.get_ref_table_data().to_vec();
-        let definition = self.get_ref_definition();
-        let first_key = definition.get_fields_sorted().iter().position(|x| x.get_is_key()).unwrap_or(0);
-
-        // To do it faster, make a freaking big table with all the vanilla entries together.
-        let vanilla_table = vanilla_tables.iter()
-            .filter(|x| x.name == self.name && x.get_ref_definition().get_version() == definition.get_version())
-            .map(|x| x.get_ref_table_data().to_vec())
-            .flatten()
-            .map(|x| {
-
-                // We map all floats here to string representations of floats, so we can actually compare them reliably.
-                let json = x.iter().map(|data|
-                    if let DecodedData::F32(value) = data {
-                        DecodedData::StringU8(format!("{:.4}", value))
-                    } else {
-                        data.to_owned()
-                    }
-                ).collect::<Vec<DecodedData>>();
-                serde_json::to_string(&json).unwrap()
-            })
-            .collect::<HashSet<String>>();
-
-        // Remove ITM and ITNR entries, sort the remaining ones by keys, and dedup them.
-        let new_row = self.get_new_row().iter().map(|data|
-            if let DecodedData::F32(value) = data {
-                DecodedData::StringU8(format!("{:.4}", value))
-            } else {
-                data.to_owned()
-            }
-        ).collect::<Vec<DecodedData>>();
-
-        entries.retain(|entry| {
-            let entry_json = entry.iter().map(|data|
-                if let DecodedData::F32(value) = data {
-                    DecodedData::StringU8(format!("{:.4}", value))
-                } else {
-                    data.to_owned()
-                }
-            ).collect::<Vec<DecodedData>>();
-            !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()) && entry != &new_row
-        });
-
-        // Sort the table so it can be dedupd. Sorting floats is a pain in the ass.
-        entries.par_sort_by(|a, b| {
-            let ordering = if let DecodedData::F32(x) = a[first_key] {
-                if let DecodedData::F32(y) = b[first_key] {
-                    if float_eq::float_eq!(x, y, abs <= 0.0001) {
-                        Some(Ordering::Equal)
-                    } else { None }
-                } else { None }
-            } else { None };
-
-            match ordering {
-                Some(ordering) => ordering,
-                None => a[first_key].partial_cmp(&b[first_key]).unwrap_or(Ordering::Equal)
-            }
-        });
-
-        entries.dedup();
-
-        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
-        let _ = self.table.set_table_data(&entries);
-        self.table.get_ref_table_data().is_empty()
     }
 
     /// This function returns the dependency/lookup data of a column from the dependency database.
