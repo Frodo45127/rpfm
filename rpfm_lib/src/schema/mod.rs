@@ -82,6 +82,10 @@ use getset::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::localisable_fields::RawLocalisableField;
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawDefinition;
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawField;
+
 use crate::error::Result;
 use crate::files::table::DecodedData;
 use self::patch::SchemaPatches;
@@ -113,8 +117,8 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 //---------------------------------------------------------------------------//
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
-#[derive(Clone, PartialEq, Eq, Debug, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Clone, PartialEq, Eq, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Schema {
 
     /// It stores the structural version of the Schema.
@@ -390,6 +394,15 @@ impl Definition {
         }
     }
 
+    /// This function creates a new empty `Definition` for the version provided, with the fields provided.
+    pub fn new_with_fields(version: i32, fields: &[Field], loc_fields: &[Field]) -> Definition {
+        Definition {
+            version,
+            localised_fields: loc_fields.to_vec(),
+            fields: fields.to_vec(),
+        }
+    }
+
     /// This function returns the reference and lookup data of a definition.
     pub fn reference_data(&self) -> BTreeMap<i32, (String, String, Option<Vec<String>>)> {
         self.fields.iter()
@@ -549,7 +562,7 @@ impl Definition {
 
         fields_query
     }
-/*
+
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
     ///
     /// Not all data is updated though, only:
@@ -561,6 +574,7 @@ impl Definition {
     /// - Is Reference.
     /// - Lookup.
     /// - CA Order.
+    #[cfg(feature = "integration_assembly_kit")]
     pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
         let mut combined_fields = BTreeMap::new();
@@ -637,6 +651,7 @@ impl Definition {
     }
 
     /// This function populates the `localised_fields` of a definition with data from the assembly kit.
+    #[cfg(feature = "integration_assembly_kit")]
     pub fn update_from_raw_localisable_fields(&mut self, raw_definition: &RawDefinition, raw_localisable_fields: &[RawLocalisableField]) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
         let localisable_fields_names = raw_localisable_fields.iter()
@@ -652,7 +667,7 @@ impl Definition {
             let fields = localisable_fields.iter().map(|x| From::from(*x)).collect();
             self.localised_fields = fields;
         }
-    }*/
+    }
 }
 
 /// Implementation of `Field`.
@@ -906,62 +921,6 @@ impl From<&DecodedData> for FieldType {
         }
     }
 }
-
-/*
-/// Implementation of `From<&RawDefinition>` for `Definition.
-impl From<&RawDefinition> for Definition {
-    fn from(raw_definition: &RawDefinition) -> Self {
-        let mut definition = Self::new(-100);
-        definition.fields = raw_definition.fields.iter().map(From::from).collect();
-        definition
-    }
-}
-
-
-/// Implementation of `From<&RawField>` for `Field.
-impl From<&RawField> for Field {
-    fn from(raw_field: &RawField) -> Self {
-        let field_type = match &*raw_field.field_type {
-            "yesno" => FieldType::Boolean,
-            "single" => FieldType::F32,
-            "double" => FieldType::F64,
-            "integer" => FieldType::I32,
-            "autonumber" | "card64" => FieldType::I64,
-            "colour" => FieldType::ColourRGB,
-            "expression" | "text" => {
-                if raw_field.required == "1" {
-                    FieldType::StringU8
-                }
-                else {
-                    FieldType::OptionalStringU8
-                }
-            },
-            _ => FieldType::StringU8,
-        };
-
-        let (is_reference, lookup) = if let Some(x) = &raw_field.column_source_table {
-            if let Some(y) = &raw_field.column_source_column {
-                if y.len() > 1 { (Some((x.to_owned(), y[0].to_owned())), Some(y[1..].to_vec()))}
-                else { (Some((x.to_owned(), y[0].to_owned())), None) }
-            } else { (None, None) }
-        }
-        else { (None, None) };
-
-        Self {
-            name: raw_field.name.to_owned(),
-            field_type,
-            is_key: raw_field.primary_key == "1",
-            default_value: raw_field.default_value.clone(),
-            is_filename: raw_field.is_filename.is_some(),
-            filename_relative_path: raw_field.filename_relative_path.clone(),
-            is_reference,
-            lookup,
-            description: if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() },
-            ..Default::default()
-        }
-    }
-}
-*/
 
 /// Special serializer function to sort the HashMap before serializing.
 fn ordered_map<S>(value: &HashMap<String, Vec<Definition>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {

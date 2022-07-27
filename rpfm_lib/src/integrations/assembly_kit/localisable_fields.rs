@@ -21,7 +21,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use rpfm_error::{Result, ErrorKind};
+use crate::error::{Result, RLibError};
 
 use super::*;
 
@@ -63,7 +63,7 @@ impl RawLocalisableFields {
                 let localisable_fields_file = BufReader::new(File::open(&localisable_fields_path)?);
                 from_reader(localisable_fields_file).map_err(From::from)
             }
-            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 }

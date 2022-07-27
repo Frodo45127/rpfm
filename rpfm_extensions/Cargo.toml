@@ -9,7 +9,7 @@ rust-version = "1.60"
 [dependencies]
 
 # Internal dependencies.
-rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "support_error_bincode"] }
+rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
 
 # Basic get/set support.
 getset = "^0.1"

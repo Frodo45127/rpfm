@@ -27,6 +27,7 @@ use std::path::{Path, PathBuf};
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::{DecodeableExtraData, FileType, RFile, db::DB, pack::Pack};
 use rpfm_lib::games::GameInfo;
+use rpfm_lib::integrations::table_data::RawTable;
 use rpfm_lib::schema::Schema;
 use rpfm_lib::utils::{current_time, last_modified_time_from_files};
 /*
@@ -253,30 +254,26 @@ impl Dependencies {
         cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
 
         // This one can fail, leaving the dependencies with only game data.
-        // This is needed to support table creation on Empire and Napoleon.
         if let Some(path) = asskit_path {
-            //let _ = cache.generate_asskit_only_db_tables(path, version);
+            let _ = cache.generate_asskit_only_db_tables(path, version);
         }
 
         Ok(cache)
     }
-/*
+
     /// This function generates a "fake" table list with tables only present in the Assembly Kit.
     ///
     /// This works by processing all the tables from the game's raw table folder and turning them into fake decoded tables,
     /// with version -1. That will allow us to use them for dependency checking and for populating combos.
     ///
     /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK file.
-    fn generate_asskit_only_db_tables(
-        &mut self,
-        raw_db_path: &Path,
-        version: i16,
-    ) -> Result<()> {
-        let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, self)?;
-        self.asskit_only_db_tables = raw_tables.par_iter().map(From::from).collect::<Vec<DB>>();
+    fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16) -> Result<()> {
+        let files_to_ignore = self.vanilla_tables.keys().map(|x| &**x).collect::<Vec<&str>>();
+        let raw_tables = RawTable::read_all(raw_db_path, version, &files_to_ignore)?;
+        self.asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
 
         Ok(())
-    }*/
+    }
 
     /// This function loads a `Dependencies` to memory from a file in the `dependencies/` folder.
     pub fn load(file_path: &Path, schema: &Schema) -> Result<Self> {

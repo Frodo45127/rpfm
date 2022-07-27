@@ -14,7 +14,6 @@ Module with all the code to interact with the Assembly Kit's DB Files.
 This module contains all the code needed to parse Assembly Kit's DB files to a format we can understand.
 !*/
 
-use rayon::iter::Either;
 use rayon::prelude::*;
 use regex::Regex;
 use serde_derive::Deserialize;
@@ -24,10 +23,11 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-use rpfm_error::{Result, Error, ErrorKind};
+use crate::error::{Result, RLibError};
+use crate::files::{db::DB, table::{DecodedData, Table}};
+use crate::schema::FieldType;
 
-use crate::assembly_kit::table_definition::RawDefinition;
-use crate::dependencies::Dependencies;
+use super::table_definition::RawDefinition;
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit DB Files into.
@@ -72,28 +72,21 @@ pub struct RawTableField {
 impl RawTable {
 
     /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Tables inside it.
-    pub fn read_all(raw_tables_folder: &Path, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
+    pub fn read_all(raw_tables_folder: &Path, version: i16, tables_to_skip: &[&str]) -> Result<Vec<Self>> {
 
         // First, we try to read all `RawDefinitions` from the same folder.
-        let (definitions, _) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables, dependencies)?;
+        let definitions = RawDefinition::read_all(raw_tables_folder, version, tables_to_skip)?;
 
         // Then, depending on the version, we have to use one logic or another.
         match version {
 
             // Version 2 is Rome 2+. Version 1 is Shogun 2. Almost the same format, but we have to
             // provide a different path for Shogun 2, so it has his own version.
-            2 | 1 => {
-                Ok(definitions.par_iter().partition_map(|definition|
-                    match Self::read(definition, raw_tables_folder, version) {
-                        Ok(y) => Either::Left(y),
-                        Err(y) => Either::Right(y)
-                    }
-                ))
-            }
+            2 | 1 => definitions.par_iter().map(|definition| Self::read(definition, raw_tables_folder, version)).collect(),
 
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
             // So... these are kinda unique. The schemas are xsd files, and the data format is kinda different and it's not yet supported.
-            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 
@@ -104,7 +97,9 @@ impl RawTable {
                 let name_no_xml = raw_definition.name.as_ref().unwrap().split_at(raw_definition.name.as_ref().unwrap().len() - 4).0;
 
                 // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.
-                if raw_definition.name.as_ref().unwrap() == "translated_texts.xml" { return Err(ErrorKind::AssemblyKitTableTableIgnored.into()) }
+                if raw_definition.name.as_ref().unwrap() == "translated_texts.xml" {
+                    return Err(RLibError::AssemblyKitTableTableIgnored.into())
+                }
 
                 let raw_table_data_path = raw_table_data_folder.join(&raw_definition.name.as_ref().unwrap());
                 let mut raw_table_data_file = BufReader::new(File::open(&raw_table_data_path)?);
@@ -133,7 +128,7 @@ impl RawTable {
 
                 // Only if the table has data we deserialize it. If not, we just create an empty one.
                 let mut raw_table = if buffer.contains("</rows>\r\n</dataroot>") {
-                    from_reader(buffer.as_bytes()).map_err(Error::from)?
+                    from_reader(buffer.as_bytes())?
                 } else {
                     Self::default()
                 };
@@ -141,7 +136,82 @@ impl RawTable {
                 raw_table.definition = Some(raw_definition.clone());
                 Ok(raw_table)
             }
-            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
         }
+    }
+}
+
+impl TryFrom<&RawTable> for DB {
+    type Error = RLibError;
+
+    fn try_from(raw_table: &RawTable) -> Result<Self> {
+        let table = Table::try_from(raw_table)?;
+        Ok(Self::from(table))
+    }
+}
+
+impl TryFrom<&RawTable> for Table {
+    type Error = RLibError;
+
+    fn try_from(raw_table: &RawTable) -> Result<Self> {
+        let raw_definition = raw_table.definition.as_ref().ok_or(RLibError::RawTableMissingDefinition)?;
+        let table_name = if let Some(ref raw_definition) = raw_definition.name {
+
+            // Remove the .xml of the name in the most awesome way there is.
+            let mut x = raw_definition.to_owned();
+            x.pop();
+            x.pop();
+            x.pop();
+            x.pop();
+
+            format!("{}_tables", x)
+        } else { String::new() };
+
+        let mut table = Self::new(&From::from(raw_definition), &table_name, false);
+        let mut entries = vec![];
+        for row in &raw_table.rows {
+            let mut entry = vec![];
+
+            // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.
+            // To compensate it, if we don't find a field from the definition in the table, we add it empty.
+            for field_def in table.definition().fields() {
+                let mut exists = false;
+                for field in &row.fields {
+                    if field_def.name() == field.field_name {
+                        exists = true;
+
+                        entry.push(match field_def.field_type() {
+                            FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
+                            FieldType::F32 => DecodedData::F32(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
+                            FieldType::F64 => DecodedData::F64(if let Ok(data) = field.field_data.parse::<f64>() { data } else { 0.0 }),
+                            FieldType::I16 => DecodedData::I16(if let Ok(data) = field.field_data.parse::<i16>() { data } else { 0 }),
+                            FieldType::I32 => DecodedData::I32(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
+                            FieldType::I64 => DecodedData::I64(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
+                            FieldType::OptionalI16 => DecodedData::OptionalI16(if let Ok(data) = field.field_data.parse::<i16>() { data } else { 0 }),
+                            FieldType::OptionalI32 => DecodedData::OptionalI32(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
+                            FieldType::OptionalI64 => DecodedData::OptionalI64(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
+                            FieldType::ColourRGB => DecodedData::ColourRGB(field.field_data.to_string()),
+                            FieldType::StringU8 => DecodedData::StringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                            FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+
+                            // This type is not used in the raw tables so, if we find it, we skip it.
+                            FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => continue,
+                        });
+                        break;
+                    }
+                }
+
+                // If the field doesn't exist, we create it empty.
+                if !exists {
+                    entry.push(DecodedData::OptionalStringU8(String::new()));
+                }
+            }
+            entries.push(entry);
+        }
+
+        table.set_data(None, &entries)?;
+        Ok(table)
     }
 }

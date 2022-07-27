@@ -1080,32 +1080,3 @@ impl From<Table> for DB {
         }
     }
 }
-
-/*
-/// Implementation to create a `DB` from a `RawTable`.
-impl From<&RawTable> for DB {
-    fn from(raw_table: &RawTable) -> Self {
-        let name_table = if let Some(ref x) = raw_table.definition {
-            if let Some(ref y) = x.name {
-
-                // Remove the .xml of the name in the most awesome way there is.
-                let mut x = y.to_owned();
-                x.pop();
-                x.pop();
-                x.pop();
-                x.pop();
-
-                format!("{}_tables", x)
-            }
-            else { String::new() }
-        } else { String::new() };
-
-        Self {
-            name: name_table,
-            mysterious_byte: true,
-            uuid: Uuid::new_v4().to_string(),
-            table: From::from(raw_table),
-        }
-    }
-}
-*/

@@ -21,20 +21,18 @@ To differentiate between the different types of Assembly Kit, there are multiple
 use rayon::prelude::*;
 use serde_xml_rs::from_reader;
 
-use std::borrow::BorrowMut;
+use std::collections::HashMap;
 use std::fs::{File, read_dir};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use rpfm_error::{Result, ErrorKind};
-
-use crate::assembly_kit::table_definition::RawDefinition;
-use crate::assembly_kit::localisable_fields::RawLocalisableFields;
-use crate::{GAME_SELECTED, SCHEMA};
-use crate::dependencies::Dependencies;
-use crate::packfile::PathType;
-use crate::packedfile::table::db::DB;
+use crate::error::{Result, RLibError};
+use crate::games::GameInfo;
+use crate::files::db::DB;
 use crate::schema::*;
+
+use self::localisable_fields::RawLocalisableFields;
+use self::table_definition::RawDefinition;
 
 pub mod localisable_fields;
 pub mod table_data;
@@ -69,64 +67,47 @@ const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 /// - This works only over already decoded tables (no new definitions are created).
 /// - This decodes localisable fields as proper localisable fiels, separating them from the rest.
 /// - This only updates the current versions of the tables, not older ones.
-pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies: &Dependencies) -> Result<()> {
-    let mut schema_writable = SCHEMA.write().unwrap();
-    let schema_referenced: &mut Option<Schema> = schema_writable.borrow_mut();
-    if let Some(ref mut schema) = schema_referenced {
+pub fn update_schema_from_raw_files(schema: &mut Schema, game_info: &GameInfo, ass_kit_path: &Path, schema_path: &Path, tables_to_skip: &[&str], tables_to_check: &HashMap<String, Vec<DB>>) -> Result<()> {
 
-        // This has to do a different process depending on the `raw_db_version`.
-        let raw_db_version = GAME_SELECTED.read().unwrap().get_raw_db_version();
-        match raw_db_version {
-            2 | 1 => {
+    // This has to do a different process depending on the `raw_db_version`.
+    let raw_db_version = game_info.raw_db_version();
+    match raw_db_version {
+        2 | 1 => {
 
-                let mut ass_kit_schemas_path =
-                    if raw_db_version == 1 {
-                        if let Some(path) = ass_kit_path { path }
-                        else { return Err(ErrorKind::SchemaNotFound.into()) }
-                    }
-                    else if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() { path }
-                    else { return Err(ErrorKind::SchemaNotFound.into()) };
+            let mut ass_kit_path = ass_kit_path.to_owned();
+            ass_kit_path.push("raw_data");
+            ass_kit_path.push("db");
 
-                ass_kit_schemas_path.push("raw_data");
-                ass_kit_schemas_path.push("db");
+            // This one is notably missing in Warhammer 2, so it's optional.
+            let raw_localisable_fields: Option<RawLocalisableFields> =
+                if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_path, raw_db_version) {
+                    let file = BufReader::new(File::open(&file_path)?);
+                    from_reader(file).ok()
+                } else { None };
 
-                // This one is notably missing in Warhammer 2, so it's optional.
-                let raw_localisable_fields: Option<RawLocalisableFields> =
-                    if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_schemas_path, raw_db_version) {
-                        let file = BufReader::new(File::open(&file_path)?);
-                        from_reader(file).ok()
-                    } else { None };
+            let raw_definitions = RawDefinition::read_all(&ass_kit_path, raw_db_version, tables_to_skip)?;
 
-                let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false, dependencies)?;
-                schema.get_ref_mut_versioned_file_db_all().par_iter_mut().for_each(|versioned_file| {
-                    if let VersionedFile::DB(table_name, definitions) = versioned_file {
-                        let name = &table_name[0..table_name.len() - 7];
-                        if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
-                            if let Ok((ref mut vanilla_tables, ref mut _error_paths)) = dependencies.get_packedfiles_from_game_files(&[PathType::Folder(vec!["db".to_owned(), table_name.to_owned()])]) {
-                                if !vanilla_tables.is_empty() {
-                                    let vanilla_table = &mut vanilla_tables[0];
-                                    if let Ok(vanilla_table_data) = vanilla_table.get_raw_data_and_keep_it() {
-                                        if let Ok((version, _, _, _, _)) = DB::read_header(&vanilla_table_data) {
-                                            if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.get_version() == version) {
-                                                definition.update_from_raw_definition(raw_definition);
-                                                if let Some(ref raw_localisable_fields) = raw_localisable_fields {
-                                                    definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
-                                                }
-                                            }
-                                        }
-                                    }
+            schema.definitions_mut().par_iter_mut().for_each(|(table_name, definitions)| {
+                let name = &table_name[0..table_name.len() - 7];
+                if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
+
+                    // We need to get the version from the vanilla files to know what definition to update.
+                    if let Some(vanilla_tables) = tables_to_check.get(table_name) {
+                        for vanilla_table in vanilla_tables {
+                            if let Some(definition) = definitions.iter_mut().find(|x| x.version() == vanilla_table.definition().version()) {
+                                definition.update_from_raw_definition(raw_definition);
+                                if let Some(ref raw_localisable_fields) = raw_localisable_fields {
+                                    definition.update_from_raw_localisable_fields(raw_definition, &raw_localisable_fields.fields)
                                 }
                             }
                         }
                     }
-                });
-                schema.save(GAME_SELECTED.read().unwrap().get_schema_name())
-            }
-            _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
+                }
+            });
+            schema.save(schema_path)
         }
+        _ => Err(RLibError::AssemblyKitUnsupportedVersion(raw_db_version).into()),
     }
-
-    else { Err(ErrorKind::SchemaNotFound.into()) }
 }
 
 //---------------------------------------------------------------------------//
@@ -161,11 +142,11 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
                 }
             }
         }
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
     }
 
     // Sort the files alphabetically.
@@ -199,11 +180,11 @@ pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathB
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
                 }
             }
         }
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
     }
 
     // Sort the files alphabetically.
@@ -227,13 +208,13 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
                             return Ok(file_path)
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
                 }
             }
         }
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
     }
 
     // If we didn't find the file, return an error.
-    Err(ErrorKind::AssemblyKitLocalisableFieldsNotFound.into())
+    Err(RLibError::AssemblyKitLocalisableFieldsNotFound.into())
 }

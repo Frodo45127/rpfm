@@ -213,6 +213,21 @@ pub enum RLibError {
     #[error("The dependencies cache has not been generated or it's outdated and need regenerating.")]
     DependenciesCacheNotGeneratedorOutOfDate,
 
+    #[error("Operations over the Assembly Kit of version {0} are not currently supported.")]
+    AssemblyKitUnsupportedVersion(i16),
+
+    #[error("The Assembly Kit Folder could not be read. You may need to install the Assembly Kit.")]
+    AssemblyKitNotFound,
+
+    #[error("One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.")]
+    AssemblyKitTableTableIgnored,
+
+    #[error("The `Localisable Fields` file hasn't been found.")]
+    AssemblyKitLocalisableFieldsNotFound,
+
+    #[error("The raw table you tried to import is missing a definition.")]
+    RawTableMissingDefinition,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),
@@ -264,6 +279,11 @@ pub enum RLibError {
     #[cfg(feature = "support_error_bincode")]
     #[error(transparent)]
     BindcodeError(#[from] bincode::Error),
+
+    /// Represents all other cases of `serde_xml_rs::Error`.
+    #[cfg(feature = "integration_assembly_kit")]
+    #[error(transparent)]
+    XmlRsError(#[from] serde_xml_rs::Error),
 
     /// Represents all other cases of `log::SetLoggerError`.
     #[cfg(feature = "integration_log")]
