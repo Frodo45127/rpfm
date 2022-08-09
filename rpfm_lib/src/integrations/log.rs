@@ -85,7 +85,7 @@ impl Logger {
     /// - Log CTD to files.
     /// - Log CTD to sentry (release only)
     /// - Log execution steps to file/sentry.
-    pub fn init(logging_path: &Path) -> Result<ClientInitGuard> {
+    pub fn init(logging_path: &Path, verbose: bool) -> Result<ClientInitGuard> {
 
         // Make sure the provided folder exists.
         if let Some(parent_folder) = logging_path.parent() {
@@ -95,13 +95,19 @@ impl Logger {
         // Rotate the logs so we can keep a few old logs.
         Self::rotate_logs(&logging_path)?;
 
+        let log_level = if verbose {
+            LevelFilter::Info
+        } else {
+            LevelFilter::Warn
+        };
+
         // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
         //
         // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
         let mut file_logger_failed = true;
-        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Warn, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
+        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(log_level, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
         if let Ok(write_logger_file) = File::create(logging_path.join(LOG_FILE_CURRENT)) {
-            let write_logger = WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), write_logger_file);
+            let write_logger = WriteLogger::new(log_level, simplelog::Config::default(), write_logger_file);
             loggers.push(write_logger);
             file_logger_failed = false;
         }
@@ -110,7 +116,7 @@ impl Logger {
 
         // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
         let logger = SentryLogger::with_dest(combined_logger);
-        log::set_max_level(log::LevelFilter::Info);
+        log::set_max_level(log_level);
         log::set_boxed_logger(Box::new(logger))?;
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
