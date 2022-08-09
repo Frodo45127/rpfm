@@ -26,7 +26,7 @@ impl Pack {
 
     /// This function reads a `Pack` of version 6 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh6<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
-        let data_len = extra_data.data_size as u64;
+        let data_len = if extra_data.data_size > 0 { extra_data.data_size } else { data.len()? };
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -35,6 +35,7 @@ impl Pack {
         let files_index_size = data.read_u32()?;
 
         self.header.internal_timestamp = u64::from(data.read_u32()?);
+        self.files = HashMap::with_capacity(files_count as usize);
 
         // The rest of the header data is 280 bytes.
         let extra_header_size = 280;

@@ -25,7 +25,7 @@ impl Pack {
 
     /// This function reads a `Pack` of version 3 from raw data, returning the index where it finished reading.
     pub(crate) fn read_pfh3<R: ReadBytes>(&mut self, data: &mut R, extra_data: &DecodeableExtraData) -> Result<u64> {
-        let data_len = extra_data.data_size;
+        let data_len = if extra_data.data_size > 0 { extra_data.data_size } else { data.len()? };
 
         // Read the info about the indexes to use it later.
         let packs_count = data.read_u32()?;
@@ -35,6 +35,7 @@ impl Pack {
 
         // Timestamp is a windows specific one, and with this we map it to the unix one.
         self.header.internal_timestamp = (data.read_u64()? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH;
+        self.files = HashMap::with_capacity(files_count as usize);
 
         // Optimization: we only really need the header of the Pack, not the data, and reads, if performed from disk, are expensive.
         // So we get all the data from the header to the end of the indexes to memory and put it in a buffer, so we can read it faster.
