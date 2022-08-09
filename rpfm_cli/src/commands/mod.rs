@@ -11,4 +11,5 @@
 //! This module contains the different submodules with commands RPFM-CLI can execute.
 
 pub mod animpack;
+pub mod dependencies;
 pub mod pack;

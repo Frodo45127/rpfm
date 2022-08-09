@@ -30,10 +30,6 @@ pub(crate) struct Cli {
     #[clap(short, long)]
     pub verbose: bool,
 
-    /// Path to the schema file to use, if any.
-    #[clap(short, long, value_parser)]
-    pub schema: Option<PathBuf>,
-
     // TODO: move this to a function that gets the games supported from then lib.
     /// Game we are using this tool for.
     #[clap(short, long, value_parser, value_name = "GAME", possible_values = &["warhammer_3", "troy", "three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])]
@@ -60,8 +56,14 @@ pub enum Commands {
         #[clap(subcommand)]
         commands: CommandsPack,
     },
-}
 
+    /// Command to perform operations related with the dependencies cache.
+    Dependencies {
+
+        #[clap(subcommand)]
+        commands: CommandsDependencies,
+    },
+}
 
 #[derive(Subcommand)]
 pub enum CommandsAnimPack {
@@ -239,6 +241,53 @@ pub enum CommandsPack {
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         folder_path: Vec<(String, PathBuf)>,
     },
+
+    /// Performs a diagnostics check over the Pack/s in the provided path to the specified path on disk. The results will be returned in json.
+    Diagnose {
+
+        /// Path of the game the Pack diagnosed is for.
+        #[clap(short, long, action, required = true, value_parser, name = "GAME_PATH")]
+        game_path: PathBuf,
+
+        /// Path of the dependencies cache to be used.
+        ///
+        /// If you don't have one, generate it with the `dependencies generate` command.
+        #[clap(short = 'P', long, action, required = true, value_parser, name = "PAK2_PATH")]
+        pak_path: PathBuf,
+
+        /// Path of the schema for the game the Pack/s is for.
+        #[clap(short, long, action, required = true, value_parser, name = "SCHEMA_PATH")]
+        schema_path: PathBuf,
+
+        /// Path of the Pack this operation will use.
+        ///
+        /// You can specify multiple packs to perform a diagnostics check over all of them.
+        #[clap(short, long, action, required = true, multiple = true, value_parser, name = "PACK_PATH")]
+        pack_path: Vec<PathBuf>,
+    }
+}
+
+
+#[derive(Subcommand)]
+pub enum CommandsDependencies {
+
+    /// Generate the dependencies cache for a specific game.
+    Generate {
+
+        /// Path where the dependencies cache will be saved.
+        #[clap(short = 'P', long, action, required = true, value_parser, name = "PAK2_PATH")]
+        pak_path: PathBuf,
+
+        /// Path of the game the dependencies cache is for.
+        #[clap(short, long, action, required = true, value_parser, name = "GAME_PATH")]
+        game_path: PathBuf,
+
+        /// Path of the assembly kit the dependencies cache is for.
+        ///
+        /// Optional.
+        #[clap(short, long, action, required = false, value_parser, name = "ASSEMBLY_KIT_PATH")]
+        assembly_kit_path: Option<PathBuf>,
+    }
 }
 
 //---------------------------------------------------------------------------//

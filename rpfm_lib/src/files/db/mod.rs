@@ -105,8 +105,8 @@ impl Decodeable for DB {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraData)?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
+        let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraDataField("schema".to_owned()))?;
+        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraDataField("table_name".to_owned()))?;
         let return_incomplete = extra_data.return_incomplete;
         let pool = extra_data.pool;
 
@@ -255,6 +255,17 @@ impl DB {
     /// This function returns a reference of the name of this DB Table.
     pub fn table_name(&self) -> &str {
         self.table.table_name()
+    }
+
+    /// This function returns the name of this DB Table, without the "_tables" suffix.
+    pub fn table_name_without_tables(&self) -> String {
+
+        // Note: it needs this check because this explodes if instead of "_tables" we have non-ascii characters.
+        if self.table_name().ends_with("_tables") {
+            self.table_name().to_owned().drain(..self.table_name().len() - 7).collect()
+        } else {
+            panic!("Either the code is broken, or someone with a few loose screws has renamed the fucking table folder. Crash for now, may return an error in the future.")
+        }
     }
 
     /// This function returns a reference to the entries of this DB table.

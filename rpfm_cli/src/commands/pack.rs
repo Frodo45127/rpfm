@@ -11,16 +11,21 @@
 //! This module contains the `Pack` command functions.
 
 use anyhow::{anyhow, Result};
+use rayon::prelude::*;
 
 use std::collections::BTreeMap;
 use std::io::{BufReader, BufWriter};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use rpfm_extensions::dependencies::Dependencies;
+use rpfm_extensions::diagnostics::Diagnostics;
+
 use rpfm_lib::binary::ReadBytes;
-use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, pack::Pack};
+use rpfm_lib::files::{ContainerPath, Container, Decodeable, DecodeableExtraData, Encodeable, FileType, pack::Pack};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::log::*;
+use rpfm_lib::schema::Schema;
 use rpfm_lib::utils::last_modified_time_from_file;
 
 use crate::config::Config;
@@ -203,3 +208,59 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
     Ok(())
 }
 
+
+/// This function diagnose problems in the provided Packs.
+pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path: &Path, pack_paths: &[PathBuf]) -> Result<()> {
+    if config.verbose {
+        info!("Diagnosing problems in the following Packs:");
+        for pack_path in pack_paths {
+            info!(" - {}", pack_path.to_string_lossy().to_string());
+        }
+    }
+
+    // Load both, the schema and the Packs to memory.
+    let schema = Schema::load(schema_path)?;
+    let mut pack = Pack::read_and_merge(pack_paths, true, false)?;
+
+    // Prepare the table's extra data,
+    let mut extra_data = DecodeableExtraData::default();
+    extra_data.set_schema(Some(&schema));
+    let table_extra_data = Some(extra_data);
+
+    // Decode the tables and locs from the packs, and return a list of the decoded tables for later.
+    let tables = pack.files_by_type_mut(&[FileType::DB, FileType::Loc])
+        .par_iter_mut()
+        .filter_map(|file| {
+            let _ = file.decode(&table_extra_data, true, false);
+            if file.file_type() == FileType::DB {
+                Some(file.path_in_container_split()[1].to_owned())
+            } else {
+                None
+            }
+        }).collect::<Vec<String>>();
+
+    match &config.game {
+        Some(game_info) => {
+
+            // Build the dependencies cache for the game and generate the references for our specific Pack.
+            let mut dependencies = Dependencies::default();
+            dependencies.rebuild(&schema, pack.dependencies(), Some(pak_path), game_info, game_path)?;
+            dependencies.generate_local_db_references(game_info, game_path, &pack, &tables);
+
+            // Trigger a diagnostics check.
+            let mut diagnostics = Diagnostics::default();
+            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], None);
+
+
+            if config.verbose {
+                info!("Diagnosed problems in the following Packs:");
+                for pack_path in pack_paths {
+                    info!(" - {}", pack_path.to_string_lossy().to_string());
+                }
+            }
+
+            Ok(())
+        }
+        None => Err(anyhow!("No Game provided.")),
+    }
+}

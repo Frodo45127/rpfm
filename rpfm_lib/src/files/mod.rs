@@ -257,7 +257,7 @@ pub enum ContainerPath {
 /// This is a generic struct to easily pass additional data to a [Decodeable::decode] method.
 ///
 /// To know what you need to provide to each file type, please check their documentation.
-#[derive(Clone, Default, Getters, Setters)]
+#[derive(Clone, Debug, Default, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]
 pub struct DecodeableExtraData<'a> {
 
@@ -373,7 +373,6 @@ pub trait Encodeable: Send + Sync {
 ///
 /// This trait allow any implementor to provide methods to manipulate them like [RFile] Containers.
 pub trait Container {
-
 
     /// This method allow us to extract anything on a [ContainerPath] from a Container to disk, replacing any old file
     /// with the same path, in case it already existed one.
@@ -552,6 +551,11 @@ pub trait Container {
     /// Implementors should return `""` if the provided Container is not from a disk file.
     fn disk_file_path(&self) -> &str;
 
+    /// This method returns the file name on disk of the provided Container.
+    fn disk_file_name(&self) -> String {
+       PathBuf::from(self.disk_file_path()).file_name().unwrap_or_default().to_string_lossy().to_string()
+    }
+
     /// This method returns the offset of the data of this Container in its disk file.
     ///
     /// Implementors should return `0` if the provided Container is not within another Container.
@@ -562,6 +566,16 @@ pub trait Container {
 
     /// This method returns a mutable reference to the RFiles inside the provided Container.
     fn files_mut(&mut self) -> &mut HashMap<String, RFile>;
+
+    /// This method returns a reference to the RFiles inside the provided Container of the provided FileTypes.
+    fn files_by_type(&self, file_types: &[FileType]) -> Vec<&RFile> {
+        self.files().par_iter().filter(|(_, file)| file_types.contains(&file.file_type)).map(|(_, file)| file).collect()
+    }
+
+    /// This method returns a mutable reference to the RFiles inside the provided Container of the provided FileTypes.
+    fn files_by_type_mut(&mut self, file_types: &[FileType]) -> Vec<&mut RFile> {
+        self.files_mut().par_iter_mut().filter(|(_, file)| file_types.contains(&file.file_type)).map(|(_, file)| file).collect()
+    }
 
     /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath].
     ///
@@ -759,8 +773,15 @@ impl RFile {
     /// This function creates a RFile from a lazy-loaded file inside a Container.
     ///
     /// About the parameters:
+    /// - `container`: The container this RFile is on.
+    /// - `size`: Size in bytes of the RFile.
+    /// - `is_compressed`: If the RFile is compressed.
+    /// - `is_encrypted`: If the RFile is encrypted.
+    /// - `data_pos`: Byte offset of the data from the beginning of the Container.
+    /// - `file_timestamp`: Timestamp of this specific file (not of the container, but the file). If it doesn't have one, pass 0.
+    /// - `path_in_container`: Path of the RFile in the container.
     ///
-    /// TBD
+    /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
     pub fn new_from_container<C: Container>(
         container: &C,
         size: u64,
@@ -779,20 +800,21 @@ impl RFile {
             is_encrypted,
         };
 
-        let mut rfile = Self {
+        let rfile = Self {
             path: path_in_container.to_owned(),
             timestamp: if file_timestamp == 0 { None } else { Some(file_timestamp) },
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
         };
 
-        rfile.guess_file_type()?;
         Ok(rfile)
     }
 
-    /// This function creates a RFile from an disk file.
+    /// This function creates a RFile from a path on disk.
     ///
     /// This may fail if the file doesn't exist or errors out when trying to be read for metadata.
+    ///
+    /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
     pub fn new_from_file(path: &str) -> Result<Self> {
         let path_checked = PathBuf::from(path);
         if !path_checked.is_file() {
@@ -810,47 +832,63 @@ impl RFile {
         };
 
 
-        let mut rfile = Self {
+        let rfile = Self {
             path: path.to_owned(),
             timestamp: Some(on_disk.timestamp),
             file_type: FileType::Unknown,
             data: RFileInnerData::OnDisk(on_disk)
         };
 
-        rfile.guess_file_type()?;
         Ok(rfile)
     }
 
     /// This function creates a RFile from a path on disk.
+    ///
+    /// This may fail if the file doesn't exist or errors out when trying to be read for metadata.
+    ///
+    /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
     pub fn new_from_file_path(path: &Path) -> Result<Self> {
         let path = path.to_string_lossy().to_string();
         Self::new_from_file(&path)
     }
 
     /// This function creates a RFile from raw data on memory.
+    ///
+    /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
     pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
-        let mut rfile = Self {
+        let rfile = Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Cached(data.to_vec())
         };
 
-        rfile.guess_file_type()?;
         Ok(rfile)
     }
 
     /// This function creates a RFile from an RFileDecoded on memory.
+    ///
+    /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
     pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
-        let mut rfile = Self {
+        let rfile = Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Decoded(Box::new(data.clone()))
         };
 
-        rfile.guess_file_type()?;
         Ok(rfile)
+    }
+
+
+    /// This function returns the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
+    ///
+    /// Useful for accessing preloaded data.
+    pub fn decoded(&self) -> Result<&RFileDecoded> {
+        match &self.data {
+            RFileInnerData::Decoded(data) => Ok(data),
+            _ => Err(RLibError::FileNotDecoded(self.path_in_container_raw().to_string()))
+        }
     }
 
     /// This function decodes an RFile from binary data, optionally caching and returning the decoded RFile.
@@ -870,6 +908,12 @@ impl RFile {
             // If the data is already decoded, just return a copy of it.
             RFileInnerData::Decoded(data) => {
                 already_decoded = true;
+
+                // Microoptimization: don't clone data if we're not going to use it.
+                if !return_data {
+                    return Ok(None);
+                }
+
                 *data.clone()
             },
 
@@ -895,15 +939,8 @@ impl RFile {
                     FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
-                        // This one is tricky. On one side, DB from disk are expected to, either provide a table_name
-                        // or be inside a folder with the table_name. On the other side, if it's in a container it has
-                        // to be in a folder with a table_name inside "db". So, if we don't receive a name, we "guess" it.
                         if extra_data.table_name.is_none() {
-                            let split_path = self.path.rsplitn(3, '/').collect::<Vec<_>>();
-                            if split_path.len() < 3 || split_path[2].to_lowercase() != "db" {
-                                return Err(RLibError::DecodingDBNotADBTable);
-                            }
-                            extra_data.table_name = Some(split_path[1]);
+                            extra_data.table_name = self.db_table_name_from_path();
                         }
                         RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                     },
@@ -962,7 +999,13 @@ impl RFile {
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
                             FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, &Some(extra_data))?),
                             FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
-                            FileType::DB => RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?),
+                            FileType::DB => {
+
+                                if extra_data.table_name.is_none() {
+                                    extra_data.table_name = self.db_table_name_from_path();
+                                }
+                                RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
+                            },
                             FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::GroupFormations => RFileDecoded::GroupFormations(Unknown::decode(&mut data, &Some(extra_data))?),
                             FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
@@ -1154,6 +1197,11 @@ impl RFile {
         self.file_type.clone()
     }
 
+    /// This function returns the file name if this RFile, if it has one.
+    pub fn file_name(&self) -> Option<&str> {
+        self.path_in_container_raw().split('/').last()
+    }
+
     /// This function returns the [ContainerPath] corresponding to this file.
     pub fn path_in_container(&self) -> ContainerPath {
         ContainerPath::File(self.path.to_owned())
@@ -1162,6 +1210,23 @@ impl RFile {
     /// This function returns the [ContainerPath] corresponding to this file as an [&str].
     pub fn path_in_container_raw(&self) -> &str {
         &self.path
+    }
+
+    /// This function returns the [ContainerPath] corresponding to this file as a [Vec] of [&str].
+    pub fn path_in_container_split(&self) -> Vec<&str> {
+        self.path.split('/').collect()
+    }
+
+    /// This function the *table_name* of this file (the folder that contains this file) if this file is a DB table.
+    ///
+    /// It returns None of the file provided is not a DB Table.
+    pub fn db_table_name_from_path(&self) -> Option<&str> {
+        let split_path = self.path.split('/').collect::<Vec<_>>();
+        if split_path.len() == 3 && split_path[0].to_lowercase() == "db" {
+            Some(split_path[1])
+        } else {
+            None
+        }
     }
 
     /// This function sets the [ContainerPath] of the provided RFile to the provided path..
@@ -1251,7 +1316,8 @@ impl RFile {
         }
 
         // If that failed, check if it's in a folder which is known to only have specific files.
-        else if Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
+        // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
+        else if path.starts_with("db/") && Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
             self.file_type = FileType::DB;
         }
 

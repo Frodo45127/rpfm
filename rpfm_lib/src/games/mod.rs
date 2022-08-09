@@ -558,9 +558,9 @@ impl GameInfo {
         Some(executable_path)
     }
 
-    /// Check if a specific PackedFile is banned.
-    pub fn is_packedfile_banned(&self, path: &[String]) -> bool {
-        let path = path.join("/").to_lowercase();
+    /// Check if a specific file is banned.
+    pub fn is_file_banned(&self, path: &str) -> bool {
+        let path = path.to_lowercase();
         self.banned_packedfiles.iter().any(|x| path.starts_with(x))
     }
 

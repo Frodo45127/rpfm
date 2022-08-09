@@ -517,7 +517,7 @@ impl Table {
 
         // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
         let fields = definition.fields();
-        let mut table = vec![];
+        let mut table = if entry_count < 10_000 { Vec::with_capacity(entry_count as usize) } else { vec![] };
 
         for row in 0..entry_count {
             table.push(Self::decode_row(data, fields, row, return_incomplete)?);

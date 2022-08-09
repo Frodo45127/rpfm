@@ -20,7 +20,7 @@ use std::process::exit;
 
 use rpfm_lib::integrations::log::*;
 
-use crate::app::{Cli, Commands, CommandsAnimPack, CommandsPack};
+use crate::app::{Cli, Commands, CommandsAnimPack, CommandsDependencies, CommandsPack};
 use crate::config::Config;
 
 mod app;
@@ -33,29 +33,13 @@ fn main() {
     // Parse the entire cli command.
     let cli = Cli::parse();
 
-    /*
-    // If no arguments where provided, trigger the "help" message. Otherwise, get the matches and continue.
-    if env::args_os().len() <= 1 { app.print_help().unwrap(); exit(0) }
-    let matches = app.get_matches();
-
-    // Set the verbosity level and game selected, based on the arguments provided.
-    let verbosity_level = if matches.occurrences_of("v") > 3 { 3 } else { matches.occurrences_of("v") as u8 };
-    let packfile = matches.value_of("packfile");
-    let asskit_db_path = matches.value_of("assdb");
-    let game_selected = match matches.value_of("game") {
-        Some(game) => game.to_owned(),
-        None => "three_kingdoms".to_owned(),
-    };
-    */
-
-    // By default, print the game selected we're using, just in case some asshole starts complaining about broken Packs.
     if cli.verbose {
         info!("Game: {}", cli.game);
         info!("Verbose: {}", cli.verbose);
     }
 
     // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    let logger = Logger::init(&PathBuf::from("."));
+    let logger = Logger::init(&PathBuf::from("."), cli.verbose);
     if logger.is_err() && cli.verbose {
         warn!("Logging initialization has failed. No logs will be saved.");
     }
@@ -72,6 +56,7 @@ fn main() {
             CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
             CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
+            CommandsPack::Diagnose { game_path, pak_path, schema_path, pack_path } => crate::commands::pack::diagnose(&config, &game_path, &pak_path, &schema_path, &pack_path),
         }
 
         Commands::AnimPack { commands } => match commands {
@@ -80,6 +65,10 @@ fn main() {
             CommandsAnimPack::Add { pack_path, file_path, folder_path } => crate::commands::animpack::add(&config, &pack_path, &file_path, &folder_path),
             CommandsAnimPack::Delete { pack_path, file_path, folder_path } => crate::commands::animpack::delete(&config, &pack_path, &file_path, &folder_path),
             CommandsAnimPack::Extract { pack_path, file_path, folder_path } => crate::commands::animpack::extract(&config, &pack_path, &file_path, &folder_path),
+        }
+
+        Commands::Dependencies { commands } => match commands {
+            CommandsDependencies::Generate { pak_path, game_path, assembly_kit_path } => crate::commands::dependencies::generate(&config, &pak_path, &game_path, &assembly_kit_path),
         }
     };
 

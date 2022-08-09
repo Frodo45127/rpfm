@@ -177,7 +177,7 @@ impl Optimizable for DB {
                         // First, merge all vanilla and parent db fragments into a single HashSet.
                         let vanilla_table = vanilla_tables.iter_mut()
                             .filter_map(|file| {
-                                if let Ok(Some(RFileDecoded::DB(table))) = file.decode(&None, false, true) {
+                                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                                     table.data(&None).ok().map(|x| x.to_vec())
                                 } else { None }
                             })
@@ -273,7 +273,7 @@ impl Optimizable for Loc {
                         // First, merge all vanilla and parent locs into a single HashMap<key, value>. We don't care about the third column.
                         let vanilla_table = vanilla_tables.iter_mut()
                             .filter_map(|file| {
-                                if let Ok(Some(RFileDecoded::Loc(table))) = file.decode(&None, false, true) {
+                                if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
                                     table.data(&None).ok().map(|x| x.to_vec())
                                 } else { None }
                             })

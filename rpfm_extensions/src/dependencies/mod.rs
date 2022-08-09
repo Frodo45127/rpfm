@@ -9,48 +9,23 @@
 //---------------------------------------------------------------------------//
 
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
-/*
-use rayon::iter::Either;
-use unicase::UniCase;
-*/
 
-use getset::*;
+use getset::Getters;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{HashMap, HashSet};
-
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{DecodeableExtraData, FileType, RFile, db::DB, pack::Pack};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::table_data::RawTable;
-use rpfm_lib::schema::Schema;
+use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::utils::{current_time, last_modified_time_from_files};
-/*
-use rpfm_common::utils::*;
-use rpfm_error::{Result, Error, ErrorKind};
-use rpfm_macros::*;
 
-use crate::assembly_kit::table_data::RawTable;
-use crate::DB;
-use crate::GAME_SELECTED;
-use crate::games::VanillaDBTableNameLogic;
-use crate::packfile::{PackFile, PathType};
-use crate::packfile::packedfile::PackedFile;
-use crate::packfile::packedfile::PackedFileInfo;
-use crate::packfile::packedfile::CachedPackedFile;
-use crate::packedfile::{DecodedPackedFile, PackedFileType};
-use crate::packedfile::table::DependencyData;
-use crate::SCHEMA;
-use crate::settings::get_config_path;
-
-const BINARY_EXTENSION: &str = "pak2";
-pub const DEPENDENCIES_FOLDER: &str = "dependencies";
-*/
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -58,58 +33,57 @@ pub const DEPENDENCIES_FOLDER: &str = "dependencies";
 /// This struct represents a dependencies manager for all dependencies relevant of a Pack.
 ///
 /// As even I am getting a bit confused by how this works (and it has caused a few bugs):
-/// - First, these three are loaded with the data to load files from the game and parent files.
-///     - parent_cached_packed_files.
-///     - vanilla_cached_packed_files.
+/// - First, these ones are serialized to disk and do not change unless we regenerate the dependencies:
 ///     - asskit_only_db_tables.
-/// - Then, every table and loc is preloaded here:
-///     - parent_packed_files_cache.
-///     - vanilla_packed_files_cache.
-/// - Then we build the "Path" cache:
-///     - vanilla_cached_packed_files_paths.
-///     - parent_cached_packed_files_paths.
-///     - vanilla_cached_folders_caseless.
-///     - parent_cached_folders_caseless.
-///     - vanilla_cached_folders_cased.
-///     - parent_cached_folders_cased.
+///     - vanilla_files.
+///     - vanilla_tables.
+///     - vanilla_locs.
+/// - Then, we have the ones that gets regenerated on rebuild:
+///     - parent_files.
+///     - parent_tables.
+///     - parent_locs.
+///     - local_tables_references.
 ///
-/// - Then, on runtime, we add decoded table's dependencies data to this one, so we don't need to recalculate it again.
-///     - cached_data,
-#[derive(Default, Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
+/// - Then, on runtime, we add decoded table's reference data to this one, so we don't need to recalculate it again.
+///     - local_tables_references,
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Dependencies {
 
     /// Date of the generation of this dependencies cache. For checking if it needs an update.
     build_date: u64,
 
-    //----------------------------------//
-    // Cached files.
-    //----------------------------------//
-
     /// Data to quickly load CA dependencies from disk.
     vanilla_files: HashMap<String, RFile>,
 
     /// Data to quickly load dependencies from parent mods from disk.
+    ///
+    /// Not serialized, regenerated from parent Packs on rebuild.
     #[serde(skip_serializing, skip_deserializing)]
     parent_files: HashMap<String, RFile>,
-
-/*
-    /// Cached data for already checked tables. This is for runtime caching, and it must not be serialized to disk.
-    #[serde(skip_serializing, skip_deserializing)]
-    cached_data: Arc<RwLock<BTreeMap<String, BTreeMap<i32, DependencyData>>>>,
-
-*/
 
     /// List of DB tables on the CA files.
     vanilla_tables: HashMap<String, Vec<String>>,
 
     /// List of DB tables on the parent files.
+    ///
+    /// Not serialized, regenerated from parent Packs on rebuild.
+    #[serde(skip_serializing, skip_deserializing)]
     parent_tables: HashMap<String, Vec<String>>,
 
     /// List of Loc tables on the CA files.
     vanilla_locs: HashSet<String>,
 
     /// List of Loc tables on the parent files.
+    ///
+    /// Not serialized, regenerated from parent Packs on rebuild.
+    #[serde(skip_serializing, skip_deserializing)]
     parent_locs: HashSet<String>,
+
+    /// Cached data for local tables.
+    ///
+    /// This is for runtime caching, and it must not be serialized to disk.
+    #[serde(skip_serializing, skip_deserializing)]
+    local_tables_references: HashMap<String, HashMap<i32, TableReferences>>,
 /*
 
     /// Data to quickly check if a path exists in the vanilla files as a case insensitive file.
@@ -137,7 +111,22 @@ pub struct Dependencies {
     parent_cached_folders_cased: LazyLoadedData<HashSet<String>>,
 */
     /// DB Files only available on the assembly kit. Usable only for references. Do not use them as the base for new tables.
-    asskit_only_db_tables: Vec<DB>,
+    asskit_only_db_tables: HashMap<String, DB>,
+}
+
+/// This holds the reference data for a table's column.
+#[derive(PartialEq, Clone, Default, Debug, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
+pub struct TableReferences {
+
+    /// If the table is only present in the Ak. Useful to identify unused tables on diagnostics checks.
+    referenced_table_is_ak_only: bool,
+
+    /// If the referenced column has been moved into a loc file while exporting it from Dave.
+    referenced_column_is_localised: bool,
+
+    /// The data itself, as in "key, lookup" format.
+    data: HashMap<String, String>,
 }
 
 /*
@@ -179,10 +168,10 @@ impl Dependencies {
     // Generation and disk IO
     //-----------------------------------//
 
-    /// This function takes care of rebuilding the whole dependencies cache.
+    /// This function takes care of rebuilding the whole dependencies cache to be used with a new Pack.
     ///
-    /// Use it when changing the game selected or opening a new PackFile.
-    pub fn rebuild(&mut self, schema: &Schema, pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    /// If a file path is passed, the dependencies cache at that path will be used, replacing the currently loaded dependencies cache.
+    pub fn rebuild(&mut self, schema: &Schema, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
         if let Some(file_path) = file_path {
@@ -198,17 +187,17 @@ impl Dependencies {
         }
 
         // Clear the table's cached data, to ensure it gets rebuild properly when needed.
-        //self.cached_data.write().unwrap().clear();
+        self.local_tables_references.clear();
 
-        // Preload parent mods of the currently open PackFile.
-        self.load_parent_packs(pack_names, game_info, game_path)?;
+        // Preload parent mods of the currently loaded Pack.
+        self.load_parent_packs(parent_pack_names, game_info, game_path)?;
 
         // Build the casing-related HashSets.
         //self.parent_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
         //self.parent_cached_folders_cased = LazyLoadedData::NotYetLoaded;
         //self.parent_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
 
-        // Pre-decode all tables/locs to memory.
+        // Pre-decode all parent tables/locs to memory.
         let mut decode_extra_data = DecodeableExtraData::default();
         decode_extra_data.set_schema(Some(&schema));
         let extra_data = Some(decode_extra_data);
@@ -221,17 +210,17 @@ impl Dependencies {
             }
         })?;
 
+        // Then build the table/loc lists, for easy access.
+        // TODO: Merge these two iters.
         self.parent_files.iter()
             .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
             .for_each(|(path, file)| {
                 match file.file_type() {
                     FileType::DB => {
-                        let path_split = path.split('/').collect::<Vec<_>>();
-                        if path_split.len() == 3 {
-                            let table_name = path_split[1].replace("_tables", "");
-                            match self.parent_tables.get_mut(&table_name) {
+                        if let Some(table_name) = file.db_table_name_from_path() {
+                            match self.parent_tables.get_mut(table_name) {
                                 Some(table_paths) => table_paths.push(path.to_owned()),
-                                None => { self.parent_tables.insert(table_name, vec![path.to_owned()]); },
+                                None => { self.parent_tables.insert(table_name.to_owned(), vec![path.to_owned()]); },
                             }
                         }
                     }
@@ -246,16 +235,37 @@ impl Dependencies {
         Ok(())
     }
 
-    /// This function generates the entire dependency cache for the currently selected game.
-    pub fn generate_dependencies_cache(&mut self, game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, version: i16) -> Result<Self> {
+    /// This function generates the dependencies cache for the game provided and returns it.
+    pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>) -> Result<Self> {
 
         let mut cache = Self::default();
         cache.build_date = current_time()?;
         cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
 
+        // Build the vanilla table/loc lists, for easy access.
+        cache.vanilla_files.iter()
+            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
+            .for_each(|(path, file)| {
+                match file.file_type() {
+                    FileType::DB => {
+                        if let Some(table_name) = file.db_table_name_from_path() {
+                            match cache.vanilla_tables.get_mut(table_name) {
+                                Some(table_paths) => table_paths.push(path.to_owned()),
+                                None => { cache.vanilla_tables.insert(table_name.to_owned(), vec![path.to_owned()]); },
+                            }
+                        }
+                    }
+                    FileType::Loc => {
+                        cache.vanilla_locs.insert(path.to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        );
+
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
-            let _ = cache.generate_asskit_only_db_tables(path, version);
+            let _ = cache.generate_asskit_only_db_tables(path, game_info.raw_db_version());
         }
 
         Ok(cache)
@@ -266,16 +276,64 @@ impl Dependencies {
     /// This works by processing all the tables from the game's raw table folder and turning them into fake decoded tables,
     /// with version -1. That will allow us to use them for dependency checking and for populating combos.
     ///
-    /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK file.
+    /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK2 file.
     fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16) -> Result<()> {
         let files_to_ignore = self.vanilla_tables.keys().map(|x| &**x).collect::<Vec<&str>>();
         let raw_tables = RawTable::read_all(raw_db_path, version, &files_to_ignore)?;
-        self.asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
+        let asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
+        self.asskit_only_db_tables = asskit_only_db_tables.par_iter().map(|table| (table.table_name().to_owned(), table.clone())).collect::<HashMap<String, DB>>();
 
         Ok(())
     }
 
-    /// This function loads a `Dependencies` to memory from a file in the `dependencies/` folder.
+    /// This function builds the local db references data for the tables you pass to it from the Pack provided.
+    ///
+    /// Table names must be provided as full names (with *_tables* at the end).
+    ///
+    /// NOTE: This function, like many others, assumes the tables are already decoded in the Pack. If they're not, they'll be ignored.
+    pub fn generate_local_db_references(&mut self, game_info: &GameInfo, game_path: &Path, pack: &Pack, table_names: &[String]) {
+
+        self.local_tables_references = table_names.par_iter().map(|table_name| {
+            (table_name.to_string(), pack.files_by_path(&ContainerPath::Folder(format!("db/{}", table_name)))
+                .iter()
+                .map(|file| {
+                    if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+
+                        db.definition().fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
+                            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+                                if !ref_table.is_empty() && !ref_column.is_empty() {
+
+                                    // Get his lookup data if it has it.
+                                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                                    let mut references = TableReferences::default();
+
+                                    let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+                                    let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, game_info, game_path, &mut references, (ref_table, ref_column, &lookup_data));
+
+                                    if fake_found && real_found.is_none() {
+                                        references.referenced_table_is_ak_only = true;
+                                    }
+
+                                    if let Some(ref_definition) = real_found {
+                                        if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
+                                            references.referenced_column_is_localised = true;
+                                        }
+                                    }
+
+                                    Some((column as i32, references))
+                                } else { None }
+                            } else { None }
+                        }).collect::<HashMap<_, _>>()
+                    } else {
+                        HashMap::new()
+                    }
+                })
+                .flatten()
+                .collect::<HashMap<_,_>>())
+            }).collect();
+    }
+
+    /// This function tries to load a dependencies file from the path provided.
     pub fn load(file_path: &Path, schema: &Schema) -> Result<Self> {
         let mut file = BufReader::new(File::open(&file_path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -297,28 +355,6 @@ impl Dependencies {
             }
         })?;
 
-        dependencies.vanilla_files.iter()
-            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
-            .for_each(|(path, file)| {
-                match file.file_type() {
-                    FileType::DB => {
-                        let path_split = path.split('/').collect::<Vec<_>>();
-                        if path_split.len() == 3 {
-                            let table_name = path_split[1].replace("_tables", "");
-                            match dependencies.vanilla_tables.get_mut(&table_name) {
-                                Some(table_paths) => table_paths.push(path.to_owned()),
-                                None => { dependencies.vanilla_tables.insert(table_name, vec![path.to_owned()]); },
-                            }
-                        }
-                    }
-                    FileType::Loc => {
-                        dependencies.vanilla_locs.insert(path.to_owned());
-                    }
-                    _ => {}
-                }
-            }
-        );
-
         // Build the casing-related HashSets.
         //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
         //dependencies.vanilla_cached_folders_cased = LazyLoadedData::NotYetLoaded;
@@ -327,7 +363,7 @@ impl Dependencies {
         Ok(dependencies)
     }
 
-    /// This function saves a `Dependencies` from memory to a file in the `dependencies/` folder.
+    /// This function saves a dependencies cache to the provided path.
     pub fn save(&mut self, file_path: &Path) -> Result<()> {
         let mut folder_path = file_path.to_owned();
         folder_path.pop();
@@ -339,7 +375,7 @@ impl Dependencies {
         file.write_all(&serialized).map_err(From::from)
     }
 
-    /// This function is used to check if the files RPFM uses to generate the dependencies cache have changed, requiring an update.
+    /// This function is used to check if the game files used to generate the dependencies cache have changed, requiring an update.
     pub fn needs_updating(&self, game_info: &GameInfo, game_path: &Path) -> Result<bool> {
         let ca_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
         let last_date = last_modified_time_from_files(&ca_paths)?;
@@ -347,19 +383,20 @@ impl Dependencies {
     }
 
 
-    /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `pack_names` as dependencies,
+    /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
-    fn load_parent_packs(&mut self, pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
         let data_packs_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
         let content_packs_paths = game_info.get_content_packfiles_paths(game_path);
         let mut loaded_packfiles = vec![];
 
-        pack_names.iter().for_each(|pack_name| self.load_parent_pack(&pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
+        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(&pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
 
         Ok(())
     }
 
-    /// This function loads a parent [Pack](rpfm_lib::files::pack::Pack) as a dependency, taking care of also loading all dependencies of it, if they're not already loaded.
+    /// This function loads a parent [Pack](rpfm_lib::files::pack::Pack) as a dependency,
+    /// taking care of also loading all dependencies of it, if they're not already loaded.
     fn load_parent_pack(
         &mut self,
         pack_name: &str,
@@ -397,20 +434,20 @@ impl Dependencies {
     //-----------------------------------//
 
     /// This function returns a specific file from the cache, if exists.
-    pub fn file(&mut self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<RFile>> {
+    pub fn file(&self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<&RFile>> {
         if self.needs_updating(game_info, game_path)? {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
         } else {
 
             if include_parent {
-                if let Some(file) = self.parent_files.get_mut(file_path) {
-                    return Ok(Some(file.clone()));
+                if let Some(file) = self.parent_files.get(file_path) {
+                    return Ok(Some(file));
                 }
             }
 
             if include_vanilla {
-                if let Some(file) = self.vanilla_files.get_mut(file_path) {
-                    return Ok(Some(file.clone()));
+                if let Some(file) = self.vanilla_files.get(file_path) {
+                    return Ok(Some(file));
                 }
             }
 
@@ -421,7 +458,7 @@ impl Dependencies {
     /// This function returns the vanilla/parent locs from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.
-    pub fn loc_data(&mut self, game_info: &GameInfo, game_path: &Path, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+    pub fn loc_data(&self, game_info: &GameInfo, game_path: &Path, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
         if self.needs_updating(game_info, game_path)? {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
         } else {
@@ -432,8 +469,8 @@ impl Dependencies {
                 vanilla_locs.sort();
 
                 for path in &vanilla_locs {
-                    if let Some(file) = self.vanilla_files.get_mut(*path) {
-                        cache.push(file.clone());
+                    if let Some(file) = self.vanilla_files.get(*path) {
+                        cache.push(file);
                     }
                 }
             }
@@ -443,8 +480,8 @@ impl Dependencies {
                 parent_locs.sort();
 
                 for path in &parent_locs {
-                    if let Some(file) = self.parent_files.get_mut(*path) {
-                        cache.push(file.clone());
+                    if let Some(file) = self.parent_files.get(*path) {
+                        cache.push(file);
                     }
                 }
             }
@@ -455,10 +492,10 @@ impl Dependencies {
 
     /// This function returns the vanilla/parent db tables from the cache, according to the params you pass it.
     ///
-    /// NOTE: table_name is expected to be the table's folder name, without "_tables" at the end.
-    ///
     /// It returns them in the order the game will load them.
-    pub fn db_data(&mut self, game_info: &GameInfo, game_path: &Path, table_name: &str, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+    ///
+    /// NOTE: table_name is expected to be the table's folder name, with "_tables" at the end.
+    pub fn db_data(&self, game_info: &GameInfo, game_path: &Path, table_name: &str, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
         if self.needs_updating(game_info, game_path)? {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
         } else {
@@ -470,8 +507,8 @@ impl Dependencies {
                     vanilla_tables.sort();
 
                     for path in &vanilla_tables {
-                        if let Some(file) = self.vanilla_files.get_mut(&*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.vanilla_files.get(&*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -483,8 +520,8 @@ impl Dependencies {
                     parent_tables.sort();
 
                     for path in &parent_tables {
-                        if let Some(file) = self.parent_files.get_mut(&*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.parent_files.get(&*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -497,7 +534,7 @@ impl Dependencies {
     /// This function returns the vanilla/parent DB and Loc tables from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.
-    pub fn db_and_loc_data(&mut self, game_info: &GameInfo, game_path: &Path, include_db: bool, include_loc: bool, include_vanilla: bool, include_parent: bool) -> Result<Vec<RFile>> {
+    pub fn db_and_loc_data(&self, game_info: &GameInfo, game_path: &Path, include_db: bool, include_loc: bool, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
         if self.needs_updating(game_info, game_path)? {
             return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
         } else {
@@ -509,8 +546,8 @@ impl Dependencies {
                     vanilla_tables.sort();
 
                     for path in &vanilla_tables {
-                        if let Some(file) = self.vanilla_files.get_mut(*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.vanilla_files.get(*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -520,8 +557,8 @@ impl Dependencies {
                     vanilla_locs.sort();
 
                     for path in &vanilla_locs {
-                        if let Some(file) = self.vanilla_files.get_mut(*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.vanilla_files.get(*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -533,8 +570,8 @@ impl Dependencies {
                     parent_tables.sort();
 
                     for path in &parent_tables {
-                        if let Some(file) = self.parent_files.get_mut(*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.parent_files.get(*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -544,8 +581,8 @@ impl Dependencies {
                     parent_locs.sort();
 
                     for path in &parent_locs {
-                        if let Some(file) = self.parent_files.get_mut(*path) {
-                            cache.push(file.clone());
+                        if let Some(file) = self.parent_files.get(*path) {
+                            cache.push(file);
                         }
                     }
                 }
@@ -553,6 +590,191 @@ impl Dependencies {
 
             Ok(cache)
         }
+    }
+
+    /// This function returns the list of DB tables that are loaded from the Assembly Kit.
+    pub fn asskit_only_db_tables(&self) -> &HashMap<String, DB> {
+        &self.asskit_only_db_tables
+    }
+
+    //-----------------------------------//
+    // Advanced Getters.
+    //-----------------------------------//
+
+    /// This function returns the reference/lookup data of all relevant columns of a DB Table.
+    ///
+    /// NOTE: This assumes you've populated the runtime references before this. If not, it'll fail.
+    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, table_definition: &Definition) -> HashMap<i32, TableReferences> {
+
+        // First check if the data is already cached, to speed up things.
+        let mut vanilla_references = match self.local_tables_references.get(table_name) {
+            Some(cached_data) => cached_data.clone(),
+            None => panic!("To be fixed: If you see this, you forgot to call generate_local_db_references before this."),
+        };
+
+        let local_references = table_definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
+            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+                if !ref_table.is_empty() && !ref_column.is_empty() {
+
+                    // Get his lookup data if it has it.
+                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                    let mut references = TableReferences::default();
+
+                    let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack);
+
+                    Some((column as i32, references))
+                } else { None }
+            } else { None }
+        }).collect::<HashMap<_, _>>();
+
+        vanilla_references.par_iter_mut().for_each(|(key, value)|
+            if let Some(local_value) = local_references.get(key) {
+                value.data.extend(local_value.data.iter().map(|(k, v)| (k.clone(), v.clone())));
+            }
+        );
+
+        vanilla_references
+    }
+
+    /// This function returns the reference/lookup data of all relevant columns of a DB Table from the vanilla/parent data.
+    ///
+    /// If reference data was found, the most recent definition of said data is returned.
+    fn db_reference_data_from_from_vanilla_and_modded_tables(&self, game_info: &GameInfo, game_path: &Path, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
+        let mut data_found: Option<Definition> = None;
+        let ref_table = format!("{}_tables", reference_info.0);
+        let ref_column = reference_info.1;
+        let ref_lookup_columns = reference_info.2;
+
+        if let Ok(files) = self.db_data(game_info, game_path, &ref_table, true, true) {
+            files.iter().for_each(|file| {
+                if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+                    let fields_processed = db.definition().fields_processed();
+                    let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
+                    let ref_lookup_columns_index = ref_lookup_columns.iter().map(|column| fields_processed.iter().position(|x| x.name() == column)).collect::<Vec<_>>();
+
+                    if let Ok(data) = db.data(&None) {
+
+                        for row in &*data {
+                            let mut reference_data = String::new();
+                            let mut lookup_data = vec![];
+
+                            // First, we get the reference data.
+                            if let Some(index) = ref_column_index {
+                                reference_data = row[index].data_to_string().to_string();
+                            }
+
+                            // Then, we get the lookup data.
+                            for column in &ref_lookup_columns_index {
+                                if let Some(index) = column {
+                                    lookup_data.push(row[*index].data_to_string());
+                                }
+                            }
+
+                            references.data.insert(reference_data, lookup_data.join(" "));
+
+                        }
+
+                        // Once done with the table, check if we should return its definition.
+                        match data_found {
+                            Some(ref definition) => {
+                                if db.definition().version() > definition.version() {
+                                    data_found = Some(db.definition().clone());
+                                }
+                            }
+
+                            None => data_found = Some(db.definition().clone()),
+                        }
+                    }
+                }
+            });
+        }
+        data_found
+    }
+
+    /// This function returns the reference/lookup data of all relevant columns of a DB Table from the assembly kit data.
+    ///
+    /// It returns true if data is found, otherwise it returns false.
+    fn db_reference_data_from_asskit_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> bool {
+        let ref_table = reference_info.0;
+        let ref_column = reference_info.1;
+        let ref_lookup_columns = reference_info.2;
+
+        match self.asskit_only_db_tables.get(ref_table) {
+            Some(table) => {
+                if let Ok(data) = table.data(&None) {
+                    let fields_processed = table.definition().fields_processed();
+                    let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
+                    let ref_lookup_columns_index = ref_lookup_columns.iter().map(|column| fields_processed.iter().position(|x| x.name() == column)).collect::<Vec<_>>();
+
+                    for row in &*data {
+                        let mut reference_data = String::new();
+                        let mut lookup_data = vec![];
+
+                        // First, we get the reference data.
+                        if let Some(index) = ref_column_index {
+                            reference_data = row[index].data_to_string().to_string();
+                        }
+
+                        // Then, we get the lookup data.
+                        for column in &ref_lookup_columns_index {
+                            if let Some(index) = column {
+                                lookup_data.push(row[*index].data_to_string());
+                            }
+                        }
+
+                        references.data.insert(reference_data, lookup_data.join(" "));
+                    }
+                }
+                true
+            },
+            None => false,
+        }
+    }
+
+    /// This function returns the reference/lookup data of all relevant columns of a DB Table from the provided Pack.
+    fn db_reference_data_from_local_pack(references: &mut TableReferences, reference_info: (&str, &str, &[String]), pack: &Pack) -> bool {
+
+        let mut data_found = false;
+        let ref_table = reference_info.0;
+        let ref_column = reference_info.1;
+        let ref_lookup_columns = reference_info.2;
+
+        pack.files_by_path(&ContainerPath::Folder(format!("db/{}_tables", ref_table))).iter()
+            .for_each(|file| {
+            if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+                let fields_processed = db.definition().fields_processed();
+                let ref_column_index = fields_processed.iter().position(|x| x.name() == ref_column);
+                let ref_lookup_columns_index = ref_lookup_columns.iter().map(|column| fields_processed.iter().position(|x| x.name() == column)).collect::<Vec<_>>();
+
+                if let Ok(data) = db.data(&None) {
+
+                    for row in &*data {
+                        let mut reference_data = String::new();
+                        let mut lookup_data = vec![];
+
+                        // First, we get the reference data.
+                        if let Some(index) = ref_column_index {
+                            reference_data = row[index].data_to_string().to_string();
+                        }
+
+                        // Then, we get the lookup data.
+                        for column in &ref_lookup_columns_index {
+                            if let Some(index) = column {
+                                lookup_data.push(row[*index].data_to_string());
+                            }
+                        }
+
+                        references.data.insert(reference_data, lookup_data.join(" "));
+
+                    }
+
+                    if !&data.is_empty() && !data_found {
+                        data_found = true;
+                    }
+                }
+            }
+        });
+        data_found
     }
 
     //-----------------------------------//

@@ -331,11 +331,9 @@ impl Schema {
     }
 */
 
-    /// This function allow us to update all Schemas from any legacy version into the current one.
-    ///
-    /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.
-    pub fn update() {
-        v4::SchemaV4::update();
+    /// This function allow us to update the provided Schema from a legacy format into the current one.
+    pub fn update(schema_path: &Path) -> Result<()>{
+        v4::SchemaV4::update(schema_path)
     }
 
     /// This function returns all columns that reference the columns on our specific table within the DB Tables of our Schema.

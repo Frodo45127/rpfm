@@ -19,55 +19,24 @@ and that is handled automagically by RPFM. All the data you'll ever see will be 
 so you don't have to worry about that.
 !*/
 
-use std::fs::File;
-use crate::files::ContainerPath;
-use crate::files::FileType;
-use crate::games::GameInfo;
-use std::io::BufReader;
-use std::str::FromStr;
-use std::path::Path;
-use crate::compression::Compressible;
-use crate::utils::current_time;
-
-
-use std::io::Cursor;
-use std::io::Write;
+use bitflags::bitflags;
 use getset::*;
 use rayon::prelude::*;
-
-use bitflags::bitflags;
-
 use serde_derive::{Serialize, Deserialize};
-
-use std::collections::{BTreeMap, HashMap};
-use std::io::SeekFrom;
-use std::path::PathBuf;
-
 use serde_json::{from_slice, to_string_pretty};
 
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::io::{BufReader, Cursor, SeekFrom, Write};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::games::pfh_version::PFHVersion;
-use crate::games::pfh_file_type::PFHFileType;
-
-use crate::files::RFile;
-
+use crate::compression::Compressible;
 use crate::error::{RLibError, Result};
-use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-use crate::files::Container;
-//use crate::files::table::DecodedData;
-//use crate::files::db::DB;
-//use crate::files::loc::{Loc, TSV_NAME_LOC};
-
-use super::DecodeableExtraData;
-
-//use crate::GAME_SELECTED;
-//use crate::SCHEMA;
-//use crate::SETTINGS;
-//use crate::dependencies::Dependencies;
-
-
-//pub mod packedfile;
+use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, RFile};
+use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
+use crate::utils::{current_time, last_modified_time_from_file};
 
 #[cfg(test)]
 mod pack_test;
@@ -155,7 +124,7 @@ pub struct Pack {
     notes: String,
 
     /// Settings stored in the PackFile itself, to be able to share them between installations.
-    settings: PackFileSettings,
+    settings: PackSettings,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -216,7 +185,7 @@ pub struct PackFileInfo {
 
 /// This struct hold PackFile-specific settings.
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct PackFileSettings {
+pub struct PackSettings {
 
     /// For multi-line text.
     pub settings_text: BTreeMap<String, String>,
@@ -251,7 +220,7 @@ impl Container for Pack {
                 self.notes = data;
             }
         } else if path == RESERVED_NAME_SETTINGS {
-            self.settings = PackFileSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
+            self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
         }
 
         // If it's not filtered out, add it to the Pack.
@@ -363,7 +332,7 @@ impl Default for Pack {
             dependencies: vec![],
             files: HashMap::new(),
             notes: String::new(),
-            settings: PackFileSettings::default(),
+            settings: PackSettings::default(),
         }
     }
 }
@@ -399,7 +368,7 @@ impl Pack {
         };
 
         let disk_file_offset = extra_data.disk_file_offset;
-        let disk_file_size = extra_data.data_size;
+        let disk_file_size = if extra_data.data_size > 0 { extra_data.data_size } else { data.len()? };
         let timestamp = extra_data.timestamp;
         let is_encrypted = extra_data.is_encrypted;
 
@@ -446,6 +415,9 @@ impl Pack {
             if expected_data_len + 256 != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
         }
         else if expected_data_len != data_len { return Err(RLibError::DecodingMismatchSizeError(data_len as usize, expected_data_len as usize)) }
+
+        // Guess the file's types. Do this here because this can be very slow and here we can do it in paralell.
+        pack.files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
 
         // If we disabled lazy-loading, load every PackedFile to memory.
         if !lazy_load {
@@ -528,6 +500,11 @@ impl Pack {
         // If we only got one path, just decode the Pack on it.
         if pack_paths.len() == 1 {
             let mut data = BufReader::new(File::open(&pack_paths[0])?);
+            let path_str = pack_paths[0].to_string_lossy().to_string();
+
+            extra_data.set_disk_file_path(Some(&path_str));
+            extra_data.set_timestamp(last_modified_time_from_file(data.get_ref())?);
+
             return Self::read(&mut data, &Some(extra_data))
         }
 
@@ -536,7 +513,13 @@ impl Pack {
         let mut packs = pack_paths.par_iter()
             .map(|path| {
                 let mut data = BufReader::new(File::open(path)?);
-                Self::read(&mut data, &Some(extra_data.clone()))
+                let path_str = path.to_string_lossy().to_string();
+
+                let mut extra_data = extra_data.to_owned();
+                extra_data.set_disk_file_path(Some(&path_str));
+                extra_data.set_timestamp(last_modified_time_from_file(data.get_ref())?);
+
+                Self::read(&mut data, &Some(extra_data))
             }).collect::<Result<Vec<Pack>>>()?;
 
         // Sort the decoded Packs by name and type, so each type has their own Packs also sorted by name.
@@ -554,6 +537,20 @@ impl Pack {
             .for_each(|pack| {
                 pack_new.files_mut().extend(pack.files().clone())
             });
+
+        // Fix the dependencies of the merged pack.
+        let pack_names = packs.iter().map(|pack| pack.disk_file_name()).collect::<Vec<_>>();
+        let mut dependencies = packs.iter()
+            .map(|pack| pack.dependencies()
+                .iter()
+                .filter(|dependency| !pack_names.contains(dependency))
+                .cloned()
+                .collect::<Vec<_>>())
+            .flatten()
+            .collect::<Vec<_>>();
+        dependencies.sort();
+        dependencies.dedup();
+        pack_new.set_dependencies(dependencies);
 
         Ok(pack_new)
     }
@@ -2142,14 +2139,14 @@ impl Default for PackFileSettings {
 
 */
 /// Implementation of PackFileSettings.
-impl PackFileSettings {
+impl PackSettings {
 
     /// This function tries to load the settings from the current PackFile and return them.
     pub fn load(data: &[u8]) -> Result<Self> {
         from_slice(data).map_err(From::from)
     }
-    /*
-    pub fn get_diagnostics_files_to_ignore(&self) -> Option<Vec<(Vec<String>, Vec<String>, Vec<String>)>> {
+
+    pub fn diagnostics_files_to_ignore(&self) -> Option<Vec<(String, Vec<String>, Vec<String>)>> {
         self.settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
 
@@ -2158,20 +2155,20 @@ impl PackFileSettings {
                 if !x.starts_with('#') {
                     let path = x.splitn(3, ';').collect::<Vec<&str>>();
                     if path.len() == 3 {
-                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[2].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>()))
+                        Some((path[0].to_string(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[2].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>()))
                     } else if path.len() == 2 {
-                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![]))
+                        Some((path[0].to_string(), path[1].split(',').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![]))
                     } else if path.len() == 1 {
-                        Some((path[0].split('/').filter_map(|y| if !y.is_empty() { Some(y.to_owned()) } else { None }).collect::<Vec<String>>(), vec![], vec![]))
+                        Some((path[0].to_string(), vec![], vec![]))
                     } else {
                         None
                     }
                 } else {
                     None
                 }
-            }).collect::<Vec<(Vec<String>, Vec<String>, Vec<String>)>>()
+            }).collect::<Vec<(String, Vec<String>, Vec<String>)>>()
         })
-    }*/
+    }
 }
 
 

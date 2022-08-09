@@ -211,7 +211,13 @@ impl SchemaV4 {
         file.read_to_end(&mut data)?;
         from_bytes(&data).map_err(From::from)
     }
-    pub fn update() {}
+
+    /// This function tries to update the Schema at the provided Path to a more recent format.
+    pub fn update(schema_path: &Path) -> Result<()> {
+        let schema_legacy = Self::load(schema_path)?;
+        let mut schema = SchemaV5::from(&schema_legacy);
+        schema.save(schema_path)
+    }
 /*
     pub fn update(games: &[GameInfo]) {
         println!("Importing schemas from V4 to V5");

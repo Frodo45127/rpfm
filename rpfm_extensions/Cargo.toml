@@ -14,6 +14,12 @@ rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_a
 # Basic get/set support.
 getset = "^0.1"
 
+# Support for advanced iter stuff.
+itertools = "^0.10"
+
+# Support for advanced regex stuff (I think, I have to check if I can replace it with the normal regex crate).
+fancy-regex = "^0.10"
+
 # Serialization support.
 serde = "^1.0"
 serde_derive = "^1.0"

@@ -195,6 +195,9 @@ pub enum RLibError {
     #[error("The following file hasn't been found: {0}.")]
     FileNotFound(String),
 
+    #[error("The following file hasn't yet been decoded: {0}.")]
+    FileNotDecoded(String),
+
     #[error("Operation not allowed: reserved file detected.")]
     ReservedFiles,
 
