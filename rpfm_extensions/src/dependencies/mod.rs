@@ -19,7 +19,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
-use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::error::Result;
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::table_data::RawTable;
@@ -291,46 +291,44 @@ impl Dependencies {
     /// Table names must be provided as full names (with *_tables* at the end).
     ///
     /// NOTE: This function, like many others, assumes the tables are already decoded in the Pack. If they're not, they'll be ignored.
-    pub fn generate_local_db_references(&mut self, game_info: &GameInfo, game_path: &Path, pack: &Pack, table_names: &[String]) {
+    pub fn generate_local_db_references(&mut self, pack: &Pack, table_names: &[String]) {
 
-        self.local_tables_references = table_names.par_iter().map(|table_name| {
-            (table_name.to_string(), pack.files_by_path(&ContainerPath::Folder(format!("db/{}", table_name)))
-                .iter()
-                .map(|file| {
-                    if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+        let local_tables_references = pack.files_by_type(&[FileType::DB]).par_iter().filter_map(|file| {
+            if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 
-                        db.definition().fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
-                            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
-                                if !ref_table.is_empty() && !ref_column.is_empty() {
+                // Only generate references for the tables you pass it.
+                if table_names.iter().any(|x| x == db.table_name()) {
 
-                                    // Get his lookup data if it has it.
-                                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
-                                    let mut references = TableReferences::default();
+                    Some((db.table_name().to_owned(), db.definition().fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
+                        if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+                            if !ref_table.is_empty() && !ref_column.is_empty() {
 
-                                    let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
-                                    let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, game_info, game_path, &mut references, (ref_table, ref_column, &lookup_data));
+                                // Get his lookup data if it has it.
+                                let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                                let mut references = TableReferences::default();
 
-                                    if fake_found && real_found.is_none() {
-                                        references.referenced_table_is_ak_only = true;
+                                let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+                                let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+
+                                if fake_found && real_found.is_none() {
+                                    references.referenced_table_is_ak_only = true;
+                                }
+
+                                if let Some(ref_definition) = real_found {
+                                    if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
+                                        references.referenced_column_is_localised = true;
                                     }
+                                }
 
-                                    if let Some(ref_definition) = real_found {
-                                        if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
-                                            references.referenced_column_is_localised = true;
-                                        }
-                                    }
-
-                                    Some((column as i32, references))
-                                } else { None }
+                                Some((column as i32, references))
                             } else { None }
-                        }).collect::<HashMap<_, _>>()
-                    } else {
-                        HashMap::new()
-                    }
-                })
-                .flatten()
-                .collect::<HashMap<_,_>>())
-            }).collect();
+                        } else { None }
+                    }).collect::<HashMap<_, _>>()))
+                } else { None }
+            } else { None }
+        }).collect::<HashMap<_, _>>();
+
+        self.local_tables_references.extend(local_tables_references);
     }
 
     /// This function tries to load a dependencies file from the path provided.
@@ -347,13 +345,14 @@ impl Dependencies {
         decode_extra_data.set_schema(Some(&schema));
         let extra_data = Some(decode_extra_data);
 
-        dependencies.vanilla_files.par_iter_mut().try_for_each(|(_, file)| {
-            match file.file_type() {
-                FileType::DB |
-                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
-                _ => Ok(())
-            }
-        })?;
+        dependencies.vanilla_files.par_iter_mut()
+            .try_for_each(|(_, file)| {
+                match file.file_type() {
+                    FileType::DB |
+                    FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
+                    _ => Ok(())
+                }
+            })?;
 
         // Build the casing-related HashSets.
         //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
@@ -434,37 +433,109 @@ impl Dependencies {
     //-----------------------------------//
 
     /// This function returns a specific file from the cache, if exists.
-    pub fn file(&self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<&RFile>> {
-        if self.needs_updating(game_info, game_path)? {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-
-            if include_parent {
-                if let Some(file) = self.parent_files.get(file_path) {
-                    return Ok(Some(file));
-                }
+    pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<&RFile>> {
+        if include_parent {
+            if let Some(file) = self.parent_files.get(file_path) {
+                return Ok(Some(file));
             }
-
-            if include_vanilla {
-                if let Some(file) = self.vanilla_files.get(file_path) {
-                    return Ok(Some(file));
-                }
-            }
-
-            Ok(None)
         }
+
+        if include_vanilla {
+            if let Some(file) = self.vanilla_files.get(file_path) {
+                return Ok(Some(file));
+            }
+        }
+
+        Ok(None)
     }
 
     /// This function returns the vanilla/parent locs from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.
-    pub fn loc_data(&self, game_info: &GameInfo, game_path: &Path, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
-        if self.needs_updating(game_info, game_path)? {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
+    pub fn loc_data(&self, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
+        let mut cache = vec![];
 
-            if include_vanilla {
+        if include_vanilla {
+            let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
+            vanilla_locs.sort();
+
+            for path in &vanilla_locs {
+                if let Some(file) = self.vanilla_files.get(*path) {
+                    cache.push(file);
+                }
+            }
+        }
+
+        if include_parent {
+            let mut parent_locs = self.parent_locs.iter().collect::<Vec<_>>();
+            parent_locs.sort();
+
+            for path in &parent_locs {
+                if let Some(file) = self.parent_files.get(*path) {
+                    cache.push(file);
+                }
+            }
+        }
+
+        Ok(cache)
+    }
+
+    /// This function returns the vanilla/parent db tables from the cache, according to the params you pass it.
+    ///
+    /// It returns them in the order the game will load them.
+    ///
+    /// NOTE: table_name is expected to be the table's folder name, with "_tables" at the end.
+    pub fn db_data(&self, table_name: &str, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
+        let mut cache = vec![];
+
+        if include_vanilla {
+            if let Some(vanilla_tables) = self.vanilla_tables.get(table_name) {
+                let mut vanilla_tables = vanilla_tables.to_vec();
+                vanilla_tables.sort();
+
+                for path in &vanilla_tables {
+                    if let Some(file) = self.vanilla_files.get(&*path) {
+                        cache.push(file);
+                    }
+                }
+            }
+        }
+
+        if include_parent {
+            if let Some(parent_tables) = self.parent_tables.get(table_name) {
+                let mut parent_tables = parent_tables.to_vec();
+                parent_tables.sort();
+
+                for path in &parent_tables {
+                    if let Some(file) = self.parent_files.get(&*path) {
+                        cache.push(file);
+                    }
+                }
+            }
+        }
+
+        Ok(cache)
+    }
+
+    /// This function returns the vanilla/parent DB and Loc tables from the cache, according to the params you pass it.
+    ///
+    /// It returns them in the order the game will load them.
+    pub fn db_and_loc_data(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
+        let mut cache = vec![];
+
+        if include_vanilla {
+            if include_db {
+                let mut vanilla_tables = self.vanilla_tables.values().flatten().collect::<Vec<_>>();
+                vanilla_tables.sort();
+
+                for path in &vanilla_tables {
+                    if let Some(file) = self.vanilla_files.get(*path) {
+                        cache.push(file);
+                    }
+                }
+            }
+
+            if include_loc {
                 let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
                 vanilla_locs.sort();
 
@@ -474,8 +545,21 @@ impl Dependencies {
                     }
                 }
             }
+        }
 
-            if include_parent {
+        if include_parent {
+            if include_db {
+                let mut parent_tables = self.parent_tables.values().flatten().collect::<Vec<_>>();
+                parent_tables.sort();
+
+                for path in &parent_tables {
+                    if let Some(file) = self.parent_files.get(*path) {
+                        cache.push(file);
+                    }
+                }
+            }
+
+            if include_loc {
                 let mut parent_locs = self.parent_locs.iter().collect::<Vec<_>>();
                 parent_locs.sort();
 
@@ -485,111 +569,9 @@ impl Dependencies {
                     }
                 }
             }
-
-            Ok(cache)
         }
-    }
 
-    /// This function returns the vanilla/parent db tables from the cache, according to the params you pass it.
-    ///
-    /// It returns them in the order the game will load them.
-    ///
-    /// NOTE: table_name is expected to be the table's folder name, with "_tables" at the end.
-    pub fn db_data(&self, game_info: &GameInfo, game_path: &Path, table_name: &str, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
-        if self.needs_updating(game_info, game_path)? {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
-
-            if include_vanilla {
-                if let Some(vanilla_tables) = self.vanilla_tables.get(table_name) {
-                    let mut vanilla_tables = vanilla_tables.to_vec();
-                    vanilla_tables.sort();
-
-                    for path in &vanilla_tables {
-                        if let Some(file) = self.vanilla_files.get(&*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-            }
-
-            if include_parent {
-                if let Some(parent_tables) = self.parent_tables.get(table_name) {
-                    let mut parent_tables = parent_tables.to_vec();
-                    parent_tables.sort();
-
-                    for path in &parent_tables {
-                        if let Some(file) = self.parent_files.get(&*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-            }
-
-            Ok(cache)
-        }
-    }
-
-    /// This function returns the vanilla/parent DB and Loc tables from the cache, according to the params you pass it.
-    ///
-    /// It returns them in the order the game will load them.
-    pub fn db_and_loc_data(&self, game_info: &GameInfo, game_path: &Path, include_db: bool, include_loc: bool, include_vanilla: bool, include_parent: bool) -> Result<Vec<&RFile>> {
-        if self.needs_updating(game_info, game_path)? {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
-
-            if include_vanilla {
-                if include_db {
-                    let mut vanilla_tables = self.vanilla_tables.values().flatten().collect::<Vec<_>>();
-                    vanilla_tables.sort();
-
-                    for path in &vanilla_tables {
-                        if let Some(file) = self.vanilla_files.get(*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-
-                if include_loc {
-                    let mut vanilla_locs = self.vanilla_locs.iter().collect::<Vec<_>>();
-                    vanilla_locs.sort();
-
-                    for path in &vanilla_locs {
-                        if let Some(file) = self.vanilla_files.get(*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-            }
-
-            if include_parent {
-                if include_db {
-                    let mut parent_tables = self.parent_tables.values().flatten().collect::<Vec<_>>();
-                    parent_tables.sort();
-
-                    for path in &parent_tables {
-                        if let Some(file) = self.parent_files.get(*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-
-                if include_loc {
-                    let mut parent_locs = self.parent_locs.iter().collect::<Vec<_>>();
-                    parent_locs.sort();
-
-                    for path in &parent_locs {
-                        if let Some(file) = self.parent_files.get(*path) {
-                            cache.push(file);
-                        }
-                    }
-                }
-            }
-
-            Ok(cache)
-        }
+        Ok(cache)
     }
 
     /// This function returns the list of DB tables that are loaded from the Assembly Kit.
@@ -639,13 +621,13 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table from the vanilla/parent data.
     ///
     /// If reference data was found, the most recent definition of said data is returned.
-    fn db_reference_data_from_from_vanilla_and_modded_tables(&self, game_info: &GameInfo, game_path: &Path, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
+    fn db_reference_data_from_from_vanilla_and_modded_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
         let mut data_found: Option<Definition> = None;
         let ref_table = format!("{}_tables", reference_info.0);
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
-        if let Ok(files) = self.db_data(game_info, game_path, &ref_table, true, true) {
+        if let Ok(files) = self.db_data(&ref_table, true, true) {
             files.iter().for_each(|file| {
                 if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                     let fields_processed = db.definition().fields_processed();
@@ -782,25 +764,20 @@ impl Dependencies {
     //-----------------------------------//
 
     /// This function returns if a specific file exists in the dependencies cache.
-    pub fn file_exists(&self, game_info: &GameInfo, game_path: &Path, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<bool> {
-        if self.needs_updating(game_info, game_path)? {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-
-            if include_parent {
-                if self.parent_files.get(file_path).is_some() {
-                    return Ok(true)
-                }
+    pub fn file_exists(&self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<bool> {
+        if include_parent {
+            if self.parent_files.get(file_path).is_some() {
+                return Ok(true)
             }
-
-            if include_vanilla {
-                if self.vanilla_files.get(file_path).is_some() {
-                    return Ok(true);
-                }
-            }
-
-            Ok(false)
         }
+
+        if include_vanilla {
+            if self.vanilla_files.get(file_path).is_some() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// This function checks if the dependencies cache file exists on disk.

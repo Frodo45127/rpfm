@@ -243,7 +243,6 @@ impl Diagnostics {
                             &ignored_diagnostics,
                             &ignored_diagnostics_for_fields,
                             game_info,
-                            game_path,
                             schema_patches,
                             &mut data_prev,
                             &table_references,
@@ -364,7 +363,6 @@ impl Diagnostics {
         ignored_diagnostics: &[String],
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
-        game_path: &Path,
         schema_patches: Option<&SchemaPatches>,
         previous_data: &mut BTreeMap<String, HashMap<String, Vec<(i32, i32)>>>,
         //local_path_list: &HashSet<UniCase<String>>,
@@ -376,7 +374,7 @@ impl Diagnostics {
 
             // Before anything else, check if the table is outdated.
             if !Self::ignore_diagnostic(None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                if Self::is_table_outdated(game_info, game_path, table.table_name(), *table.definition().version(), dependencies) {
+                if Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::OutdatedTable, &[]);
                     diagnostic.results_mut().push(result);
                 }
@@ -1227,8 +1225,8 @@ impl Diagnostics {
     }
 
     /// This function is used to check if a table is outdated or not.
-    fn is_table_outdated(game_info: &GameInfo, game_path: &Path, table_name: &str, table_version: i32, dependencies: &Dependencies) -> bool {
-        if let Ok(vanilla_dbs) = dependencies.db_data(game_info, game_path, table_name, true, false) {
+    fn is_table_outdated(table_name: &str, table_version: i32, dependencies: &Dependencies) -> bool {
+        if let Ok(vanilla_dbs) = dependencies.db_data(table_name, true, false) {
             if let Some(max_version) = vanilla_dbs.iter()
                 .filter_map(|x| {
                     if let Ok(RFileDecoded::DB(table)) = x.decoded() {
