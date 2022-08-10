@@ -1066,8 +1066,12 @@ impl RFile {
             },
         };
 
-        if !already_decoded && keep_in_cache {
+        // If we're returning data, clone it. If not, skip the clone.
+        if !already_decoded && keep_in_cache && return_data {
             self.data = RFileInnerData::Decoded(Box::new(decoded.clone()));
+        } else if !already_decoded && keep_in_cache && !return_data{
+            self.data = RFileInnerData::Decoded(Box::new(decoded));
+            return Ok(None)
         }
 
         if return_data {
