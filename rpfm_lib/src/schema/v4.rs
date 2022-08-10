@@ -148,9 +148,6 @@ pub struct FieldV4 {
     /// The default value of the field.
     pub default_value: Option<String>,
 
-    /// The max allowed length for the data in the field.
-    pub max_length: i32,
-
     /// If the field's data corresponds to a filename.
     pub is_filename: bool,
 
@@ -270,7 +267,6 @@ impl Default for FieldV4 {
             field_type: FieldTypeV4::StringU8,
             is_key: false,
             default_value: None,
-            max_length: 0,
             is_filename: false,
             filename_relative_path: None,
             is_reference: None,
