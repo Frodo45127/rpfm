@@ -168,7 +168,7 @@ impl Encodeable for AnimsTable {
         buffer.write_i32(*self.table.definition().version())?;
         buffer.write_u32(self.table.len(None)? as u32)?;
 
-        self.table.encode(buffer, &None, &None, &None)
+        self.table.encode(buffer, &None, &None)
     }
 }
 

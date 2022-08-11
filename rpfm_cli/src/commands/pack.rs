@@ -218,6 +218,9 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
         }
     }
 
+    // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+    let _ = Schema::update(schema_path, &PathBuf::from("patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+
     // Load both, the schema and the Packs to memory.
     let schema = Schema::load(schema_path)?;
     let mut pack = Pack::read_and_merge(pack_paths, true, false)?;
@@ -249,14 +252,20 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Trigger a diagnostics check.
             let mut diagnostics = Diagnostics::default();
-            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], None);
-
+            diagnostics.check(&pack, &mut dependencies, game_info, game_path, &[], &schema);
 
             if config.verbose {
                 info!("Diagnosed problems in the following Packs:");
                 for pack_path in pack_paths {
                     info!(" - {}", pack_path.to_string_lossy().to_string());
                 }
+                println!("Verbose mode detected. Marking beginning: ----------------------------");
+            }
+
+            println!("{}", diagnostics.json()?);
+
+            if config.verbose {
+                println!("----------------------------");
             }
 
             Ok(())

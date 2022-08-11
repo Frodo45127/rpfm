@@ -66,7 +66,7 @@ Inside the schema there are `VersionedFile` variants of different types, with a 
 use ron::de::from_bytes;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -194,6 +194,21 @@ pub enum FieldTypeV4 {
     SequenceU32(Box<DefinitionV4>)
 }
 
+/// This struct represents a bunch of Schema Patches in memory.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
+pub struct SchemaPatches {
+
+    /// It stores the patches split by games.
+    patches: HashMap<String, SchemaPatch>
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
+pub struct SchemaPatch{
+
+    /// It stores a list of per-table, per-column patches.
+    tables: HashMap<String, HashMap<String, HashMap<String, String>>>,
+}
+
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -210,24 +225,19 @@ impl SchemaV4 {
     }
 
     /// This function tries to update the Schema at the provided Path to a more recent format.
-    pub fn update(schema_path: &Path) -> Result<()> {
+    pub fn update(schema_path: &Path, patches_path: &Path, game_name: &str) -> Result<()> {
         let schema_legacy = Self::load(schema_path)?;
         let mut schema = SchemaV5::from(&schema_legacy);
-        schema.save(schema_path)
+
+        let schema_patches = SchemaPatches::load(patches_path)?;
+        if let Some(patches) = schema_patches.patches.get(game_name) {
+            schema.patches = patches.tables.clone();
+        }
+
+        // Disable saving until 4.0 releases.
+        //schema.save(schema_path)?;
+        Ok(())
     }
-/*
-    pub fn update(games: &[GameInfo]) {
-        println!("Importing schemas from V4 to V5");
-        let mut legacy_schemas = games.iter().map(|y| (y.get_game_key_name(), Self::load(y.get_schema_name()))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV4>>();
-        println!("Amount of SchemasV4: {:?}", legacy_schemas.len());
-        legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
-            if let Some(file_name) = games.iter().filter_map(|y| if &y.get_game_key_name() == game { Some(y.get_schema_name()) } else { None }).find(|_| true) {
-                if legacy_schema.save(file_name).is_ok() {
-                    println!("SchemaV4 for game {} updated to SchemaV5.", game);
-                }
-            }
-        });
-    }*/
 }
 
 /// Implementation of `Definition`.
@@ -354,5 +364,16 @@ impl From<&FieldTypeV4> for FieldTypeV5 {
             FieldTypeV4::SequenceU16(sequence) => Self::SequenceU16(Box::new(From::from(&**sequence))),
             FieldTypeV4::SequenceU32(sequence) => Self::SequenceU32(Box::new(From::from(&**sequence))),
         }
+    }
+}
+
+impl SchemaPatches {
+
+    /// This function loads a `SchemaPatches` to memory from a file in the `schemas/` folder.
+    pub fn load(file_path: &Path) -> Result<Self> {
+        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        from_bytes(&data).map_err(From::from)
     }
 }

@@ -43,7 +43,7 @@ impl Table {
 
                 // Try to create the table, in case it doesn't exist yet. Ignore a failure here, as it'll mean the table already exists.
                 let params: Vec<String> = vec![];
-                let create_table = definition.map_to_sql_create_table_string(true, table_name, None, None);
+                let create_table = definition.map_to_sql_create_table_string(true, table_name, None);
                 let _ = pool.get()?.execute(&create_table, params_from_iter(params.into_iter())).map(|_| ());
 
                 // Load the data to the database.

@@ -20,7 +20,6 @@ Notes on cells_affected:
 !*/
 
 use getset::{Getters, MutGetters};
-use rpfm_lib::schema::patch::SchemaPatches;
 use serde_derive::{Serialize, Deserialize};
 use itertools::Itertools;
 use fancy_regex::Regex;
@@ -32,9 +31,10 @@ use std::{fmt, fmt::Display};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 
+use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::{FieldType, Schema};
 
 use crate::dependencies::{Dependencies, TableReferences};
 
@@ -139,7 +139,7 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema_patches: Option<&SchemaPatches>) {
+    pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema: &Schema) {
         // Clear the diagnostics first.
         self.results.clear();
 
@@ -243,7 +243,7 @@ impl Diagnostics {
                             &ignored_diagnostics,
                             &ignored_diagnostics_for_fields,
                             game_info,
-                            schema_patches,
+                            schema,
                             &mut data_prev,
                             &table_references,
                         )
@@ -363,7 +363,7 @@ impl Diagnostics {
         ignored_diagnostics: &[String],
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
-        schema_patches: Option<&SchemaPatches>,
+        schema: &Schema,
         previous_data: &mut BTreeMap<String, HashMap<String, Vec<(i32, i32)>>>,
         //local_path_list: &HashSet<UniCase<String>>,
         //local_folder_list: &HashSet<UniCase<String>>,
@@ -441,6 +441,7 @@ impl Diagnostics {
             let mut columns_with_reference_table_and_no_column = vec![];
             let mut keys: HashMap<String, Vec<(i32, i32)>> = HashMap::with_capacity(table_data.len());
             let mut duplicated_combined_keys_already_marked = vec![];
+            let schema_patches = schema.patches_for_table(table.table_name());
 
             for (row, cells) in table_data.iter().enumerate() {
                 let mut row_is_empty = true;
@@ -576,7 +577,7 @@ impl Diagnostics {
                     }
 
                     if !Self::ignore_diagnostic(Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if cell_data.is_empty() && field.cannot_be_empty(Some(table.table_name()), Some(&game_info.game_key_name()), schema_patches) {
+                        if cell_data.is_empty() && field.cannot_be_empty(schema_patches) {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)]);
                             diagnostic.results_mut().push(result);
                         }
@@ -1242,6 +1243,11 @@ impl Diagnostics {
         }
 
         false
+    }
+
+    /// This function converts an entire diagnostics struct into a JSon string.
+    pub fn json(&self) -> Result<String> {
+        serde_json::to_string_pretty(self).map_err(From::from)
     }
 }
 

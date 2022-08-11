@@ -25,8 +25,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::SeekFrom;
 
 use crate::error::{RLibError, Result};
-use crate::schema::{*, patch::SchemaPatches};
 use crate::binary::{ReadBytes, WriteBytes};
+use crate::schema::*;
 use crate::utils::parse_str_as_bool;
 
 mod local;
@@ -746,7 +746,7 @@ impl Table {
         }
     }
 
-    pub(crate) fn encode<W: WriteBytes>(&self, data: &mut W, game_key: &Option<&str>, schema_patches: &Option<&SchemaPatches>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
+    pub(crate) fn encode<W: WriteBytes>(&self, data: &mut W, schema_patches: &Option<&DefinitionPatch>, pool: &Option<&Pool<SqliteConnectionManager>>) -> Result<()> {
 
         // Get the table data in local format, no matter in what backend we stored it.
         let entries = self.data(pool)?;
@@ -893,7 +893,7 @@ impl Table {
                                     None => match row[data_column].convert_between_types(field.field_type()) {
                                         Ok(data) => data,
                                         Err(_) => {
-                                            let default_value = field.default_value(Some(&self.table_name), *game_key, *schema_patches);
+                                            let default_value = field.default_value(*schema_patches);
                                             DecodedData::new_from_type_and_value(field.field_type(), &default_value)
                                         }
                                     }
@@ -964,12 +964,12 @@ impl Table {
     }
 
     /// This function returns a new empty row for the provided definition.
-    pub fn new_row(definition: &Definition, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> Vec<DecodedData> {
+    pub fn new_row(definition: &Definition, schema_patches: Option<&DefinitionPatch>) -> Vec<DecodedData> {
         definition.fields_processed().iter()
             .map(|field|
                 match field.field_type() {
                     FieldType::Boolean => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if default_value.to_lowercase() == "true" {
                                 DecodedData::Boolean(true)
                             } else {
@@ -980,7 +980,7 @@ impl Table {
                         }
                     }
                     FieldType::F32 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<f32>() {
                                 DecodedData::F32(default_value)
                             } else {
@@ -991,7 +991,7 @@ impl Table {
                         }
                     },
                     FieldType::F64 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<f64>() {
                                 DecodedData::F64(default_value)
                             } else {
@@ -1002,7 +1002,7 @@ impl Table {
                         }
                     },
                     FieldType::I16 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i16>() {
                                 DecodedData::I16(default_value)
                             } else {
@@ -1013,7 +1013,7 @@ impl Table {
                         }
                     },
                     FieldType::I32 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i32>() {
                                 DecodedData::I32(default_value)
                             } else {
@@ -1024,7 +1024,7 @@ impl Table {
                         }
                     },
                     FieldType::I64 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i64>() {
                                 DecodedData::I64(default_value)
                             } else {
@@ -1036,7 +1036,7 @@ impl Table {
                     },
 
                     FieldType::ColourRGB => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if u32::from_str_radix(&default_value, 16).is_ok() {
                                 DecodedData::ColourRGB(default_value)
                             } else {
@@ -1047,14 +1047,14 @@ impl Table {
                         }
                     },
                     FieldType::StringU8 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             DecodedData::StringU8(default_value.to_owned())
                         } else {
                             DecodedData::StringU8(String::new())
                         }
                     }
                     FieldType::StringU16 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             DecodedData::StringU16(default_value.to_owned())
                         } else {
                             DecodedData::StringU16(String::new())
@@ -1062,7 +1062,7 @@ impl Table {
                     }
 
                     FieldType::OptionalI16 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i16>() {
                                 DecodedData::OptionalI16(default_value)
                             } else {
@@ -1073,7 +1073,7 @@ impl Table {
                         }
                     },
                     FieldType::OptionalI32 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i32>() {
                                 DecodedData::OptionalI32(default_value)
                             } else {
@@ -1084,7 +1084,7 @@ impl Table {
                         }
                     },
                     FieldType::OptionalI64 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             if let Ok(default_value) = default_value.parse::<i64>() {
                                 DecodedData::OptionalI64(default_value)
                             } else {
@@ -1096,14 +1096,14 @@ impl Table {
                     },
 
                     FieldType::OptionalStringU8 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             DecodedData::OptionalStringU8(default_value.to_owned())
                         } else {
                             DecodedData::OptionalStringU8(String::new())
                         }
                     }
                     FieldType::OptionalStringU16 => {
-                        if let Some(default_value) = field.default_value(table_name, game_key, schema_patches) {
+                        if let Some(default_value) = field.default_value(schema_patches) {
                             DecodedData::OptionalStringU16(default_value.to_owned())
                         } else {
                             DecodedData::OptionalStringU16(String::new())

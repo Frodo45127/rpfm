@@ -48,7 +48,7 @@ use std::io::SeekFrom;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
-use crate::schema::{Definition, Field, FieldType, patch::SchemaPatches};
+use crate::schema::{Definition, DefinitionPatch, Field, FieldType};
 use crate::utils::check_size_mismatch;
 
 /// If this sequence is found, the DB Table has a GUID after it.
@@ -202,7 +202,7 @@ impl Encodeable for DB {
         buffer.write_bool(self.mysterious_byte)?;
         buffer.write_u32(self.table.len(pool)? as u32)?;
 
-        self.table.encode(buffer, &None, &None, &pool)
+        self.table.encode(buffer, &None, &pool)
     }
 }
 
@@ -281,8 +281,8 @@ impl DB {
     }
 
     /// This function returns a valid empty (with default values if any) row for this table.
-    pub fn new_row(&self, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> Vec<DecodedData> {
-        Table::new_row(self.definition(), Some(&self.table_name()), game_key, schema_patches)
+    pub fn new_row(&self, schema_patches: Option<&DefinitionPatch>) -> Vec<DecodedData> {
+        Table::new_row(self.definition(), schema_patches)
     }
 
     /// This function returns the definition of a Loc table.

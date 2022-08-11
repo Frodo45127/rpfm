@@ -66,7 +66,7 @@ Inside the schema there are `VersionedFile` variants of different types, with a 
 use std::fmt::Display;
 use std::fmt;
 use rayon::prelude::*;
-use ron::de::from_bytes;
+use ron::de::{from_bytes, from_str};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
@@ -85,14 +85,13 @@ use getset::*;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::localisable_fields::RawLocalisableField;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawDefinition;
 #[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawField;
+#[cfg(feature = "integration_log")] use crate::integrations::log::*;
 
 use crate::error::Result;
 use crate::files::table::DecodedData;
-use self::patch::SchemaPatches;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v4;
-pub mod patch;
 
 /// Name of the folder containing all the schemas.
 pub const SCHEMA_FOLDER: &str = "schemas";
@@ -116,6 +115,9 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
+/// This type defines patches for specific table definitions, in a ColumnName -> [key -> value] format.
+pub type DefinitionPatch = HashMap<String, HashMap<String, String>>;
+
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
 #[derive(Clone, PartialEq, Eq, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
@@ -125,8 +127,14 @@ pub struct Schema {
     version: u16,
 
     /// It stores the versioned files inside the Schema.
-    #[serde(serialize_with = "ordered_map")]
+    #[serde(serialize_with = "ordered_map_definitions")]
     definitions: HashMap<String, Vec<Definition>>,
+
+    /// It stores a list of per-table, per-column patches.
+    ///
+    /// These patches are not hardcoded, which means changes to them do not
+    #[serde(serialize_with = "ordered_map_patches")]
+    patches: HashMap<String, DefinitionPatch>,
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
@@ -220,6 +228,38 @@ pub enum FieldType {
 /// Implementation of `Schema`.
 impl Schema {
 
+    /// This function retrieves a value from a patch for a specific table, column and key.
+    pub fn patch_value(&self, table_name: &str, column_name: &str, key: &str) -> Option<&String> {
+        self.patches.get(table_name)?.get(column_name)?.get(key)
+    }
+
+    /// This function retrieves all patches that affect a specific table.
+    pub fn patches_for_table(&self, table_name: &str) -> Option<&DefinitionPatch> {
+        self.patches.get(table_name)
+    }
+
+    /// This function adds a list of patches into the currently loaded schema.
+    pub fn add_patch(&mut self, patches: HashMap<String, DefinitionPatch>) {
+        patches.iter().for_each(|(table_name, column_patch)| {
+            match self.patches.get_mut(table_name) {
+                Some(column_patch_current) => {
+                    column_patch.iter().for_each(|(column_name, patch)| {
+                        match column_patch_current.get_mut(column_name) {
+                            Some(patch_current) => patch_current.extend(patch.clone()),
+                            None => {
+                                column_patch_current.insert(column_name.to_owned(), patch.clone());
+                            }
+                        }
+                    });
+                }
+                None => {
+                    self.patches.insert(table_name.to_owned(), column_patch.clone());
+                }
+            }
+        });
+    }
+
+    /// This function adds a definition for a table into the currently loaded schema.
     pub fn add_definition(&mut self, table_name: &str, definition: &Definition) {
         match self.definitions.get_mut(table_name) {
             Some(definitions) => definitions.push(definition.to_owned()),
@@ -332,8 +372,8 @@ impl Schema {
 */
 
     /// This function allow us to update the provided Schema from a legacy format into the current one.
-    pub fn update(schema_path: &Path) -> Result<()>{
-        v4::SchemaV4::update(schema_path)
+    pub fn update(schema_path: &Path, schema_patches_path: &Path, game_name: &str) -> Result<()>{
+        v4::SchemaV4::update(schema_path, schema_patches_path, game_name)
     }
 
     /// This function returns all columns that reference the columns on our specific table within the DB Tables of our Schema.
@@ -378,9 +418,60 @@ impl Schema {
             }
         }).collect()
     }
+
+    /// This function tries to load multiple patches from a str.
+    pub fn load_patches_from_str(patch: &str) -> Result<HashMap<String, DefinitionPatch>> {
+        from_str(&patch).map_err(From::from)
+    }
+
+    /// This function tries to load multiple definitions from a str.
+    pub fn load_definitions_from_str(definition: &str) -> Result<HashMap<String, Definition>> {
+        from_str(&definition).map_err(From::from)
+    }
+
+    /// This function tries to export a list of patches to a ron string.
+    pub fn export_patches_to_str(patches: &HashMap<String, DefinitionPatch>) -> Result<String> {
+        let config = PrettyConfig::default();
+        ron::ser::to_string_pretty(&patches, config).map_err(From::from)
+    }
+
+    /// This function tries to export a list of definitions to a ron string.
+    pub fn export_definitions_to_str(definitions: &HashMap<String, Definition>) -> Result<String> {
+        let config = PrettyConfig::default();
+        ron::ser::to_string_pretty(&definitions, config).map_err(From::from)
+    }
+
+    /// This function tries to upload a bunch of [DefinitionPatch] to Sentry's service.
+    ///
+    /// It requires the **integration_log** feature.
+    #[cfg(feature = "integration_log")]
+    pub fn upload_patches(sentry_guard: &ClientInitGuard, game_name: &str, patches: HashMap<String, DefinitionPatch>) -> Result<()> {
+        let level = Level::Info;
+        let message = format!("Schema Patch for: {} - {}.", game_name, crate::utils::current_time()?);
+        let config = PrettyConfig::default();
+        let mut data = vec![];
+        ron::ser::to_writer_pretty(&mut data, &patches, config)?;
+        let file_name = "patch.txt";
+
+        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
+    }
+
+    /// This function tries to upload a bunch of [Definition] to Sentry's service.
+    ///
+    /// It requires the **integration_log** feature.
+    #[cfg(feature = "integration_log")]
+    pub fn upload_definitions(sentry_guard: &ClientInitGuard, game_name: &str, definitions: HashMap<String, Definition>) -> Result<()> {
+        let level = Level::Info;
+        let message = format!("Schema Definition for: {} - {}.", game_name, crate::utils::current_time()?);
+        let config = PrettyConfig::default();
+        let mut data = vec![];
+        ron::ser::to_writer_pretty(&mut data, &definitions, config)?;
+        let file_name = "definition.txt";
+
+        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
+    }
 }
 
-/// Implementation of `Definition`.
 impl Definition {
 
     /// This function creates a new empty `Definition` for the version provided.
@@ -507,9 +598,9 @@ impl Definition {
 
     /// This function maps a table definition to a `CREATE TABLE` SQL Query.
     #[cfg(feature = "integration_sqlite")]
-    pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
+    pub fn map_to_sql_create_table_string(&self, key_first: bool, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> String {
         let fields_sorted = self.fields_processed_sorted(key_first);
-        let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(Some(table_name), game_key, schema_patches)).collect::<Vec<_>>().join(",");
+        let fields_query = fields_sorted.iter().map(|field| field.map_to_sql_string(schema_patches)).collect::<Vec<_>>().join(",");
 
         let local_keys_join = fields_sorted.iter().filter_map(|field| if field.is_key() { Some(format!("\"{}\"", field.name()))} else { None }).collect::<Vec<_>>().join(",");
         let local_keys = format!("CONSTRAINT unique_key PRIMARY KEY (\"table_unique_id\", {})", local_keys_join);
@@ -716,13 +807,11 @@ impl Field {
     pub fn is_key(&self) -> bool {
         self.is_key
     }
-    pub fn default_value(&self, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> Option<String>{
-        if let Some(table_name) = table_name {
-            if let Some(game_key) = game_key {
-                if let Some(schema_patches) = schema_patches {
-                    if let Some(default_value) = schema_patches.get_data(&game_key, table_name, self.name(), "default_value") {
-                        return Some(default_value);
-                    }
+    pub fn default_value(&self, schema_patches: Option<&DefinitionPatch>) -> Option<String> {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(default_value) = patch.get("default_value") {
+                    return Some(default_value.to_string());
                 }
             }
         }
@@ -770,13 +859,11 @@ impl Field {
     }
 
     /// Getter for the `cannot_be_empty` field.
-    pub fn cannot_be_empty(&self, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> bool {
-        if let Some(table_name) = table_name {
-            if let Some(game_key) = game_key {
-                if let Some(schema_patches) = schema_patches {
-                    if let Some(cannot_be_empty) = schema_patches.get_data(&game_key, table_name, self.name(), "not_empty") {
-                        return cannot_be_empty.parse::<bool>().unwrap_or(false);
-                    }
+    pub fn cannot_be_empty(&self, schema_patches: Option<&DefinitionPatch>) -> bool {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(cannot_be_empty) = patch.get("not_empty") {
+                    return cannot_be_empty.parse::<bool>().unwrap_or(false);
                 }
             }
         }
@@ -785,25 +872,24 @@ impl Field {
     }
 
     /// Getter for the `explanation` field for schema patches.
-    pub fn schema_patch_explanation(&self, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
-        if let Some(table_name) = table_name {
-            if let Some(game_key) = game_key {
-                if let Some(schema_patches) = schema_patches {
-                    if let Some(explanation) = schema_patches.get_data(&game_key, table_name, self.name(), "explanation") {
-                        return explanation;
-                    }
+    pub fn schema_patch_explanation(&self, schema_patches: Option<&DefinitionPatch>) -> String {
+        if let Some(schema_patches) = schema_patches {
+            if let Some(patch) = schema_patches.get(self.name()) {
+                if let Some(explanation) = patch.get("explanation") {
+                    return explanation.to_string();
                 }
             }
         }
+
         String::new()
     }
 
     /// This function maps our field to a String ready to be used in a SQL `CREATE TABLE` command.
     #[cfg(feature = "integration_sqlite")]
-    pub fn map_to_sql_string(&self, table_name: Option<&str>, game_key: Option<&str>, schema_patches: Option<&SchemaPatches>) -> String {
+    pub fn map_to_sql_string(&self, schema_patches: Option<&DefinitionPatch>) -> String {
         let mut string = format!(" \"{}\" {:?} ", self.name(), self.field_type().map_to_sql_type());
 
-        if let Some(default_value) = self.default_value(table_name, game_key, schema_patches) {
+        if let Some(default_value) = self.default_value(schema_patches) {
             string.push_str(&format!(" DEFAULT \"{}\"", default_value));
         }
 
@@ -846,7 +932,8 @@ impl Default for Schema {
     fn default() -> Self {
         Self {
             version: CURRENT_STRUCTURAL_VERSION,
-            definitions: HashMap::new()
+            definitions: HashMap::new(),
+            patches: HashMap::new()
         }
     }
 }
@@ -920,8 +1007,14 @@ impl From<&DecodedData> for FieldType {
     }
 }
 
-/// Special serializer function to sort the HashMap before serializing.
-fn ordered_map<S>(value: &HashMap<String, Vec<Definition>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
+/// Special serializer function to sort the definitions HashMap before serializing.
+fn ordered_map_definitions<S>(value: &HashMap<String, Vec<Definition>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
     let ordered: BTreeMap<_, _> = value.iter().collect();
+    ordered.serialize(serializer)
+}
+
+/// Special serializer function to sort the patches HashMap before serializing.
+fn ordered_map_patches<S>(value: &HashMap<String, HashMap<String, HashMap<String, String>>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
+    let ordered: BTreeMap<_, BTreeMap<_, BTreeMap<_, _>>> = value.iter().map(|(a, x)| (a, x.iter().map(|(b, y)| (b, y.iter().collect())).collect())).collect();
     ordered.serialize(serializer)
 }

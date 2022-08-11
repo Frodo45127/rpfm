@@ -17,8 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
-use rpfm_lib::games::GameInfo;
-use rpfm_lib::schema::{patch::SchemaPatches, Schema};
+use rpfm_lib::schema::{DefinitionPatch, Schema};
 
 use crate::dependencies::Dependencies;
 
@@ -32,7 +31,7 @@ pub trait Optimizable {
     /// This function optimizes the provided struct to reduce its size and improve compatibility.
     ///
     /// It returns if the struct has been left in an state where it can be safetly deleted.
-    fn optimize(&mut self, game_info: &GameInfo, dependencies: &mut Dependencies, schema_patches: Option<&SchemaPatches>) -> bool;
+    fn optimize(&mut self, dependencies: &mut Dependencies, schema_patches: Option<&DefinitionPatch>) -> bool;
 }
 
 /// This trait marks a [Container](rpfm_lib::files::Container) as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
@@ -41,7 +40,7 @@ pub trait OptimizableContainer: Container {
     /// This function optimizes the provided [Container](rpfm_lib::files::Container) to reduce its size and improve compatibility.
     ///
     /// It returns the list of files that has been safetly deleted during the optimization process.
-    fn optimize(&mut self, game_info: &GameInfo, dependencies: &mut Dependencies, schema: &Schema, schema_patches: Option<&SchemaPatches>, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
+    fn optimize(&mut self, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>>;
 }
 
 //-------------------------------------------------------------------------------//
@@ -65,7 +64,7 @@ impl OptimizableContainer for Pack {
     /// Not yet working:
     /// - Remove XML files in map folders.
     /// - Remove files identical to Parent/Vanilla files (if is identical to vanilla, but a parent mod overwrites it, it ignores it).
-    fn optimize(&mut self, game_info: &GameInfo, dependencies: &mut Dependencies, schema: &Schema, schema_patches: Option<&SchemaPatches>, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
+    fn optimize(&mut self, dependencies: &mut Dependencies, schema: &Schema, optimize_datacored_tables: bool) -> Result<HashSet<String>> {
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(true) {
@@ -108,7 +107,7 @@ impl OptimizableContainer for Pack {
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
                             if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
-                                if db.optimize(game_info, dependencies, schema_patches) {
+                                if db.optimize(dependencies, schema.patches_for_table(db.table_name())) {
                                     return Some(path.to_owned());
                                 }
                             }
@@ -120,7 +119,7 @@ impl OptimizableContainer for Pack {
                         // Same as with tables, don't optimize them if they're overwriting.
                         if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
                             if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
-                                if loc.optimize(game_info, dependencies, schema_patches) {
+                                if loc.optimize(dependencies, None) {
                                     return Some(path.to_owned());
                                 }
                             }
@@ -161,7 +160,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, game_info: &GameInfo, dependencies: &mut Dependencies, schema_patches: Option<&SchemaPatches>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, schema_patches: Option<&DefinitionPatch>) -> bool {
         match self.data(&None) {
             Ok(entries) => {
 
@@ -196,7 +195,7 @@ impl Optimizable for DB {
                             .collect::<HashSet<String>>();
 
                         // Remove ITM and ITNR entries.
-                        let new_row = self.new_row(Some(&game_info.game_key_name()), schema_patches).iter().map(|data|
+                        let new_row = self.new_row(schema_patches).iter().map(|data|
                             if let DecodedData::F32(value) = data {
                                 DecodedData::StringU8(format!("{:.4}", value))
                             } else {
@@ -260,7 +259,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, _game_info: &GameInfo, dependencies: &mut Dependencies, _schema_patches: Option<&SchemaPatches>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies, _schema_patches: Option<&DefinitionPatch>) -> bool {
         match self.data(&None) {
             Ok(entries) => {
 

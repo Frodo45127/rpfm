@@ -123,7 +123,7 @@ impl Loc {
 
     /// This function returns a valid empty (with default values if any) row for this table.
     pub fn new_row(&self) -> Vec<DecodedData> {
-        Table::new_row(self.definition(), None, None, None)
+        Table::new_row(self.definition(), None)
     }
 
     /// This function replaces the data of this table with the one provided.
@@ -279,7 +279,7 @@ impl Encodeable for Loc {
         buffer.write_i32(*self.table.definition().version())?;
         buffer.write_u32(self.table.len(pool)? as u32)?;
 
-        self.table.encode(buffer, &None, &None, &pool)
+        self.table.encode(buffer, &None, &pool)
     }
 }
 
