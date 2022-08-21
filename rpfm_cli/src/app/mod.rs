@@ -140,7 +140,7 @@ pub enum CommandsAnimPack {
         #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         file_path: Vec<(String, PathBuf)>,
 
-        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder.
+        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder. If only '/' is provided as 'folder to extract', it'll extract the entire AnimPack.
         ///
         /// This can be repeated as many times as folders you want to extract.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
@@ -235,7 +235,7 @@ pub enum CommandsPack {
         #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         file_path: Vec<(String, PathBuf)>,
 
-        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder.
+        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder. If only '/' is provided as 'folder to extract', it'll extract the entire Pack.
         ///
         /// This can be repeated as many times as folders you want to extract.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
