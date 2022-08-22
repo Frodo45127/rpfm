@@ -229,13 +229,15 @@ impl SchemaV4 {
         let schema_legacy = Self::load(schema_path)?;
         let mut schema = SchemaV5::from(&schema_legacy);
 
-        let schema_patches = SchemaPatches::load(patches_path)?;
-        if let Some(patches) = schema_patches.patches.get(game_name) {
-            schema.patches = patches.tables.clone();
+        let schema_patches = SchemaPatches::load(patches_path);
+        if let Ok(schema_patches) = schema_patches {
+            if let Some(patches) = schema_patches.patches.get(game_name) {
+                schema.patches = patches.tables.clone();
+            }
         }
 
         // Disable saving until 4.0 releases.
-        //schema.save(schema_path)?;
+        schema.save(schema_path)?;
         Ok(())
     }
 }
