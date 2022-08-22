@@ -36,19 +36,21 @@
 //!
 //! The data structure depends on the definition of the table.
 
+use csv::{StringRecordsIter, Writer};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
 use std::io::SeekFrom;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable, table::{DecodedData, Table}};
-use crate::schema::{Definition, DefinitionPatch, Field, FieldType};
+use crate::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
 use crate::utils::check_size_mismatch;
 
 /// If this sequence is found, the DB Table has a GUID after it.
@@ -1031,17 +1033,21 @@ impl DB {
 
         edited_paths
     }
-
+*/
     /// This function imports a TSV file into a decoded table.
-    pub fn import_tsv(
-        schema: &Schema,
-        path: &Path,
-    ) -> Result<(Self, Option<Vec<String>>)> {
-        let (table, file_path) = Table::import_tsv(schema, path)?;
+    pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>, schema: &Schema, table_name: &str, table_version: i32) -> Result<Self> {
+        let definition = schema.definition_by_name_and_version(table_name, table_version).ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
+        let definition_patch = schema.patches_for_table(table_name);
+        let table = Table::tsv_import(records, &definition, field_order, table_name, definition_patch)?;
         let db = DB::from(table);
-        Ok((db, file_path))
+        Ok(db)
     }
 
+    /// This function imports a TSV file into a decoded table.
+    pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
+        self.table.tsv_export(writer, table_path)
+    }
+/*
     /// This function exports the provided data to a TSV file.
     pub fn export_tsv(
         &self,

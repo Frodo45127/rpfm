@@ -231,6 +231,18 @@ pub enum RLibError {
     #[error("The raw table you tried to import is missing a definition.")]
     RawTableMissingDefinition,
 
+    #[error("This TSV file has an error in the row {0}, field {1} (both starting at 0). Please, check it and make sure the value in that field is a valid value for that column.")]
+    ImportTSVIncorrectRow(usize, usize),
+
+    #[error("This TSV file either belongs to another table, to a localisation File, it's broken or it's incompatible with RPFM.")]
+    ImportTSVWrongTypeTable,
+
+    #[error("This TSV file has an invalid version value at line 1.")]
+    ImportTSVInvalidVersion,
+
+    #[error("This TSV file has an invalid or missing file path value at line 1.")]
+    ImportTSVInvalidOrMissingPath,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),

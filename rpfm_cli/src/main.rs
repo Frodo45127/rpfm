@@ -52,9 +52,9 @@ fn main() {
         Commands::Pack { commands } => match commands {
             CommandsPack::List { pack_path } => crate::commands::pack::list(&config, &pack_path),
             CommandsPack::Create { pack_path } => crate::commands::pack::create(&config, &pack_path),
-            CommandsPack::Add { pack_path, file_path, folder_path } => crate::commands::pack::add(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::Add { pack_path, tsv_to_binary, file_path, folder_path } => crate::commands::pack::add(&config, &tsv_to_binary, &pack_path, &file_path, &folder_path),
             CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
-            CommandsPack::Extract { pack_path, file_path, folder_path } => crate::commands::pack::extract(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::Extract { pack_path, tables_as_tsv, file_path, folder_path } => crate::commands::pack::extract(&config, &tables_as_tsv, &pack_path, &file_path, &folder_path),
             CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
             CommandsPack::Diagnose { game_path, pak_path, schema_path, pack_path } => crate::commands::pack::diagnose(&config, &game_path, &pak_path, &schema_path, &pack_path),
         }

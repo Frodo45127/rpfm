@@ -104,10 +104,19 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
 }
 
 /// This function adds the provided files/folders to the provided Pack.
-pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
+pub fn add(config: &Config, schema_path: &Path, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
     if config.verbose {
         info!("Adding files/folders to a Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Tsv to Binary is: {}.", schema_path.is_file());
     }
+
+    // Load the schema if we try to import tsv files.
+    let schema = if schema_path.is_file() {
+
+        // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+        let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+        Some(Schema::load(&schema_path)?)
+    } else { None };
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
     let mut reader = BufReader::new(File::open(pack_path)?);
@@ -120,11 +129,11 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
-        pack.insert_folder(&folder_path, container_path)?;
+        pack.insert_folder(&folder_path, container_path, &schema)?;
     }
 
     for (file_path, container_path) in file_path {
-        pack.insert_file(&file_path, container_path)?;
+        pack.insert_file(&file_path, container_path, &schema)?;
     }
 
     pack.preload()?;
@@ -176,10 +185,19 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
 }
 
 /// This function extracts the provided files/folders from the provided Pack, keeping their folder structure.
-pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
+pub fn extract(config: &Config, schema_path: &Path, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
     if config.verbose {
         info!("Extracting files/folders from a Pack at {}.", pack_path.to_string_lossy().to_string());
+        info!("Tables as Tsv is: {}.", schema_path.is_file());
     }
+
+    // Load the schema if we try to import tsv files.
+    let schema = if schema_path.is_file() {
+
+        // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+        let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+        Some(Schema::load(&schema_path)?)
+    } else { None };
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
     let mut reader = BufReader::new(File::open(pack_path)?);
@@ -193,12 +211,12 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, &folder_path, true)?;
+        pack.extract(container_path, &folder_path, true, &schema)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, &file_path, true)?;
+        pack.extract(container_path, &file_path, true, &schema)?;
     }
 
     if config.verbose {
@@ -219,7 +237,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
     }
 
     // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-    let _ = Schema::update(schema_path, &PathBuf::from("patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+    let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
 
     // Load both, the schema and the Packs to memory.
     let schema = Schema::load(schema_path)?;

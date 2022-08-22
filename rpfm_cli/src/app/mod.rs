@@ -186,6 +186,12 @@ pub enum CommandsPack {
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
 
+        /// If enabled, if a tsv file is detected in the files to add, the program will try to import it to binary before adding it to the Pack.
+        ///
+        /// It requires the path of the Schema you want to use for definition resolving.
+        #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
+        tsv_to_binary: PathBuf,
+
         /// File to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the file in the root of the Pack.
         ///
         /// If the folder ends with /, the file will be added in that folder with its original name.
@@ -228,6 +234,12 @@ pub enum CommandsPack {
         /// Path of the Pack this operation will use.
         #[clap(short, long, action, required = true, value_parser, name = "PACK_PATH")]
         pack_path: PathBuf,
+
+        /// If enabled, if a decoded DB or Loc file is extracted, it'll be extracted as a TSV file.
+        ///
+        /// It requires the path of the Schema you want to use for definition resolving.
+        #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
+        tables_as_tsv: PathBuf,
 
         /// File to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the file to the current folder.
         ///
@@ -297,7 +309,7 @@ pub enum CommandsDependencies {
 /// Add file to Pack validation function.
 fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b':')
+        .delimiter(b';')
         .quoting(true)
         .has_headers(false)
         .flexible(true)
@@ -338,7 +350,7 @@ fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
 /// Add folder to Pack validation function.
 fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b':')
+        .delimiter(b';')
         .quoting(true)
         .has_headers(false)
         .flexible(true)
@@ -374,7 +386,7 @@ fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
 /// Extract file/folder from Pack validation function.
 fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
     let mut reader = ReaderBuilder::new()
-        .delimiter(b':')
+        .delimiter(b';')
         .quoting(true)
         .has_headers(false)
         .flexible(true)

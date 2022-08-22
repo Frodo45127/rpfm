@@ -34,13 +34,15 @@
 //! | *     | Sized StringU16 | Localised string. |
 //! | 1     | [bool]          | Unknown.          |
 
+use csv::{StringRecordsIter, Writer};
 use getset::{Getters, Setters};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
@@ -58,7 +60,7 @@ const FILE_TYPE: &str = "LOC";
 const HEADER_SIZE: usize = 14;
 
 /// This is the name used in TSV-exported Loc files to identify them as Loc files.
-const TSV_NAME_LOC: &str = "Loc";
+pub(crate) const TSV_NAME_LOC: &str = "Loc";
 
 /// Extension used by Loc files.
 pub const EXTENSION: &str = ".loc";
@@ -223,17 +225,20 @@ impl Loc {
 
         None
     }
-
-    /// This function imports a TSV file into a decoded table.
-    pub fn import_tsv(
-        schema: &Schema,
-        path: &Path,
-    ) -> Result<(Self, Option<Vec<String>>)> {
-        let (table, file_path) = Table::import_tsv(schema, path)?;
+*/
+    /// This function imports a TSV file into a decoded Loc file.
+    pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>) -> Result<Self> {
+        let definition = Self::new_definition();
+        let table = Table::tsv_import(records, &definition, field_order, SQL_TABLE_NAME, None)?;
         let loc = Loc::from(table);
-        Ok((loc, file_path))
+        Ok(loc)
     }
 
+    /// This function exports a decoded Loc file into a TSV file.
+    pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
+        self.table.tsv_export(writer, table_path)
+    }
+/*
     /// This function exports the provided data to a TSV file.
     pub fn export_tsv(
         &self,
@@ -250,14 +255,13 @@ impl Decodeable for Loc {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let file_name = extra_data.file_name.ok_or(RLibError::DecodingMissingExtraDataField("file_name".to_string()))?;
         let pool = extra_data.pool;
 
         // Version is always 1, so we ignore it.
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, file_name)?;
+        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, TSV_NAME_LOC)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

@@ -24,8 +24,7 @@ fn test_encode_loc_no_sqlite() {
     let path_2 = "../test_files/test_encode_no_sqlite.loc";
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
-    let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.file_name = Some("test_decode.loc");
+    let decodeable_extra_data = DecodeableExtraData::default();
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
@@ -49,7 +48,6 @@ fn test_encode_loc_sqlite() {
     let mut reader = BufReader::new(File::open(path_1).unwrap());
 
     let mut decodeable_extra_data = DecodeableExtraData::default();
-    decodeable_extra_data.file_name = Some("test_decode.loc");
     decodeable_extra_data.pool = Some(&pool);
 
     let data_len = reader.len().unwrap();

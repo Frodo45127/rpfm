@@ -14,6 +14,7 @@ Module with all the code to interact with any kind of table data.
 This module contains the struct `Table`, used to manage the decoded data of a table. For internal use only.
 !*/
 
+use csv::{StringRecordsIter, Writer};
 use float_eq::float_eq;
 use getset::*;
 use r2d2::Pool;
@@ -22,6 +23,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
 use std::io::SeekFrom;
 
 use crate::error::{RLibError, Result};
@@ -1874,118 +1876,91 @@ impl Table {
             None
         }
 
-    }
+    } */
 
     //----------------------------------------------------------------//
-    // TSV Functions for PackedFiles.
+    // TSV Functions for tables.
     //----------------------------------------------------------------//
 
-    /// This function imports a TSV file into a decoded table.
-    fn import_tsv(
-        schema: &Schema,
-        path: &Path,
-    ) -> Result<(Self, Option<Vec<String>>)> {
-
-        // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
-        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
-        let mut reader = ReaderBuilder::new()
-            .delimiter(b'\t')
-            .quoting(false)
-            .has_headers(true)
-            .flexible(true)
-            .from_path(&path)?;
-
-        // If we successfully load the TSV file into a reader, check the first line to get the column list.
-        let field_order = reader.headers()?.iter().enumerate().map(|(x, y)| (x as u32, y.to_owned())).collect::<BTreeMap<u32, String>>();
+    /// This function tries to imports a TSV file on the path provided into a binary db table.
+    pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
+        let mut table = Table::new(&definition, table_name, false);
         let mut entries = vec![];
-        let mut fields_processed = vec![];
-        let mut definition = Definition::new(-1);
-        let mut file_path = None;
-        let mut table_type = String::new();
-        for (row, record) in reader.records().enumerate() {
-            if let Ok(record) = record {
 
-                // The second line contains the TSV metadata. It may have it split in three columns, or just one.
-                if row == 0 {
-                    let has_legacy_structure = if let Some(table_type) = record.get(1) { table_type != "" } else { false };
+        let fields_processed = definition.fields_processed();
 
-                    // If we have at least 2 fields, use the legacy behavior.
-                    let record_data = if has_legacy_structure {
-                        record.iter().map(|x| x.to_owned()).collect::<Vec<String>>()
-                    }
-
-                    // Otherwise, use the new behavior.
-                    else if let Some(metadata) = record.get(0) {
-                        metadata.split(';').map(|x| x.to_owned()).collect::<Vec<String>>()
-                    }
-
-                    // Otherwise, is an error.
-                    else {
-                        return Err(ErrorKind::ImportTSVWrongTypeTable.into())
-                    };
-
-                    // Get the type and version of the table, then the definition.
-                    table_type = if let Some(table_type) = record_data.get(0) {
-                        let mut table_type = table_type.to_owned();
-                        if table_type.starts_with("#") {
-                            table_type.remove(0);
-                        }
-                        table_type
-                    } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
-                    let table_version = if let Some(table_version) = record_data.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
-                    file_path = record_data.get(2).map(|x| x.split('/').map(|x| x.to_string()).collect::<Vec<String>>());
-
-                    definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
-                    else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
-                    fields_processed = definition.get_fields_processed();
-                }
-
-                // Then read the rest of the rows as a normal TSV.
-                else {
-                    let mut entry = Self::get_new_row(&definition, Some(&table_type));
+        for (row, record) in records.enumerate() {
+            match record {
+                Ok(record) => {
+                    let mut entry = Self::new_row(&definition, schema_patches);
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.
                         if let Some(column_name) = field_order.get(&(column as u32)) {
-                            if let Some(column_number) = fields_processed.iter().position(|x| x.get_name() == column_name) {
+                            if let Some(column_number) = fields_processed.iter().position(|x| x.name() == column_name) {
 
-                                entry[column_number] = match fields_processed[column_number].get_ref_field_type() {
-                                    FieldType::Boolean => {
-                                        let value = field.to_lowercase();
-                                        if value == "true" || value == "1" { DecodedData::Boolean(true) }
-                                        else if value == "false" || value == "0" { DecodedData::Boolean(false) }
-                                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
-                                    }
-                                    FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
-                                    FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
-                                    FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
-                                    FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
-                                    FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
-                                    FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(field, 16).map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?),
+                                entry[column_number] = match fields_processed[column_number].field_type() {
+                                    FieldType::Boolean => parse_str_as_bool(field).map(|x| DecodedData::Boolean(x)).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?,
+                                    FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::I32 => DecodedData::I32(field.parse::<i32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::I64 => DecodedData::I64(field.parse::<i64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::OptionalI16 => DecodedData::OptionalI16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::OptionalI32 => DecodedData::OptionalI32(field.parse::<i32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::OptionalI64 => DecodedData::OptionalI64(field.parse::<i64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
+                                    FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(field, 16).map(|x| x.to_string()).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                     FieldType::StringU8 => DecodedData::StringU8(field.to_owned()),
                                     FieldType::StringU16 => DecodedData::StringU16(field.to_owned()),
                                     FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(field.to_owned()),
                                     FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(field.to_owned()),
 
                                     // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
-                                    FieldType::SequenceU16(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()),
-                                    FieldType::SequenceU32(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
+                                    // TODO: Export sequences as json strings or base64 strings.
+                                    FieldType::SequenceU16(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column).into()),
+                                    FieldType::SequenceU32(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column).into())
                                 }
                             }
                         }
                     }
                     entries.push(entry);
                 }
+                Err(_) => return Err(RLibError::ImportTSVIncorrectRow(row, 0).into()),
             }
-            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0).into()); }
         }
 
         // If we reached this point without errors, we replace the old data with the new one and return success.
-        let mut table = Table::new(&definition);
-        table.set_table_data(&entries)?;
-        Ok((table, file_path))
+        table.set_data(None, &entries)?;
+        Ok(table)
     }
 
+    /// This function exports the provided data to a TSV file.
+    pub(crate) fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
+
+        let fields_processed = self.definition().fields_processed();
+        let fields_sorted = self.definition().fields_processed_sorted(true);
+        let fields_sorted_properly = fields_sorted.iter()
+            .map(|field_sorted| (fields_processed.iter().position(|field| field == field_sorted).unwrap(), field_sorted))
+            .collect::<Vec<(_,_)>>();
+
+        // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+        let metadata = (format!("#{};{};{}", self.table_name(), self.definition().version(), table_path), vec![String::new(); fields_sorted_properly.len() - 1]);
+        writer.serialize(fields_sorted_properly.iter().map(|(_, field)| field.name()).collect::<Vec<&str>>())?;
+        writer.serialize(metadata)?;
+
+        // Then we serialize each entry in the DB Table.
+        let entries = self.data(&None)?;
+        for entry in &*entries {
+            let sorted_entry = fields_sorted_properly.iter()
+                .map(|(index, _)| &entry[*index])
+                .collect::<Vec<&DecodedData>>();
+            writer.serialize(sorted_entry)?;
+        }
+
+        writer.flush().map_err(From::from)
+    }
+
+    /*
     /// This function imports a TSV file into a new Table File.
     fn import_tsv_to_binary_file(
         schema: &Schema,
@@ -2028,7 +2003,7 @@ impl Table {
 
                     // Otherwise, is an error.
                     else {
-                        return Err(ErrorKind::ImportTSVWrongTypeTable.into())
+                        return Err(RLibError::ImportTSVWrongTypeTable.into())
                     };
 
                     // Get the type and version of the table, then the definition.
@@ -2038,8 +2013,8 @@ impl Table {
                             table_type.remove(0);
                         }
                         table_type
-                    } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
-                    let table_version = if let Some(table_version) = record_data.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
+                    } else { return Err(RLibError::ImportTSVWrongTypeTable.into()) };
+                    let table_version = if let Some(table_version) = record_data.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(RLibError::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
 
                     definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
                     else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
@@ -2206,7 +2181,12 @@ impl Table {
 
         writer.flush().map_err(From::from)
     }
-    */
+*/
+
+    //----------------------------------------------------------------//
+    // Util functions for tables.
+    //----------------------------------------------------------------//
+
     /// This function escapes certain characters of the provided string.
     fn escape_special_chars(data: &str)-> String {
          let mut output = Vec::with_capacity(data.len() + 10);

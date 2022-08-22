@@ -51,9 +51,11 @@
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 //! [`Unknown`]: crate::files::unknown::Unknown
 
+#[cfg(feature = "integration_log")] use log::warn;
 #[cfg(feature = "integration_sqlite")] use r2d2::Pool;
 #[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 
+use csv::{ReaderBuilder, WriterBuilder};
 use getset::*;
 use rayon::prelude::*;
 use regex::Regex;
@@ -378,7 +380,9 @@ pub trait Container {
     /// with the same path, in case it already existed one.
     ///
     /// If `keep_container_path_structure` is true, the folder structure the file in question has within the container will be replicated on disk.
-    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool) -> Result<()> {
+    ///
+    /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
+    fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>) -> Result<()> {
         match container_path {
             ContainerPath::File(container_path) => {
                 let mut container_path = container_path.to_owned();
@@ -396,10 +400,50 @@ pub trait Container {
                 destination_folder.pop();
                 DirBuilder::new().recursive(true).create(&destination_folder)?;
 
-                let mut file = BufWriter::new(File::create(&destination_path)?);
                 let rfile = self.files_mut().get_mut(&container_path).ok_or(RLibError::FileNotFound(container_path.to_string()))?;
-                let data = rfile.encode(&None, false, false, true)?.unwrap();
-                file.write_all(&data).map_err(From::from)
+
+                // If we want to extract as tsv and we got a db/loc, export to tsv.
+                if let Some(schema) = schema {
+                    if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::Loc {
+                        let mut destination_path_tsv = destination_path.to_owned();
+
+                        // Make sure to NOT replace the extension if there is one, only append to it.
+                        match destination_path_tsv.extension() {
+                            Some(extension) => {
+                                let extension = format!("{}.tsv", extension.to_string_lossy());
+                                destination_path_tsv.set_extension(extension)
+                            },
+                            None => destination_path_tsv.set_extension("tsv"),
+                        };
+
+                        let result = rfile.tsv_export_to_path(&destination_path_tsv, schema);
+
+                        // If it fails to extract as tsv, extract as binary.
+                        if result.is_err() {
+
+                            #[cfg(feature = "integration_log")] {
+                                warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
+                            }
+
+                            let mut file = BufWriter::new(File::create(&destination_path)?);
+                            let data = rfile.encode(&None, false, false, true)?.unwrap();
+                            file.write_all(&data).map_err(From::from)
+                        } else {
+                            result
+                        }
+                    } else {
+                        let mut file = BufWriter::new(File::create(&destination_path)?);
+                        let data = rfile.encode(&None, false, false, true)?.unwrap();
+                        file.write_all(&data).map_err(From::from)
+                    }
+                }
+
+                // Otherwise, just write the binary data to disk.
+                else {
+                    let mut file = BufWriter::new(File::create(&destination_path)?);
+                    let data = rfile.encode(&None, false, false, true)?.unwrap();
+                    file.write_all(&data).map_err(From::from)
+                }
             }
             ContainerPath::Folder(container_path) => {
                 let mut container_path = container_path.to_owned();
@@ -420,9 +464,46 @@ pub trait Container {
                     destination_folder.pop();
                     DirBuilder::new().recursive(true).create(&destination_folder)?;
 
-                    let mut file = BufWriter::new(File::create(&destination_path)?);
-                    let data = rfile.encode(&None, false, false, true)?.unwrap();
-                    file.write_all(&data)?;
+                    // If we want to extract as tsv and we got a db/loc, export to tsv.
+                    if let Some(schema) = schema {
+                        if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::Loc {
+                            let mut destination_path_tsv = destination_path.to_owned();
+
+                            // Make sure to NOT replace the extension if there is one, only append to it.
+                            match destination_path_tsv.extension() {
+                                Some(extension) => {
+                                    let extension = format!("{}.tsv", extension.to_string_lossy());
+                                    destination_path_tsv.set_extension(extension)
+                                },
+                                None => destination_path_tsv.set_extension("tsv"),
+                            };
+
+                            let result = rfile.tsv_export_to_path(&destination_path_tsv, schema);
+
+                            // If it fails to extract as tsv, extract as binary.
+                            if result.is_err() {
+
+                                #[cfg(feature = "integration_log")] {
+                                    warn!("File with path {} failed to extract as TSV. Extracting it as binary.", rfile.path_in_container_raw());
+                                }
+
+                                let mut file = BufWriter::new(File::create(&destination_path)?);
+                                let data = rfile.encode(&None, false, false, true)?.unwrap();
+                                file.write_all(&data)?;
+                            }
+                        } else {
+                            let mut file = BufWriter::new(File::create(&destination_path)?);
+                            let data = rfile.encode(&None, false, false, true)?.unwrap();
+                            file.write_all(&data)?;
+                        }
+                    }
+
+                    // Otherwise, just write the binary data to disk.
+                    else {
+                        let mut file = BufWriter::new(File::create(&destination_path)?);
+                        let data = rfile.encode(&None, false, false, true)?.unwrap();
+                        file.write_all(&data)?;
+                    }
                 }
 
                 Ok(())
@@ -444,8 +525,11 @@ pub trait Container {
     /// This method allow us to insert a file from disk into an specific path within a Container,
     /// replacing any old [RFile] with the same path, in case it already existed one.
     ///
+    /// If a [Schema](rpfm_lib::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If it fails to convert a file, it'll import it as a normal file instead.
+    ///
     /// Returns the [ContainerPath] of the inserted [RFile].
-    fn insert_file(&mut self, source_path: &Path, container_path_folder: &str) -> Result<ContainerPath> {
+    fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<ContainerPath> {
         let mut container_path_folder = container_path_folder.to_owned();
         if container_path_folder.starts_with("/") {
             container_path_folder.remove(0);
@@ -458,16 +542,55 @@ pub trait Container {
             container_path_folder = container_path_folder.to_owned() + &trimmed_path;
         }
 
-        let mut rfile = RFile::new_from_file_path(&source_path)?;
-        rfile.set_path_in_container_raw(&container_path_folder);
+        // If tsv import is enabled, try to import the file to binary before adding it to the Container.
+        let mut tsv_imported = false;
+        let mut rfile = match schema {
+            Some(schema) => {
+                match source_path.extension() {
+                    Some(extension) => {
+                        if extension.to_string_lossy() == "tsv" {
+                            tsv_imported = true;
+                            let rfile = RFile::tsv_import_from_path(&source_path, &schema);
+                            if rfile.is_err() {
+
+                                #[cfg(feature = "integration_log")] {
+                                    warn!("File with path {} failed to import as TSV. Importing it as binary.", &source_path.to_string_lossy());
+                                }
+
+                                tsv_imported = false;
+                                RFile::new_from_file_path(&source_path)
+                            } else {
+                                rfile
+                            }
+                        } else {
+                            RFile::new_from_file_path(&source_path)
+                        }
+                    }
+                    None => {
+                        RFile::new_from_file_path(&source_path)
+                    }
+                }
+            }
+            None => {
+                RFile::new_from_file_path(&source_path)
+            }
+        }?;
+
+        if !tsv_imported {
+            rfile.set_path_in_container_raw(&container_path_folder);
+        }
+
         self.insert(rfile)
     }
 
     /// This method allow us to insert an entire folder from disk, including subfolders and files,
     /// into an specific path within a Container, replacing any old [RFile] in a path collision.
     ///
+    /// If a [Schema](rpfm_lib::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If it fails to convert a file, it'll import it as a normal file instead.
+    ///
     /// Returns the list of [ContainerPath] inserted.
-    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str) -> Result<Vec<ContainerPath>> {
+    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.to_owned();
         if !container_path_folder.is_empty() && !container_path_folder.ends_with("/") {
             container_path_folder.push('/');
@@ -483,8 +606,44 @@ pub trait Container {
             let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().to_string();
             let file_container_path = container_path_folder.to_owned() + &trimmed_path;
 
-            let mut rfile = RFile::new_from_file_path(&file_path)?;
-            rfile.set_path_in_container_raw(&file_container_path);
+            // If tsv import is enabled, try to import the file to binary before adding it to the Container.
+            let mut tsv_imported = false;
+            let mut rfile = match schema {
+                Some(schema) => {
+                    match file_path.extension() {
+                        Some(extension) => {
+                            if extension.to_string_lossy() == "tsv" {
+                                tsv_imported = true;
+                                let rfile = RFile::tsv_import_from_path(&file_path, &schema);
+                                if rfile.is_err() {
+
+                                    #[cfg(feature = "integration_log")] {
+                                        warn!("File with path {} failed to import as TSV. Importing it as binary.", &file_path.to_string_lossy());
+                                    }
+
+                                    tsv_imported = false;
+                                    RFile::new_from_file_path(&file_path)
+                                } else {
+                                    rfile
+                                }
+                            } else {
+                                RFile::new_from_file_path(&file_path)
+                            }
+                        }
+                        None => {
+                            RFile::new_from_file_path(&file_path)
+                        }
+                    }
+                }
+                None => {
+                    RFile::new_from_file_path(&file_path)
+                }
+            }?;
+
+            if !tsv_imported {
+                rfile.set_path_in_container_raw(&file_container_path);
+            }
+
             inserted_paths.push(self.insert(rfile)?);
         }
 
@@ -1331,6 +1490,125 @@ impl RFile {
         }
 
         Ok(())
+    }
+
+    /// This function allows to import a TSV file on the provided Path into a binary database file.
+    ///
+    /// It requires the path on disk of the TSV file and the Schema to use.
+    pub fn tsv_import_from_path(path: &Path, schema: &Schema) -> Result<Self> {
+
+        // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
+        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+        let mut reader = ReaderBuilder::new()
+            .delimiter(b'\t')
+            .quoting(false)
+            .has_headers(true)
+            .flexible(true)
+            .from_path(&path)?;
+
+        // If we successfully load the TSV file into a reader, check the first line to get the column list and order.
+        let field_order = reader.headers()?
+            .iter()
+            .enumerate()
+            .map(|(x, y)| (x as u32, y.to_owned()))
+            .collect::<HashMap<u32, String>>();
+
+        // Get the record iterator so we can check the metadata from the second row.
+        let mut records = reader.records();
+        let (table_type, table_version, file_path) = match records.next() {
+            Some(Ok(record)) => {
+                let metadata = match record.get(0) {
+                    Some(metadata) => metadata.split(';').map(|x| x.to_owned()).collect::<Vec<String>>(),
+                    None => return Err(RLibError::ImportTSVWrongTypeTable.into()),
+                };
+
+                let table_type = match metadata.get(0) {
+                    Some(table_type) => {
+                        let mut table_type = table_type.to_owned();
+                        if table_type.starts_with("#") {
+                            table_type.remove(0);
+                        }
+                        table_type
+                    },
+                    None => return Err(RLibError::ImportTSVWrongTypeTable.into()),
+                };
+
+                let table_version = match metadata.get(1) {
+                    Some(table_version) => table_version.parse::<i32>().map_err(|_| RLibError::ImportTSVInvalidVersion)?,
+                    None => return Err(RLibError::ImportTSVInvalidVersion.into()),
+                };
+
+                let file_path = match metadata.get(2) {
+                    Some(file_path) => file_path.to_owned(),
+                    None => return Err(RLibError::ImportTSVInvalidOrMissingPath.into()),
+                };
+
+                (table_type, table_version, file_path)
+            }
+            Some(Err(_)) |
+            None => return Err(RLibError::ImportTSVIncorrectRow(1, 0)),
+        };
+
+        // Once we get the metadata, we know what kind of file we have. Create it and pass the records.
+        let (file_type, decoded) = match &*table_type {
+            loc::TSV_NAME_LOC => {
+                let decoded = Loc::tsv_import(records, &field_order)?;
+                (FileType::Loc, RFileDecoded::Loc(decoded))
+            }
+
+            // Any other name is assumed to be a db table.
+            _ => {
+                let decoded = DB::tsv_import(records, &field_order, schema, &table_type, table_version)?;
+                (FileType::DB, RFileDecoded::DB(decoded))
+            }
+        };
+
+        let rfile = RFile::new_from_decoded(&decoded, file_type, 0, &file_path)?;
+        Ok(rfile)
+    }
+
+    /// This function allows to export a RFile into a TSV file on disk.
+    ///
+    /// Only supported for DB and Loc files.
+    pub fn tsv_export_to_path(&mut self, path: &Path, schema: &Schema) -> Result<()> {
+
+        // Make sure the folder actually exists.
+        let mut folder_path = path.to_path_buf();
+        folder_path.pop();
+        DirBuilder::new().recursive(true).create(&folder_path)?;
+
+        // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
+        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+        let mut writer = WriterBuilder::new()
+            .delimiter(b'\t')
+            .has_headers(false)
+            .flexible(true)
+            .from_path(path)?;
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+
+        let extra_data = Some(extra_data);
+
+        // If it fails in decoding, delete the tsv file.
+        let file = self.decode(&extra_data, false, true);
+        if let Err(error) = file {
+            let _ = std::fs::remove_file(path);
+            return Err(error);
+        }
+
+        let file = match file?.unwrap() {
+            RFileDecoded::DB(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
+            RFileDecoded::Loc(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
+            _ => unimplemented!()
+        };
+
+        // If the tsv export failed, delete the tsv file.
+        if file.is_err() {
+            let _ = std::fs::remove_file(path);
+        }
+
+        file
     }
 }
 
