@@ -796,6 +796,41 @@ pub trait Container {
         }
     }
 
+    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
+    ///
+    /// Use this instead of [files_by_path_mut] if you need to get mutable references to multiple files on different [ContainerPath].
+    fn files_by_paths_mut(&mut self, paths: &[ContainerPath]) -> Vec<&mut RFile> {
+        self.files_mut()
+            .iter_mut()
+            .filter(|(file_path, _)| {
+                paths.iter().any(|path| {
+                    match path {
+                        ContainerPath::File(path) => file_path == &path,
+                        ContainerPath::Folder(path) => file_path.starts_with(path),
+                    }
+                })
+            })
+            .map(|(_, file)| file)
+            .collect()
+    }
+
+    /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath]
+    /// and are of one of the provided [FileType].
+    fn files_by_type_and_paths(&self, file_types: &[FileType], paths: &[ContainerPath]) -> Vec<&RFile> {
+        paths.iter()
+            .map(|path| self.files_by_path(path)
+                .into_iter()
+                .filter(|file| file_types.contains(&file.file_type()))
+                .collect::<Vec<_>>()
+            ).flatten().collect()
+    }
+
+    /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath]
+    /// and are of one of the provided [FileType].
+    fn files_by_type_and_paths_mut(&mut self, file_types: &[FileType], paths: &[ContainerPath]) -> Vec<&mut RFile> {
+        self.files_by_paths_mut(paths).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
+    }
+
     /// This method returns the list of [ContainerPath] corresponding to RFiles within the provided Container.
     fn paths(&self) -> Vec<ContainerPath> {
         self.files()
@@ -810,6 +845,32 @@ pub trait Container {
             .par_iter()
             .map(|(path, _)| &**path)
             .collect()
+    }
+
+    /// This function returns the list of paths (as [String]) corresponding to RFiles that match the provided [ContainerPath].
+    fn paths_raw_from_container_path(&self, path: &ContainerPath) -> Vec<String> {
+        match path {
+            ContainerPath::File(path) => vec![path.to_owned(); 1],
+            ContainerPath::Folder(path) => {
+
+                // If the path is empty, get everything.
+                if path.is_empty() {
+                    self.paths_raw().iter().map(|x| x.to_string()).collect()
+                }
+
+                // Otherwise, only get the paths under our folder.
+                else {
+                    self.files().par_iter()
+                        .filter_map(|(key, file)|
+                            if key.starts_with(path) {
+                                Some(file.path_in_container_raw().to_owned())
+                            } else {
+                                None
+                            }
+                        ).collect::<Vec<String>>()
+                }
+            },
+        }
     }
 
     /// This method returns the `Last modified date` stored on the provided Container, in seconds.
@@ -1040,12 +1101,22 @@ impl RFile {
     }
 
 
-    /// This function returns the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
+    /// This function returns a reference to the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
     ///
     /// Useful for accessing preloaded data.
     pub fn decoded(&self) -> Result<&RFileDecoded> {
-        match &self.data {
-            RFileInnerData::Decoded(data) => Ok(data),
+        match self.data {
+            RFileInnerData::Decoded(ref data) => Ok(data),
+            _ => Err(RLibError::FileNotDecoded(self.path_in_container_raw().to_string()))
+        }
+    }
+
+    /// This function returns a mutable reference to the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
+    ///
+    /// Useful for accessing preloaded data.
+    pub fn decoded_mut(&mut self) -> Result<&mut RFileDecoded> {
+        match self.data {
+            RFileInnerData::Decoded(ref mut data) => Ok(data),
             _ => Err(RLibError::FileNotDecoded(self.path_in_container_raw().to_string()))
         }
     }

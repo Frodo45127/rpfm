@@ -449,6 +449,50 @@ impl Dependencies {
         Ok(None)
     }
 
+    /// This function returns a reference to all files of the specified FileTypes from the cache, if any, along with their path.
+    pub fn files_by_types(&self, file_types: &[FileType], include_vanilla: bool, include_parent: bool) -> HashMap<String, &RFile> {
+        let mut files = HashMap::new();
+
+        // Vanilla first, so if parent files are found, they overwrite vanilla files.
+        if include_vanilla {
+            files = self.parent_files.par_iter()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect();
+        }
+
+        if include_parent {
+            files.extend(self.vanilla_files.par_iter()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect::<HashMap<_,_>>());
+        }
+
+        files
+    }
+
+    /// This function returns a mutable reference to all files of the specified FileTypes from the cache, if any, along with their path.
+    pub fn files_by_types_mut(&mut self, file_types: &[FileType], include_vanilla: bool, include_parent: bool) -> HashMap<String, &mut RFile> {
+        let mut files = HashMap::new();
+
+        // Vanilla first, so if parent files are found, they overwrite vanilla files.
+        if include_vanilla {
+            files = self.parent_files.par_iter_mut()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect();
+        }
+
+        if include_parent {
+            files.extend(self.vanilla_files.par_iter_mut()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect::<HashMap<_,_>>());
+        }
+
+        files
+    }
+
     /// This function returns the vanilla/parent locs from the cache, according to the params you pass it.
     ///
     /// It returns them in the order the game will load them.

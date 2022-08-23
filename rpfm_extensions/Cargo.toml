@@ -17,6 +17,9 @@ getset = "^0.1"
 # Support for advanced iter stuff.
 itertools = "^0.10"
 
+# Regex support.
+regex = "^1"
+
 # Support for advanced regex stuff (I think, I have to check if I can replace it with the normal regex crate).
 fancy-regex = "^0.10"
 

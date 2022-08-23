@@ -365,6 +365,32 @@ impl DecodedData {
             DecodedData::SequenceU32(_) => Cow::from("SequenceU32"),
         }
     }
+
+    /// This function tries to change the current data with the new one provided.
+    ///
+    /// It may fail if the new data is not pareseable to the type required of the current data.
+    pub fn set_data(&mut self, new_data: &str) -> Result<()> {
+        match self {
+            Self::Boolean(data) => *data = parse_str_as_bool(new_data)?,
+            Self::F32(data) => *data = new_data.parse::<f32>()?,
+            Self::F64(data) => *data = new_data.parse::<f64>()?,
+            Self::I16(data) => *data = new_data.parse::<i16>()?,
+            Self::I32(data) => *data = new_data.parse::<i32>()?,
+            Self::I64(data) => *data = new_data.parse::<i64>()?,
+            Self::ColourRGB(data) => *data = new_data.to_string(),
+            Self::StringU8(data) => *data = new_data.to_string(),
+            Self::StringU16(data) => *data = new_data.to_string(),
+            Self::OptionalI16(data) => *data = new_data.parse::<i16>()?,
+            Self::OptionalI32(data) => *data = new_data.parse::<i32>()?,
+            Self::OptionalI64(data) => *data = new_data.parse::<i64>()?,
+            Self::OptionalStringU8(data) => *data = new_data.to_string(),
+            Self::OptionalStringU16(data) => *data = new_data.to_string(),
+            Self::SequenceU16(data) => *data = new_data.as_bytes().to_vec(),
+            Self::SequenceU32(data) => *data = new_data.as_bytes().to_vec(),
+        };
+
+        Ok(())
+    }
 }
 
 //----------------------------------------------------------------//

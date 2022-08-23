@@ -1412,6 +1412,7 @@ dependencies = [
  "getset",
  "itertools",
  "rayon",
+ "regex",
  "rpfm_lib",
  "serde",
  "serde_derive",
