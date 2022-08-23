@@ -1696,8 +1696,7 @@ pub fn background_loop() {
                                     let _ = file.write_all(format!("
 {{
     \"Lua.workspace.library\": [
-        \"{folder}/all.lua\",
-        \"{folder}/tw_events_and_interfaces.lua\",
+        \"{folder}/global/\",
         \"{folder}/campaign/\",
         \"{folder}/frontend/\",
         \"{folder}/battle/\"
@@ -1732,8 +1731,7 @@ pub fn background_loop() {
     ],
     \"settings\": {{
         \"Lua.workspace.library\": [
-            \"{folder}/all.lua\",
-            \"{folder}/tw_events_and_interfaces.lua\",
+            \"{folder}/global/\",
             \"{folder}/campaign/\",
             \"{folder}/frontend/\",
             \"{folder}/battle/\"
