@@ -192,7 +192,7 @@ pub enum CommandsPack {
         #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
         tsv_to_binary: PathBuf,
 
-        /// File to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the file in the root of the Pack.
+        /// File to add, and folder within the Pack where to add it to, separated by semicolon. If no folder to add to is provided, it'll add the file in the root of the Pack.
         ///
         /// If the folder ends with /, the file will be added in that folder with its original name.
         /// If it doesn't, the last part of the path will be the new file's name.
@@ -201,7 +201,7 @@ pub enum CommandsPack {
         #[clap(short, long, action, required = false, multiple = true, value_parser = add_file_from_csv, name = "FILE_PATH,FOLDER_TO_ADD_TO")]
         file_path: Vec<(PathBuf, String)>,
 
-        /// Folder to add, and folder within the Pack where to add it to, separated by comma. If no folder to add to is provided, it'll add the folder in the root of the Pack.
+        /// Folder to add, and folder within the Pack where to add it to, separated by semicolon. If no folder to add to is provided, it'll add the folder in the root of the Pack.
         ///
         /// This can be repeated as many times as folders you want to add.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = add_folder_from_csv, name = "FOLDER_PATH,FOLDER_TO_ADD_TO")]
@@ -241,13 +241,13 @@ pub enum CommandsPack {
         #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
         tables_as_tsv: PathBuf,
 
-        /// File to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the file to the current folder.
+        /// File to extract, and folder where to extract it to, separated by semicolon. If no folder to extract to is provided, it'll extract the file to the current folder.
         ///
         /// This can be repeated as many times as files you want to extract.
         #[clap(short, long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FILE_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         file_path: Vec<(String, PathBuf)>,
 
-        /// Folder to extract, and folder where to extract it to, separated by comma. If no folder to extract to is provided, it'll extract the folder to the current folder. If only '/' is provided as 'folder to extract', it'll extract the entire Pack.
+        /// Folder to extract, and folder where to extract it to, separated by semicolon. If no folder to extract to is provided, it'll extract the folder to the current folder. If only '/' is provided as 'folder to extract', it'll extract the entire Pack.
         ///
         /// This can be repeated as many times as folders you want to extract.
         #[clap(short = 'F', long, action, required = false, multiple = true, value_parser = extract_from_csv, name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]

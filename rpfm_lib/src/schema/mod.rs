@@ -99,8 +99,8 @@ pub const SCHEMA_FOLDER: &str = "schemas";
 const BINARY_EXTENSION: &str = ".bin";
 
 pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
-pub const REMOTE: &str = "origin";
-pub const BRANCH: &str = "master";
+pub const SCHEMA_REMOTE: &str = "origin";
+pub const SCHEMA_BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purposes.
 const CURRENT_STRUCTURAL_VERSION: u16 = 5;
