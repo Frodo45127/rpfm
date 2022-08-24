@@ -23,7 +23,7 @@ use std::rc::Rc;
 
 use rpfm_lib::packfile::PathType;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;

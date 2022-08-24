@@ -28,11 +28,11 @@ use qt_core::QPtr;
 
 use std::rc::Rc;
 
-use rpfm_lib::GAME_SELECTED;
+use crate::GAME_SELECTED;
 
 use crate::SUPPORTED_GAMES;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::locale::qtr;
 use crate::utils::create_grid_layout;
 use self::slots::MyModUISlots;

@@ -32,8 +32,6 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
 
-
-
 use crate::ffi::*;
 use crate::locale::qtr;
 use crate::utils::create_grid_layout;
@@ -142,7 +140,7 @@ impl PackFileContentsUI {
         new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);
 
         // Not yet working.
-        if SETTINGS.read().unwrap().settings_bool["packfile_treeview_resize_to_fit"] {
+        if setting_bool("packfile_treeview_resize_to_fit") {
             //packfile_contents_tree_view.set_size_adjust_policy(qt_widgets::q_abstract_scroll_area::SizeAdjustPolicy::AdjustToContents);
             //packfile_contents_tree_view.horizontal_scroll_bar().set_disabled(true);
             //packfile_contents_tree_view.set_horizontal_scroll_bar_policy(qt_core::ScrollBarPolicy::ScrollBarAlwaysOff);

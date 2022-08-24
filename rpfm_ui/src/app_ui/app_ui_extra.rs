@@ -38,6 +38,8 @@ use qt_core::QSettings;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
 
+use anyhow::{anyhow, Result};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -46,44 +48,41 @@ use std::process::exit;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-use rpfm_common::{git_integration::*, utils::*};
-use rpfm_error::{ErrorKind, Result};
-
-use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::files::{animpack, FileType, loc, text, text::TextFormat};
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packedfile::{PackedFileType, animpack, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
-use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
-use rpfm_lib::SCHEMA;
+use rpfm_lib::integrations::{git::*, log::*};
+//use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
+use rpfm_lib::utils::*;
 
-use crate::SUPPORTED_GAMES;
-use rpfm_lib::settings::*;
-use rpfm_lib::tips::APIResponseTips;
-use rpfm_lib::updater::{APIResponse, CHANGELOG_FILE};
 
 use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::dependencies_ui::DependenciesUI;
-use crate::diagnostics_ui::DiagnosticsUI;
+//use crate::dependencies_ui::DependenciesUI;
+//use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::FIRST_GAME_CHANGE_DONE;
-use crate::global_search_ui::GlobalSearchUI;
+use crate::GAME_SELECTED;
+//use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
-use crate::packfile_contents_ui::PackFileContentsUI;
+//use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
+//use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
+//use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
-use crate::references_ui::ReferencesUI;
+//use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
+use crate::SCHEMA;
+use crate::settings_ui::backend::*;
+use crate::SUPPORTED_GAMES;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
-use crate::utils::{create_grid_layout, get_packed_file_type, show_dialog, show_dialog_decode_button, log_to_status_bar};
+use crate::updater::{APIResponse, CHANGELOG_FILE};
+use crate::utils::{create_grid_layout, file_type, show_dialog, show_dialog_decode_button, log_to_status_bar};
 
 #[cfg(feature = "support_rigidmodel")]
 use crate::packedfile_views::rigidmodel::*;
@@ -202,7 +201,7 @@ impl AppUI {
     ) -> Result<()> {
 
         if path.is_empty() {
-            log::info!("purging empty path? this is a bug.");
+            info!("purging empty path? this is a bug.");
         }
 
         let mut did_it_worked = Ok(());
@@ -303,7 +302,7 @@ impl AppUI {
             q_settings.set_value(&QString::from_std_str("recentFileList"), &QVariant::from_q_string_list(&paths));
         }
 
-        let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+        let timer = setting_int("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -841,7 +840,7 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            if setting_bool["diagnostics_trigger_on_open"] {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -881,7 +880,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                        if setting_bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -920,7 +919,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                        if setting_bool["diagnostics_trigger_on_open"] {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -959,7 +958,7 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                            if setting_bool["diagnostics_trigger_on_open"] {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -1064,7 +1063,7 @@ impl AppUI {
                                                     return show_dialog(&app_ui.main_window, error, false);
                                                 }
 
-                                                if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                                                if setting_bool["diagnostics_trigger_on_open"] {
 
                                                     // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                     app_ui.menu_bar_mymod.set_enabled(false);
@@ -1757,7 +1756,7 @@ impl AppUI {
                         // If the file is a RigidModel PackedFile...
                         #[cfg(feature = "support_rigidmodel")]
                         PackedFileType::RigidModel => {
-                            if SETTINGS.read().unwrap().settings_bool["enable_rigidmodel_editor"] {
+                            if setting_bool["enable_rigidmodel_editor"] {
                                 match PackedFileRigidModelView::new_view(&mut tab) {
                                     Ok(packed_file_info) => {
 
@@ -1857,7 +1856,7 @@ impl AppUI {
                         }
 
                         PackedFileType::ESF => {
-                            if SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
+                            if setting_bool["enable_esf_editor"] {
                                 match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                     Ok(packed_file_info) => {
 

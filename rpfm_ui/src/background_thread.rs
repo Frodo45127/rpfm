@@ -14,12 +14,13 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use anyhow::{anyhow, Result};
 use crossbeam::channel::Sender;
 use rpfm_lib::integrations::log::*;
 use open::that_in_background;
 use rayon::prelude::*;
 use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE};
-use uuid::Uuid;
+//use uuid::Uuid;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
@@ -28,35 +29,38 @@ use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::thread;
 
-use rpfm_common::{git_integration::GitIntegration, utils::*};
-use rpfm_error::{Error, ErrorKind};
+use rpfm_extensions::dependencies::Dependencies;
 
-use rpfm_lib::assembly_kit::*;
-use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
-use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packfile::PFHFileType;
-use rpfm_lib::packedfile::*;
-use rpfm_lib::packedfile::animpack::AnimPack;
-use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
-use rpfm_lib::packedfile::text::{Text, TextType};
-use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo, RawPackedFile}, PathType, PFHFlags, RESERVED_NAME_NOTES};
-use rpfm_lib::schema::{*, patch::SchemaPatches};
-use rpfm_lib::SCHEMA;
-use rpfm_lib::SCHEMA_PATCHES;
-use rpfm_lib::settings::*;
+use rpfm_lib::files::pack::Pack;
+use rpfm_lib::integrations::git::*;
+use rpfm_lib::utils::*;
 
-use crate::SUPPORTED_GAMES;
-use rpfm_lib::tips::Tips;
+
+//use rpfm_lib::assembly_kit::*;
+//use rpfm_lib::diagnostics::Diagnostics;
+//use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
+//use rpfm_lib::packfile::PFHFileType;
+//use rpfm_lib::packedfile::*;
+//use rpfm_lib::packedfile::animpack::AnimPack;
+//use rpfm_lib::packedfile::table::db::DB;
+//use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
+//use rpfm_lib::packedfile::text::{Text, TextType};
+//use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::{PackedFile, PackedFileInfo, RawPackedFile}, PathType, PFHFlags, RESERVED_NAME_NOTES};
+//use rpfm_lib::schema::{*, patch::SchemaPatches};
+//use rpfm_lib::settings::*;
+
+//use rpfm_lib::tips::Tips;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::GAME_SELECTED;
 use crate::locale::{tr, tre};
-use crate::packedfile_views::DataSource;
+//use crate::packedfile_views::DataSource;
 use crate::RPFM_PATH;
-use crate::views::table::TableType;
+use crate::SCHEMA;
+use crate::SUPPORTED_GAMES;
+//use crate::views::table::TableType;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -70,19 +74,14 @@ pub fn background_loop() {
     // We need two PackFiles:
     // - `pack_file_decoded`: This one will hold our opened PackFile.
     // - `pack_files_decoded_extra`: This one will hold the PackFiles opened for the `add_from_packfile` feature, using their paths as keys.
-    let mut pack_file_decoded = PackFile::new();
-    let mut pack_files_decoded_extra = BTreeMap::new();
+    let mut pack_file_decoded = Pack::default();
+    //let mut pack_files_decoded_extra = BTreeMap::new();
 
     // Preload the default game's dependencies.
     let mut dependencies = Dependencies::default();
 
     // Load all the tips we have.
-    let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
-
-    // Try to load the schema patchs. Ignore them if fails due to missing file.
-    if let Ok(schema_patches) = SchemaPatches::load() {
-        *SCHEMA_PATCHES.write().unwrap() = schema_patches;
-    }
+    //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -97,7 +96,7 @@ pub fn background_loop() {
 
             // Command to close the thread.
             Command::Exit => return,
-/*
+            /*
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 
@@ -116,7 +115,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
-                match PackFile::open_packfiles(&paths, SETTINGS.read().unwrap().settings_bool["use_lazy_loading"], false, false) {
+                match PackFile::open_packfiles(&paths, setting_bool["use_lazy_loading"], false, false) {
                     Ok(pack_file) => {
                         pack_file_decoded = pack_file;
 
@@ -248,7 +247,7 @@ pub fn background_loop() {
 
             // In case we want to change the current `Game Selected`...
             Command::SetGameSelected(game_selected) => {
-                *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.get_supported_game_from_key(&game_selected).unwrap();
+                *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&game_selected).unwrap();
 
                 // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUILD IT AFTERWARDS.
                 pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
@@ -1190,7 +1189,7 @@ pub fn background_loop() {
                 // Test to see if every DB Table can be decoded. This is slow and only useful when
                 // a new patch lands and you want to know what tables you need to decode. So, unless you want
                 // to decode new tables, leave the setting as false.
-                if SETTINGS.read().unwrap().settings_bool["check_for_missing_table_definitions"] {
+                if setting_bool["check_for_missing_table_definitions"] {
                     let mut counter = 0;
                     let mut table_list = String::new();
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -1407,9 +1406,9 @@ pub fn background_loop() {
             },
 
             Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringString(Loc::get_source_location_of_loc_key(&loc_key, &dependencies))),
-            Command::GetPackedFileType(path) => {
+            Command::FileType(path) => {
                 let packed_file = RawPackedFile::read_from_vec(path, String::new(), 0, false, vec![]);
-                CentralCommand::send_back(&sender, Response::PackedFileType(PackedFileType::get_packed_file_type(&packed_file, false)));
+                CentralCommand::send_back(&sender, Response::FileType(FileType::get_packed_file_type(&packed_file, false)));
             }
             Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.get_file_name())),
             Command::GetPackedFileRawData(path) => {
@@ -1649,7 +1648,7 @@ pub fn background_loop() {
                         };
 
                         // Create a repo inside the MyMod's folder.
-                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_git_repo"] {
+                        if !setting_bool["disable_mymod_automatic_git_repo"] {
                             let git_integration = GitIntegration::new(&mymod_path, "", "", "");
                             if let Err(error) = git_integration.init() {
                                 CentralCommand::send_back(&sender, Response::Error(From::from(error)));
@@ -1658,7 +1657,7 @@ pub fn background_loop() {
                         }
 
                         // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
-                        if !SETTINGS.read().unwrap().settings_bool["disable_mymod_automatic_configs"] {
+                        if !setting_bool["disable_mymod_automatic_configs"] {
                             if let Some(lua_autogen_folder) = GAME_SELECTED.read().unwrap().get_game_lua_autogen_path() {
                                 let lua_autogen_folder = lua_autogen_folder.replace("\\", "/");
 
@@ -1767,6 +1766,8 @@ pub fn background_loop() {
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        */}
+            */
+            _ => {}
+        }
     }
 }

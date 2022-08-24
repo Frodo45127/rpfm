@@ -213,7 +213,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 /// This function returns a new default row.
 pub unsafe fn get_new_row(table_definition: &Definition, table_name: Option<&str>) -> CppBox<QListOfQStandardItem> {
     let qlist = QListOfQStandardItem::new();
-    for field in table_definition.get_fields_processed() {
+    for field in table_definition.fields_processed() {
         let item = get_default_item_from_field(&field, table_name);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
@@ -446,7 +446,7 @@ pub unsafe fn load_data(
 
         // Load the data, row by row.
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
-        let keys = definition.get_fields_processed().iter().enumerate().filter_map(|(x, y)| if y.get_is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
+        let keys = definition.fields_processed().iter().enumerate().filter_map(|(x, y)| if y.get_is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
         for (row, entry) in data.iter().enumerate() {
             let qlist = QListOfQStandardItem::new();
             for (column, field) in entry.iter().enumerate() {
@@ -621,9 +621,9 @@ pub unsafe fn build_columns(
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut keys = vec![];
-    let tooltips = get_column_tooltips(&schema, &definition.get_fields_processed(), table_name);
+    let tooltips = get_column_tooltips(&schema, &definition.fields_processed(), table_name);
 
-    for (index, field) in definition.get_fields_processed().iter().enumerate() {
+    for (index, field) in definition.fields_processed().iter().enumerate() {
 
         let name = clean_column_names(field.get_name());
         let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
@@ -658,7 +658,7 @@ pub unsafe fn build_columns(
     // Now the order. If we have a sort order from the schema, we use that one.
     if !SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] && do_we_have_ca_order {
         let header_primary = table_view_primary.horizontal_header();
-        let mut fields = definition.get_fields_processed().iter()
+        let mut fields = definition.fields_processed().iter()
             .enumerate()
             .map(|(x, y)| (x, y.get_ca_order()))
             .collect::<Vec<(usize, i16)>>();
@@ -744,7 +744,7 @@ pub unsafe fn get_column_tooltips(
                             if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
                                 let mut found = false;
                                 for ref_version in ref_definition {
-                                    for ref_field in ref_version.get_fields_processed() {
+                                    for ref_field in ref_version.fields_processed() {
                                         if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
                                             if ref_ref_table == short_table_name && ref_ref_field == field.get_name() {
                                                 found = true;
@@ -861,7 +861,7 @@ pub unsafe fn setup_item_delegates(
     timer: &QBox<QTimer>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
-    for (column, field) in definition.get_fields_processed().iter().enumerate() {
+    for (column, field) in definition.fields_processed().iter().enumerate() {
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
@@ -967,7 +967,7 @@ pub unsafe fn get_table_from_view(
         let mut new_row: Vec<DecodedData> = vec![];
 
         // Bitwise columns can span across multiple columns. That means we have to keep track of the column ourselves.
-        for (column, field) in definition.get_fields_processed().iter().enumerate() {
+        for (column, field) in definition.fields_processed().iter().enumerate() {
 
             // Create a new Item.
             let item = match field.get_ref_field_type() {

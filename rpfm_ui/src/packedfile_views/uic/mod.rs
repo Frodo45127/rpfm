@@ -33,7 +33,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::uic::UIC;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::locale::qtr;

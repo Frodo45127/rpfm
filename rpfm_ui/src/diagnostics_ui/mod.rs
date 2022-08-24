@@ -48,15 +48,12 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
-use rpfm_lib::GAME_SELECTED;
+use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
+use crate::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::PathType;
 
-
-use rpfm_macros::{Getters, MutGetters, Set};
-
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
@@ -215,7 +212,7 @@ impl DiagnosticsUI {
         diagnostics_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
         diagnostics_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
-        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+        if setting_bool["tight_table_mode"] {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);

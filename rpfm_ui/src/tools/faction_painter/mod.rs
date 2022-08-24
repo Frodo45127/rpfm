@@ -999,7 +999,7 @@ impl ToolFactionPainter {
                 let definition = serde_json::from_str(definition)?;
                 let mut table = DB::new(&table_name, None, &definition);
 
-                let fields_processed = definition.get_fields_processed();
+                let fields_processed = definition.fields_processed();
                 let key_column = table.get_column_position_by_name(key_column_name)?;
 
                 let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
@@ -1064,7 +1064,7 @@ impl ToolFactionPainter {
                 let definition = serde_json::from_str(definition)?;
                 let mut table = DB::new(&table_name, None, &definition);
 
-                let fields_processed = definition.get_fields_processed();
+                let fields_processed = definition.fields_processed();
                 let key_column = table.get_column_position_by_name(key_column_name)?;
 
                 let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;

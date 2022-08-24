@@ -39,10 +39,7 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-
-use rpfm_macros::{Getters, MutGetters, Set};
-
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::new_tableview_filter_safe;
@@ -51,6 +48,7 @@ use crate::locale::qtr;
 use crate::pack_tree::PackTree;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::settings_ui::backend::*;
 use crate::utils::create_grid_layout;
 use crate::UI_STATE;
 
@@ -103,7 +101,7 @@ impl ReferencesUI {
         references_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
         references_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
-        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+        if setting_bool("tight_table_mode") {
             references_table_view.vertical_header().set_minimum_section_size(22);
             references_table_view.vertical_header().set_maximum_section_size(22);
             references_table_view.vertical_header().set_default_section_size(22);

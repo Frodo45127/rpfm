@@ -407,7 +407,7 @@ impl TableView {
                 }
 
                 // Fix for weird precision issues on copy.
-                else if self.table_definition.read().unwrap().get_fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
+                else if self.table_definition.read().unwrap().fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
                     copy.push_str(&format!("{}", (item.data_1a(2).to_float_0a() * 1000.0).round() / 1000.0));
                 }
                 else { copy.push_str(&QString::to_std_string(&item.text())); }
@@ -436,7 +436,7 @@ impl TableView {
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
-                    .any(|z| self.get_ref_table_definition().get_fields_processed()[z.column() as usize].get_is_key())
+                    .any(|z| self.get_ref_table_definition().fields_processed()[z.column() as usize].get_is_key())
             );
 
         let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
@@ -569,7 +569,7 @@ impl TableView {
         };
 
         let definition = self.get_ref_table_definition();
-        let fields_processed = definition.get_fields_processed();
+        let fields_processed = definition.fields_processed();
 
         let mut real_cells = vec![];
         let mut added_rows = 0;
@@ -833,7 +833,7 @@ impl TableView {
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index);
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             entry.1.push(data);
@@ -844,7 +844,7 @@ impl TableView {
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             table_data.push(entry);
@@ -854,7 +854,7 @@ impl TableView {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                        if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
@@ -910,14 +910,14 @@ impl TableView {
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
     unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
-        format!(" [\"{}\"] = {},", self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_name(), self.escape_string_from_index(index))
+        format!(" [\"{}\"] = {},", self.get_ref_table_definition().fields_processed()[index.column() as usize].get_name(), self.escape_string_from_index(index))
     }
 
     /// This function escapes the value inside an index.
     unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
         let item = self.table_model.item_from_index(index);
         let definition = &self.get_ref_table_definition().clone();
-        match definition.get_fields_processed()[index.column() as usize].get_ref_field_type() {
+        match definition.fields_processed()[index.column() as usize].get_ref_field_type() {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
             // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
@@ -1257,7 +1257,7 @@ impl TableView {
                 for column in columns {
                     let index = self.table_model.index_2a(*row, *column);
                     if index.is_valid() {
-                        match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
+                        match self.get_ref_table_definition().fields_processed()[*column as usize].get_ref_field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
                             FieldType::F32 => values.push(&*default_f32),
                             FieldType::F64 => values.push(&*default_f64),
@@ -1309,7 +1309,7 @@ impl TableView {
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
                 let definition = self.get_ref_table_definition();
-                match definition.get_fields_processed()[real_cell.column() as usize].get_ref_field_type() {
+                match definition.fields_processed()[real_cell.column() as usize].get_ref_field_type() {
 
                     FieldType::Boolean => {
                         let current_value = self.table_model.item_from_index(real_cell).check_state();
@@ -1490,7 +1490,7 @@ impl TableView {
             }
         }
 
-        if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
+        if setting_bool["table_resize_on_edit"] {
             self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 
@@ -1537,7 +1537,7 @@ impl TableView {
 
             // Get the tables/rows that need to be edited.
             let schema = SCHEMA.read().unwrap();
-            let edited_fields_processed = cascade_editions.get_ref_edited_table_definition().get_fields_processed();
+            let edited_fields_processed = cascade_editions.get_ref_edited_table_definition().fields_processed();
             editions.into_iter().for_each(|(old_data, new_data, _, column)| {
                 match cascade_editions.get_ref_mut_data_changes().get_mut(&(column as u32)) {
                     Some(data_changed) => data_changed.push((old_data, new_data)),
@@ -1677,7 +1677,7 @@ impl TableView {
         }
 
         let column_index = columns[0];
-        let field = self.get_ref_table_definition().get_fields_processed().get(column_index as usize).cloned().ok_or(Error::from(ErrorKind::Generic))?;
+        let field = self.get_ref_table_definition().fields_processed().get(column_index as usize).cloned().ok_or(Error::from(ErrorKind::Generic))?;
 
         // Create and configure the dialog.
         let view = if cfg!(debug_assertions) { PATCH_COLUMN_VIEW_DEBUG } else { PATCH_COLUMN_VIEW_RELEASE };
@@ -1765,7 +1765,7 @@ impl TableView {
                 // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
                 PackedFileType::DB => {
                     let index = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0));
-                    if let Some(field) = self.get_ref_table_definition().get_fields_processed().get(index.column() as usize) {
+                    if let Some(field) = self.get_ref_table_definition().fields_processed().get(index.column() as usize) {
                         if let Some((ref_table, ref_column)) = field.get_is_reference() {
                             Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
                         } else { None }
@@ -1908,7 +1908,7 @@ impl TableView {
 
                 let table_definition = self.get_ref_table_definition();
                 let key_field_names = table_definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
-                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.get_fields_processed().iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
+                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
 
                 let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);

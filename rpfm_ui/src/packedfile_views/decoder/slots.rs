@@ -36,7 +36,7 @@ use rpfm_lib::packedfile::table::loc::Loc;
 use rpfm_lib::packedfile::table::matched_combat::MatchedCombat;
 use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::SCHEMA;
+use crate::SCHEMA;
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;

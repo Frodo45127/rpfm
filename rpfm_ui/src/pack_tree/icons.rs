@@ -21,7 +21,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::packedfile::{text, text::TextType};
+use rpfm_lib::files::{text, text::*};
 
 use crate::ASSETS_PATH;
 use crate::TREEVIEW_ICONS;
@@ -113,13 +113,13 @@ impl IconType {
                 // If it ends in any of these, it's a plain text PackedFile.
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| packed_file_name.ends_with(extension)) {
                     match text_type {
-                        TextType::Html => &TREEVIEW_ICONS.text_xml,
-                        TextType::Xml => &TREEVIEW_ICONS.text_xml,
-                        TextType::Lua => &TREEVIEW_ICONS.text_generic,
-                        TextType::Cpp => &TREEVIEW_ICONS.text_generic,
-                        TextType::Plain => &TREEVIEW_ICONS.text_txt,
-                        TextType::Markdown => &TREEVIEW_ICONS.text_txt,
-                        TextType::Json => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Html => &TREEVIEW_ICONS.text_xml,
+                        TextFormat::Xml => &TREEVIEW_ICONS.text_xml,
+                        TextFormat::Lua => &TREEVIEW_ICONS.text_generic,
+                        TextFormat::Cpp => &TREEVIEW_ICONS.text_generic,
+                        TextFormat::Plain => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Markdown => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Json => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 
@@ -168,13 +168,13 @@ impl IconType {
                 // If it ends in any of these, it's a plain text PackedFile.
                 else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| packed_file_name.ends_with(extension)) {
                     match text_type {
-                        TextType::Html => &TREEVIEW_ICONS.text_xml,
-                        TextType::Xml => &TREEVIEW_ICONS.text_xml,
-                        TextType::Lua => &TREEVIEW_ICONS.text_generic,
-                        TextType::Cpp => &TREEVIEW_ICONS.text_generic,
-                        TextType::Plain => &TREEVIEW_ICONS.text_txt,
-                        TextType::Markdown => &TREEVIEW_ICONS.text_txt,
-                        TextType::Json => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Html => &TREEVIEW_ICONS.text_xml,
+                        TextFormat::Xml => &TREEVIEW_ICONS.text_xml,
+                        TextFormat::Lua => &TREEVIEW_ICONS.text_generic,
+                        TextFormat::Cpp => &TREEVIEW_ICONS.text_generic,
+                        TextFormat::Plain => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Markdown => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Json => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 

@@ -47,20 +47,19 @@ use qt_core::QObject;
 
 use cpp_core::Ptr;
 
+use anyhow::{anyhow, Result};
+
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::rc::Rc;
 
-use rpfm_common::utils::parse_str_as_bool;
-use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::utils::parse_str_as_bool;
 
-use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
+use rpfm_lib::files::FileType;
+use rpfm_lib::files::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
-use rpfm_lib::SCHEMA;
 
 
 use crate::app_ui::AppUI;
@@ -69,11 +68,14 @@ use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
+use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::references_ui::ReferencesUI;
+use crate::settings_ui::backend::*;
+use crate::SCHEMA;
 use crate::utils::*;
 
 use self::slots::*;
@@ -233,7 +235,7 @@ pub struct TableView {
     table_uuid: Option<String>,
     data_source: Arc<RwLock<DataSource>>,
     packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
-    packed_file_type: Arc<PackedFileType>,
+    packed_file_type: Arc<FileType>,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
     banned_table: bool,
@@ -318,13 +320,13 @@ impl TableView {
         set_frozen_data_model_safe(&table_view_primary.as_ptr(), &table_filter.static_upcast::<QAbstractItemModel>().as_ptr());
 
         // Make the last column fill all the available space, if the setting says so.
-        if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
+        if setting_bool("extend_last_column_on_tables") {
             table_view_primary.horizontal_header().set_stretch_last_section(true);
             table_view_frozen.horizontal_header().set_stretch_last_section(true);
         }
 
         // Setup tight mode if the setting is enabled.
-        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+        if setting_bool("tight_table_mode") {
             table_view_primary.vertical_header().set_minimum_section_size(22);
             table_view_primary.vertical_header().set_maximum_section_size(22);
             table_view_primary.vertical_header().set_default_section_size(22);
@@ -770,14 +772,14 @@ impl TableView {
         let search_column_selector = &self.search_column_selector;
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in self.table_definition.read().unwrap().get_fields_sorted() {
+        for column in self.table_definition.read().unwrap().fields_sorted() {
             let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
             search_column_selector.add_item_q_string(&name);
         }
 
         // Reset this setting so the last column gets resized properly.
-        table_view_primary.horizontal_header().set_stretch_last_section(!SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
-        table_view_primary.horizontal_header().set_stretch_last_section(SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
+        table_view_primary.horizontal_header().set_stretch_last_section(!setting_bool("extend_last_column_on_tables"));
+        table_view_primary.horizontal_header().set_stretch_last_section(setting_bool("extend_last_column_on_tables"));
     }
 
     /// This function returns a reference to the StandardItemModel widget.
@@ -1143,7 +1145,7 @@ impl TableSearch {
     ) {
 
         // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
-        let is_bool = definition.get_fields_processed()[column as usize].get_ref_field_type() == &FieldType::Boolean;
+        let is_bool = definition.fields_processed()[column as usize].field_type() == &FieldType::Boolean;
         let matches_unprocessed = if is_bool {
             match parse_str_as_bool(&self.pattern.to_std_string()) {
                 Ok(boolean) => {
@@ -1361,7 +1363,7 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().get_fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
@@ -1384,7 +1386,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.get_ref_table_definition().get_fields_processed().iter().position(|x| x.get_name() == column).unwrap() as i32) }
+                else { Some(parent.get_ref_table_definition().fields_processed().iter().position(|x| x.get_name() == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -1399,7 +1401,7 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().get_fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
@@ -1448,7 +1450,7 @@ impl TableSearch {
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                    if parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
+                    if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
                         replaced_text = text_replace;
                     }
                     else {
@@ -1457,7 +1459,7 @@ impl TableSearch {
                     }
 
                     // We need to do an extra check to ensure the new text can be in the field.
-                    match parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() {
+                    match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
                         FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1469,7 +1471,7 @@ impl TableSearch {
             } else { return }
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match parent.get_ref_table_definition().get_fields_processed()[item.column() as usize].get_ref_field_type() {
+            match parent.get_ref_table_definition().fields_processed()[item.column() as usize].field_type() {
                 FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                 FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -1515,7 +1517,7 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() {
+                        let original_text = match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
                             FieldType::F32 => item.data_0a().to_float_0a().to_string(),
                             FieldType::I16 => item.data_0a().to_int_0a().to_string(),
@@ -1524,7 +1526,7 @@ impl TableSearch {
                             _ => item.text().to_std_string(),
                         };
 
-                        let replaced_text = if parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
+                        let replaced_text = if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -1538,7 +1540,7 @@ impl TableSearch {
                         }
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() {
+                        match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() {
                             FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1555,7 +1557,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.get_ref_table_definition().get_fields_processed()[item.column() as usize].get_ref_field_type() {
+                match parent.get_ref_table_definition().fields_processed()[item.column() as usize].get_ref_field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),

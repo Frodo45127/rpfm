@@ -52,15 +52,15 @@ use std::rc::Rc;
 use rpfm_error::{ErrorKind, Result};
 use getset::*;
 
-use rpfm_lib::GAME_SELECTED;
+use crate::GAME_SELECTED;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc, Table};
-use rpfm_lib::SCHEMA;
+use crate::SCHEMA;
 use rpfm_lib::schema::{Definition, FieldType};
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -346,7 +346,7 @@ impl Tool {
                     }
 
                     let key_column = table.get_column_position_by_name(key_names[0])?;
-                    let fields = table.get_ref_definition().get_fields_processed();
+                    let fields = table.get_ref_definition().fields_processed();
 
                     // Depending of if it's a linked table or not, we get it as full new entries, or filling existing entries.
                     match linked_key_name {
@@ -476,7 +476,7 @@ impl Tool {
                 let mut table = DB::new(&table_name_end_tables, None, &serde_json::from_str(definition)?);
 
                 // Generate the table's data from empty rows + our data.
-                let table_fields = table.get_ref_definition().get_fields_processed();
+                let table_fields = table.get_ref_definition().fields_processed();
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
 
@@ -707,7 +707,7 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(&definition).unwrap();
-                definition.get_fields_processed()
+                definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.get_name()))
                     .for_each(|field| {
@@ -1067,7 +1067,7 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(&definition).unwrap();
-                definition.get_fields_processed()
+                definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.get_name()))
                     .for_each(|field| {
@@ -1201,7 +1201,7 @@ impl Tool {
 
         // Then go, definition by definition, searching source values within our data, and updating our data from them.
         for (table_name, definition) in &mut definitions {
-            definition.get_fields_processed()
+            definition.fields_processed()
                 .iter()
                 .for_each(|field| {
 

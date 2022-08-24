@@ -42,8 +42,9 @@ use crate::updater::STABLE;
 //use crate::tips::*;
 //use crate::updater::STABLE;
 
-const QT_ORG: &str = "FrodoWazEre";
-const QT_PROGRAM: &str = "rpfm";
+pub const QT_ORG: &str = "FrodoWazEre";
+
+pub const QT_PROGRAM: &str = "rpfm";
 
 /// Qualifier for the config folder. Only affects MacOS.
 const QUALIFIER: &str = "";
@@ -209,68 +210,86 @@ impl Settings {
 pub unsafe fn init_settings() {
     let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
 
-    set_setting_if_new_string(q_settings, MYMOD_BASE_PATH, "");
-    set_setting_if_new_string(q_settings, ZIP_PATH, "");
+    set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
+    set_setting_if_new_string(&q_settings, ZIP_PATH, "");
 
     for game in &SUPPORTED_GAMES.games() {
         let game_key = game.game_key_name();
-        set_setting_if_new_string(q_settings, &game_key, "");
+        set_setting_if_new_string(&q_settings, &game_key, "");
 
         if game_key != KEY_EMPIRE &&
             game_key != KEY_NAPOLEON &&
             game_key != KEY_ARENA {
 
-            set_setting_if_new_string(q_settings, &(game_key + "_assembly_kit"), "");
+            set_setting_if_new_string(&q_settings, &(game_key + "_assembly_kit"), "");
         }
     }
 
     // General Settings.
-    set_setting_if_new_string(q_settings, "default_game", KEY_WARHAMMER_3);
-    set_setting_if_new_string(q_settings, "language", "English_en");
-    set_setting_if_new_string(q_settings, "update_channel", STABLE);
-    set_setting_if_new_int(q_settings, "autosave_amount", 10);
-    set_setting_if_new_int(q_settings, "autosave_interval", 5);
-    set_setting_if_new_string(q_settings, "font_name", "");
-    set_setting_if_new_string(q_settings, "font_size", "");
+    set_setting_if_new_string(&q_settings, "default_game", KEY_WARHAMMER_3);
+    set_setting_if_new_string(&q_settings, "language", "English_en");
+    set_setting_if_new_string(&q_settings, "update_channel", STABLE);
+    set_setting_if_new_int(&q_settings, "autosave_amount", 10);
+    set_setting_if_new_int(&q_settings, "autosave_interval", 5);
+    set_setting_if_new_string(&q_settings, "font_name", "");
+    set_setting_if_new_string(&q_settings, "font_size", "");
 
     // UI Settings.
-    set_setting_if_new_bool(q_settings, "start_maximized", false);
-    set_setting_if_new_bool(q_settings, "use_dark_theme", false);
-    set_setting_if_new_bool(q_settings, "hide_background_icon", true);
-    set_setting_if_new_bool(q_settings, "allow_editing_of_ca_packfiles", false);
-    set_setting_if_new_bool(q_settings, "check_updates_on_start", true);
-    set_setting_if_new_bool(q_settings, "check_schema_updates_on_start", true);
-    set_setting_if_new_bool(q_settings, "check_message_updates_on_start", false);
-    set_setting_if_new_bool(q_settings, "check_lua_autogen_updates_on_start", true);
-    set_setting_if_new_bool(q_settings, "use_lazy_loading", true);
-    set_setting_if_new_bool(q_settings, "optimize_not_renamed_packedfiles", false);
-    set_setting_if_new_bool(q_settings, "disable_uuid_regeneration_on_db_tables", true);
-    set_setting_if_new_bool(q_settings, "packfile_treeview_resize_to_fit", false);
-    set_setting_if_new_bool(q_settings, "expand_treeview_when_adding_items", true);
-    set_setting_if_new_bool(q_settings, "use_right_size_markers", false);
-    set_setting_if_new_bool(q_settings, "disable_file_previews", false);
-    set_setting_if_new_bool(q_settings, "disable_mymod_automatic_git_repo", false);
-    set_setting_if_new_bool(q_settings, "disable_mymod_automatic_configs", false);
+    set_setting_if_new_bool(&q_settings, "start_maximized", false);
+    set_setting_if_new_bool(&q_settings, "use_dark_theme", false);
+    set_setting_if_new_bool(&q_settings, "hide_background_icon", true);
+    set_setting_if_new_bool(&q_settings, "allow_editing_of_ca_packfiles", false);
+    set_setting_if_new_bool(&q_settings, "check_updates_on_start", true);
+    set_setting_if_new_bool(&q_settings, "check_schema_updates_on_start", true);
+    set_setting_if_new_bool(&q_settings, "check_message_updates_on_start", false);
+    set_setting_if_new_bool(&q_settings, "check_lua_autogen_updates_on_start", true);
+    set_setting_if_new_bool(&q_settings, "use_lazy_loading", true);
+    set_setting_if_new_bool(&q_settings, "optimize_not_renamed_packedfiles", false);
+    set_setting_if_new_bool(&q_settings, "disable_uuid_regeneration_on_db_tables", true);
+    set_setting_if_new_bool(&q_settings, "packfile_treeview_resize_to_fit", false);
+    set_setting_if_new_bool(&q_settings, "expand_treeview_when_adding_items", true);
+    set_setting_if_new_bool(&q_settings, "use_right_size_markers", false);
+    set_setting_if_new_bool(&q_settings, "disable_file_previews", false);
+    set_setting_if_new_bool(&q_settings, "disable_mymod_automatic_git_repo", false);
+    set_setting_if_new_bool(&q_settings, "disable_mymod_automatic_configs", false);
 
     // Table Settings.
-    set_setting_if_new_bool(q_settings, "adjust_columns_to_content", true);
-    set_setting_if_new_bool(q_settings, "extend_last_column_on_tables", true);
-    set_setting_if_new_bool(q_settings, "disable_combos_on_tables", false);
-    set_setting_if_new_bool(q_settings, "tight_table_mode", false);
-    set_setting_if_new_bool(q_settings, "table_resize_on_edit", false);
-    set_setting_if_new_bool(q_settings, "tables_use_old_column_order", true);
+    set_setting_if_new_bool(&q_settings, "adjust_columns_to_content", true);
+    set_setting_if_new_bool(&q_settings, "extend_last_column_on_tables", true);
+    set_setting_if_new_bool(&q_settings, "disable_combos_on_tables", false);
+    set_setting_if_new_bool(&q_settings, "tight_table_mode", false);
+    set_setting_if_new_bool(&q_settings, "table_resize_on_edit", false);
+    set_setting_if_new_bool(&q_settings, "tables_use_old_column_order", true);
 
     // Debug Settings.
-    set_setting_if_new_bool(q_settings, "check_for_missing_table_definitions", false);
-    set_setting_if_new_bool(q_settings, "enable_debug_menu", false);
-    set_setting_if_new_bool(q_settings, "spoof_ca_authoring_tool", false);
-    set_setting_if_new_bool(q_settings, "enable_rigidmodel_editor", true);
-    set_setting_if_new_bool(q_settings, "enable_esf_editor", false);
-    set_setting_if_new_bool(q_settings, "enable_unit_editor", false);
+    set_setting_if_new_bool(&q_settings, "check_for_missing_table_definitions", false);
+    set_setting_if_new_bool(&q_settings, "enable_debug_menu", false);
+    set_setting_if_new_bool(&q_settings, "spoof_ca_authoring_tool", false);
+    set_setting_if_new_bool(&q_settings, "enable_rigidmodel_editor", true);
+    set_setting_if_new_bool(&q_settings, "enable_esf_editor", false);
+    set_setting_if_new_bool(&q_settings, "enable_unit_editor", false);
 
     // Diagnostics Settings
-    set_setting_if_new_bool(q_settings, "diagnostics_trigger_on_open", true);
-    set_setting_if_new_bool(q_settings, "diagnostics_trigger_on_table_edit", true);
+    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_open", true);
+    set_setting_if_new_bool(&q_settings, "diagnostics_trigger_on_table_edit", true);
+
+    // Colours.
+    set_setting_if_new_string(&q_settings, "colour_light_table_added", "#87ca00");
+    set_setting_if_new_string(&q_settings, "colour_light_table_modified", "#e67e22");
+    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_error", "#ff0000");
+    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_warning", "#bebe00");
+    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_info", "#55aaff");
+    set_setting_if_new_string(&q_settings, "colour_dark_table_added", "#00ff00");
+    set_setting_if_new_string(&q_settings, "colour_dark_table_modified", "#e67e22");
+    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_error", "#ff0000");
+    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_warning", "#cece67");
+    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_info", "#55aaff");
+
+    set_setting_if_new_string(&q_settings, "colour_light_local_tip", "#363636");
+    set_setting_if_new_string(&q_settings, "colour_light_remote_tip", "#7e7e7e");
+    set_setting_if_new_string(&q_settings, "colour_dark_local_tip", "#363636");
+    set_setting_if_new_string(&q_settings, "colour_dark_remote_tip", "#7e7e7e");
+
 
     q_settings.sync();
 }
@@ -320,7 +339,7 @@ pub fn set_setting_bool(setting: &str, value: bool) {
     }
 }
 
-pub fn set_setting_if_new_string(q_settings: QBox<QSettings>, setting: &str, value: &str) {
+pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
             q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
@@ -328,7 +347,7 @@ pub fn set_setting_if_new_string(q_settings: QBox<QSettings>, setting: &str, val
     }
 }
 
-pub fn set_setting_if_new_int(q_settings: QBox<QSettings>, setting: &str, value: i32) {
+pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
             q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
@@ -336,7 +355,7 @@ pub fn set_setting_if_new_int(q_settings: QBox<QSettings>, setting: &str, value:
     }
 }
 
-pub fn set_setting_if_new_bool(q_settings: QBox<QSettings>, setting: &str, value: bool) {
+pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
             q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));

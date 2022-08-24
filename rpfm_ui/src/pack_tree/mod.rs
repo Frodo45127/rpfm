@@ -42,8 +42,8 @@ use std::rc::Rc;
 
 use rpfm_lib::utils::*;
 
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
-use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
+//use rpfm_lib::packfile::packedfile::PackedFileInfo;
+//use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
 
 use crate::SUPPORTED_GAMES;
 
@@ -51,8 +51,8 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
-use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::DataSource;
+//use crate::packfile_contents_ui::PackFileContentsUI;
+//use crate::packedfile_views::DataSource;
 use crate::settings_ui::backend::*;
 use crate::utils::*;
 
@@ -110,7 +110,7 @@ const ITEM_STATUS_MODIFIED: i32 = 2;
 //-------------------------------------------------------------------------------//
 //                          Enums & Structs (and trait)
 //-------------------------------------------------------------------------------//
-
+/*
 /// This trait adds multiple util functions to the `TreeView` you implement it for.
 ///
 /// Keep in mind that this trait has been created with `PackFile TreeView's` in mind, so his methods
@@ -1989,7 +1989,7 @@ impl BuildData {
         }
     }
 }
-
+*/*/
 pub unsafe fn get_color_correct() -> String {
     if setting_bool("use_dark_theme") {
         GREEN_DARK.to_owned()

@@ -18,7 +18,7 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::packedfile_views::{DataSource, PackedFileType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;

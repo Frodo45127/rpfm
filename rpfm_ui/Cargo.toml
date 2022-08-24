@@ -30,11 +30,14 @@ lazy_static = "^1.2"
 # Error managing.
 anyhow = "1.0"
 
+# Basic get/set support.
+getset = "^0.1"
+
 # Serialization dependencies.
 serde = "^1.0"
 serde_derive = "^1.0"
 #serde_json = "^1.0"
-#ron = "^0.7"
+ron = "^0.7"
 #bincode = "^1.1"
 
 # Date conversion support.
@@ -44,7 +47,7 @@ chrono = "^0.4"
 regex = "^1"
 
 # Support for open files in a native way.
-#open = "^2.0"
+open = "^2.0"
 
 # Qt dependencies.
 cpp_core = "^0.6"

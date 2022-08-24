@@ -14,6 +14,7 @@ This module contains the code related to the ***Shortcuts*** of every shortcutab
 If you ever add a new action to the Program, remember to add it here.
 !*/
 
+use anyhow::Result;
 use ron::de::from_reader;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
@@ -22,8 +23,7 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 
-use rpfm_error::Result;
-use rpfm_lib::settings::get_config_path;
+use crate::settings_ui::backend::*;
 
 /// Name of the file which contains the current shortcuts of the program.
 const SHORTCUTS_FILE: &str = "shortcuts.ron";
@@ -205,7 +205,7 @@ impl Shortcuts {
     pub fn load() -> Result<Self> {
 
         // Try to open the shortcuts file.
-        let file_path = get_config_path()?.join(SHORTCUTS_FILE);
+        let file_path = config_path()?.join(SHORTCUTS_FILE);
         let file = BufReader::new(File::open(file_path)?);
 
         // Try to get the shortcuts. This can fail because the file is changed or damaged, or because there is no file.
@@ -272,7 +272,7 @@ impl Shortcuts {
     pub fn save(&self) -> Result<()> {
 
         // Try to open the shortcuts file.
-        let file_path = get_config_path()?.join(SHORTCUTS_FILE);
+        let file_path = config_path()?.join(SHORTCUTS_FILE);
         let mut file = BufWriter::new(File::create(file_path)?);
 
         // Try to save the file, and return the result.

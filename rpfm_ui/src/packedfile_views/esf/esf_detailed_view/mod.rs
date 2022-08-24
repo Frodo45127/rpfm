@@ -43,7 +43,7 @@ use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::schema::*;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;

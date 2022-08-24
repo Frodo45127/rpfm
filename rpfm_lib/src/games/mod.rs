@@ -243,12 +243,12 @@ impl GameInfo {
     }
 
     /// This function returns this Game's icon filename. Normal size.
-    pub fn game_selected_icon_file_name(&self) -> &str {
+    pub fn icon_file_name(&self) -> &str {
         &self.game_selected_icon
     }
 
     /// This function returns this Game's icon filename. Big size.
-    pub fn game_selected_icon_big_file_name(&self) -> &str {
+    pub fn icon_big_file_name(&self) -> &str {
         &self.game_selected_big_icon
     }
 

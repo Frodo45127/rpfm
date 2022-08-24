@@ -35,7 +35,7 @@ use std::process::Command as SystemCommand;
 
 use crate::settings_ui::backend::*;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;

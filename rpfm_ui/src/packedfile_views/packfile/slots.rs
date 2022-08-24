@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 use rpfm_lib::packfile::PathType;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::DataSource;

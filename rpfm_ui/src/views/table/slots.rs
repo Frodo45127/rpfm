@@ -614,7 +614,7 @@ impl TableViewSlots {
                 let filter_index = selection.take_at(0).indexes().take_at(0);
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
-                    if let Some(field) = view.table_definition.read().unwrap().get_fields_processed().get(index.column() as usize) {
+                    if let Some(field) = view.table_definition.read().unwrap().fields_processed().get(index.column() as usize) {
                         if let Some(reference_data) = view.reference_map.get(field.get_name()) {
 
                             // Stop if we have another find already running.
@@ -683,7 +683,7 @@ impl TableViewSlots {
 
         let fields = view.get_ref_table_definition().get_fields_sorted();
         for field in &fields {
-            if let Some(index) = view.get_ref_table_definition().get_fields_processed().iter().position(|x| x == field) {
+            if let Some(index) = view.get_ref_table_definition().fields_processed().iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                     mut view => move |state| {
                         let state = state == 2;

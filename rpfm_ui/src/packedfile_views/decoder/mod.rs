@@ -63,7 +63,7 @@ use rpfm_common::decoder::*;
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
-use rpfm_lib::GAME_SELECTED;
+use crate::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
 use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
@@ -72,7 +72,7 @@ use rpfm_lib::packedfile::table::DecodedData;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
 use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
-use rpfm_lib::SCHEMA;
+use crate::SCHEMA;
 
 
 use crate::app_ui::AppUI;
@@ -601,7 +601,7 @@ impl PackedFileDecoderView {
         // Header Marking section.
         //---------------------------------------------//
 
-        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+        let use_dark_theme = setting_bool["use_dark_theme"];
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let header_format = QTextCharFormat::new();
@@ -897,7 +897,7 @@ impl PackedFileDecoderView {
 
         // Prepare to paint the changes in the hex data views.
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
-        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+        let use_dark_theme = setting_bool["use_dark_theme"];
         let index_format = QTextCharFormat::new();
         let decoded_format = QTextCharFormat::new();
         let neutral_format = QTextCharFormat::new();
@@ -1805,7 +1805,7 @@ impl PackedFileDecoderView {
                     // Filter the mapped data to see if we have a common one in every cell.
                     let fields = mapper.iter().map(|(x, y)| {
                         let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                        field.set_field_type(table.get_ref_definition().get_fields_processed()[*x].get_field_type());
+                        field.set_field_type(table.get_ref_definition().fields_processed()[*x].get_field_type());
                         field
                     }).collect();
 

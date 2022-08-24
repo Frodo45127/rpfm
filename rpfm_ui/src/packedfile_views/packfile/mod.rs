@@ -37,7 +37,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_error::Result;
 use rpfm_lib::packedfile::PackedFileType;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};

@@ -50,33 +50,33 @@ use rpfm_lib::integrations::log::*;
 use crate::VERSION;
 use crate::app_ui;
 use crate::app_ui::AppUI;
-use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
+//use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
 use crate::ASSETS_PATH;
 use crate::DARK_PALETTE;
 use crate::DARK_STYLESHEET;
-use crate::dependencies_ui;
-use crate::dependencies_ui::DependenciesUI;
-use crate::dependencies_ui::slots::DependenciesUISlots;
-use crate::diagnostics_ui;
-use crate::diagnostics_ui::DiagnosticsUI;
-use crate::diagnostics_ui::slots::DiagnosticsUISlots;
+//use crate::dependencies_ui;
+//use crate::dependencies_ui::DependenciesUI;
+//use crate::dependencies_ui::slots::DependenciesUISlots;
+//use crate::diagnostics_ui;
+//use crate::diagnostics_ui::DiagnosticsUI;
+//use crate::diagnostics_ui::slots::DiagnosticsUISlots;
 use crate::GAME_SELECTED;
 use crate::GAME_SELECTED_ICONS;
-use crate::global_search_ui;
-use crate::global_search_ui::GlobalSearchUI;
-use crate::global_search_ui::slots::GlobalSearchSlots;
+//use crate::global_search_ui;
+//use crate::global_search_ui::GlobalSearchUI;
+//use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
-use crate::references_ui;
-use crate::references_ui::ReferencesUI;
-use crate::references_ui::slots::ReferencesUISlots;
+//use crate::references_ui;
+//use crate::references_ui::ReferencesUI;
+//use crate::references_ui::slots::ReferencesUISlots;
 use crate::SUPPORTED_GAMES;
 
 #[cfg(feature = "only_for_the_brave")]
 use crate::locale::qtr;
 use crate::locale::tr;
-use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packfile_contents_ui;
-use crate::packfile_contents_ui::slots::PackFileContentsSlots;
+//use crate::packfile_contents_ui::PackFileContentsUI;
+//use crate::packfile_contents_ui;
+//use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::RPFM_PATH;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
@@ -93,10 +93,10 @@ use crate::utils::ref_from_atomic;
 /// This means every widget/action that's created on start (menus, the TreeView,...) should be here.
 pub struct UI {
     pub app_ui: Rc<AppUI>,
-    pub pack_file_contents_ui: Rc<PackFileContentsUI>,
-    pub global_search_ui: Rc<GlobalSearchUI>,
-    pub diagnostics_ui: Rc<DiagnosticsUI>,
-    pub dependencies_ui: Rc<DependenciesUI>,
+    //pub pack_file_contents_ui: Rc<PackFileContentsUI>,
+    //pub global_search_ui: Rc<GlobalSearchUI>,
+    //pub diagnostics_ui: Rc<DiagnosticsUI>,
+    //pub dependencies_ui: Rc<DependenciesUI>,
 }
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
@@ -125,43 +125,47 @@ impl UI {
     /// This function initialize the entire `UI`.
     pub unsafe fn new(app: Ptr<QApplication>) -> Self {
         let app_ui = Rc::new(AppUI::new());
-        let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window));
-        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
-        let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
-        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
-        let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window));
+        //let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window));
+        //let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
+        //let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
+        //let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
+        //let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window));
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        //AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
-        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
-        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
-        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
-        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
-        let dependencies_slots = DependenciesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
-        let references_slots = ReferencesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let dependencies_slots = DependenciesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+        //let references_slots = ReferencesUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
 
-        app_ui::connections::set_connections(&app_ui, &app_slots);
-        app_ui::tips::set_tips(&app_ui);
-        app_ui::shortcuts::set_shortcuts(&app_ui);
+        //app_ui::connections::set_connections(&app_ui, &app_slots);
+        //app_ui::tips::set_tips(&app_ui);
+        //app_ui::shortcuts::set_shortcuts(&app_ui);
 
-        global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
-        global_search_ui::tips::set_tips(&global_search_ui);
-        global_search_ui::shortcuts::set_shortcuts(&global_search_ui);
+        //global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
+        //global_search_ui::tips::set_tips(&global_search_ui);
+        //global_search_ui::shortcuts::set_shortcuts(&global_search_ui);
 
-        packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
-        packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
-        packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
+        //packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
+        //packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
+        //packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
 
-        dependencies_ui::connections::set_connections(&dependencies_ui, &dependencies_slots);
-        dependencies_ui::tips::set_tips(&dependencies_ui);
-        dependencies_ui::shortcuts::set_shortcuts(&dependencies_ui);
+        //dependencies_ui::connections::set_connections(&dependencies_ui, &dependencies_slots);
+        //dependencies_ui::tips::set_tips(&dependencies_ui);
+        //dependencies_ui::shortcuts::set_shortcuts(&dependencies_ui);
 
-        references_ui::connections::set_connections(&references_ui, &references_slots);
-        diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
+        //references_ui::connections::set_connections(&references_ui, &references_slots);
+        //diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
+
+        // Initialize settings.
+        init_settings();
 
         // Apply last ui state.
         // TODO: Move all this to settings.
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let mut sync_needed = false;
 
         if !q_settings.contains(&QString::from_std_str("originalGeometry")) {
             q_settings.set_value(&QString::from_std_str("originalGeometry"), &QVariant::from_q_byte_array(&app_ui.main_window.save_geometry()));
@@ -170,111 +174,6 @@ impl UI {
 
         app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
         app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
-
-        info!("Qt-specific settings loaded.");
-
-        // Initialize colours.
-        let mut sync_needed = false;
-
-        let mut colour_light_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_added")).to_string());
-        let mut colour_light_table_modified = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_modified")).to_string());
-        let mut colour_light_diagnostic_error = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_error")).to_string());
-        let mut colour_light_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_warning")).to_string());
-        let mut colour_light_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_info")).to_string());
-        let mut colour_dark_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_table_added")).to_string());
-        let mut colour_dark_table_modified = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_table_modified")).to_string());
-        let mut colour_dark_diagnostic_error = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_error")).to_string());
-        let mut colour_dark_diagnostic_warning = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_warning")).to_string());
-        let mut colour_dark_diagnostic_info = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_diagnostic_info")).to_string());
-
-        let mut colour_light_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_local_tip")).to_string());
-        let mut colour_light_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_remote_tip")).to_string());
-        let mut colour_dark_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_local_tip")).to_string());
-        let mut colour_dark_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_dark_remote_tip")).to_string());
-
-        if !colour_light_table_added.is_valid() {
-            colour_light_table_added = QColor::from_q_string(&QString::from_std_str("#87ca00"));
-            q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&colour_light_table_added.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_table_modified.is_valid() {
-            colour_light_table_modified = QColor::from_q_string(&QString::from_std_str("#e67e22"));
-            q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&colour_light_table_modified.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_diagnostic_error.is_valid() {
-            colour_light_diagnostic_error = QColor::from_q_string(&QString::from_std_str("#ff0000"));
-            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&colour_light_diagnostic_error.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_diagnostic_warning.is_valid() {
-            colour_light_diagnostic_warning = QColor::from_q_string(&QString::from_std_str("#bebe00"));
-            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_warning"), &QVariant::from_q_string(&colour_light_diagnostic_warning.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_diagnostic_info.is_valid() {
-            colour_light_diagnostic_info = QColor::from_q_string(&QString::from_std_str("#55aaff"));
-            q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_info"), &QVariant::from_q_string(&colour_light_diagnostic_info.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_table_added.is_valid() {
-            colour_dark_table_added = QColor::from_q_string(&QString::from_std_str("#00ff00"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_table_added"), &QVariant::from_q_string(&colour_dark_table_added.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_table_modified.is_valid() {
-            colour_dark_table_modified = QColor::from_q_string(&QString::from_std_str("#e67e22"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_table_modified"), &QVariant::from_q_string(&colour_dark_table_modified.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_diagnostic_error.is_valid() {
-            colour_dark_diagnostic_error =  QColor::from_q_string(&QString::from_std_str("#ff0000"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&colour_dark_diagnostic_error.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_diagnostic_warning.is_valid() {
-            colour_dark_diagnostic_warning = QColor::from_q_string(&QString::from_std_str("#cece67"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&colour_dark_diagnostic_warning.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_diagnostic_info.is_valid() {
-            colour_dark_diagnostic_info = QColor::from_q_string(&QString::from_std_str("#55aaff"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&colour_dark_diagnostic_info.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_local_tip.is_valid() {
-            colour_light_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
-            q_settings.set_value(&QString::from_std_str("colour_light_local_tip"), &QVariant::from_q_string(&colour_light_local_tip.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_light_remote_tip.is_valid() {
-            colour_light_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
-            q_settings.set_value(&QString::from_std_str("colour_light_remote_tip"), &QVariant::from_q_string(&colour_light_remote_tip.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_local_tip.is_valid() {
-            colour_dark_local_tip = QColor::from_q_string(&QString::from_std_str("#363636"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_local_tip"), &QVariant::from_q_string(&colour_dark_local_tip.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
-
-        if !colour_dark_remote_tip.is_valid() {
-            colour_dark_remote_tip = QColor::from_q_string(&QString::from_std_str("#7e7e7e"));
-            q_settings.set_value(&QString::from_std_str("colour_dark_remote_tip"), &QVariant::from_q_string(&colour_dark_remote_tip.name_1a(NameFormat::HexArgb)));
-            sync_needed = true;
-        }
 
         if sync_needed {
             q_settings.sync();
@@ -303,10 +202,10 @@ impl UI {
             // So just in case, by default we use WH3.
             _ => app_ui.game_selected_warhammer_3.set_checked(true),
         }
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
+        //AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
         info!("Initial Game Selected set to {}.", setting_string("default_game"));
 
-        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+        //UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
         if setting_bool("start_maximized") {
@@ -353,7 +252,7 @@ impl UI {
 
         // Show the Main Window...
         app_ui.main_window.show();
-
+        /*
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
@@ -367,23 +266,23 @@ impl UI {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }
-        }
+        }*/
 
-        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
+        if (args().len() == 1 || (args().len() > 1 && args().last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
             show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
+        //if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if setting_bool("check_schema_updates_on_start") { AppUI::check_schema_updates(&app_ui, false) };
+        //if setting_bool("check_schema_updates_on_start") { AppUI::check_schema_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are message updates.
-        if setting_bool("check_message_updates_on_start") { AppUI::check_message_updates(&app_ui, false) };
+        //if setting_bool("check_message_updates_on_start") { AppUI::check_message_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are lua autogen updates.
-        if setting_bool("check_lua_autogen_updates_on_start") { AppUI::check_lua_autogen_updates(&app_ui, false) };
+        //if setting_bool("check_lua_autogen_updates_on_start") { AppUI::check_lua_autogen_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
@@ -422,10 +321,10 @@ impl UI {
         info!("Initialization complete.");
         Self {
             app_ui,
-            global_search_ui,
-            pack_file_contents_ui,
-            diagnostics_ui,
-            dependencies_ui
+            //global_search_ui,
+            //pack_file_contents_ui,
+            //diagnostics_ui,
+            //dependencies_ui
         }
     }
 }
@@ -473,7 +372,7 @@ impl GameSelectedIcons {
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
 
-        if !settings_bool("hide_background_icon") {
+        if !setting_bool("hide_background_icon") {
             if app_ui.tab_bar_packed_file.count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?

@@ -14,7 +14,7 @@ Module with all the code to connect `PackFileContentsUI` signals with their corr
 This module is, and should stay, private, as it's only glue between the `PackFileContentsUI` and `PackFileContentsSlots` structs.
 !*/
 
-
+use crate::settings_ui::backend::*;
 
 use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 
@@ -23,7 +23,7 @@ use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
-    if SETTINGS.read().unwrap().settings_bool["disable_file_previews"] {
+    if setting_bool("disable_file_previews") {
         ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_full);
     } else {
         ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_preview);

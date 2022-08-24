@@ -42,7 +42,7 @@ use std::rc::Rc;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::DOCS_BASE_URL;
-use rpfm_lib::GAME_SELECTED;
+use crate::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
@@ -266,7 +266,7 @@ impl AppUISlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                        if setting_bool["diagnostics_trigger_on_open"] {
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }

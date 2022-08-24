@@ -49,23 +49,22 @@ use std::rc::Rc;
 
 use rpfm_lib::games::supported_games::*;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
 use crate::ffi::*;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
-use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::updater::{BETA, STABLE, update_channel, UpdateChannel};
 
 use self::backend::{MYMOD_BASE_PATH, ZIP_PATH};
-use self::slots::SettingsUISlots;
+//use self::slots::SettingsUISlots;
 
 pub mod backend;
-mod connections;
-mod slots;
-mod tips;
+//mod connections;
+//mod slots;
+//mod tips;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -240,7 +239,7 @@ pub struct SettingsUI {
 
 /// Implementation of `SettingsUI`.
 impl SettingsUI {
-
+    /*
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<Settings> {
         let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
@@ -1263,5 +1262,5 @@ impl SettingsUI {
             // Add the Path to the LineEdit.
             line_edit.set_text(path);
         }
-    }
+    }*/
 }

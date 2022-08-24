@@ -23,7 +23,7 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QPtr;
-use rpfm_lib::GAME_SELECTED;
+use crate::GAME_SELECTED;
 use rpfm_lib::games::supported_games::KEY_WARHAMMER_2;
 
 use std::rc::Rc;
@@ -133,8 +133,8 @@ impl PackedFileAnimFragmentView {
         else {
             let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-            let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
-            let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
+            let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
+            let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
 
             let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()), packed_file_view.get_mut_widget());
             let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()), packed_file_view.get_mut_widget());
@@ -234,8 +234,8 @@ impl PackedFileAnimFragmentView {
     pub unsafe fn load_data(&self, original_data: &AnimFragment) -> Result<()> {
         match original_data.get_table_data().get(0) {
             Some(data) => {
-                self.integer_label_1.set_text(&QString::from_std_str(original_data.get_ref_definition().get_fields_processed()[1].get_name()));
-                self.integer_label_2.set_text(&QString::from_std_str(original_data.get_ref_definition().get_fields_processed()[2].get_name()));
+                self.integer_label_1.set_text(&QString::from_std_str(original_data.get_ref_definition().fields_processed()[1].get_name()));
+                self.integer_label_2.set_text(&QString::from_std_str(original_data.get_ref_definition().fields_processed()[2].get_name()));
 
                 self.integer_1.set_text(&QString::from_std_str(&data[1].data_to_string()));
                 self.integer_2.set_text(&QString::from_std_str(&data[2].data_to_string()));

@@ -37,7 +37,7 @@ use rpfm_lib::packfile::RESERVED_NAME_NOTES;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};
-use rpfm_lib::SCHEMA;
+use crate::SCHEMA;
 
 
 use crate::app_ui::AppUI;
