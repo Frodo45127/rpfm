@@ -118,7 +118,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
             let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
             Some(Schema::load(&schema_path)?)
         } else {
-            warn!("Schema path provided, but it doesn't point to a valid schema.");
+            warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `TSV to Binary`.");
             None
         }
     } else { None };
@@ -204,7 +204,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
             let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
             Some(Schema::load(&schema_path)?)
         } else {
-            warn!("Schema path provided, but it doesn't point to a valid schema.");
+            warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `Table as TSV`.");
             None
         }
     } else { None };
