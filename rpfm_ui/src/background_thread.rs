@@ -1730,27 +1730,33 @@ pub fn background_loop() {
         }}
     ],
     \"settings\": {{
-        \"Lua.workspace.library\": [
-            \"{folder}/global/\",
-            \"{folder}/campaign/\",
-            \"{folder}/frontend/\",
-            \"{folder}/battle/\"
-        ],
-        \"Lua.runtime.version\": \"Lua 5.1\",
-        \"Lua.completion.autoRequire\": false,
-        \"Lua.workspace.preloadFileSize\": 1500,
-        \"Lua.workspace.ignoreSubmodules\": false,
-        \"Lua.diagnostics.workspaceDelay\": 500,
-        \"Lua.diagnostics.workspaceRate\": 40,
-        \"Lua.diagnostics.disable\": [
-            \"lowercase-global\",
-            \"trailing-space\"
-        ],
-        \"Lua.hint.setType\": true,
-        \"Lua.workspace.ignoreDir\": [
-            \".vscode\",
-            \".git\"
-        ],
+        \"LSP\": {{
+            \"LSP-lua\": {{
+                \"settings\": {{
+                    \"Lua.workspace.library\": [
+                        \"{folder}/global/\",
+                        \"{folder}/campaign/\",
+                        \"{folder}/frontend/\",
+                        \"{folder}/battle/\"
+                    ],
+                    \"Lua.runtime.version\": \"Lua 5.1\",
+                    \"Lua.completion.autoRequire\": false,
+                    \"Lua.workspace.preloadFileSize\": 1500,
+                    \"Lua.workspace.ignoreSubmodules\": false,
+                    \"Lua.diagnostics.workspaceDelay\": 500,
+                    \"Lua.diagnostics.workspaceRate\": 40,
+                    \"Lua.diagnostics.disable\": [
+                        \"lowercase-global\",
+                        \"trailing-space\"
+                    ],
+                    \"Lua.hint.setType\": true,
+                    \"Lua.workspace.ignoreDir\": [
+                        \".vscode\",
+                        \".git\"
+                    ],
+                }}
+            }}
+        }}
     }}
 }}", folder = lua_autogen_folder).as_bytes());
                                 }
