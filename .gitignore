@@ -92,3 +92,6 @@ gh-token
 
 # Ignore autogen folder on debug builds.
 /tw_autogen/
+
+# Ignore this one, as it causes issues when recompiling.
+/rpfm_ui/qt_subclasses/.qmake.stash
