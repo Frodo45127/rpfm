@@ -793,7 +793,7 @@ impl GlobalSearchUI {
                         column_name.set_text(&QString::from_std_str(&match_row.column_name));
                         column_number.set_data_2a(&QVariant::from_uint(match_row.column_number), 2);
                         row.set_data_2a(&QVariant::from_i64(match_row.row_number + 1), 2);
-                        text.set_text(&QString::from_std_str(&match_row.contents));
+                        text.set_text(&QString::from_std_str(&match_row.contents.trim()));
 
                         column_name.set_editable(false);
                         column_number.set_editable(false);
@@ -859,7 +859,7 @@ impl GlobalSearchUI {
                         let column = QStandardItem::new();
                         let len = QStandardItem::new();
 
-                        text.set_text(&QString::from_std_str(&match_row.text));
+                        text.set_text(&QString::from_std_str(&match_row.text.trim()));
                         row.set_data_2a(&QVariant::from_u64(match_row.row + 1), 2);
                         column.set_data_2a(&QVariant::from_u64(match_row.column), 2);
                         len.set_data_2a(&QVariant::from_i64(match_row.len), 2);
