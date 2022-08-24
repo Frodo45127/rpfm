@@ -431,12 +431,14 @@ impl TableView {
         // Keep in mind this doesn't check what key column we have selected.
         //
         // TODO: Improve this.
+        //
+        // NOTE: Request by DrunkFlamingo: ignore keys if there are duplicates.
         let (intexed_keys, indexes_no_keys): (Vec<Ref<QModelIndex>>, Vec<Ref<QModelIndex>>) = indexes_sorted.iter()
             .filter_map(|x| if x.column() != -1 { Some(x.as_ref()) } else { None })
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
-                    .any(|z| self.get_ref_table_definition().get_fields_processed()[z.column() as usize].get_is_key())
+                    .any(|z| self.get_ref_table_definition().get_fields_processed()[z.column() as usize].get_is_key() && indexes_sorted.iter().filter(|a| a.column() == z.column() && z.data_0a().to_string().to_std_string() == a.data_0a().to_string().to_std_string()).count() == 1)
             );
 
         let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
@@ -833,7 +835,7 @@ impl TableView {
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index);
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             entry.1.push(data);
@@ -844,7 +846,7 @@ impl TableView {
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             table_data.push(entry);
@@ -854,7 +856,7 @@ impl TableView {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() {
+                        if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
