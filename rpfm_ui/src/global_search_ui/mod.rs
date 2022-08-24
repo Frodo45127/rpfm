@@ -57,6 +57,7 @@ use crate::communications::{CentralCommand, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
+use crate::ffi::scroll_to_row_safe;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -756,6 +757,14 @@ impl GlobalSearchUI {
                         table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                         table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
+                }
+
+                // If it's a text file, scroll to the row in question.
+                else if let ViewType::Internal(View::Text(view)) = packed_file_view.get_view() {
+                    let parent = gidhora.parent();
+                    let row_number = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                    let editor = view.get_mut_editor();
+                    scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
                 }
             }
         }

@@ -26,4 +26,6 @@ extern "C" void open_text_editor_config(QWidget* parent);
 
 extern "C" QLineEdit* get_text_changed_dummy_widget(QWidget* view = nullptr);
 
+extern "C" void scroll_to_row(QWidget* view = nullptr, int row_number = 0);
+
 #endif // TEXT_EDITOR_H
