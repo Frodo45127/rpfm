@@ -190,7 +190,7 @@ pub enum CommandsPack {
         ///
         /// It requires the path of the Schema you want to use for definition resolving.
         #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
-        tsv_to_binary: PathBuf,
+        tsv_to_binary: Option<PathBuf>,
 
         /// File to add, and folder within the Pack where to add it to, separated by semicolon. If no folder to add to is provided, it'll add the file in the root of the Pack.
         ///
@@ -239,7 +239,7 @@ pub enum CommandsPack {
         ///
         /// It requires the path of the Schema you want to use for definition resolving.
         #[clap(short, long, action, required = false, value_parser, name = "SCHEMA_PATH")]
-        tables_as_tsv: PathBuf,
+        tables_as_tsv: Option<PathBuf>,
 
         /// File to extract, and folder where to extract it to, separated by semicolon. If no folder to extract to is provided, it'll extract the file to the current folder.
         ///

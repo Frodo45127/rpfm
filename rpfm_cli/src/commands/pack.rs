@@ -104,18 +104,23 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
 }
 
 /// This function adds the provided files/folders to the provided Pack.
-pub fn add(config: &Config, schema_path: &Path, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
+pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, file_path: &[(PathBuf, String)], folder_path: &[(PathBuf, String)]) -> Result<()> {
     if config.verbose {
         info!("Adding files/folders to a Pack at {}.", pack_path.to_string_lossy().to_string());
-        info!("Tsv to Binary is: {}.", schema_path.is_file());
+        info!("Tsv to Binary is: {}.", schema_path.is_some());
     }
 
     // Load the schema if we try to import tsv files.
-    let schema = if schema_path.is_file() {
+    let schema = if let Some(schema_path) = schema_path {
+        if schema_path.is_file() {
 
-        // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-        let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
-        Some(Schema::load(&schema_path)?)
+            // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+            Some(Schema::load(&schema_path)?)
+        } else {
+            warn!("Schema path provided, but it doesn't point to a valid schema.");
+            None
+        }
     } else { None };
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
@@ -185,18 +190,23 @@ pub fn delete(config: &Config, pack_path: &Path, file_path: &[String], folder_pa
 }
 
 /// This function extracts the provided files/folders from the provided Pack, keeping their folder structure.
-pub fn extract(config: &Config, schema_path: &Path, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
+pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, file_path: &[(String, PathBuf)], folder_path: &[(String, PathBuf)]) -> Result<()> {
     if config.verbose {
         info!("Extracting files/folders from a Pack at {}.", pack_path.to_string_lossy().to_string());
-        info!("Tables as Tsv is: {}.", schema_path.is_file());
+        info!("Tables as Tsv is: {}.", schema_path.is_some());
     }
 
     // Load the schema if we try to import tsv files.
-    let schema = if schema_path.is_file() {
+    let schema = if let Some(schema_path) = schema_path {
+        if schema_path.is_file() {
 
-        // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-        let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
-        Some(Schema::load(&schema_path)?)
+            // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+            let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
+            Some(Schema::load(&schema_path)?)
+        } else {
+            warn!("Schema path provided, but it doesn't point to a valid schema.");
+            None
+        }
     } else { None };
 
     let pack_path_str = pack_path.to_string_lossy().to_string();
