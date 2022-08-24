@@ -892,7 +892,7 @@ impl TableView {
                 lua_table.pop();
 
                 // Close the row.
-                if index == row.1.len() - 1 {
+                if index == table_data.len() - 1 {
                     lua_table.push_str(" }\n");
                 }
                 else {
