@@ -6,6 +6,17 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [3.0.12]
+### Changed
+- Updated PKGBUILD so it "should" work.
+- Trim search results so text searches are shown without tabulations or spaces before or after.
+- Text results should open the respective files and scroll to the proper line on double-click.
+- `Copy as Lua table` now copies entries with duplicated keys outside the main table.
+
+### Fixed
+- Fixed incorrect sublime project file being generated on new MyMods.
+- Fixed `Copy as Lua table` removing the final comma from the wrong row.
+
 ## [3.0.11]
 ### Changed
 - Updated paths for TW Autogen support (only new MyMods).
@@ -708,7 +719,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.11...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v3.0.12...HEAD
+[3.0.12]: https://github.com/Frodo45127/rpfm/compare/v3.0.11...v3.0.12
 [3.0.11]: https://github.com/Frodo45127/rpfm/compare/v3.0.10...v3.0.11
 [3.0.10]: https://github.com/Frodo45127/rpfm/compare/v3.0.9...v3.0.10
 [3.0.9]: https://github.com/Frodo45127/rpfm/compare/v3.0.8...v3.0.9
