@@ -17,7 +17,7 @@ use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 
 use std::rc::Rc;
 

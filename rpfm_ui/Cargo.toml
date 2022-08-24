@@ -18,23 +18,30 @@ only_for_the_brave = []
 default = []
 
 [dependencies]
-rpfm_lib = { path = "../rpfm_lib" }
+
+# Internal dependencies.
+rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_git"] }
+rpfm_extensions = { path = "../rpfm_extensions" }
 
 # Config dependencies.
-#lazy_static = "^1.2"
+directories = "^4.0"
+lazy_static = "^1.2"
+
+# Error managing.
+anyhow = "1.0"
 
 # Serialization dependencies.
-#serde = "^1.0"
-#serde_derive = "^1.0"
+serde = "^1.0"
+serde_derive = "^1.0"
 #serde_json = "^1.0"
 #ron = "^0.7"
 #bincode = "^1.1"
 
 # Date conversion support.
-#chrono = "^0.4"
+chrono = "^0.4"
 
 # Support for Regex operations.
-#regex = "^1"
+regex = "^1"
 
 # Support for open files in a native way.
 #open = "^2.0"
@@ -56,21 +63,22 @@ qt_ui_tools = "^0.5"
 #uuid = { version = "^0.8", features = ["v4"] }
 
 # Translation support.
-#fluent = "^0.16"
-#fluent-bundle = "^0.15"
-#unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
+fluent = "^0.16"
+fluent-bundle = "^0.15"
+unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
-#crossbeam = "^0.8"
-#rayon = "^1.3"
-
-# Logging support.
-#log = { version = "^0.4", features = ["std"] }
-#simplelog = "^0.11"
-#sentry = { version = "^0.25", features = ["log"] }
+crossbeam = "^0.8" # Maybe replace it with flume?
+rayon = "^1.3"
 
 # Better iterator support.
-#itertools = "^0.10"
+itertools = "^0.10"
+
+# Autoupdate support.
+self_update = { version = "^0.30", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
+tempfile = "^3.1"
+zip-extract = "^0.1"
+reqwest = "^0.11"
 
 # Caseless matching.
 #unicase = "^2.6"

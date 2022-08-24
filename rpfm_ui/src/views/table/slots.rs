@@ -26,7 +26,7 @@ use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 
 use std::path::PathBuf;
 use std::rc::Rc;

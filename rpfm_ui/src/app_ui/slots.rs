@@ -31,7 +31,7 @@ use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QUrl;
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 use rpfm_lib::packfile::PackFileSettings;
 
 use std::collections::BTreeMap;
@@ -48,7 +48,7 @@ use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::schema::patch::SchemaPatch;
 use rpfm_lib::settings::get_config_path;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

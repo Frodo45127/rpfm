@@ -33,7 +33,7 @@ use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_lib::settings::*;
+use crate::settings_ui::backend::*;
 
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -184,7 +184,7 @@ impl SettingsUISlots {
         }));
 
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_dependencies_cache_path() {
+            match dependencies_cache_path() {
                 Ok(path) => match remove_dir_all(&path) {
                     Ok(_) => {
                         let _ = init_config_path();
@@ -197,7 +197,7 @@ impl SettingsUISlots {
         }));
 
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_backup_autosave_path() {
+            match backup_autosave_path() {
                 Ok(path) => match remove_dir_all(&path) {
                     Ok(_) => {
                         let _ = init_config_path();
@@ -210,7 +210,7 @@ impl SettingsUISlots {
         }));
 
         let clear_schemas = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_schemas_path() {
+            match schemas_path() {
                 Ok(path) => {
 
                     // On windows, remove the read-only flags before doing anything else, or this will fail.

@@ -15,18 +15,19 @@ Basically, this does the network checks of the program.
 !*/
 
 use crossbeam::channel::Sender;
-use log::info;
 
-use rpfm_common::git_integration::GitIntegration;
+use rpfm_lib::integrations::git::*;
+use rpfm_lib::integrations::log::*;
 
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
-use rpfm_lib::schema::Schema;
-use rpfm_lib::settings::*;
-use rpfm_lib::tips::Tips;
-use rpfm_lib::updater;
+use rpfm_lib::schema::*;
+//use rpfm_lib::settings::*;
+//use rpfm_lib::tips::Tips;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::settings_ui::backend::*;
+use crate::updater;
 
 /// This is the network loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -51,29 +52,35 @@ pub fn network_loop() {
             Command::CheckUpdates => {
                 match updater::check_updates_rpfm() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponse(response)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
             // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
-                match Schema::check_update() {
-                    Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseSchema(response)),
+                match schemas_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
+                        match git_integration.check_update() {
+                            Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
-
+            /*
             // When we want to check if there is a message update available...
             Command::CheckMessageUpdates => {
                 match Tips::check_update() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseTips(response)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
-            }
+            }*/
 
             // When we want to check if there is a lua setup update available...
             Command::CheckLuaAutogenUpdates => {
-                match get_lua_autogen_path() {
+                match lua_autogen_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.check_update() {

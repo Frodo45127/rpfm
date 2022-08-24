@@ -29,8 +29,8 @@ use qt_core::QPtr;
 use std::rc::Rc;
 
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
+
+use crate::SUPPORTED_GAMES;
 
 use crate::AppUI;
 use crate::locale::qtr;

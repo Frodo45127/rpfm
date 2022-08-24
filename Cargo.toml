@@ -8,7 +8,7 @@ members = [
     # Executables
     "rpfm_cli",
     # "rpfm_mod_checker",
-    #"rpfm_ui",
+    "rpfm_ui",
 ]
 
 [profile.dev]

@@ -40,16 +40,14 @@ use qt_core::QVariant;
 use cpp_core::CastInto;
 use cpp_core::Ptr;
 
+use anyhow::Result
+;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_error::Result;
 
-use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
-use rpfm_lib::updater::{BETA, STABLE, get_update_channel, UpdateChannel};
 
 use crate::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
@@ -57,9 +55,14 @@ use crate::ffi::*;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
 use crate::SETTINGS;
+use crate::SUPPORTED_GAMES;
 use crate::utils::{create_grid_layout, show_dialog};
+use crate::updater::{BETA, STABLE, update_channel, UpdateChannel};
+
+use self::backend::{MYMOD_BASE_PATH, ZIP_PATH};
 use self::slots::SettingsUISlots;
 
+pub mod backend;
 mod connections;
 mod slots;
 mod tips;
@@ -301,17 +304,17 @@ impl SettingsUI {
         let mut paths_asskit_line_edits = BTreeMap::new();
         let mut paths_asskit_buttons = BTreeMap::new();
 
-        for (index, game_supported) in SUPPORTED_GAMES.get_games().iter().enumerate() {
-            let spoiler = new_spoiler_safe(&QString::from_std_str(game_supported.get_display_name()).as_ptr(), 200, &paths_frame.as_ptr().static_upcast());
+        for (index, game_supported) in SUPPORTED_GAMES.games().iter().enumerate() {
+            let spoiler = new_spoiler_safe(&QString::from_std_str(game_supported.display_name()).as_ptr(), 200, &paths_frame.as_ptr().static_upcast());
 
             // Note: ignore the warnings caused by this. They're harmless.
             let game_path_layout = create_grid_layout(spoiler.static_upcast());
 
-            let game_key = game_supported.get_game_key_name();
+            let game_key = game_supported.game_key_name();
             let game_label = QLabel::from_q_string_q_widget(&qtr("settings_game_label"), &spoiler);
             let game_line_edit = QLineEdit::from_q_widget(&spoiler);
             let game_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &spoiler);
-            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[game_supported.get_display_name()]));
+            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[game_supported.display_name()]));
 
             game_path_layout.add_widget_5a(&game_label, 0, 0, 1, 1);
             game_path_layout.add_widget_5a(&game_line_edit, 0, 1, 1, 1);
@@ -328,7 +331,7 @@ impl SettingsUI {
                 let asskit_label = QLabel::from_q_string_q_widget(&qtr("settings_asskit_label"), &spoiler);
                 let asskit_line_edit = QLineEdit::from_q_widget(&spoiler);
                 let asskit_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &spoiler);
-                asskit_line_edit.set_placeholder_text(&qtre("settings_asskit_line_ph", &[game_supported.get_display_name()]));
+                asskit_line_edit.set_placeholder_text(&qtre("settings_asskit_line_ph", &[game_supported.display_name()]));
 
                 game_path_layout.add_widget_5a(&asskit_label, 1, 0, 1, 1);
                 game_path_layout.add_widget_5a(&asskit_line_edit, 1, 1, 1, 1);
@@ -402,7 +405,7 @@ impl SettingsUI {
 
         let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
         extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
-        for game in SUPPORTED_GAMES.get_games().iter() {
+        for game in SUPPORTED_GAMES.games().iter() {
             extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
         }
 
@@ -961,7 +964,7 @@ impl SettingsUI {
         }
 
         // Get the default game.
-        for (index, game) in SUPPORTED_GAMES.get_games().iter().enumerate() {
+        for (index, game) in SUPPORTED_GAMES.games().iter().enumerate() {
             if game.get_game_key_name() == settings.settings_string["default_game"] {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
@@ -977,7 +980,7 @@ impl SettingsUI {
         }
 
         for (index, update_channel_name) in [UpdateChannel::Stable, UpdateChannel::Beta].iter().enumerate() {
-            if update_channel_name == &get_update_channel() {
+            if update_channel_name == &update_channel() {
                 self.extra_network_update_channel_combobox.set_current_index(index as i32);
                 break;
             }

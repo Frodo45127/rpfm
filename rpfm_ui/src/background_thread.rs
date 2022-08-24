@@ -15,7 +15,7 @@ Basically, this does the heavy load of the program.
 !*/
 
 use crossbeam::channel::Sender;
-use log::info;
+use rpfm_lib::integrations::log::*;
 use open::that_in_background;
 use rayon::prelude::*;
 use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE};
@@ -46,8 +46,8 @@ use rpfm_lib::schema::{*, patch::SchemaPatches};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SCHEMA_PATCHES;
 use rpfm_lib::settings::*;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
+
+use crate::SUPPORTED_GAMES;
 use rpfm_lib::tips::Tips;
 
 use crate::app_ui::NewPackedFile;
@@ -97,7 +97,7 @@ pub fn background_loop() {
 
             // Command to close the thread.
             Command::Exit => return,
-
+/*
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 
@@ -1767,6 +1767,6 @@ pub fn background_loop() {
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        }
+        */}
     }
 }

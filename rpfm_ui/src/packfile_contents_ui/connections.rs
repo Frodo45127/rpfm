@@ -14,7 +14,7 @@ Module with all the code to connect `PackFileContentsUI` signals with their corr
 This module is, and should stay, private, as it's only glue between the `PackFileContentsUI` and `PackFileContentsSlots` structs.
 !*/
 
-use rpfm_lib::SETTINGS;
+
 
 use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 

@@ -52,7 +52,7 @@ use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packfile::PathType;
-use rpfm_lib::SETTINGS;
+
 
 use rpfm_macros::{Getters, MutGetters, Set};
 

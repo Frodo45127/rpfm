@@ -20,7 +20,7 @@ use qt_gui::QGuiApplication;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 
 use std::rc::Rc;
 

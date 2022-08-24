@@ -44,7 +44,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_lib::packedfile::table::{DependencyData, Table};
 use rpfm_lib::schema::{Definition, Field, FieldType};
-use rpfm_lib::SETTINGS;
+
 
 use crate::ffi::*;
 use crate::locale::{qtr, tr, tre};

@@ -19,7 +19,7 @@ use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering};
 
 use rpfm_lib::packfile::PathType;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;

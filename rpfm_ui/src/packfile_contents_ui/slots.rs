@@ -24,13 +24,13 @@ use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 use qt_core::QSignalBlocker;
 use qt_core::QObject;
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_common::utils::*;
+use rpfm_lib::utils::*;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::packfile::RESERVED_NAME_NOTES;
@@ -38,7 +38,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};
 use rpfm_lib::SCHEMA;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

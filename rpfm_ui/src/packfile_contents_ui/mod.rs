@@ -32,7 +32,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
 
-use rpfm_lib::SETTINGS;
+
 
 use crate::ffi::*;
 use crate::locale::qtr;

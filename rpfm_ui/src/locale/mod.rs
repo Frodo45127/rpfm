@@ -19,6 +19,7 @@ use qt_core::QString;
 
 use cpp_core::CppBox;
 
+use anyhow::{anyhow, Result};
 use fluent_bundle::{FluentResource, FluentBundle};
 use unic_langid::{langid, LanguageIdentifier, subtags::Language};
 
@@ -28,8 +29,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::str::FromStr;
 
-use rpfm_common::utils::*;
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_lib::utils::*;
 
 use crate::ASSETS_PATH;
 use crate::LOCALE;
@@ -62,7 +62,10 @@ impl Locale {
         if lang_info.len() == 2 {
             let lang_id = lang_info[1];
             let locales = Self::get_available_locales()?;
-            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.language == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
+            let selected_locale = locales.iter()
+                .map(|x| x.1.clone())
+                .find(|x| x.language == lang_id)
+                .ok_or_else(|| anyhow!("Error while trying to load a fluent resource."))?;
             let locale = format!("{}/{}/{}.ftl", ASSETS_PATH.to_string_lossy(), LOCALE_FOLDER, file_name);
 
             // If found, load the entire file to a string.
@@ -71,24 +74,24 @@ impl Locale {
             file.read_to_string(&mut ftl_string)?;
 
             // Then to a resource and a bundle.
-            let resource = FluentResource::try_new(ftl_string)?;
+            let resource = FluentResource::try_new(ftl_string).map_err(|_| anyhow!("Failed to initialize fluent main resource."))?;
             let mut bundle = FluentBundle::new([selected_locale].to_vec());
-            bundle.add_resource(resource)?;
+            bundle.add_resource(resource).map_err(|_| anyhow!("Failed to add fluent main resource."))?;
 
             // If nothing failed, return the new translation.
             Ok(Self(Arc::new(RwLock::new(bundle))))
         }
 
         else {
-            Err(ErrorKind::InvalidLocalisationFileName(file_name.to_string()).into())
+            Err(anyhow!("The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,…) after that.", file_name))
         }
     }
 
    /// This function initializes the fallback localisation included in the binary.
     pub fn initialize_fallback() -> Result<Self> {
-        let resource = FluentResource::try_new(FALLBACK_LOCALE.to_owned())?;
+        let resource = FluentResource::try_new(FALLBACK_LOCALE.to_owned()).map_err(|_| anyhow!("Failed to initialize fluent fallback resource."))?;
         let mut bundle = FluentBundle::new(vec![langid!["en"]]);
-        bundle.add_resource(resource)?;
+        bundle.add_resource(resource).map_err(|_| anyhow!("Failed to add fluent fallback resource."))?;
         Ok(Self(Arc::new(RwLock::new(bundle))))
     }
 
@@ -103,7 +106,7 @@ impl Locale {
     /// This function returns a list of all the languages we have translation files for in the `("English", "en")` form.
     pub fn get_available_locales() -> Result<Vec<(String, LanguageIdentifier)>> {
         let mut languages = vec![];
-        for file in get_files_from_subdir(&ASSETS_PATH.to_path_buf().join(Path::new("locale")), false)? {
+        for file in files_from_subdir(&ASSETS_PATH.to_path_buf().join(Path::new("locale")), false)? {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {

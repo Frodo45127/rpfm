@@ -61,7 +61,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

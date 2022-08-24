@@ -38,7 +38,7 @@ use std::rc::Rc;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::packfile::PathType;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

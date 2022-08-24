@@ -36,8 +36,8 @@ use std::sync::atomic::Ordering;
 
 use rpfm_lib::games::supported_games::*;
 use rpfm_lib::packedfile::text::TextType;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
+
+use crate::SUPPORTED_GAMES;
 
 use crate::ffi::are_you_sure;
 use crate::ffi::new_q_main_window_custom_safe;

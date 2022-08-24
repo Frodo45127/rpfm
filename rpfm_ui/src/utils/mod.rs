@@ -35,33 +35,65 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::StaticUpcast;
 
-use log::info;
-
+use anyhow::{anyhow, Result};
 use regex::Regex;
-use sentry::Envelope;
-use sentry::Level;
-use sentry::protocol::{Attachment, EnvelopeItem, Event};
+
+use rpfm_lib::integrations::log::*;
+use rpfm_lib::files::FileType;
 
 use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::{GAME_SELECTED, packedfile::PackedFileType, SENTRY_GUARD};
+use crate::{GAME_SELECTED, SENTRY_GUARD};
 
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::locale::{qtr, qtre};
-use crate::ORANGE;
-use crate::SLIGHTLY_DARKER_GREY;
-use crate::MEDIUM_DARKER_GREY;
-use crate::DARK_GREY;
-use crate::KINDA_WHITY_GREY;
-use crate::EVEN_MORE_WHITY_GREY;
 use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
+
+// Colors used all over the program for theming and stuff.
+pub const MEDIUM_DARK_GREY: &str = "#333333";            // Medium-Dark Grey. The color of the background of the Main Window.
+pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
+pub const DARK_GREY: &str = "#181818";                   // Dark Grey. The color of the background of the Main TreeView.
+pub const SLIGHTLY_DARKER_GREY: &str = "#101010";        // A Bit Darker Grey.
+pub const KINDA_WHITY_GREY: &str = "#BBBBBB";            // Light Grey. The color of the normal Text.
+pub const KINDA_MORE_WHITY_GREY: &str = "#CCCCCC";       // Lighter Grey. The color of the highlighted Text.
+pub const EVEN_MORE_WHITY_GREY: &str = "#FAFAFA";        // Even Lighter Grey.
+pub const BRIGHT_RED: &str = "#FF0000";                  // Bright Red, as our Lord.
+pub const DARK_RED: &str = "#FF0000";                    // Dark Red, as our face after facing our enemies.
+pub const LINK_BLUE: &str = "#2A82DA";                   // Blue, used for Zeldas.
+pub const ORANGE: &str = "#E67E22";                      // Orange, used for borders.
+pub const MEDIUM_GREY: &str = "#555555";
+pub const YELLOW_BRIGHT: &str = "#FFFFDD";
+pub const YELLOW_MEDIUM: &str = "#e5e546";
+pub const YELLOW_DARK: &str = "#525200";
+pub const GREEN_BRIGHT: &str = "#D0FDCC";
+pub const GREEN_MEDIUM: &str = "#87d382";
+pub const GREEN_DARK: &str = "#708F6E";
+pub const RED_BRIGHT: &str = "#FFCCCC";
+pub const RED_DARK: &str = "#8F6E6E";
+pub const BLUE_BRIGHT: &str = "#3399ff";
+pub const BLUE_DARK: &str = "#0066cc";
+pub const MAGENTA_MEDIUM: &str = "#CA1F7B";
+pub const TRANSPARENT_BRIGHT: &str = "#00000000";
+pub const ERROR_UNPRESSED_DARK: &str = "#b30000";
+pub const ERROR_UNPRESSED_LIGHT: &str = "#ffcccc";
+pub const ERROR_PRESSED_DARK: &str = "#e60000";
+pub const ERROR_PRESSED_LIGHT: &str = "#ff9999";
+pub const ERROR_FOREGROUND_LIGHT: &str = "#ff0000";
+pub const WARNING_UNPRESSED_DARK: &str = "#4d4d00";
+pub const WARNING_UNPRESSED_LIGHT: &str = "#ffffcc";
+pub const WARNING_PRESSED_DARK: &str = "#808000";
+pub const WARNING_PRESSED_LIGHT: &str = "#ffff99";
+pub const WARNING_FOREGROUND_LIGHT: &str = "#B300C0";
+pub const INFO_UNPRESSED_DARK: &str = "#0059b3";
+pub const INFO_UNPRESSED_LIGHT: &str = "#cce6ff";
+pub const INFO_PRESSED_DARK: &str = "#0073e6";
+pub const INFO_PRESSED_LIGHT: &str = "#99ccff";
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
@@ -221,7 +253,7 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
 /// - parent: a pointer to the widget that'll be the parent of the dialog.
 /// - table_name: the name of the table to decode.
 /// - table_data: data of the table to decode.
-pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_name: &str, table_data: &[u8]) {
+pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_name: &str, table_data: &[u8]) {/*
     let table_name = table_name.to_owned();
     let table_data = table_data.to_owned();
 
@@ -261,7 +293,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     accept_button.released().connect(&send_table_slot);
     accept_button.released().connect(dialog.slot_accept());
     cancel_button.released().connect(dialog.slot_close());
-    dialog.exec();
+    dialog.exec();*/
 }
 
 /// This function deletes all widgets from a widget's layout.
@@ -307,12 +339,12 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
     widget.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", style_sheet)));
 }
 
-/// Util function to get the PackedFileType of a PackedFile in a reliable way.
-pub fn get_packed_file_type(path: &[String]) -> PackedFileType {
-    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileType(path.to_vec()));
+/// Util function to get the FileType of a File in a reliable way.
+pub fn file_type(path: &str) -> FileType {
+    let receiver = CENTRAL_COMMAND.send_background(Command::GetFileType(path.to_owned()));
     let response = CentralCommand::recv(&receiver);
     match response {
-        Response::PackedFileType(packed_file_type) => packed_file_type,
+        Response::FileType(file_type) => file_type,
         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
     }
 }
@@ -465,21 +497,25 @@ pub fn create_dark_theme_stylesheet() -> String {
 
         ",
         assets_path = ASSETS_PATH.to_string_lossy(),
-        button_bd_hover = *ORANGE,
-        button_bd_off = *SLIGHTLY_DARKER_GREY,
-        button_bg_on = *SLIGHTLY_DARKER_GREY,
-        button_bg_off = *MEDIUM_DARKER_GREY,
-        button_bg_hover = *DARK_GREY,
-        text_normal = *KINDA_WHITY_GREY,
-        text_highlighted = *EVEN_MORE_WHITY_GREY,
+        button_bd_hover = ORANGE,
+        button_bd_off = SLIGHTLY_DARKER_GREY,
+        button_bg_on = SLIGHTLY_DARKER_GREY,
+        button_bg_off = MEDIUM_DARKER_GREY,
+        button_bg_hover = DARK_GREY,
+        text_normal = KINDA_WHITY_GREY,
+        text_highlighted = EVEN_MORE_WHITY_GREY,
 
-        checkbox_bd_off = *KINDA_WHITY_GREY,
-        checkbox_bd_hover = *ORANGE
+        checkbox_bd_off = KINDA_WHITY_GREY,
+        checkbox_bd_hover = ORANGE
     )
 }
 
 /// This function returns the a widget from the view if it exits, and an error if it doesn't.
 pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
     where QObject: DynamicCast<T> {
-    main_widget.find_child(widget_name).map_err(|_| ErrorKind::TemplateUIWidgetNotFound(widget_name.to_owned()).into())
+    main_widget.find_child(widget_name)
+        .map_err(|_|
+            anyhow!("One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.
+
+            The missing widgets are: {}", widget_name))
 }

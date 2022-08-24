@@ -2,7 +2,7 @@
 // Copyright (c) 2017-2022 Ismael Gutiérrez González. All rights reserved.
 //
 // This file is part of the Rusted PackFile Manager (RPFM) project,
-// which can be found here: https://github.com/Frodo45127/rpfm.
+// which can be found here&: https://github.com/Frodo45127/rpfm.
 //
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
@@ -24,7 +24,7 @@
 )]
 
 // This disables the terminal window on windows on release builds.
-#[cfg(all(target_os = "windows", not(debug_assertions)))] #[windows_subsystem = "windows"]
+//#[cfg(all(target_os = "windows", not(debug_assertions)))] #[windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
@@ -36,25 +36,24 @@ use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QString;
-/*
+
 use lazy_static::lazy_static;
-use log::info;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicPtr};
+use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
 use std::thread;
 
-use rpfm_lib::{SENTRY_GUARD, SETTINGS};
+use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
+use rpfm_lib::integrations::log::*;
+use rpfm_lib::schema::Schema;
 
-use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response};
 use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
-use crate::ui::GameSelectedIcons;
+use crate::settings_ui::backend::*;
+use crate::ui::*;
 use crate::ui_state::UIState;
-use crate::ui::UI;
-use crate::utils::atomic_from_cpp_box;
-use crate::utils::atomic_from_q_box;
+use crate::utils::*;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
@@ -106,11 +105,34 @@ mod settings_ui;
 mod tools;
 mod ui;
 mod ui_state;
+mod updater;
 mod utils;
 mod views;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {
+
+    /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and
+    /// for "MyMod" folders.
+    ///
+    /// TODO: Remove this?
+    #[derive(Debug)]
+    static ref SUPPORTED_GAMES: SupportedGames = SupportedGames::new();
+
+    /// The current GameSelected. If invalid, it uses WH3 as default.
+    static ref GAME_SELECTED: Arc<RwLock<&'static GameInfo>> = Arc::new(RwLock::new(
+        match SUPPORTED_GAMES.game(&setting_string("default_game")) {
+            Some(game) => game,
+            None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
+        }
+    ));
+
+    /// Currently loaded schema.
+    static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
+
+    /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
+    /// TODO: Fix this path with a settings abstraction.
+    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&PathBuf::from("."), true).unwrap()));
 
     /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
     /// (so we don't break debug builds). In Release mode, we take the `.exe` path.
@@ -189,55 +211,6 @@ lazy_static! {
     /// Stylesheet used by the dark theme in Windows.
     static ref DARK_STYLESHEET: String = utils::create_dark_theme_stylesheet();
 
-    // Colors used all over the program for theming and stuff.
-    static ref MEDIUM_DARK_GREY: &'static str = "#333333";            // Medium-Dark Grey. The color of the background of the Main Window.
-    static ref MEDIUM_DARKER_GREY: &'static str = "#262626";          // Medium-Darker Grey.
-    static ref DARK_GREY: &'static str = "#181818";                   // Dark Grey. The color of the background of the Main TreeView.
-    static ref SLIGHTLY_DARKER_GREY: &'static str = "#101010";        // A Bit Darker Grey.
-    static ref KINDA_WHITY_GREY: &'static str = "#BBBBBB";            // Light Grey. The color of the normal Text.
-    static ref KINDA_MORE_WHITY_GREY: &'static str = "#CCCCCC";       // Lighter Grey. The color of the highlighted Text.
-    static ref EVEN_MORE_WHITY_GREY: &'static str = "#FAFAFA";        // Even Lighter Grey.
-    static ref BRIGHT_RED: &'static str = "#FF0000";                  // Bright Red, as our Lord.
-    static ref DARK_RED: &'static str = "#FF0000";                    // Dark Red, as our face after facing our enemies.
-    static ref LINK_BLUE: &'static str = "#2A82DA";                   // Blue, used for Zeldas.
-    static ref ORANGE: &'static str = "#E67E22";                      // Orange, used for borders.
-    static ref MEDIUM_GREY: &'static str = "#555555";
-
-    static ref YELLOW_BRIGHT: &'static str = "#FFFFDD";
-    static ref YELLOW_MEDIUM: &'static str = "#e5e546";
-    static ref YELLOW_DARK: &'static str = "#525200";
-
-    static ref GREEN_BRIGHT: &'static str = "#D0FDCC";
-    static ref GREEN_MEDIUM: &'static str = "#87d382";
-    static ref GREEN_DARK: &'static str = "#708F6E";
-
-    static ref RED_BRIGHT: &'static str = "#FFCCCC";
-    static ref RED_DARK: &'static str = "#8F6E6E";
-
-    static ref BLUE_BRIGHT: &'static str = "#3399ff";
-    static ref BLUE_DARK: &'static str = "#0066cc";
-
-    static ref MAGENTA_MEDIUM: &'static str = "#CA1F7B";
-
-    static ref TRANSPARENT_BRIGHT: &'static str = "#00000000";
-
-    static ref ERROR_UNPRESSED_DARK: &'static str = "#b30000";
-    static ref ERROR_UNPRESSED_LIGHT: &'static str = "#ffcccc";
-    static ref ERROR_PRESSED_DARK: &'static str = "#e60000";
-    static ref ERROR_PRESSED_LIGHT: &'static str = "#ff9999";
-    static ref ERROR_FOREGROUND_LIGHT: &'static str = "#ff0000";
-
-    static ref WARNING_UNPRESSED_DARK: &'static str = "#4d4d00";
-    static ref WARNING_UNPRESSED_LIGHT: &'static str = "#ffffcc";
-    static ref WARNING_PRESSED_DARK: &'static str = "#808000";
-    static ref WARNING_PRESSED_LIGHT: &'static str = "#ffff99";
-    static ref WARNING_FOREGROUND_LIGHT: &'static str = "#B300C0";
-
-    static ref INFO_UNPRESSED_DARK: &'static str = "#0059b3";
-    static ref INFO_UNPRESSED_LIGHT: &'static str = "#cce6ff";
-    static ref INFO_PRESSED_DARK: &'static str = "#0073e6";
-    static ref INFO_PRESSED_LIGHT: &'static str = "#99ccff";
-
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {
         match Locale::initialize_fallback() {
@@ -248,9 +221,11 @@ lazy_static! {
 
     /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
     static ref LOCALE: Locale = {
-        match SETTINGS.read().unwrap().settings_string.get("language") {
-            Some(language) => Locale::initialize(language).unwrap_or_else(|_| LOCALE_FALLBACK.clone()),
-            None => LOCALE_FALLBACK.clone(),
+        let language = setting_string("language");
+        if !language.is_empty() {
+            Locale::initialize(&language).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
+        } else {
+            LOCALE_FALLBACK.clone()
         }
     };
 
@@ -274,9 +249,7 @@ lazy_static! {
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = "I forgot about this message";
-const QT_ORG: &str = "FrodoWazEre";
-const QT_PROGRAM: &str = "rpfm";*/
-/*
+
 /// Main function.
 fn main() {
 
@@ -313,4 +286,4 @@ fn main() {
         exit_code
     })
 }
-*/
+

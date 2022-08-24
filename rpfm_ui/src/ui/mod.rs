@@ -36,7 +36,6 @@ use qt_core::QVariant;
 use qt_core::WindowState;
 
 use cpp_core::Ptr;
-use log::info;
 
 use std::env::args;
 use std::path::PathBuf;
@@ -44,10 +43,8 @@ use std::rc::Rc;
 use std::fs::{read_dir, remove_dir_all};
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::integrations::log::*;
 
 #[cfg(feature = "only_for_the_brave")]
 use crate::VERSION;
@@ -63,6 +60,7 @@ use crate::dependencies_ui::slots::DependenciesUISlots;
 use crate::diagnostics_ui;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::diagnostics_ui::slots::DiagnosticsUISlots;
+use crate::GAME_SELECTED;
 use crate::GAME_SELECTED_ICONS;
 use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
@@ -71,16 +69,16 @@ use crate::LIGHT_PALETTE;
 use crate::references_ui;
 use crate::references_ui::ReferencesUI;
 use crate::references_ui::slots::ReferencesUISlots;
+use crate::SUPPORTED_GAMES;
 
 #[cfg(feature = "only_for_the_brave")]
 use crate::locale::qtr;
 use crate::locale::tr;
-use crate::QT_PROGRAM;
-use crate::QT_ORG;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::RPFM_PATH;
+use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::utils::atomic_from_cpp_box;
 use crate::utils::show_dialog;
@@ -162,6 +160,7 @@ impl UI {
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
         // Apply last ui state.
+        // TODO: Move all this to settings.
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
 
         if !q_settings.contains(&QString::from_std_str("originalGeometry")) {
@@ -286,7 +285,7 @@ impl UI {
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
-        match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+        match &*setting_string("default_game") {
             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
             KEY_TROY => app_ui.game_selected_troy.set_checked(true),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
@@ -305,19 +304,19 @@ impl UI {
             _ => app_ui.game_selected_warhammer_3.set_checked(true),
         }
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
-        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
+        info!("Initial Game Selected set to {}.", setting_string("default_game"));
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
-        if SETTINGS.read().unwrap().settings_bool["start_maximized"] {
+        if setting_bool("start_maximized") {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
-        if !SETTINGS.read().unwrap().settings_string["font_name"].is_empty() && !SETTINGS.read().unwrap().settings_string["font_size"].is_empty() {
+        if !setting_string("font_name").is_empty() && !setting_string("font_size").is_empty() {
             let font = QFont::new();
-            font.set_family(&QString::from_std_str(&SETTINGS.read().unwrap().settings_string["font_name"]));
-            font.set_point_size(SETTINGS.read().unwrap().settings_string["font_size"].parse::<i32>().unwrap());
+            font.set_family(&QString::from_std_str(&setting_string("font_name")));
+            font.set_point_size(setting_string("font_size").parse::<i32>().unwrap());
             QApplication::set_font_1a(&font);
         }
 
@@ -328,7 +327,7 @@ impl UI {
 
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
-            if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+            if setting_bool("use_dark_theme") {
                 QApplication::set_style_q_string(&QString::from_std_str("fusion"));
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
@@ -342,7 +341,7 @@ impl UI {
 
         // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
         else if cfg!(target_os = "macos") {
-            if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+            if setting_bool("use_dark_theme") {
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
                 QIcon::set_theme_name(&QString::from_std_str("breeze-dark"));
@@ -364,7 +363,7 @@ impl UI {
                 info!("Directly opening PackFile {}.", path.to_string_lossy().to_string());
                 if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
                     show_dialog(&app_ui.main_window, error, false);
-                } else if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_open"] {
+                } else if setting_bool("diagnostics_trigger_on_open") {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }
@@ -375,16 +374,16 @@ impl UI {
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        if SETTINGS.read().unwrap().settings_bool["check_updates_on_start"] { AppUI::check_updates(&app_ui, false) };
+        if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
+        if setting_bool("check_schema_updates_on_start") { AppUI::check_schema_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are message updates.
-        if SETTINGS.read().unwrap().settings_bool["check_message_updates_on_start"] { AppUI::check_message_updates(&app_ui, false) };
+        if setting_bool("check_message_updates_on_start") { AppUI::check_message_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are lua autogen updates.
-        if SETTINGS.read().unwrap().settings_bool["check_lua_autogen_updates_on_start"] { AppUI::check_lua_autogen_updates(&app_ui, false) };
+        if setting_bool("check_lua_autogen_updates_on_start") { AppUI::check_lua_autogen_updates(&app_ui, false) };
 
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
@@ -437,24 +436,24 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
-            warhammer_3: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_3).unwrap().get_game_selected_icon_big_file_name())),
-            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_TROY).unwrap().get_game_selected_icon_big_file_name())),
-            three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THREE_KINGDOMS).unwrap().get_game_selected_icon_big_file_name())),
-            warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER_2).unwrap().get_game_selected_icon_big_file_name())),
-            warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_WARHAMMER).unwrap().get_game_selected_icon_big_file_name())),
-            thrones_of_britannia: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_THRONES_OF_BRITANNIA).unwrap().get_game_selected_icon_big_file_name())),
-            attila: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ATTILA).unwrap().get_game_selected_icon_big_file_name())),
-            rome_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ROME_2).unwrap().get_game_selected_icon_big_file_name())),
-            shogun_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_SHOGUN_2).unwrap().get_game_selected_icon_big_file_name())),
-            napoleon: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_NAPOLEON).unwrap().get_game_selected_icon_big_file_name())),
-            empire: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_EMPIRE).unwrap().get_game_selected_icon_big_file_name())),
-            arena: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get_supported_game_from_key(KEY_ARENA).unwrap().get_game_selected_icon_big_file_name())),
+            warhammer_3: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap().icon_big_file_name())),
+            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_TROY).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_TROY).unwrap().icon_big_file_name())),
+            three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THREE_KINGDOMS).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THREE_KINGDOMS).unwrap().icon_big_file_name())),
+            warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_2).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_2).unwrap().icon_big_file_name())),
+            warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER).unwrap().icon_big_file_name())),
+            thrones_of_britannia: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THRONES_OF_BRITANNIA).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THRONES_OF_BRITANNIA).unwrap().icon_big_file_name())),
+            attila: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ATTILA).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ATTILA).unwrap().icon_big_file_name())),
+            rome_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ROME_2).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ROME_2).unwrap().icon_big_file_name())),
+            shogun_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_SHOGUN_2).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_SHOGUN_2).unwrap().icon_big_file_name())),
+            napoleon: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_NAPOLEON).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_NAPOLEON).unwrap().icon_big_file_name())),
+            empire: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_EMPIRE).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_EMPIRE).unwrap().icon_big_file_name())),
+            arena: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ARENA).unwrap().icon_file_name())))), format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ARENA).unwrap().icon_big_file_name())),
         }
     }
 
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
-        let (icon, big_icon) = match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+        let (icon, big_icon) = match &*GAME_SELECTED.read().unwrap().game_key_name() {
             KEY_WARHAMMER_3 => &GAME_SELECTED_ICONS.warhammer_3,
             KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
@@ -474,7 +473,7 @@ impl GameSelectedIcons {
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
 
-        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] {
+        if !settings_bool("hide_background_icon") {
             if app_ui.tab_bar_packed_file.count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?

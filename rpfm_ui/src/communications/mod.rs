@@ -14,12 +14,18 @@ This module defines the code used for thread communication.
 
 use qt_core::QEventLoop;
 
+use anyhow::Error;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
+use rpfm_lib::files::FileType;
+use rpfm_lib::integrations::GitResponse;
+
+use crate::updater::APIResponse;
+/*
 use rpfm_common::git_integration::GitResponse;
 use rpfm_error::Error;
 
@@ -46,6 +52,7 @@ use crate::app_ui::NewPackedFile;
 use crate::packedfile_views::DataSource;
 use crate::views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
+*/
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
@@ -75,7 +82,7 @@ pub enum Command {
 
     /// This command is used to close a thread.
     Exit,
-
+/*
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 
@@ -152,13 +159,13 @@ pub enum Command {
 
     /// This command is used when we want to get the info of the provided `PackedFile`.
     GetPackedFileInfo(Vec<String>),
-
+    */
     /// This command is used when we want to check if there is an RPFM update available.
     CheckUpdates,
 
     /// This command is used when we want to check if there is an Schema update available.
     CheckSchemaUpdates,
-
+    /*
     /// This command is used when we want to update our schemas.
     UpdateSchemas,
 
@@ -322,10 +329,10 @@ pub enum Command {
 
     /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
     SearchReferences(HashMap<String, Vec<String>>, String),
-
-    /// This command is used to get the type of a PackedFile.
-    GetPackedFileType(Vec<String>),
-
+    */
+    /// This command is used to get the type of a File.
+    GetFileType(String),
+/*
     /// This command is used to get the name of the currently open PackFile.
     GetPackFileName,
 
@@ -367,15 +374,15 @@ pub enum Command {
 
     /// This command is used to generate all missing loc entries for the currently open PackFile.
     GenerateMissingLocData,
-
+*/
     /// This command is used to check for updates on the tw_autogen thing.
     CheckLuaAutogenUpdates,
-
+/*
     /// This command is used to update the tw_autogen thing.
     UpdateLuaAutogen,
 
     /// This command is used to initialize a MyMod Folder.
-    InitializeMyModFolder(String, String),
+    InitializeMyModFolder(String, String),*/
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -389,7 +396,7 @@ pub enum Response {
 
     /// Generic response for situations that returned an error.
     Error(Error),
-
+/*
     /// Response to return (bool).
     Bool(bool),
 
@@ -428,13 +435,13 @@ pub enum Response {
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),
-
+    */
     /// Response to return `APIResponse`.
     APIResponse(APIResponse),
 
-    /// Response to return `APIResponseSchema`.
-    APIResponseSchema(APIResponseSchema),
-
+    /// Response to return `APIResponseGit`.
+    APIResponseGit(GitResponse),
+    /*
     /// Response to return `APIResponseTips`.
     APIResponseTips(APIResponseTips),
 
@@ -517,10 +524,10 @@ pub enum Response {
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),
-
-    /// Response to return `PackedFileType`.
-    PackedFileType(PackedFileType),
-
+    */
+    /// Response to return `FileType`.
+    FileType(FileType),
+/*
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
 
@@ -534,7 +541,7 @@ pub enum Response {
     DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
     Definition(Definition),
     VecTipVecTip(Vec<Tip>, Vec<Tip>),
-    APIResponseGit(GitResponse),
+    */
 }
 
 //-------------------------------------------------------------------------------//

@@ -39,7 +39,7 @@ use cpp_core::Ptr;
 
 use std::rc::Rc;
 
-use rpfm_lib::SETTINGS;
+
 use rpfm_macros::{Getters, MutGetters, Set};
 
 use crate::AppUI;

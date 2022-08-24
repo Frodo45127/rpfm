@@ -73,7 +73,7 @@ use rpfm_lib::packedfile::table::{loc, loc::Loc};
 use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
-use rpfm_lib::SETTINGS;
+
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

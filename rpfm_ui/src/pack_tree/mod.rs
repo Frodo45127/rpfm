@@ -40,12 +40,12 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_common::utils::*;
+use rpfm_lib::utils::*;
 
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
+
+use crate::SUPPORTED_GAMES;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -53,26 +53,8 @@ use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::DataSource;
-use crate::{
-    GREEN_BRIGHT,
-    GREEN_DARK,
-    RED_BRIGHT,
-    RED_DARK,
-    MEDIUM_DARKER_GREY,
-    TRANSPARENT_BRIGHT,
-    ERROR_UNPRESSED_DARK,
-    ERROR_UNPRESSED_LIGHT,
-    ERROR_PRESSED_DARK,
-    ERROR_PRESSED_LIGHT,
-    WARNING_UNPRESSED_DARK,
-    WARNING_UNPRESSED_LIGHT,
-    WARNING_PRESSED_DARK,
-    WARNING_PRESSED_LIGHT,
-    INFO_UNPRESSED_DARK,
-    INFO_UNPRESSED_LIGHT,
-    INFO_PRESSED_DARK,
-    INFO_PRESSED_LIGHT
-};
+use crate::settings_ui::backend::*;
+use crate::utils::*;
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -833,7 +815,7 @@ impl PackTree for QBox<QTreeView> {
             useless_prefix.pop();
 
             // Get the paths of all the files inside that folder, recursively.
-            let file_list = get_files_from_subdir(file_path, true).unwrap();
+            let file_list = files_from_subdir(file_path, true).unwrap();
 
             // Then, for each file, remove his prefix, leaving only the path from the folder onwards.
             for file_path in &file_list {
@@ -1382,7 +1364,7 @@ impl PackTree for QBox<QTreeView> {
                             }
                         }
 
-                        if SETTINGS.read().unwrap().settings_bool["expand_treeview_when_adding_items"] {
+                        if setting_bool("expand_treeview_when_adding_items") {
                             self.expand_treeview_to_item(path, source);
                         }
                     }
@@ -1739,9 +1721,9 @@ pub fn new_pack_file_tooltip(info: &PackFileInfo) -> String {
         CompressionState::Partial => "partially",
     }.to_owned();
 
-    let compatible_games = SUPPORTED_GAMES.get_games().iter()
-        .filter(|x| x.get_pfh_versions().values().any(|x| x == &info.pfh_version))
-        .map(|x| format!("<li><i>{}</i></li>", x.get_display_name()))
+    let compatible_games = SUPPORTED_GAMES.games().iter()
+        .filter(|x| x.pfh_versions().values().any(|x| x == &info.pfh_version))
+        .map(|x| format!("<li><i>{}</i></li>", x.display_name()))
         .collect::<String>();
 
     format!("PackFile Info: \
@@ -2009,7 +1991,7 @@ impl BuildData {
 }
 
 pub unsafe fn get_color_correct() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         GREEN_DARK.to_owned()
     } else {
         GREEN_BRIGHT.to_owned()
@@ -2017,7 +1999,7 @@ pub unsafe fn get_color_correct() -> String {
 }
 
 pub unsafe fn get_color_wrong() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         RED_DARK.to_owned()
     } else {
         RED_BRIGHT.to_owned()
@@ -2025,7 +2007,7 @@ pub unsafe fn get_color_wrong() -> String {
 }
 
 pub unsafe fn get_color_clean() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         MEDIUM_DARKER_GREY.to_owned()
     } else {
         TRANSPARENT_BRIGHT.to_owned()
@@ -2033,7 +2015,7 @@ pub unsafe fn get_color_clean() -> String {
 }
 
 pub unsafe fn get_color_info() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         INFO_UNPRESSED_DARK.to_owned()
     } else {
         INFO_UNPRESSED_LIGHT.to_owned()
@@ -2041,7 +2023,7 @@ pub unsafe fn get_color_info() -> String {
 }
 
 pub unsafe fn get_color_warning() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         WARNING_UNPRESSED_DARK.to_owned()
     } else {
         WARNING_UNPRESSED_LIGHT.to_owned()
@@ -2049,7 +2031,7 @@ pub unsafe fn get_color_warning() -> String {
 }
 
 pub unsafe fn get_color_error() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         ERROR_UNPRESSED_DARK.to_owned()
     } else {
         ERROR_UNPRESSED_LIGHT.to_owned()
@@ -2057,7 +2039,7 @@ pub unsafe fn get_color_error() -> String {
 }
 
 pub unsafe fn get_color_info_pressed() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         INFO_PRESSED_DARK.to_owned()
     } else {
         INFO_PRESSED_LIGHT.to_owned()
@@ -2065,7 +2047,7 @@ pub unsafe fn get_color_info_pressed() -> String {
 }
 
 pub unsafe fn get_color_warning_pressed() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         WARNING_PRESSED_DARK.to_owned()
     } else {
         WARNING_PRESSED_LIGHT.to_owned()
@@ -2073,7 +2055,7 @@ pub unsafe fn get_color_warning_pressed() -> String {
 }
 
 pub unsafe fn get_color_error_pressed() -> String {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+    if setting_bool("use_dark_theme") {
         ERROR_PRESSED_DARK.to_owned()
     } else {
         ERROR_PRESSED_LIGHT.to_owned()
