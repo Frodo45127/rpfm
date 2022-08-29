@@ -551,7 +551,7 @@ impl Diagnostics {
                             match dependency_data.get(&(column as i32)) {
                                 Some(ref_data) => {
 
-                                    if ref_data.referenced_column_is_localised {
+                                    if ref_data.referenced_column_is_localised || ref_data.referenced_table_is_ak_only {
                                         // TODO: report missing loc data here.
                                     }
                                     /*
