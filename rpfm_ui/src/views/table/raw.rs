@@ -46,7 +46,7 @@ use qt_ui_tools::QUiLoader;
 use cpp_core::CppBox;
 use cpp_core::Ref;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::sync::atomic::Ordering;
@@ -434,20 +434,58 @@ impl TableView {
         // TODO: Improve this.
         //
         // NOTE: Request by DrunkFlamingo: ignore keys if there are duplicates.
-        let (intexed_keys, indexes_no_keys): (Vec<Ref<QModelIndex>>, Vec<Ref<QModelIndex>>) = indexes_sorted.iter()
-            .filter_map(|x| if x.column() != -1 { Some(x.as_ref()) } else { None })
-            .partition(|x|
-                indexes_sorted.iter()
-                    .filter(|y| y.row() == x.row())
-                    .any(|z| self.get_ref_table_definition().get_fields_processed()[z.column() as usize].get_is_key() && indexes_sorted.iter().filter(|a| a.column() == z.column() && z.data_0a().to_string().to_std_string() == a.data_0a().to_string().to_std_string()).count() == 1)
-            );
+        let mut rows: HashMap<i32, Vec<_>> = HashMap::new();
+        for index_sorted in &indexes_sorted {
+            let row_index = index_sorted.row();
+            let column_index = index_sorted.column();
+            if row_index != -1 && column_index != -1 {
+                match rows.get_mut(&row_index) {
+                    Some(row) => {
+                        row.push(index_sorted.as_ref());
+                    }
+                    None => {
+                        rows.insert(row_index, vec![index_sorted.as_ref()]);
+                    }
+                }
 
-        let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
+            }
+        }
+
+        let mut processed: HashMap<i32, HashSet<String>> = HashMap::new();
+        let fields_processed = self.get_ref_table_definition().get_fields_processed();
+        let (intexed_keys, indexes_no_keys): (Vec<Vec<Ref<QModelIndex>>>, Vec<Vec<Ref<QModelIndex>>>) = rows.into_values()
+            .partition(|indexes| {
+                indexes.iter().any(|index| {
+
+                    let data = index.data_0a().to_string().to_std_string();
+                    let column_data = processed.get(&index.column());
+                    let has_key = fields_processed[index.column() as usize].get_is_key() && (column_data.is_none() || column_data.unwrap().get(&data).is_none());
+                    if has_key {
+                        match processed.get_mut(&index.column()) {
+                            Some(column_data) => {
+                                column_data.insert(data);
+                            },
+                            None => {
+                                let mut column_data = HashSet::new();
+                                column_data.insert(data);
+                                processed.insert(index.column(), column_data);
+                            },
+                        }
+                    }
+
+                    has_key
+                })
+            });
+
+        let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys.into_iter().flatten().collect::<Vec<_>>(), true);
         lua_table.push('\n');
-        lua_table.push_str(&self.get_indexes_as_lua_table(&indexes_no_keys, false));
+        lua_table.push_str(&self.get_indexes_as_lua_table(&indexes_no_keys.into_iter().flatten().collect::<Vec<_>>(), false));
 
         // Put the baby into the oven.
         QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(lua_table));
+
+        // This can take time, show a message on the status bar.
+        log_to_status_bar("Table copied as LUA Table.");
     }
 
     /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
@@ -826,6 +864,7 @@ impl TableView {
     unsafe fn get_indexes_as_lua_table(&self, indexes: &[Ref<QModelIndex>], has_keys: bool) -> String {
         let mut table_data: Vec<(Option<String>, Vec<String>)> = vec![];
         let mut last_row = None;
+        let fields_processed = self.get_ref_table_definition().get_fields_processed();
         for index in indexes {
             if index.column() != -1 {
                 let current_row = index.row();
@@ -836,7 +875,7 @@ impl TableView {
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index);
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
+                            if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             entry.1.push(data);
@@ -847,7 +886,7 @@ impl TableView {
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
+                            if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             table_data.push(entry);
@@ -857,7 +896,7 @@ impl TableView {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_is_key() && has_keys {
+                        if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
