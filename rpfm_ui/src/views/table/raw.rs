@@ -385,6 +385,7 @@ impl TableView {
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
         let mut row = 0;
+        let fields_processed = self.table_definition.read().unwrap().get_fields_processed();
         for (cycle, model_index) in indexes_sorted.iter().enumerate() {
             if model_index.is_valid() {
 
@@ -407,8 +408,8 @@ impl TableView {
                 }
 
                 // Fix for weird precision issues on copy.
-                else if self.table_definition.read().unwrap().get_fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
-                    copy.push_str(&format!("{}", (item.data_1a(2).to_float_0a() * 1000.0).round() / 1000.0));
+                else if fields_processed[model_index.column() as usize].get_field_type() == FieldType::F32 {
+                    copy.push_str(&format!("{:.4}", item.data_1a(2).to_float_0a()));
                 }
                 else { copy.push_str(&QString::to_std_string(&item.text())); }
 
