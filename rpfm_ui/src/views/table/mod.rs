@@ -1634,7 +1634,7 @@ impl FilterView {
             filter_match_group_selector.add_item_q_string(&QString::from_std_str(&format!("{} {}", tr("filter_group"), 1)));
         }
 
-        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_line_edit.set_placeholder_text(&qtr("table_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_case_sensitive_button.set_checkable(true);
         filter_show_blank_cells_button.set_checkable(true);

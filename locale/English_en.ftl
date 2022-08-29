@@ -168,6 +168,7 @@ new_animpack_file = New AnimPack
 new_packedfile_name = New PackedFile's Name
 
 packedfile_filter = Type here to filter the tables of the list. Works with Regex too!
+table_filter = Type here to filter the table. Works with Regex too!
 
 merge_tables = Merge Tables
 merge_tables_new_name = Write the name of the new file here.
