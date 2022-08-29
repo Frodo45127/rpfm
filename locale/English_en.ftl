@@ -374,7 +374,7 @@ context_menu_new_packed_file_anim_pack = Create AnimPack
 context_menu_new_packed_file_db = Create DB
 context_menu_new_packed_file_loc = Create Loc
 context_menu_new_packed_file_text = Create Text
-context_menu_new_queek_packed_file = New Queek File
+context_menu_new_queek_packed_file = New Quick File
 
 context_menu_mass_import_tsv = Mass-Import TSV
 context_menu_mass_export_tsv = Mass-Export TSV
