@@ -16,7 +16,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Create…/Create DB`: Allows you to create an empty DB Table.
 - `Create…/Create Loc`: Allows you to create an empty Loc PackedFile. You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
 - `Create…/Create Text`: Allows you to create an empty text file. ANY TEXT FILE (including lua, xml,...). You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
-- `Create…/Create Queek File`: Allows you to create a file based on the context. The current contexts where this works are:
+- `Create…/Create Quick File`: Allows you to create a file based on the context. The current contexts where this works are:
     - `db/x_tables`: It creates a new empty db table of the last version supported by the game selected.
     - `text/`: It creates a loc file.
     - `scripts/`: It creates a LUA script.
