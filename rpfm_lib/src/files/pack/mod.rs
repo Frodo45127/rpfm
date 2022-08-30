@@ -145,7 +145,7 @@ pub struct PackHeader {
     /// The timestamp of the last time the PackFile was saved.
     internal_timestamp: u64,
 
-    /// Game version this mod is intended for. This usually triggers the "outdated mod" warning in the launcher if it doesn't match the current exe version.
+    /// Game version this Pack is intended for. This usually triggers the "outdated mod" warning in the launcher if it doesn't match the current exe version.
     game_version: u32,
 
     /// Build number of the game.
@@ -581,14 +581,84 @@ impl Pack {
     //                           Getters & Setters
     //-----------------------------------------------------------------------//
 
+    /// This function returns the current PFH Version of the provided Pack.
+    pub fn pfh_version(&self) -> PFHVersion {
+        *self.header.pfh_version()
+    }
+
+    /// This function returns the current PFH File Type of the provided Pack.
+    pub fn pfh_file_type(&self) -> PFHFileType {
+        *self.header.pfh_file_type()
+    }
+
+    /// This function returns the bitmask applied to the provided Pack.
+    pub fn bitmask(&self) -> PFHFlags {
+        *self.header.bitmask()
+    }
+
+    /// This function returns the timestamp of the last time the Pack was saved.
+    pub fn internal_timestamp(&self) -> u64 {
+        *self.header.internal_timestamp()
+    }
+
+    /// This function returns the Game version this Pack is intended for.
+    pub fn game_version(&self) -> u32 {
+        *self.header.game_version()
+    }
+
+    /// This function returns the build number of the game this Pack is intended for.
+    pub fn build_number(&self) -> u32 {
+        *self.header.build_number()
+    }
+
+    /// This function returns the tool that created the Pack. Max 8 characters, 00-padded.
+    pub fn authoring_tool(&self) -> &str {
+        &self.header.authoring_tool()
+    }
+
+    /// This function returns the Extra Subheader Data, if any.
+    pub fn extra_subheader_data(&self) -> &[u8] {
+        &self.header.extra_subheader_data()
+    }
+
+    /// This function sets the current Pack PFH Version to the provided one.
+    pub fn set_pfh_version(&mut self, version: PFHVersion) {
+        self.header.set_pfh_version(version);
+    }
+
     /// This function sets the current Pack PFH File Type to the provided one.
     pub fn set_pfh_file_type(&mut self, file_type: PFHFileType) {
-        self.header.pfh_file_type = file_type;
+        self.header.set_pfh_file_type(file_type);
+    }
+
+    /// This function sets the current Pack bitmask to the provided one.
+    pub fn set_bitmask(&mut self, bitmask: PFHFlags) {
+        self.header.set_bitmask(bitmask);
+    }
+
+    /// This function sets the current Pack timestamp to the provided one.
+    pub fn set_internal_timestamp(&mut self, timestamp: u64) {
+        self.header.set_internal_timestamp(timestamp);
     }
 
     /// This function sets the game version (as in X.Y.Z) this Pack is for.
     pub fn set_game_version(&mut self, game_version: u32) {
-        self.header.game_version = game_version;
+        self.header.set_game_version(game_version);
+    }
+
+    /// This function sets the build number this Pack is for.
+    pub fn set_build_number(&mut self, build_number: u32) {
+        self.header.set_build_number(build_number);
+    }
+
+    /// This function sets the authoring tool that last edited this Pack.
+    pub fn set_authoring_tool(&mut self, authoring_tool: &str) {
+        self.header.set_authoring_tool(authoring_tool.to_string());
+    }
+
+    /// This function sets the Extra Subheader Data of the Pack..
+    pub fn set_extra_subheader_data(&mut self, extra_subheader_data: &[u8]) {
+        self.header.set_extra_subheader_data(extra_subheader_data.to_vec());
     }
 
     //-----------------------------------------------------------------------//
