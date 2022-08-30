@@ -63,7 +63,7 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::{fmt, fmt::{Debug, Display}};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -1914,32 +1914,7 @@ impl PartialOrd for ContainerPath {
 // Implementations for `PackedFileType`.
 //----------------------------------------------------------------//
 
-/// Display implementation of `PackedFileType`.
-impl Display for PackedFileType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PackedFileType::Anim => write!(f, "Anim"),
-            PackedFileType::AnimFragment => write!(f, "AnimFragment"),
-            PackedFileType::AnimPack => write!(f, "AnimPack"),
-            PackedFileType::AnimTable => write!(f, "AnimTable"),
-            PackedFileType::CaVp8 => write!(f, "CA_VP8"),
-            PackedFileType::CEO => write!(f, "CEO"),
-            PackedFileType::DB => write!(f, "DB Table"),
-            PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
-            PackedFileType::ESF => write!(f, "ESF"),
-            PackedFileType::Image => write!(f, "Image"),
-            PackedFileType::GroupFormations => write!(f, "Group Formations"),
-            PackedFileType::Loc => write!(f, "Loc Table"),
-            PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
-            PackedFileType::PackFile => write!(f, "PackFile"),
-            PackedFileType::RigidModel => write!(f, "RigidModel"),
-            PackedFileType::UIC => write!(f, "UI Component"),
-            PackedFileType::UnitVariant => write!(f, "Unit Variant"),
-            PackedFileType::Text(text_type) => write!(f, "Text, type: {:?}", text_type),
-            PackedFileType::PackFileSettings => write!(f, "PackFile Settings"),
-            PackedFileType::Unknown => write!(f, "Unknown"),
-        }
-    }
+
 }
 
 /// Implementation of `PackedFileType`.
@@ -2187,7 +2162,32 @@ impl PackedFileType {
     }
 }*/
 
-/// From implementation to get the type from a DecodedPackedFile.
+impl Display for FileType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FileType::Anim => write!(f, "Anim"),
+            FileType::AnimFragment => write!(f, "AnimFragment"),
+            FileType::AnimPack => write!(f, "AnimPack"),
+            FileType::AnimsTable => write!(f, "AnimsTable"),
+            FileType::CaVp8 => write!(f, "CA_VP8"),
+            FileType::CEO => write!(f, "CEO"),
+            FileType::DB => write!(f, "DB Table"),
+            FileType::ESF => write!(f, "ESF"),
+            FileType::GroupFormations => write!(f, "Group Formations"),
+            FileType::Image => write!(f, "Image"),
+            FileType::Loc => write!(f, "Loc Table"),
+            FileType::MatchedCombat => write!(f, "Matched Combat"),
+            FileType::Pack => write!(f, "PackFile"),
+            FileType::RigidModel => write!(f, "RigidModel"),
+            FileType::Save => write!(f, "Save"),
+            FileType::Text => write!(f, "Text"),
+            FileType::UIC => write!(f, "UI Component"),
+            FileType::UnitVariant => write!(f, "Unit Variant"),
+            FileType::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 impl From<&RFileDecoded> for FileType {
     fn from(file: &RFileDecoded) -> Self {
         match file {
