@@ -208,8 +208,18 @@ impl Encodeable for DB {
     }
 }
 
-/// Implementation of `DB`.
 impl DB {
+
+    /// This function creates a new empty [DB] table.
+    pub fn new(definition: &Definition, table_name: &str, use_sql_backend: bool) -> Self {
+        let table = Table::new(&definition, table_name, use_sql_backend);
+
+        Self {
+            mysterious_byte: true,
+            guid: String::new(),
+            table,
+        }
+    }
 
     /// This functions decodes the header part of a `DB` from a reader.
     ///

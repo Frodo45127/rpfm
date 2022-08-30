@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
-use rpfm_lib::integrations::table_data::RawTable;
+use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
 use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::utils::{current_time, last_modified_time_from_files};
 
@@ -46,7 +46,8 @@ use rpfm_lib::utils::{current_time, last_modified_time_from_files};
 ///
 /// - Then, on runtime, we add decoded table's reference data to this one, so we don't need to recalculate it again.
 ///     - local_tables_references,
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
 pub struct Dependencies {
 
     /// Date of the generation of this dependencies cache. For checking if it needs an update.
@@ -130,19 +131,7 @@ pub struct TableReferences {
 }
 
 /*
-/// This struct contains the minimal data needed (mainly paths), to know what we have loaded in out dependencies.
-#[derive(Debug, Clone, Getters, MutGetters)]
-pub struct DependenciesInfo {
 
-    /// Full PackedFile-like paths of each asskit-only table.
-    pub asskit_tables: Vec<PackedFileInfo>,
-
-    /// Full list of vanilla PackedFile paths.
-    pub vanilla_packed_files: Vec<PackedFileInfo>,
-
-    /// Full list of parent PackedFile paths.
-    pub parent_packed_files: Vec<PackedFileInfo>,
-}
 
 /// This enum is a way to lazy-load parts of the dependencies system just when we need them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,13 +191,14 @@ impl Dependencies {
         decode_extra_data.set_schema(Some(&schema));
         let extra_data = Some(decode_extra_data);
 
-        self.parent_files.par_iter_mut().try_for_each(|(_, file)| {
+        // Ignore any errors related with decoded tables.
+        let _ = self.parent_files.par_iter_mut().try_for_each(|(_, file)| {
             match file.file_type() {
                 FileType::DB |
                 FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
                 _ => Ok(())
             }
-        })?;
+        });
 
         // Then build the table/loc lists, for easy access.
         // TODO: Merge these two iters.
@@ -345,14 +335,14 @@ impl Dependencies {
         decode_extra_data.set_schema(Some(&schema));
         let extra_data = Some(decode_extra_data);
 
-        dependencies.vanilla_files.par_iter_mut()
-            .try_for_each(|(_, file)| {
-                match file.file_type() {
-                    FileType::DB |
-                    FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
-                    _ => Ok(())
-                }
-            })?;
+        // Ignore any errors related with decoded tables.
+        let _ = dependencies.vanilla_files.par_iter_mut().try_for_each(|(_, file)| {
+            match file.file_type() {
+                FileType::DB |
+                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
+                _ => Ok(())
+            }
+        });
 
         // Build the casing-related HashSets.
         //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
@@ -616,11 +606,6 @@ impl Dependencies {
         }
 
         Ok(cache)
-    }
-
-    /// This function returns the list of DB tables that are loaded from the Assembly Kit.
-    pub fn asskit_only_db_tables(&self) -> &HashMap<String, DB> {
-        &self.asskit_only_db_tables
     }
 
     //-----------------------------------//
@@ -1533,23 +1518,4 @@ impl Dependencies {
         packed_files
     }*/
 }
-/*
-impl From<&Dependencies> for DependenciesInfo {
-    fn from(dependencies: &Dependencies) -> Self {
-        let table_name_logic = GAME_SELECTED.read().unwrap().get_vanilla_db_table_name_logic();
 
-        Self {
-            asskit_tables: dependencies.asskit_only_db_tables().par_iter().map(|table| {
-                let table_name = match table_name_logic {
-                    VanillaDBTableNameLogic::DefaultName(ref name) => name.to_owned(),
-                    VanillaDBTableNameLogic::FolderName => table.get_table_name(),
-                };
-
-                PackedFileInfo::from(&PackedFile::new_from_decoded(&DecodedPackedFile::DB(table.clone()), &["db".to_owned(), table.get_table_name(), table_name]))
-            }).collect(),
-            vanilla_packed_files: dependencies.vanilla_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
-            parent_packed_files:dependencies.parent_cached_packed_files().par_iter().map(|(_, cached_packed_file)| PackedFileInfo::from(cached_packed_file)).collect(),
-        }
-    }
-}
-*/

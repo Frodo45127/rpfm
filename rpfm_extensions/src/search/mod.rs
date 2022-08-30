@@ -423,15 +423,6 @@ impl GlobalSearch {
         *self = Self::default();
     }/*
 
-    /// This function returns the PackedFileInfo for all the PackedFiles the current search has searched on.
-    pub fn get_results_packed_file_info(&self, pack_file: &mut PackFile) -> Vec<PackedFileInfo> {
-        let mut types = vec![];
-        if self.search_on_dbs { types.push(PackedFileType::DB); }
-        if self.search_on_locs { types.push(PackedFileType::Loc); }
-        if self.search_on_texts { types.push(PackedFileType::Text(TextType::Plain)); }
-        let packed_files = pack_file.get_ref_packed_files_by_types(&types, false);
-        packed_files.iter().map(|x| From::from(*x)).collect()
-    }
 
     /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.
     pub fn get_update_paths_packed_file_info(&self, pack_file: &mut PackFile, paths: &[PathType]) -> Vec<PackedFileInfo> {

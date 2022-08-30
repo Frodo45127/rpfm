@@ -32,7 +32,8 @@ pub struct TableDiagnostic {
 }
 
 /// This struct defines an individual table diagnostic result.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TableDiagnosticReport {
 
     /// List of cells, in "row, column" format.

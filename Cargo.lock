@@ -1957,6 +1957,7 @@ dependencies = [
  "self_update",
  "serde",
  "serde_derive",
+ "serde_json",
  "tempfile",
  "unic-langid",
  "winres",

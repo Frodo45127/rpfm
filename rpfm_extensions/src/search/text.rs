@@ -14,7 +14,7 @@ Module with all the code related to the `TextMatches`.
 This module contains the code needed to get text matches from a `GlobalSearch`.
 !*/
 
-use getset::Getters;
+use getset::{Getters, MutGetters};
 
 use rpfm_lib::files::text::Text;
 
@@ -25,8 +25,8 @@ use super::{MatchingMode, Searchable};
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a text PackedFile.
-#[derive(Debug, Clone, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatches {
 
     /// The path of the file.
@@ -37,8 +37,8 @@ pub struct TextMatches {
 }
 
 /// This struct represents a match on a piece of text within a Text PackedFile.
-#[derive(Debug, Clone, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatch {
 
     // Column of the first character of the match.

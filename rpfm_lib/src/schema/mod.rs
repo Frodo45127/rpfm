@@ -82,9 +82,9 @@ use getset::*;
 //use crate::integrations::assembly_kit::{localisable_fields::RawLocalisableField, table_definition::{RawDefinition, RawField}};
 //use crate::dependencies::Dependencies;
 
-#[cfg(feature = "integration_assembly_kit")]use crate::integrations::localisable_fields::RawLocalisableField;
-#[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawDefinition;
-#[cfg(feature = "integration_assembly_kit")]use crate::integrations::table_definition::RawField;
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::localisable_fields::RawLocalisableField;
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawDefinition;
+#[cfg(feature = "integration_assembly_kit")]use crate::integrations::assembly_kit::table_definition::RawField;
 #[cfg(feature = "integration_log")] use crate::integrations::log::*;
 
 use crate::error::Result;
@@ -306,7 +306,7 @@ impl Schema {
     }
 
 
-    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
+    /// This function loads a [Schema] to memory from a provided `.ron` file.
     pub fn load(path: &Path) -> Result<Self> {
         let mut file = BufReader::new(File::open(&path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -314,7 +314,15 @@ impl Schema {
         from_bytes(&data).map_err(From::from)
     }
 
-    /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
+    /// This function loads a [Schema] to memory from a provided `.json` file.
+    pub fn load_json(path: &Path) -> Result<Self> {
+        let mut file = BufReader::new(File::open(&path)?);
+        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+        file.read_to_end(&mut data)?;
+        serde_json::from_slice(&data).map_err(From::from)
+    }
+
+    /// This function saves a [Schema] from memory to a `.ron` file with the provided path.
     pub fn save(&mut self, path: &Path) -> Result<()> {
 
         // Make sure the path exists to avoid problems with updating schemas.
@@ -331,6 +339,27 @@ impl Schema {
         });
 
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
+        Ok(())
+    }
+
+    /// This function saves a [Schema] from memory to a `.json` file with the provided path.
+    pub fn save_json(&mut self, path: &Path) -> Result<()> {
+        let mut path = path.to_path_buf();
+        path.set_extension("json");
+
+        // Make sure the path exists to avoid problems with updating schemas.
+        if let Some(parent_folder) = path.parent() {
+            DirBuilder::new().recursive(true).create(&parent_folder)?;
+        }
+
+        let mut file = BufWriter::new(File::create(&path)?);
+
+        // Make sure all definitions are properly sorted by version number.
+        self.definitions.iter_mut().for_each(|(_, definitions)| {
+            definitions.sort_by(|a, b| b.version().cmp(&a.version()));
+        });
+
+        file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
     }
 

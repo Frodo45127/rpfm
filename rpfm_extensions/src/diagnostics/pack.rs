@@ -30,7 +30,8 @@ pub struct PackDiagnostic {
 }
 
 /// This struct defines an individual pack diagnostic result.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct PackDiagnosticReport {
     report_type: PackDiagnosticReportType,
 }

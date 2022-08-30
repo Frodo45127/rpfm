@@ -67,7 +67,14 @@ const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 /// - This works only over already decoded tables (no new definitions are created).
 /// - This decodes localisable fields as proper localisable fiels, separating them from the rest.
 /// - This only updates the current versions of the tables, not older ones.
-pub fn update_schema_from_raw_files(schema: &mut Schema, game_info: &GameInfo, ass_kit_path: &Path, schema_path: &Path, tables_to_skip: &[&str], tables_to_check: &HashMap<String, Vec<DB>>) -> Result<()> {
+pub fn update_schema_from_raw_files(
+    schema: &mut Schema,
+    game_info: &GameInfo,
+    ass_kit_path: &Path,
+    schema_path: &Path,
+    tables_to_skip: &[&str],
+    tables_to_check: &HashMap<String, Vec<DB>>
+) -> Result<()> {
 
     // This has to do a different process depending on the `raw_db_version`.
     let raw_db_version = game_info.raw_db_version();

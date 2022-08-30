@@ -33,7 +33,8 @@ pub struct DependencyDiagnostic {
 }
 
 /// This struct defines an individual dependency diagnostic result.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct DependencyDiagnosticReport {
 
     /// List of cells, in "row, column" format.

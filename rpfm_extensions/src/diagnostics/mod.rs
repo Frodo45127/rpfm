@@ -55,7 +55,7 @@ pub mod table;
 //-------------------------------------------------------------------------------//
 
 /// This trait represents a diagnostic with a level and a message.
-trait DiagnosticReport {
+pub trait DiagnosticReport {
 
     /// This function returns the message associated with the diagnostic implementing this.
     fn message(&self) -> String;

@@ -451,7 +451,7 @@ pub trait Container {
                     container_path.remove(0);
                 }
 
-                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path));
+                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path.clone()));
                 for rfile in &mut rfiles {
                     let container_path = rfile.path_in_container_raw();
                     let destination_path = if keep_container_path_structure {
@@ -504,11 +504,24 @@ pub trait Container {
                         let data = rfile.encode(&None, false, false, true)?.unwrap();
                         file.write_all(&data)?;
                     }
+
+                }
+
+                // If we're extracting the whole container, also extract any relevant metadata file associated with it.
+                if container_path.is_empty() {
+                    self.extract_metadata(&destination_path)?;
                 }
 
                 Ok(())
             }
         }
+    }
+
+    /// This method allows us to extract the metadata associated to the provided container as `.json` files.
+    ///
+    /// Default implementation does nothing.
+    fn extract_metadata(&mut self, destination_path: &Path) -> Result<()> {
+        Ok(())
     }
 
     /// This method allow us to insert an [RFile] within a Container, replacing any old [RFile]
@@ -796,6 +809,14 @@ pub trait Container {
         }
     }
 
+    /// This method returns a reference to the RFiles inside the provided Container that match one of the provided [ContainerPath].
+    fn files_by_paths(&self, paths: &[ContainerPath]) -> Vec<&RFile> {
+        paths.iter()
+            .map(|path| self.files_by_path(path))
+            .flatten()
+            .collect()
+    }
+
     /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
     ///
     /// Use this instead of [files_by_path_mut] if you need to get mutable references to multiple files on different [ContainerPath].
@@ -982,6 +1003,15 @@ pub trait Container {
             },
         }
     }
+
+    /// This function removes all not-in-memory-already Files from the Container.
+    ///
+    /// Used for removing possibly corrupted RFiles from the Container in order to sanitize it.
+    ///
+    /// BE CAREFUL WITH USING THIS. IT MAY (PROBABLY WILL) CAUSE DATA LOSSES.
+    fn clean_undecoded(&mut self) {
+        self.files_mut().retain(|_, file| file.decoded().is_ok());
+    }
 }
 
 //----------------------------------------------------------------//
@@ -1075,29 +1105,25 @@ impl RFile {
     /// This function creates a RFile from raw data on memory.
     ///
     /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
-    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
-        let rfile = Self {
+    pub fn new_from_vec(data: &[u8], file_type: FileType, timestamp: u64, path: &str) -> Self {
+        Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
             file_type,
             data: RFileInnerData::Cached(data.to_vec())
-        };
-
-        Ok(rfile)
+        }
     }
 
     /// This function creates a RFile from an RFileDecoded on memory.
     ///
     /// NOTE: Remember to call `guess_file_type` after this to properly set the FileType.
-    pub fn new_from_decoded(data: &RFileDecoded, file_type: FileType, timestamp: u64, path: &str) -> Result<Self> {
-        let rfile = Self {
+    pub fn new_from_decoded(data: &RFileDecoded, timestamp: u64, path: &str) -> Self {
+        Self {
             path: path.to_owned(),
             timestamp: if timestamp == 0 { None } else { Some(timestamp) },
-            file_type,
+            file_type: FileType::from(data),
             data: RFileInnerData::Decoded(Box::new(data.clone()))
-        };
-
-        Ok(rfile)
+        }
     }
 
 
@@ -1621,20 +1647,20 @@ impl RFile {
         };
 
         // Once we get the metadata, we know what kind of file we have. Create it and pass the records.
-        let (file_type, decoded) = match &*table_type {
+        let decoded = match &*table_type {
             loc::TSV_NAME_LOC => {
                 let decoded = Loc::tsv_import(records, &field_order)?;
-                (FileType::Loc, RFileDecoded::Loc(decoded))
+                RFileDecoded::Loc(decoded)
             }
 
             // Any other name is assumed to be a db table.
             _ => {
                 let decoded = DB::tsv_import(records, &field_order, schema, &table_type, table_version)?;
-                (FileType::DB, RFileDecoded::DB(decoded))
+                RFileDecoded::DB(decoded)
             }
         };
 
-        let rfile = RFile::new_from_decoded(&decoded, file_type, 0, &file_path)?;
+        let rfile = RFile::new_from_decoded(&decoded, 0, &file_path);
         Ok(rfile)
     }
 
@@ -1733,6 +1759,30 @@ impl OnDisk {
 }
 
 impl ContainerPath {
+
+    /// This function returns true if the provided [ContainerPath] corresponds to a file.
+    pub fn is_file(&self) -> bool {
+        match self {
+            ContainerPath::File(_) => true,
+            _ => false,
+        }
+    }
+
+    /// This function returns true if the provided [ContainerPath] corresponds to a folder.
+    pub fn is_folder(&self) -> bool {
+        match self {
+            ContainerPath::Folder(_) => true,
+            _ => false,
+        }
+    }
+
+    /// This function returns true if the provided [ContainerPath] corresponds to a root Pack.
+    pub fn is_pack(&self) -> bool {
+        match self {
+            ContainerPath::Folder(path) => path.is_empty(),
+            _ => false,
+        }
+    }
 
     /// This function removes collided items from the provided list of `ContainerPath`.
     ///
@@ -2135,30 +2185,32 @@ impl PackedFileType {
             Self::Text(_) => others.iter().any(|x| matches!(x, Self::Text(_))),
         }
     }
-}
+}*/
 
 /// From implementation to get the type from a DecodedPackedFile.
-impl From<&DecodedPackedFile> for PackedFileType {
-    fn from(packed_file: &DecodedPackedFile) -> Self {
-        match packed_file {
-            DecodedPackedFile::Anim => PackedFileType::Anim,
-            DecodedPackedFile::AnimFragment(_) => PackedFileType::AnimFragment,
-            DecodedPackedFile::AnimPack(_) => PackedFileType::AnimPack,
-            DecodedPackedFile::AnimTable(_) => PackedFileType::AnimTable,
-            DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
-            DecodedPackedFile::CEO(_) => PackedFileType::CEO,
-            DecodedPackedFile::DB(_) => PackedFileType::DB,
-            DecodedPackedFile::Image(_) => PackedFileType::Image,
-            DecodedPackedFile::GroupFormations => PackedFileType::GroupFormations,
-            DecodedPackedFile::Loc(_) => PackedFileType::Loc,
-            DecodedPackedFile::MatchedCombat(_) => PackedFileType::MatchedCombat,
-            DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
-            DecodedPackedFile::ESF(_) => PackedFileType::ESF,
-            DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
-            DecodedPackedFile::UIC(_) => PackedFileType::UIC,
-            DecodedPackedFile::UnitVariant(_) => PackedFileType::UnitVariant,
-            DecodedPackedFile::Unknown => PackedFileType::Unknown,
+impl From<&RFileDecoded> for FileType {
+    fn from(file: &RFileDecoded) -> Self {
+        match file {
+            RFileDecoded::Anim(_) => Self::Anim,
+            RFileDecoded::AnimFragment(_) => Self::AnimFragment,
+            RFileDecoded::AnimPack(_) => Self::AnimPack,
+            RFileDecoded::AnimsTable(_) => Self::AnimsTable,
+            RFileDecoded::CaVp8(_) => Self::CaVp8,
+            RFileDecoded::CEO(_) => Self::CEO,
+            RFileDecoded::DB(_) => Self::DB,
+            RFileDecoded::ESF(_) => Self::ESF,
+            RFileDecoded::GroupFormations(_) => Self::GroupFormations,
+            RFileDecoded::Image(_) => Self::Image,
+            RFileDecoded::Loc(_) => Self::Loc,
+            RFileDecoded::MatchedCombat(_) => Self::MatchedCombat,
+            RFileDecoded::Pack(_) => Self::Pack,
+            RFileDecoded::RigidModel(_) => Self::RigidModel,
+            RFileDecoded::Save(_) => Self::Save,
+            RFileDecoded::Text(_) => Self::Text,
+            RFileDecoded::UIC(_) => Self::UIC,
+            RFileDecoded::UnitVariant(_) => Self::UnitVariant,
+            RFileDecoded::Unknown(_) => Self::Unknown,
         }
     }
 }
-*/
+

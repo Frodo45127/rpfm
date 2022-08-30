@@ -14,7 +14,7 @@ Module with all the code related to the `TableMatches`.
 This module contains the code needed to get table matches from a `GlobalSearch`.
 !*/
 
-use getset::Getters;
+use getset::{Getters, MutGetters};
 use regex::Regex;
 
 use rpfm_lib::files::{db::DB, loc::Loc, table::DecodedData};
@@ -27,8 +27,8 @@ use super::{MatchingMode, Replaceable, Searchable};
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a table.
-#[derive(Debug, Clone, Eq, PartialEq, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TableMatches {
 
     /// The path of the table.
@@ -39,8 +39,8 @@ pub struct TableMatches {
 }
 
 /// This struct represents a match on a row of a Table PackedFile (DB & Loc).
-#[derive(Debug, Clone, Eq, PartialEq, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TableMatch {
 
     // The name of the column where the match is.

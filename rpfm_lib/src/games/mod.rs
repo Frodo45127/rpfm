@@ -21,6 +21,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use getset::*;
+#[cfg(feature = "integration_log")] use log::warn;
 
 use crate::error::{RLibError, Result};
 use crate::utils::*;
@@ -576,28 +577,35 @@ impl GameInfo {
                 let data_path = self.get_data_path(game_path)?;
                 let locale_path = data_path.to_path_buf().join(locale_file);
                 let mut language = String::new();
-                let mut file = File::open(&locale_path)?;
-                file.read_to_string(&mut language)?;
+                if let Ok(mut file) = File::open(&locale_path) {
+                    file.read_to_string(&mut language)?;
 
-                let language = match &*language {
-                    "BR" => BRAZILIAN.to_owned(),
-                    "CN" => SIMPLIFIED_CHINESE.to_owned(),
-                    "CZ" => CZECH.to_owned(),
-                    "EN" => ENGLISH.to_owned(),
-                    "FR" => FRENCH.to_owned(),
-                    "DE" => GERMAN.to_owned(),
-                    "IT" => ITALIAN.to_owned(),
-                    "KR" => KOREAN.to_owned(),
-                    "PO" => POLISH.to_owned(),
-                    "RU" => RUSSIAN.to_owned(),
-                    "ES" => SPANISH.to_owned(),
-                    "TR" => TURKISH.to_owned(),
-                    "ZH" => TRADITIONAL_CHINESE.to_owned(),
+                    let language = match &*language {
+                        "BR" => BRAZILIAN.to_owned(),
+                        "CN" => SIMPLIFIED_CHINESE.to_owned(),
+                        "CZ" => CZECH.to_owned(),
+                        "EN" => ENGLISH.to_owned(),
+                        "FR" => FRENCH.to_owned(),
+                        "DE" => GERMAN.to_owned(),
+                        "IT" => ITALIAN.to_owned(),
+                        "KR" => KOREAN.to_owned(),
+                        "PO" => POLISH.to_owned(),
+                        "RU" => RUSSIAN.to_owned(),
+                        "ES" => SPANISH.to_owned(),
+                        "TR" => TURKISH.to_owned(),
+                        "ZH" => TRADITIONAL_CHINESE.to_owned(),
 
-                    // Default to english if we can't find the proper one.
-                    _ => ENGLISH.to_owned(),
-                };
-                Ok(Some(language))
+                        // Default to english if we can't find the proper one.
+                        _ => ENGLISH.to_owned(),
+                    };
+
+                    Ok(Some(language))
+                } else {
+                    #[cfg(feature = "integration_log")] {
+                        warn!("Missing or unreadable locale file under {}. Using english locale.", game_path.to_string_lossy());
+                    }
+                    Ok(Some(ENGLISH.to_owned()))
+                }
             }
             None => Ok(None),
         }

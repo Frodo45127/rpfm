@@ -14,7 +14,7 @@ Module with all the code related to the `SchemaMatches`.
 This module contains the code needed to get schema matches from a `GlobalSearch`.
 !*/
 
-use getset::Getters;
+use getset::{Getters, MutGetters};
 
 use rpfm_lib::schema::Schema;
 
@@ -25,8 +25,8 @@ use super::{MatchingMode, Searchable};
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a Schema.
-#[derive(Debug, Clone, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct SchemaMatches {
 
     /// The list of matches within the versioned file.
@@ -34,8 +34,8 @@ pub struct SchemaMatches {
 }
 
 /// This struct represents a match on a column name within a Schema.
-#[derive(Debug, Clone, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct SchemaMatch {
 
     // The type of versioned file we have.

@@ -27,7 +27,7 @@ use serde_json::{from_slice, to_string_pretty};
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
-use std::io::{BufReader, Cursor, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Cursor, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -61,7 +61,9 @@ const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 pub const RESERVED_NAME_DEPENDENCIES_MANAGER: &str = "dependencies_manager.rpfm_reserved";
 pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
 pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
+pub const RESERVED_NAME_SETTINGS_EXTRACTED: &str = "settings.rpfm_reserved.json";
 pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
+pub const RESERVED_NAME_NOTES_EXTRACTED: &str = "notes.rpfm_reserved.md";
 
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special purposes.
 pub const RESERVED_RFILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
@@ -98,8 +100,8 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug, Clone, PartialEq, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Debug, Clone, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Pack {
 
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
@@ -127,7 +129,8 @@ pub struct Pack {
     settings: PackSettings,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct PackHeader {
 
     /// The version of the PackFile.
@@ -155,34 +158,6 @@ pub struct PackHeader {
     extra_subheader_data: Vec<u8>,
 }
 
-/// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
-///
-/// Don't create this one manually. Get it `From` the `PackFile` one, and use it as you need it.
-#[derive(Clone, Debug, Default)]
-pub struct PackFileInfo {
-
-    /// The name of the PackFile's file, if exists. If not, then this should be empty.
-    pub file_name: String,
-
-    /// The path of the PackFile on disk, if exists. If not, then this should be empty.
-    pub file_path: PathBuf,
-
-    /// The version of the PackFile.
-    pub pfh_version: PFHVersion,
-
-    /// The type of the PackFile.
-    pub pfh_file_type: PFHFileType,
-
-    /// The bitmasks applied to the PackFile.
-    pub bitmask: PFHFlags,
-
-    /// The current state of the compression inside the PackFile.
-    pub compression_state: bool,
-
-    /// The timestamp of the last time the PackFile was saved.
-    pub timestamp: u64,
-}
-
 /// This struct hold PackFile-specific settings.
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PackSettings {
@@ -206,20 +181,43 @@ pub struct PackSettings {
 
 impl Container for Pack {
 
-    fn insert(&mut self, mut file: RFile) -> Result<ContainerPath> {
+    /// This method allows us to extract the metadata associated to the provided container as `.json` or `.md` files.
+    ///
+    /// [Pack] implementation extracts the [PackSettings] of the provided Pack and its associated notes.
+    fn extract_metadata(&mut self, destination_path: &Path) -> Result<()> {
+        if !self.notes.is_empty() {
+            let mut data = vec![];
+            data.write_string_u8(&self.notes)?;
+            let path = destination_path.join(RESERVED_NAME_NOTES_EXTRACTED);
+            let mut file = BufWriter::new(File::create(path)?);
+            file.write_all(&data)?;
+            file.flush()?;
+        }
 
-        // TODO: Implement TSV-Autoimport.
+        let mut data = vec![];
+        data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
+        data.extend_from_slice(b"\n"); // Add newline to the end of the file
+
+        let path = destination_path.join(RESERVED_NAME_SETTINGS_EXTRACTED);
+        let mut file = BufWriter::new(File::create(path)?);
+        file.write_all(&data)?;
+        file.flush()?;
+
+        Ok(())
+    }
+
+    fn insert(&mut self, mut file: RFile) -> Result<ContainerPath> {
 
         // Filter out special files, so we only leave the normal files in.
         let path_container = file.path_in_container();
         let path = file.path_in_container_raw();
-        if path == RESERVED_NAME_NOTES {
+        if path == RESERVED_NAME_NOTES_EXTRACTED {
             let mut data = Cursor::new(file.encode(&None, false, false, true)?.unwrap());
             let data_len = data.len()?;
             if let Ok(data) = data.read_string_u8(data_len as usize) {
                 self.notes = data;
             }
-        } else if path == RESERVED_NAME_SETTINGS {
+        } else if path == RESERVED_NAME_SETTINGS_EXTRACTED {
             self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
         }
 
@@ -347,6 +345,14 @@ impl Pack {
         pack
     }
 
+    /// This function creates a new empty Pack with a name and a specific PFHVersion.
+    pub fn new_with_name_and_version(name: &str, pfh_version: PFHVersion) -> Self {
+        let mut pack = Self::default();
+        pack.header.pfh_version = pfh_version;
+        pack.disk_file_path = name.to_owned();
+        pack
+    }
+
     /// This function tries to read a `Pack` from raw data.
     ///
     /// If `lazy_load` is false, the data of all the files inside the `Pack` will be preload to memory.
@@ -445,14 +451,14 @@ impl Pack {
                 if !self.notes.is_empty() {
                     let mut data = vec![];
                     data.write_string_u8(&self.notes)?;
-                    let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES)?;
+                    let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_NOTES);
                     self.files.insert(RESERVED_NAME_NOTES.to_owned(), file);
                 }
 
                 // Saving PackFile settings.
                 let mut data = vec![];
                 data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
-                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_SETTINGS)?;
+                let file = RFile::new_from_vec(&data, FileType::Text, 0, RESERVED_NAME_SETTINGS);
                 self.files.insert(RESERVED_NAME_SETTINGS.to_owned(), file);
             }
         }
@@ -555,6 +561,22 @@ impl Pack {
         Ok(pack_new)
     }
 
+    /// Convenience function to easily save a Pack to disk.
+    ///
+    /// If a path is provided, the Pack will be saved to that path. Otherwise, it'll use whatever path it had set before.
+    pub fn save(&mut self, path: Option<&Path>) -> Result<()> {
+        if let Some(path) = path {
+            self.disk_file_path = path.to_string_lossy().to_string();
+        }
+
+        // TODO: Maybe check if the previous path is valid?
+
+        let mut file = BufWriter::new(File::create(&self.disk_file_path)?);
+        let extra_data = EncodeableExtraData::default();
+
+        self.encode(&mut file, &Some(extra_data))
+    }
+
     //-----------------------------------------------------------------------//
     //                           Getters & Setters
     //-----------------------------------------------------------------------//
@@ -564,10 +586,16 @@ impl Pack {
         self.header.pfh_file_type = file_type;
     }
 
+    /// This function sets the game version (as in X.Y.Z) this Pack is for.
+    pub fn set_game_version(&mut self, game_version: u32) {
+        self.header.game_version = game_version;
+    }
+
     //-----------------------------------------------------------------------//
     //                             Util functions
     //-----------------------------------------------------------------------//
 
+    /// This function returns if the Pack is compressible or not.
     pub fn is_compressible(&self) -> bool {
         match self.header.pfh_version {
             PFHVersion::PFH6 |
@@ -2100,20 +2128,7 @@ impl Default for PackFile {
     }
 }
 
-/// Implementation to create a `PackFileInfo` from a `PackFile`.
-impl From<&PackFile> for PackFileInfo {
-    fn from(packfile: &PackFile) -> Self {
-        Self {
-            file_name: packfile.get_file_name(),
-            file_path: packfile.file_path.to_path_buf(),
-            pfh_version: packfile.pfh_version,
-            pfh_file_type: packfile.pfh_file_type,
-            bitmask: packfile.bitmask,
-            timestamp: packfile.timestamp,
-            compression_state: packfile.get_compression_state(),
-        }
-    }
-}
+
 
 /// Default implementation for PackFileSettings.
 impl Default for PackFileSettings {
