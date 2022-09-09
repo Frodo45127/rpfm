@@ -1180,7 +1180,7 @@ update_no_local_messages = <p>No downloaded messages found. Do you want to downl
 messages_update_success = <h4>Messages updated. New messages may not appear until you restart RPFM.</h4><p>You can continue using RPFM now.</p>
 message_uploaded_correctly = Message uploaded successfully and awaiting moderation.
 
-debug_colour_light_label = Ligh Theme
+debug_colour_light_label = Light Theme
 debug_colour_dark_label = Dark Theme
 
 debug_colour_local_tip_label = Local
