@@ -138,8 +138,8 @@ pub struct Schema {
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Getters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:

@@ -14,6 +14,8 @@
 
 use thiserror::Error;
 
+use crate::files::FileType;
+
 /// Custom `Result` type, to always return our custom error.
 pub type Result<T, E = RLibError> = core::result::Result<T, E>;
 
@@ -177,6 +179,9 @@ pub enum RLibError {
     #[error("This file's reported size is '{0}' bytes, but we expected it to be '{1}' bytes. This means that the definition of the table is incorrect (only on tables, it's usually this), the decoding logic in RPFM is broken for this file, or this file is corrupted.")]
     DecodingMismatchSizeError(usize, usize),
 
+    #[error("This file is expected to be of {0} type, but the data provided is of {1} type. If you see this, 99% sure it is a bug.")]
+    DecodedDataDoesNotMatchFileType(FileType, FileType),
+
     #[error("Missing extra data required to encode the file. This means the programmer messed up the code while that tries to decode files.")]
     EncodingMissingExtraData,
 
@@ -215,6 +220,9 @@ pub enum RLibError {
 
     #[error("The dependencies cache has not been generated or it's outdated and need regenerating.")]
     DependenciesCacheNotGeneratedorOutOfDate,
+
+    #[error("The file with the path {0} hasn't been found in the dependencies cache.")]
+    DependenciesCacheFileNotFound(String),
 
     #[error("Operations over the Assembly Kit of version {0} are not currently supported.")]
     AssemblyKitUnsupportedVersion(i16),

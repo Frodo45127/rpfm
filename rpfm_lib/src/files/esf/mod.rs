@@ -228,64 +228,64 @@ pub enum NodeType {
 }
 
 /// Node containing a bool value, and if the node should be optimized or not.
-#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BoolNode {
     value: bool,
     optimized: bool,
 }
 
 /// Node containing an i32 value, and if the node should be optimized or not.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Getters)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct I32Node {
     value: i32,
     optimized: bool,
 }
 
 /// Node containing an u32 value, and if the node should be optimized or not.
-#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct U32Node {
     value: u32,
     optimized: bool,
 }
 
 /// Node containing an f32 value, and if the node should be optimized or not.
-#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct F32Node {
     value: f32,
     optimized: bool,
 }
 
 /// Node containing a Vec<i32>, and if the node should be optimized or not.
-#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecI32Node {
     value: Vec<i32>,
     optimized: bool,
 }
 
 /// Node containing a Vec<u32>, and if the node should be optimized or not.
-#[derive(Getters, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecU32Node {
     value: Vec<u32>,
     optimized: bool,
 }
 
 /// Node containing a pair of X/Y coordinates.
-#[derive(Getters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Coordinates2DNode {
     x: f32,
     y: f32,
 }
 
 /// Node containing a group of X/Y/Z coordinates.
-#[derive(Getters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Coordinates3DNode {
     x: f32,
     y: f32,
@@ -293,8 +293,8 @@ pub struct Coordinates3DNode {
 }
 
 /// Node containing a record of data. Basically, a node with other nodes attached to it.
-#[derive(Getters, Setters, Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct RecordNode {
 
     /// Flags applied to this record node.

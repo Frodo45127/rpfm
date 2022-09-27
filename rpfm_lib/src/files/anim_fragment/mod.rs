@@ -38,7 +38,7 @@ use getset::{Getters, Setters};
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
@@ -91,7 +91,7 @@ impl AnimFragment {
             min_id: 0,
             max_id: 0,
             unknown_bool: false,
-            table: Table::new(definition, "", false),
+            table: Table::new(definition, None, "", false),
         }
     }
 
@@ -171,7 +171,7 @@ impl Decodeable for AnimFragment {
 
         let (skeleton_1, skeleton_2, min_id, max_id, unknown_bool, entry_count) = Self::read_header(data)?;
         let definition = Self::new_definition(0);
-        let table = Table::decode(&None, data, &definition, Some(entry_count), false, file_name)?;
+        let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), false, file_name)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

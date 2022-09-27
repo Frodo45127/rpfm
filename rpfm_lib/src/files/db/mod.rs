@@ -37,6 +37,7 @@
 //! The data structure depends on the definition of the table.
 
 use csv::{StringRecordsIter, Writer};
+use getset::Getters;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use serde_derive::{Serialize, Deserialize};
@@ -66,7 +67,8 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 //---------------------------------------------------------------------------//
 
 /// This holds an entire DB Table decoded in memory.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
 pub struct DB {
 
     /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
@@ -145,10 +147,11 @@ impl Decodeable for DB {
             }
 
             let definition = working_definition?;
+            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or(HashMap::new());
 
             // Reset the index before the table, and now decode the table with proper backend support.
             data.seek(SeekFrom::Start(index_reset))?;
-            let table = Table::decode(&pool, data, &definition, Some(entry_count), return_incomplete, table_name)?;
+            let table = Table::decode(&pool, data, &definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?;
             table
         }
 
@@ -161,7 +164,8 @@ impl Decodeable for DB {
                     RLibError::DecodingDBNoDefinitionsFound
                 })?;
 
-            let table = Table::decode(&pool, data, &definition, Some(entry_count), return_incomplete, table_name)?;
+            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or(HashMap::new());
+            let table = Table::decode(&pool, data, &definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?;
             table
         };
 
@@ -211,8 +215,8 @@ impl Encodeable for DB {
 impl DB {
 
     /// This function creates a new empty [DB] table.
-    pub fn new(definition: &Definition, table_name: &str, use_sql_backend: bool) -> Self {
-        let table = Table::new(&definition, table_name, use_sql_backend);
+    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str, use_sql_backend: bool) -> Self {
+        let table = Table::new(&definition, definition_patch, table_name, use_sql_backend);
 
         Self {
             mysterious_byte: true,
@@ -262,6 +266,11 @@ impl DB {
     /// This function returns a reference of the definition of this DB Table.
     pub fn definition(&self) -> &Definition {
         self.table.definition()
+    }
+
+    /// This function returns a reference of the definition patches of this DB Table.
+    pub fn patches(&self) -> &DefinitionPatch {
+        self.table.patches()
     }
 
     /// This function returns a reference of the name of this DB Table.

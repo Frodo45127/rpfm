@@ -250,7 +250,7 @@ impl GlobalSearch {
 
                 if self.search_on_texts {
                     let mut files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths_mut(&[FileType::Loc], &update_paths)
+                        pack.files_by_type_and_paths_mut(&[FileType::Text], &update_paths)
                     } else {
                         pack.files_by_type_mut(&[FileType::Text])
                     };

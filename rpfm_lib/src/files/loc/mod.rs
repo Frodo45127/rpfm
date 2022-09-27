@@ -98,7 +98,7 @@ impl Loc {
         let definition = Self::new_definition();
 
         Self {
-            table: Table::new(&definition, SQL_TABLE_NAME, use_sql_backend),
+            table: Table::new(&definition, None, SQL_TABLE_NAME, use_sql_backend),
         }
     }
 
@@ -261,7 +261,7 @@ impl Decodeable for Loc {
         let (_version, entry_count) = Self::read_header(data)?;
 
         let definition = Self::new_definition();
-        let table = Table::decode(&pool, data, &definition, Some(entry_count), false, TSV_NAME_LOC)?;
+        let table = Table::decode(&pool, data, &definition, &HashMap::new(), Some(entry_count), false, TSV_NAME_LOC)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

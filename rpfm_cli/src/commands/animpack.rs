@@ -80,7 +80,7 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
     let mut pack = AnimPack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
-        pack.insert_folder(&folder_path, container_path, &None)?;
+        pack.insert_folder(&folder_path, container_path, &None, &None)?;
     }
 
     for (file_path, container_path) in file_path {

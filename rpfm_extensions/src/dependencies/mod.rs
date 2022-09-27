@@ -19,7 +19,7 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
-use rpfm_lib::error::Result;
+use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
@@ -422,21 +422,77 @@ impl Dependencies {
     // Getters
     //-----------------------------------//
 
-    /// This function returns a specific file from the cache, if exists.
-    pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<Option<&RFile>> {
+    /// This function returns a reference to a specific file from the cache, if exists.
+    pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<&RFile> {
         if include_parent {
             if let Some(file) = self.parent_files.get(file_path) {
-                return Ok(Some(file));
+                return Ok(file);
             }
         }
 
         if include_vanilla {
             if let Some(file) = self.vanilla_files.get(file_path) {
-                return Ok(Some(file));
+                return Ok(file);
             }
         }
 
-        Ok(None)
+        Err(RLibError::DependenciesCacheFileNotFound(file_path.to_owned()))
+    }
+
+    /// This function returns a mutable reference to a specific file from the cache, if exists.
+    pub fn file_mut(&mut self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<&mut RFile> {
+        if include_parent {
+            if let Some(file) = self.parent_files.get_mut(file_path) {
+                return Ok(file);
+            }
+        }
+
+        if include_vanilla {
+            if let Some(file) = self.vanilla_files.get_mut(file_path) {
+                return Ok(file);
+            }
+        }
+
+        Err(RLibError::DependenciesCacheFileNotFound(file_path.to_owned()))
+    }
+
+    /// This function returns a reference to all files corresponding to the provided paths.
+    pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool) -> HashMap<String, &RFile> {
+        let mut files = HashMap::new();
+
+        for file_path in file_paths {
+            match file_path {
+                ContainerPath::Folder(folder_path) => {
+                   if include_vanilla {
+
+                        if folder_path.is_empty() {
+                            files.extend(self.vanilla_files.par_iter()
+                                .map(|(path, file)| (path.to_owned(), file))
+                                .collect::<HashMap<_,_>>());
+                        } else {
+                            files.extend(self.vanilla_files.par_iter()
+                                .filter(|(path, _)| path.starts_with(folder_path))
+                                .map(|(path, file)| (path.to_owned(), file))
+                                .collect::<HashMap<_,_>>());
+                        }
+                    }
+
+                    if include_parent {
+                        files = self.parent_files.par_iter()
+                            .filter(|(path, _)| path.starts_with(folder_path))
+                            .map(|(path, file)| (path.to_owned(), file))
+                            .collect();
+                    }
+                }
+                ContainerPath::File(file_path) => {
+                    if let Ok(file) = self.file(file_path, include_vanilla, include_parent) {
+                        files.insert(file_path.to_string(), file);
+                    }
+                }
+            }
+        }
+
+        files
     }
 
     /// This function returns a reference to all files of the specified FileTypes from the cache, if any, along with their path.
@@ -445,17 +501,17 @@ impl Dependencies {
 
         // Vanilla first, so if parent files are found, they overwrite vanilla files.
         if include_vanilla {
-            files = self.parent_files.par_iter()
-                .filter(|(_, file)| file_types.contains(&file.file_type()))
-                .map(|(path, file)| (path.to_owned(), file))
-                .collect();
-        }
-
-        if include_parent {
             files.extend(self.vanilla_files.par_iter()
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
                 .collect::<HashMap<_,_>>());
+        }
+
+        if include_parent {
+            files = self.parent_files.par_iter()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect();
         }
 
         files
@@ -467,17 +523,17 @@ impl Dependencies {
 
         // Vanilla first, so if parent files are found, they overwrite vanilla files.
         if include_vanilla {
-            files = self.parent_files.par_iter_mut()
-                .filter(|(_, file)| file_types.contains(&file.file_type()))
-                .map(|(path, file)| (path.to_owned(), file))
-                .collect();
-        }
-
-        if include_parent {
             files.extend(self.vanilla_files.par_iter_mut()
                 .filter(|(_, file)| file_types.contains(&file.file_type()))
                 .map(|(path, file)| (path.to_owned(), file))
                 .collect::<HashMap<_,_>>());
+        }
+
+        if include_parent {
+            files = self.parent_files.par_iter_mut()
+                .filter(|(_, file)| file_types.contains(&file.file_type()))
+                .map(|(path, file)| (path.to_owned(), file))
+                .collect();
         }
 
         files

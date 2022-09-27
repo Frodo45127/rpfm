@@ -102,6 +102,7 @@ pub mod image;
 pub mod loc;
 pub mod matched_combat;
 pub mod pack;
+pub mod portrait_settings;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -220,7 +221,7 @@ pub enum RFileDecoded {
 /// This list is not exhaustive and it may get bigger in the future as more files are added.
 ///
 /// For each file info, please check their dedicated submodule if exists.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FileType {
     Anim,
     AnimFragment,
@@ -240,6 +241,8 @@ pub enum FileType {
     Text,
     UIC,
     UnitVariant,
+
+    #[default]
     Unknown,
 }
 
@@ -520,7 +523,7 @@ pub trait Container {
     /// This method allows us to extract the metadata associated to the provided container as `.json` files.
     ///
     /// Default implementation does nothing.
-    fn extract_metadata(&mut self, destination_path: &Path) -> Result<()> {
+    fn extract_metadata(&mut self, _destination_path: &Path) -> Result<()> {
         Ok(())
     }
 
@@ -602,8 +605,10 @@ pub trait Container {
     /// If a [Schema](rpfm_lib::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
+    /// If ignored paths are provided, paths that match them (as in relative path with the Container as root) will not be included in the Container.
+    ///
     /// Returns the list of [ContainerPath] inserted.
-    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
+    fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.to_owned();
         if !container_path_folder.is_empty() && !container_path_folder.ends_with("/") {
             container_path_folder.push('/');
@@ -618,6 +623,12 @@ pub trait Container {
         for file_path in file_paths {
             let trimmed_path = file_path.strip_prefix(source_path)?.to_string_lossy().to_string();
             let file_container_path = container_path_folder.to_owned() + &trimmed_path;
+
+            if let Some(ignored_paths) = ignored_paths {
+                if ignored_paths.iter().any(|x| trimmed_path.starts_with(x)) {
+                    continue;
+                }
+            }
 
             // If tsv import is enabled, try to import the file to binary before adding it to the Container.
             let mut tsv_imported = false;
@@ -1145,6 +1156,34 @@ impl RFile {
             RFileInnerData::Decoded(ref mut data) => Ok(data),
             _ => Err(RLibError::FileNotDecoded(self.path_in_container_raw().to_string()))
         }
+    }
+
+    /// This function allows to replace the inner decoded data of a RFile with another. It'll fail if the decoded data is not valid for the file's type.
+    pub fn set_decoded(&mut self, decoded: RFileDecoded) -> Result<()> {
+        match (self.file_type(), &decoded) {
+            (FileType::Anim, &RFileDecoded::Anim(_)) |
+            (FileType::AnimFragment, &RFileDecoded::AnimFragment(_)) |
+            (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
+            (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
+            (FileType::CaVp8, &RFileDecoded::CaVp8(_)) |
+            (FileType::CEO, &RFileDecoded::CEO(_)) |
+            (FileType::DB, &RFileDecoded::DB(_)) |
+            (FileType::ESF, &RFileDecoded::ESF(_)) |
+            (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
+            (FileType::Image, &RFileDecoded::Image(_)) |
+            (FileType::Loc, &RFileDecoded::Loc(_)) |
+            (FileType::MatchedCombat, &RFileDecoded::MatchedCombat(_)) |
+            (FileType::Pack, &RFileDecoded::Pack(_)) |
+            (FileType::RigidModel, &RFileDecoded::RigidModel(_)) |
+            (FileType::Save, &RFileDecoded::Save(_)) |
+            (FileType::Text, &RFileDecoded::Text(_)) |
+            (FileType::UIC, &RFileDecoded::UIC(_)) |
+            (FileType::UnitVariant, &RFileDecoded::UnitVariant(_)) |
+            (FileType::Unknown, &RFileDecoded::Unknown(_)) => self.data = RFileInnerData::Decoded(Box::new(decoded)),
+            _ => return Err(RLibError::DecodedDataDoesNotMatchFileType(self.file_type(), From::from(&decoded)))
+        }
+
+        Ok(())
     }
 
     /// This function decodes an RFile from binary data, optionally caching and returning the decoded RFile.
@@ -1784,7 +1823,25 @@ impl ContainerPath {
         }
     }
 
-    /// This function removes collided items from the provided list of `ContainerPath`.
+    /// This function returns the path of the parent folder of the provided [ContainerPath].
+    ///
+    /// If the provided [ContainerPath] corresponds to a Container root, the path returned will be the current one.
+    pub fn parent_path(&self) -> String {
+        match self {
+            ContainerPath::File(path) |
+            ContainerPath::Folder(path) => {
+                if path.is_empty() || (path.chars().count() == 1 && path.starts_with("/")) {
+                    path.to_owned()
+                } else {
+                    let mut path_split = path.split('/').collect::<Vec<_>>();
+                    path_split.pop();
+                    path_split.join("/")
+                }
+            },
+        }
+    }
+
+    /// This function removes collided items from the provided list of [ContainerPath].
     ///
     /// This means, if you have a file and a folder containing the file, it removes the file.
     pub fn dedup(paths: &[Self]) -> Vec<Self> {

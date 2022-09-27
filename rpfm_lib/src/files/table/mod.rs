@@ -52,6 +52,9 @@ pub struct Table {
     definition: Definition,
 
     #[getset(skip)]
+    definition_patch: DefinitionPatch,
+
+    #[getset(skip)]
     table_data: TableData
 }
 
@@ -401,7 +404,7 @@ impl DecodedData {
 impl Table {
 
     /// This function creates a new Table from an existing definition.
-    pub fn new(definition: &Definition, table_name: &str, use_sql_backend: bool) -> Self {
+    pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str, use_sql_backend: bool) -> Self {
         let table_data = if use_sql_backend {
             TableData::Sql(SQLData {
                 table_unique_id: rand::random::<u64>(),
@@ -410,8 +413,11 @@ impl Table {
             TableData::Local(vec![])
         };
 
+        let definition_patch = if let Some(patch) = definition_patch { patch.clone() } else { HashMap::new() };
+
         Self {
             definition: definition.clone(),
+            definition_patch,
             table_name: table_name.to_owned(),
             table_data
         }
@@ -422,6 +428,10 @@ impl Table {
         &self.definition
     }
 
+    /// This function returns a reference of the definition patches of this Table.
+    pub fn patches(&self) -> &DefinitionPatch {
+        &self.definition_patch
+    }
     /*
 
     /// This function returns the position of a column in a definition, or an error if the column is not found.
@@ -1910,7 +1920,7 @@ impl Table {
 
     /// This function tries to imports a TSV file on the path provided into a binary db table.
     pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
-        let mut table = Table::new(&definition, table_name, false);
+        let mut table = Table::new(&definition, None, table_name, false);
         let mut entries = vec![];
 
         let fields_processed = definition.fields_processed();

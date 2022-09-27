@@ -41,16 +41,16 @@ pub struct TextMatches {
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatch {
 
-    // Column of the first character of the match.
+    /// Column of the first character of the match.
     column: u64,
 
-    // Row of the first character of the match.
+    /// Row of the first character of the match.
     row: u64,
 
-    // Length of the matched pattern.
+    /// Length of the matched pattern.
     len: i64,
 
-    // Line of text containing the match.
+    /// Line of text containing the match.
     text: String,
 }
 
@@ -64,6 +64,7 @@ impl Searchable for Text {
     /// This function performs a search over the provided Text PackedFile.
     fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TextMatches {
 
+        // TODO: while it searches quite fast... I think it can be improved even more.
         let mut matches = TextMatches::new(file_path);
         match matching_mode {
             MatchingMode::Regex(regex) => {

@@ -134,7 +134,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
-        pack.insert_folder(&folder_path, container_path, &schema)?;
+        pack.insert_folder(&folder_path, container_path, &None, &schema)?;
     }
 
     for (file_path, container_path) in file_path {

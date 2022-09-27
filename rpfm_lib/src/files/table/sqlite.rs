@@ -18,7 +18,7 @@ use rusqlite::params_from_iter;
 
 use crate::{files::ReadBytes, schema::FieldType};
 use crate::error::Result;
-use crate::schema::Definition;
+use crate::schema::{Definition, DefinitionPatch};
 
 use super::{DecodedData, Table, TableData};
 
@@ -32,6 +32,7 @@ impl Table {
         pool: &Option<&Pool<SqliteConnectionManager>>,
         data: &mut R,
         definition: &Definition,
+        definition_patch: &DefinitionPatch,
         entry_count: Option<u32>,
         return_incomplete: bool,
         table_name: &str,
@@ -58,6 +59,7 @@ impl Table {
 
         let table = Self {
             definition: definition.clone(),
+            definition_patch: definition_patch.clone(),
             table_name: table_name.to_owned(),
             table_data,
         };
