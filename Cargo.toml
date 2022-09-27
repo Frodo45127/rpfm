@@ -11,6 +11,12 @@ members = [
     "rpfm_ui",
 ]
 
+[workspace.package]
+version = "3.99.101"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+rust-version = "1.64"
+edition = "2021"
+
 [profile.dev]
 incremental = true
 

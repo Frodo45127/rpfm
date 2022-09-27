@@ -1,11 +1,12 @@
 [package]
 name = "rpfm_ui"
-version = "3.0.8"
 build = "build.rs"
-authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A modding tool for Total War games."
-edition = "2021"
-rust-version = "1.56"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [features]
 strict_subclasses_compilation = []
@@ -36,7 +37,7 @@ getset = "^0.1"
 # Serialization dependencies.
 serde = "^1.0"
 serde_derive = "^1.0"
-#serde_json = "^1.0"
+serde_json = "^1.0"
 ron = "^0.7"
 #bincode = "^1.1"
 
@@ -57,7 +58,7 @@ qt_widgets = "^0.5"
 qt_ui_tools = "^0.5"
 
 # Support for formatting math operations.
-#meval = "^0.2"
+meval = "^0.2"
 
 # Float equality
 #float_eq = "^0.7"

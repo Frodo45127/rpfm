@@ -1,10 +1,11 @@
 [package]
 name = "rpfm_lib"
-version = "3.99.100"
-authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "This crate contains the basic functionality for interacting with Total War files."
-edition = "2021"
-rust-version = "1.60"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [features]
 default = ["integration_sqlite", "integration_assembly_kit"]

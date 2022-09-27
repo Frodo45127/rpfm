@@ -1182,6 +1182,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meval"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f79496a5651c8d57cd033c5add8ca7ee4e3d5f7587a4777484640d9cb60392d9"
+dependencies = [
+ "fnv",
+ "nom",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1231,6 +1241,12 @@ name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
+
+[[package]]
+name = "nom"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5b8c256fd9471521bcb84c3cdba98921497f1a331cbc15b8030fc63b82050ce"
 
 [[package]]
 name = "num"
@@ -1863,7 +1879,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "3.99.99"
+version = "3.99.101"
 dependencies = [
  "anyhow",
  "clap",
@@ -1877,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "3.99.100"
+version = "3.99.101"
 dependencies = [
  "bincode",
  "fancy-regex",
@@ -1894,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "3.99.100"
+version = "3.99.101"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1931,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "3.0.8"
+version = "3.99.101"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1943,6 +1959,7 @@ dependencies = [
  "getset",
  "itertools 0.10.3",
  "lazy_static",
+ "meval",
  "open",
  "qt_core",
  "qt_gui",
