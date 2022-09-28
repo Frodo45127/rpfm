@@ -37,8 +37,8 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
-//use crate::views::table::utils::get_table_from_view;
-//use crate::views::table::TableType;
+use crate::views::table::utils::get_table_from_view;
+use crate::views::table::TableType;
 
 use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
 use self::animpack::PackedFileAnimPackView;
@@ -51,7 +51,7 @@ use self::image::PackedFileImageView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 //use self::packfile::PackFileExtraView;
-//use self::packfile_settings::PackFileSettingsView;
+use self::packfile_settings::PackFileSettingsView;
 //use self::tips::TipsView;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -70,7 +70,7 @@ pub mod esf;
 pub mod external;
 pub mod image;
 //pub mod packfile;
-//pub mod packfile_settings;
+pub mod packfile_settings;
 
 #[cfg(feature = "support_rigidmodel")]
 pub mod rigidmodel;
@@ -83,6 +83,8 @@ pub mod uic;
 pub mod unit_variant;
 
 pub mod utils;
+
+const RFILE_SAVED_ERROR: &str = "The following PackedFile failed to be saved: ";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -143,11 +145,11 @@ pub enum View {
     */
     ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
-    /*PackFile(Arc<PackFileExtraView>),
-    PackFileSettings(Arc<PackFileSettingsView>),
+    //PackFile(Arc<PackFileExtraView>),
+    PackSettings(Arc<PackFileSettingsView>),
 
     #[cfg(feature = "support_rigidmodel")]
-    RigidModel(Arc<PackedFileRigidModelView>),*/
+    RigidModel(Arc<PackedFileRigidModelView>),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
 /*
@@ -287,15 +289,15 @@ impl PackedFileView {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<()> {
-        /*
+
         // Only save non-read-only, local files.
         if let DataSource::PackFile = self.get_data_source() {
             if !self.get_is_read_only() {
                 match self.get_view() {
                     ViewType::Internal(view) => {
 
-                        // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
-                        // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
+                        // This is a two-step process. First, we take the data from the view into a `RFileDecoded` format.
+                        // Then, we send that `RFileDecoded` to the backend to replace the older one. We need no response.
                         let data = match self.packed_file_type {
                             FileType::AnimsTable |
                             FileType::DB |
@@ -305,8 +307,8 @@ impl PackedFileView {
                                 let new_table = get_table_from_view(&view.get_ref_table().get_mut_ptr_table_model().static_upcast(), &view.get_ref_table().get_ref_table_definition())?;
                                 match self.packed_file_type {
                                     FileType::AnimsTable => {
-                                        let table = AnimTable::from(new_table);
-                                        DecodedPackedFile::AnimTable(table)
+                                        let table = AnimsTable::from(new_table);
+                                        RFileDecoded::AnimsTable(table)
                                     }
 
                                     FileType::DB => {
@@ -314,21 +316,21 @@ impl PackedFileView {
                                         // If this crashes, it's a bug somewhere else.
                                         let table_name = view.get_ref_table().get_ref_table_name().as_ref().unwrap();
                                         let table_uuid = view.get_ref_table().get_ref_table_uuid().as_ref().map(|x| &**x);
-                                        let mut table = DB::new(table_name, table_uuid, &view.get_ref_table().get_ref_table_definition());
-                                        table.set_table_data(new_table.get_ref_table_data())?;
-                                        DecodedPackedFile::DB(table)
+                                        let mut table = DB::new(&view.get_ref_table().get_ref_table_definition(), None, table_name, false);
+                                        table.set_data(None, &new_table.data(&None)?)?;
+                                        RFileDecoded::DB(table)
                                     }
                                     FileType::Loc => {
                                         let table = Loc::from(new_table);
-                                        DecodedPackedFile::Loc(table)
+                                        RFileDecoded::Loc(table)
                                     }
                                     FileType::MatchedCombat => {
                                         let table = MatchedCombat::from(new_table);
-                                        DecodedPackedFile::MatchedCombat(table)
+                                        RFileDecoded::MatchedCombat(table)
                                     }
-                                    _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into())
+                                    _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path()))
                                 }
-                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
+                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) },
 
                             // Images are read-only.
                             FileType::Image => return Ok(()),
@@ -340,24 +342,24 @@ impl PackedFileView {
                                 match view {
                                     View::AnimFragment(view) => view.save_data()?,
                                     View::AnimFragmentDebug(_) => return Ok(()),
-                                    _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
+                                    _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())),
                                 }
                             },
 
                             // These ones are a bit special. We just need to send back the current format of the video.
                             FileType::CaVp8 => {
                                 if let View::CaVp8(view) = view {
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetCaVp8Format((self.get_path(), view.get_current_format())));
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetCaVp8Format(self.get_path(), view.get_current_format()));
                                     return Ok(())
-                                } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
                             },
 
                             #[cfg(feature = "support_rigidmodel")]
                             FileType::RigidModel => {
                                 if let View::RigidModel(view) = view {
                                     let data = view.save_view()?;
-                                    DecodedPackedFile::RigidModel(data)
-                                } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                    RFileDecoded::RigidModel(data)
+                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
                             }
 
                             FileType::Text => {
@@ -366,10 +368,10 @@ impl PackedFileView {
                                     let widget = view.get_mut_editor();
                                     let string = get_text_safe(widget).to_std_string();
                                     text.set_contents(string);
-                                    DecodedPackedFile::Text(text)
-                                } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                    RFileDecoded::Text(text)
+                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
                             },
-
+                            /*
                             // These ones are like very reduced tables.
                             FileType::DependencyPackFilesList => if let View::DependenciesManager(view) = view {
                                 let mut entries = vec![];
@@ -421,21 +423,21 @@ impl PackedFileView {
                                 }
 
                                 return Ok(())
-                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
-
-                            FileType::PackFileSettings => {
-                                if let View::PackFileSettings(view) = view {
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileSettings(view.save_view()));
+                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) },
+                            FileType::PackSettings => {
+                                if let View::PackSettings(view) = view {
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(view.save_view()));
                                     return Ok(())
-                                } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
                             },
+                            */
 
                             // Disable saving UIC until support for saving them is wired up.
                             #[cfg(feature = "support_uic")]
                             FileType::UIC => {
                                 return Ok(());
                                 //if let View::UIC(view) = view {
-                                //    DecodedPackedFile::UIC(view.save_view())
+                                //    RFileDecoded::UIC(view.save_view())
                                 //} else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                             },
 
@@ -444,11 +446,11 @@ impl PackedFileView {
 
                             // ESF files are re-generated from the view.
                             FileType::ESF => if let View::ESF(view) = view {
-                                DecodedPackedFile::ESF(view.save_view())
-                            } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                                RFileDecoded::ESF(view.save_view())
+                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
 
                             // Ignore these ones.
-                            FileType::Unknown | FileType::PackFile => return Ok(()),
+                            FileType::Unknown | FileType::Pack => return Ok(()),
                             _ => unimplemented!(),
                         };
 
@@ -465,7 +467,7 @@ impl PackedFileView {
                         }
                     },
                     ViewType::External(view) => {
-                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromExternalView((self.get_path(), view.get_external_path())));
+                        let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromExternalView(self.get_path(), view.get_external_path()));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::Success => {},
@@ -481,7 +483,7 @@ impl PackedFileView {
             }
         } else {
             Ok(())
-        }*/Ok(())
+        }
     }
 
     /// This function reloads the data in a view from the backend. Useful to avoid having to close a PackedFile when the backend changes.
@@ -617,9 +619,9 @@ impl PackedFileView {
                         },
 
                         // Debug views retun their entire file.
-                        Response::DecodedPackedFileRFileInfo((packed_file, packed_file_info)) => {
+                        Response::RFileDecodedRFileInfo((packed_file, packed_file_info)) => {
                             match packed_file {
-                                DecodedPackedFile::UnitVariant(variant) => {
+                                RFileDecoded::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
@@ -629,7 +631,7 @@ impl PackedFileView {
                                         return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
                                     }
                                 }
-                                DecodedPackedFile::ESF(esf) => {
+                                RFileDecoded::ESF(esf) => {
                                     if let View::ESF(old_esf) = view {
                                         old_esf.reload_view(&esf);
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
@@ -664,7 +666,7 @@ impl PackedFileView {
         if let DataSource::PackFile = self.get_data_source() {
             if !self.get_is_read_only() {
                 if let ViewType::Internal(view) = self.get_view() {
-                    /*
+
                     match self.packed_file_type {
                         FileType::AnimsTable |
                         FileType::DB |
@@ -675,7 +677,7 @@ impl PackedFileView {
                             view.get_ref_table_view_2().clear_markings();
                         }
                         _ => {},
-                    }*/
+                    }
                 }
             }
         }

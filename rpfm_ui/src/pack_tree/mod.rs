@@ -737,9 +737,6 @@ impl PackTree for QBox<QTreeView> {
 
     unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &Path, is_file: bool) -> Vec<String> {
         let mut paths = vec![];
-        // TO review later.
-        /*
-
 
         // If it's a single file, we get his name and push it to the paths vector.
         if is_file {
@@ -761,9 +758,8 @@ impl PackTree for QBox<QTreeView> {
                 let filtered_path = file_path.strip_prefix(&useless_prefix).unwrap();
 
                 // Turn it from &Path to a Vec<String>, reverse it, and push it to the list.
-                let mut filtered_path = filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>();
-                filtered_path.reverse();
-                paths.push(filtered_path.join("/").collect::<String>());
+                let filtered_path = filtered_path.to_string_lossy().to_string();
+                paths.push(filtered_path);
             }
         }
 
@@ -772,13 +768,13 @@ impl PackTree for QBox<QTreeView> {
 
             // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
-            let mut base_path = selected_paths[0].split('/').collect::<Vec<_>>();
+            let mut base_path = selected_paths[0].to_owned();
 
-            // Combine it with his path to form his full form.
-            base_path.reverse();
-            path.append(&mut base_path);
-            path.reverse();
-        }*/
+            if base_path.ends_with('/') {
+                base_path.push('/');
+            }
+            base_path.push_str(path);
+        }
 
         // Return the paths (sorted from parent to children)
         paths

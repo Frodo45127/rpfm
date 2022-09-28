@@ -80,7 +80,7 @@ pub fn network_loop() {
 
             // When we want to check if there is a lua setup update available...
             Command::CheckLuaAutogenUpdates => {
-                match lua_autogen_path() {
+                match lua_autogen_base_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.check_update() {

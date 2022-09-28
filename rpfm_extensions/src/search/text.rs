@@ -62,7 +62,7 @@ impl Searchable for Text {
     type SearchMatches = TextMatches;
 
     /// This function performs a search over the provided Text PackedFile.
-    fn search(&self, file_path: &str, pattern_to_search: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TextMatches {
+    fn search(&self, file_path: &str, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TextMatches {
 
         // TODO: while it searches quite fast... I think it can be improved even more.
         let mut matches = TextMatches::new(file_path);
@@ -84,8 +84,7 @@ impl Searchable for Text {
 
             // If we're searching a pattern, we just check every text PackedFile, line by line.
             MatchingMode::Pattern => {
-                let pattern = if case_sensitive { pattern_to_search.to_owned() } else { pattern_to_search.to_lowercase() };
-                let length = pattern_to_search.chars().count();
+                let length = pattern.chars().count();
                 let mut column = 0;
 
                 for (row, data) in self.contents().lines().enumerate() {

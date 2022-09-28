@@ -59,62 +59,62 @@ use crate::UI_STATE;
 // This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
 extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for I32/64 cells on tables with a numeric one.
 extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for F32 cells on tables with a numeric one.
 extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for ColourRGB cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_colour_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_colour_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_colour_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default delegate for all cell types that doesn't have a specific delegate already.
 extern "C" { fn new_generic_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
-    let is_right_side_mark_enabled = unsafe { setting_bool("use_right_size_markers") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default delegate for all items in a Tips ListView.
 extern "C" { fn new_tips_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tips_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
     unsafe { new_tips_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 // This function changes the default delegate for all items in a TreeView.
 extern "C" { fn new_tree_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tree_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = unsafe { setting_bool("use_dark_theme") };
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
     unsafe { new_tree_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 

@@ -36,10 +36,10 @@ use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
 use crate::utils::create_grid_layout;
 
-//use self::slots::MyModUISlots;
+use self::slots::MyModUISlots;
 
-//mod connections;
-//mod slots;
+mod connections;
+mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -137,8 +137,8 @@ impl MyModUI {
             mymod_accept_button,
         });
 
-        //let mymod_slots = MyModUISlots::new(&mymod_ui);
-        //connections::set_connections(&mymod_ui, &mymod_slots);
+        let mymod_slots = MyModUISlots::new(&mymod_ui);
+        connections::set_connections(&mymod_ui, &mymod_slots);
 
         // Execute the dialog and return the result if we accepted.
         if mymod_ui.mymod_dialog.exec() == 1 {

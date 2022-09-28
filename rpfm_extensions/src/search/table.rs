@@ -173,7 +173,6 @@ impl TableMatches {
                     }
                 }
                 else {
-                    let pattern = pattern.to_lowercase();
                     let text_lower = text.to_lowercase();
                     if text_lower.contains(&pattern) {
                         let column_name = fields_processed[column_number as usize].name();

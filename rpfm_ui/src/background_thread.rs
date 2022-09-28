@@ -1762,62 +1762,66 @@ pub fn background_loop() {
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
                 }
-            }
+            }*/
 
             // Initialize the folder for a MyMod, including the folder structure it needs.
             Command::InitializeMyModFolder(mod_name, mod_game)  => {
-                match SETTINGS.read().unwrap().paths["mymods_base_path"].clone() {
-                    Some(mut mymod_path) => {
-                        mymod_path.push(&mod_game);
+                let mut mymod_path = setting_path("mymods_base_path");
+                if mymod_path.is_dir() {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("MyMod path is not configured. Configure it in the settings and try again.")));
+                    continue;
+                }
 
-                        // Just in case the folder doesn't exist, we try to create it.
-                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
-                            CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateAssetFolder.into()));
-                            continue;
-                        }
+                mymod_path.push(&mod_game);
 
-                        // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
-                        mymod_path.push(&mod_name);
-                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
-                            CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
+                // Just in case the folder doesn't exist, we try to create it.
+                if let Err(error) = DirBuilder::new().recursive(true).create(&mymod_path) {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the MyMod's Game folder: {}.", error.to_string())));
+                    continue;
+                }
+
+                // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
+                mymod_path.push(&mod_name);
+                if let Err(error) = DirBuilder::new().recursive(true).create(&mymod_path) {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the MyMod's Assets folder: {}.", error.to_string())));
+                    continue;
+                };
+
+                // Create a repo inside the MyMod's folder.
+                if !setting_bool("disable_mymod_automatic_git_repo") {
+                    let git_integration = GitIntegration::new(&mymod_path, "", "", "");
+                    if let Err(error) = git_integration.init() {
+                        CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                        continue
+                    }
+                }
+
+                // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
+                if !setting_bool("disable_mymod_automatic_configs") {
+                    if let Ok(lua_autogen_folder) = lua_autogen_game_path(&GAME_SELECTED.read().unwrap()) {
+                        let lua_autogen_folder = lua_autogen_folder.to_string_lossy().to_string().replace("\\", "/");
+
+                        let mut vscode_config_path = mymod_path.to_owned();
+                        vscode_config_path.push(".vscode");
+
+                        if let Err(error) = DirBuilder::new().recursive(true).create(&vscode_config_path) {
+                            CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the VSCode Config folder: {}.", error.to_string())));
                             continue;
                         };
 
-                        // Create a repo inside the MyMod's folder.
-                        if !setting_bool["disable_mymod_automatic_git_repo"] {
-                            let git_integration = GitIntegration::new(&mymod_path, "", "", "");
-                            if let Err(error) = git_integration.init() {
-                                CentralCommand::send_back(&sender, Response::Error(From::from(error)));
-                                continue
-                            }
-                        }
+                        // Prepare both config files.
+                        let mut sublime_config_path = mymod_path.to_owned();
+                        sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
 
-                        // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
-                        if !setting_bool["disable_mymod_automatic_configs"] {
-                            if let Some(lua_autogen_folder) = GAME_SELECTED.read().unwrap().get_game_lua_autogen_path() {
-                                let lua_autogen_folder = lua_autogen_folder.replace("\\", "/");
+                        let mut vscode_extensions_path_file = vscode_config_path.to_owned();
+                        vscode_extensions_path_file.push("extensions.json");
 
-                                let mut vscode_config_path = mymod_path.to_owned();
-                                vscode_config_path.push(".vscode");
+                        let mut vscode_config_path_file = vscode_config_path.to_owned();
+                        vscode_config_path_file.push("settings.json");
 
-                                if DirBuilder::new().recursive(true).create(&vscode_config_path).is_err() {
-                                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOCreateNestedAssetFolder(mymod_path.to_string_lossy().to_string()).into()));
-                                    continue;
-                                };
-
-                                // Prepare both config files.
-                                let mut sublime_config_path = mymod_path.to_owned();
-                                sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
-
-                                let mut vscode_extensions_path_file = vscode_config_path.to_owned();
-                                vscode_extensions_path_file.push("extensions.json");
-
-                                let mut vscode_config_path_file = vscode_config_path.to_owned();
-                                vscode_config_path_file.push("settings.json");
-
-                                if let Ok(file) = File::create(vscode_extensions_path_file) {
-                                    let mut file = BufWriter::new(file);
-                                    let _ = file.write_all("
+                        if let Ok(file) = File::create(vscode_extensions_path_file) {
+                            let mut file = BufWriter::new(file);
+                            let _ = file.write_all("
 {
     \"recommendations\": [
         \"sumneko.lua\",
@@ -1826,9 +1830,9 @@ pub fn background_loop() {
 }".as_bytes());
                                 }
 
-                                if let Ok(file) = File::create(vscode_config_path_file) {
-                                    let mut file = BufWriter::new(file);
-                                    let _ = file.write_all(format!("
+                        if let Ok(file) = File::create(vscode_config_path_file) {
+                            let mut file = BufWriter::new(file);
+                            let _ = file.write_all(format!("
 {{
     \"Lua.workspace.library\": [
         \"{folder}/global/\",
@@ -1854,9 +1858,9 @@ pub fn background_loop() {
 }}", folder = lua_autogen_folder).as_bytes());
                                 }
 
-                                if let Ok(file) = File::create(sublime_config_path) {
-                                    let mut file = BufWriter::new(file);
-                                    let _ = file.write_all(format!("
+                        if let Ok(file) = File::create(sublime_config_path) {
+                            let mut file = BufWriter::new(file);
+                            let _ = file.write_all(format!("
 {{
     \"folders\":
     [
@@ -1892,17 +1896,13 @@ pub fn background_loop() {
                             }
                         }
 
-                        // Return the name of the MyMod Pack.
-                        mymod_path.set_extension("pack");
-                        CentralCommand::send_back(&sender, Response::PathBuf(mymod_path));
-                    }
-                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::MyModPathNotConfigured.into())),
-                }
+                // Return the name of the MyMod Pack.
+                mymod_path.set_extension("pack");
+                CentralCommand::send_back(&sender, Response::PathBuf(mymod_path));
             }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckMessageUpdates | Command::CheckLuaAutogenUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            */
             _ => {}
         }
     }

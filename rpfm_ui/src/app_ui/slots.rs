@@ -74,7 +74,7 @@ use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
-//use crate::views::table::utils::{get_reference_data, setup_item_delegates};
+use crate::views::table::utils::{get_reference_data, setup_item_delegates};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1270,28 +1270,6 @@ impl AppUISlots {
             app_ui => move |_| {
                 info!("Triggering `Update Current Schema from AssKit` By Slot");
 
-                // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = GAME_SELECTED.read().unwrap().raw_db_version();
-                let path = match version {
-                    1| 0 => {
-
-                        // Create the FileDialog to get the path of the Assembly Kit.
-                        let file_dialog = QFileDialog::from_q_widget_q_string(
-                            &app_ui.main_window,
-                            &qtr("special_stuff_select_raw_db_folder"),
-                        );
-
-                        // Set it to only search Folders.
-                        file_dialog.set_file_mode(FileMode::Directory);
-                        file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
-
-                        // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 { Some(PathBuf::from(file_dialog.selected_files().at(0).to_std_string()))
-                        } else { None }
-                    }
-                    _ => None,
-                };
-
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
@@ -1362,7 +1340,7 @@ impl AppUISlots {
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = packed_file_view.get_mut_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                        /*
+
                         if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
@@ -1379,7 +1357,7 @@ impl AppUISlots {
                                     &table.timer_delayed_updates
                                 );
                             }
-                        }*/
+                        }
                         break;
                     }
                 }
@@ -1514,7 +1492,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             dependencies_ui => move || {
                 info!("Triggering `Import from Dependencies` By Slot");
-                /*
+
                 // Only allow importing if we currently have a PackFile open.
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
 
@@ -1530,43 +1508,39 @@ impl AppUISlots {
                         }) {
                             let path = packed_file_view.get_ref_path();
                             let data_source = packed_file_view.get_data_source();
-                            paths_by_source.insert(data_source, vec![ContainerPath::File(path.to_vec())]);
-                            Some((data_source, path.to_vec()))
+                            paths_by_source.insert(data_source, vec![ContainerPath::File(path.to_owned())]);
+                            Some((data_source, path.to_owned()))
                         } else { None };
 
+                        // The backend already checks for proper data source. No need to double-check here.
                         if let Some((data_source, path)) = data_source_and_path {
-                            match data_source {
-                                DataSource::ParentFiles |
-                                DataSource::GameFiles => {
-                                    dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
+                            dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
 
-                                    let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
-                                        if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
-                                            Some(packed_file_view.get_ref_path().to_vec())
-                                        } else { None }
-                                    });
+                            // TODO: MAke sure this uses the correct source.
+                            let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|packed_file_view| {
+                                if *packed_file_view.get_ref_path() == path && packed_file_view.get_data_source() == DataSource::PackFile {
+                                    Some(packed_file_view.get_ref_path().to_owned())
+                                } else { None }
+                            });
 
-                                    // If we're overwriting a PackedFile already on our PackFile, remove it.
-                                    if let Some(path_to_purge) = path_to_purge {
-                                        let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
-                                    }
+                            // If we're overwriting a PackedFile already on our PackFile, remove it.
+                            if let Some(path_to_purge) = path_to_purge {
+                                let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
+                            }
 
-                                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
-                                        index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
-                                    }) {
-                                        packed_file_view.set_data_source(DataSource::PackFile);
-                                        if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
-                                            show_dialog(&app_ui.main_window, &error, false);
-                                        }
-
-                                    }
+                            if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|packed_file_view| {
+                                index == app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget())
+                            }) {
+                                packed_file_view.set_data_source(DataSource::PackFile);
+                                if let Err(error) = packed_file_view.reload(&path, &pack_file_contents_ui) {
+                                    show_dialog(&app_ui.main_window, &error, false);
                                 }
-                                _ => {}
+
                             }
                         }
                     }
                     app_ui.update_views_names();
-                }*/
+                }
             }
         ));
 

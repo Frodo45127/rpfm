@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, ca_vp8::CaVp8, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, ca_vp8::{CaVp8, SupportedFormats}, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::git::GitResponse;
 use rpfm_lib::schema::Definition;
@@ -222,10 +222,10 @@ pub enum Command {
     //MassExportTSV(Vec<ContainerPath>, PathBuf),
 
     /// This command is used when we want to know if a folder exists in the currently open PackFile.
-    FolderExists(Vec<String>),
+    FolderExists(String),
 
     /// This command is used when we want to know if a PackedFile exists in the currently open PackFile.
-    PackedFileExists(Vec<String>),
+    PackedFileExists(String),
 
     /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
     GetTableListFromDependencyPackFile,
@@ -272,7 +272,7 @@ pub enum Command {
     //GetPackedFilesFromAllSources(Vec<ContainerPath>),
 
     // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
-    //SetCaVp8Format((Vec<String>, SupportedFormats)),
+    SetCaVp8Format(String, SupportedFormats),
 
     // This command is used to save the provided schema to disk.
     //SaveSchema(Schema),

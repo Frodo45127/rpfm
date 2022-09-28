@@ -67,7 +67,7 @@ use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
-use crate::pack_tree::{BuildData, icons::IconType, PackTree, TreeViewOperation};
+use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
 //use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -527,7 +527,7 @@ impl AppUI {
                 let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(path));
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
-                    /*Response::ContainerInfo(pack_file_info) => {
+                    Response::ContainerInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                         let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
@@ -535,7 +535,7 @@ impl AppUI {
 
                         UI_STATE.set_operational_mode(app_ui, None);
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                    }*/
+                    }
                     Response::Error(error) => result = Err(error),
 
                     // In ANY other situation, it's a message problem.
@@ -548,12 +548,12 @@ impl AppUI {
             let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFile);
             let response = CentralCommand::recv_try(&receiver);
             match response {
-                /*Response::ContainerInfo(pack_file_info) => {
+                Response::ContainerInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                     let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                }*/
+                }
                 Response::Error(error) => result = Err(error),
 
                 // In ANY other situation, it's a message problem.
@@ -562,7 +562,7 @@ impl AppUI {
         }
 
         // Clean the treeview and the views from markers.
-        //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             packed_file_view.clean();
@@ -840,7 +840,7 @@ impl AppUI {
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
 
-                                //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                 app_ui.menu_bar_packfile.set_enabled(true);
                             }
@@ -880,7 +880,7 @@ impl AppUI {
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
 
-                            //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                             app_ui.menu_bar_packfile.set_enabled(true);
                         }
@@ -919,7 +919,7 @@ impl AppUI {
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
 
-                            //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                             app_ui.menu_bar_packfile.set_enabled(true);
                         }
@@ -958,7 +958,7 @@ impl AppUI {
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
 
-                                //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                 app_ui.menu_bar_packfile.set_enabled(true);
                             }
@@ -1064,7 +1064,7 @@ impl AppUI {
                                                     // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                     app_ui.menu_bar_mymod.set_enabled(false);
 
-                                                    //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                                     app_ui.menu_bar_mymod.set_enabled(true);
                                                 }
@@ -2129,7 +2129,7 @@ impl AppUI {
 
     /// This function is the one that takes care of the creation of different PackedFiles.
     pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) {
-        /*
+
         // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
         if file_type == FileType::DB {
 
@@ -2140,7 +2140,7 @@ impl AppUI {
             let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, ErrorKind::DependenciesCacheNotGeneratedorOutOfDate, false); },
+                Response::Bool(it_is) => if !it_is { return show_dialog(&app_ui.main_window, "The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.", false); },
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
@@ -2160,7 +2160,7 @@ impl AppUI {
 
                             // If the name is_empty, stop.
                             if name.is_empty() {
-                                return show_dialog(&app_ui.main_window, ErrorKind::EmptyInput, false)
+                                return show_dialog(&app_ui.main_window, "Only my hearth can be empty.", false)
                             }
 
                             // Fix their name termination if needed.
@@ -2195,24 +2195,27 @@ impl AppUI {
                             // and only continue if there is only one and it's not empty.
                             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
                             let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
-                                vec!["db".to_owned(), table.to_owned(), name.to_owned()]
+                                format!("db/{}/{}", table, name)
                             }
                             else {
 
                                 // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
                                 if selected_paths.len() == 1 {
-                                    let mut complete_path = selected_paths[0].to_vec();
-                                    complete_path.append(&mut (name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+                                    let mut complete_path = selected_paths[0].to_owned();
+                                   if !complete_path.ends_with('/') {
+                                        complete_path.push('/');
+                                    }
+                                    complete_path.push_str(name);
                                     complete_path
                                 }
-                                else { vec![] }
+                                else { String::new() }
                             };
 
                             // If and only if, after all these checks, we got a path to save the PackedFile, we continue.
                             if !complete_path.is_empty() {
 
                                 // Check if the PackedFile already exists, and report it if so.
-                                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_vec()));
+                                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_owned()));
                                 let response = CentralCommand::recv(&receiver);
                                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if exists { return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false)}
@@ -2223,7 +2226,6 @@ impl AppUI {
                                 match response {
                                     Response::Success => {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(complete_path.to_owned()); 1]), DataSource::PackFile);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(complete_path); 1]), DataSource::PackFile);
                                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                     }
 
@@ -2236,7 +2238,7 @@ impl AppUI {
                 }
                 Err(error) => show_dialog(&app_ui.main_window, error, false),
             }
-        }*/
+        }
     }
 
     /// This function creates a new PackedFile based on the current path selection, being:
@@ -2325,10 +2327,10 @@ impl AppUI {
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
-                //let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_vec()));
-                //let response = CentralCommand::recv(&receiver);
-                //let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                //if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_owned()));
+                let response = CentralCommand::recv(&receiver);
+                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
                 let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(new_path.to_owned(), new_packed_file));
@@ -2336,7 +2338,6 @@ impl AppUI {
                 match response {
                     Response::Success => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(new_path.to_owned()); 1]), DataSource::PackFile);
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(new_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),

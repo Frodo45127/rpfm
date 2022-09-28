@@ -25,14 +25,13 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QString;
 
+use anyhow::Result;
+
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_error::Result;
-
-use rpfm_lib::packfile::PackFileSettings;
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::files::{FileType, pack::PackSettings};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -75,10 +74,10 @@ impl PackFileSettingsView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(false));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
         let response = CentralCommand::recv(&receiver);
         let settings = match response {
-            Response::PackFileSettings(settings) => settings,
+            Response::PackSettings(settings) => settings,
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -172,14 +171,14 @@ impl PackFileSettingsView {
         );
 
         connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
-        pack_file_view.packed_file_type = PackedFileType::PackFileSettings;
-        pack_file_view.view = ViewType::Internal(View::PackFileSettings(pack_file_settings_view));
+        //pack_file_view.packed_file_type = FileType::PackFileSettings;
+        pack_file_view.view = ViewType::Internal(View::PackSettings(pack_file_settings_view));
         Ok(())
     }
 
     /// This function saves a PackFileSettingsView into a PackFileSetting.
-    pub unsafe fn save_view(&self) -> PackFileSettings {
-        let mut settings = PackFileSettings::default();
+    pub unsafe fn save_view(&self) -> PackSettings {
+        let mut settings = PackSettings::default();
         self.settings_text_multi_line.iter().for_each(|(key, widget)| { settings.settings_text.insert(key.to_owned(), widget.to_plain_text().to_std_string()); });
         self.settings_text_single_line.iter().for_each(|(key, widget)| { settings.settings_string.insert(key.to_owned(), widget.text().to_std_string()); });
         self.settings_bool.iter().for_each(|(key, widget)| { settings.settings_bool.insert(key.to_owned(), widget.is_checked()); });

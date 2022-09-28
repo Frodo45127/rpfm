@@ -234,7 +234,7 @@ impl Dependencies {
 
         // Build the vanilla table/loc lists, for easy access.
         cache.vanilla_files.iter()
-            .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
+            .filter(|(_, file)| matches!(file.file_type(), FileType::DB) || matches!(file.file_type(), FileType::Loc))
             .for_each(|(path, file)| {
                 match file.file_type() {
                     FileType::DB => {

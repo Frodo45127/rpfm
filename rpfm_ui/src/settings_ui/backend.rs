@@ -455,8 +455,16 @@ pub fn schemas_path() -> Result<PathBuf> {
 }
 
 /// This function returns the lua autogen path.
-pub fn lua_autogen_path() -> Result<PathBuf> {
+pub fn lua_autogen_base_path() -> Result<PathBuf> {
     Ok(config_path()?.join(LUA_AUTOGEN_FOLDER))
+}
+
+/// This function returns the lua autogen path for a specific game.
+pub fn lua_autogen_game_path(game: &GameInfo) -> Result<PathBuf> {
+    match game.lua_autogen_folder() {
+        Some(folder) => Ok(config_path()?.join(LUA_AUTOGEN_FOLDER).join(folder)),
+        None => Err(anyhow!("Lua Autogen not available for this game."))
+    }
 }
 
 /// This function returns the remote tips path.

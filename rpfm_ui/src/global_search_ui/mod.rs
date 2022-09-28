@@ -513,8 +513,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::Pack {
-            return;
-            //return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
+            return show_dialog(&app_ui.main_window, "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
@@ -587,8 +586,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::Pack {
-            return;
-            //return show_dialog(&app_ui.main_window, ErrorKind::GlobalReplaceOverDependencies, false);
+            return show_dialog(&app_ui.main_window, "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
@@ -729,8 +727,8 @@ impl GlobalSearchUI {
                 DataSource::AssKitFiles
             },
         };
-        /*
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), false, false, data_source);
+
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source);
 
         // If it's a table, focus on the matched cell.
         if is_match {
@@ -758,7 +756,7 @@ impl GlobalSearchUI {
                     }
                 }
             }
-        }*/
+        }
     }
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.
@@ -834,7 +832,13 @@ impl GlobalSearchUI {
     /// This function takes care of loading the results of a global search of `TextMatches` into a model.
     unsafe fn load_text_matches_to_ui(model: &QStandardItemModel, tree_view: &QTreeView, matches: &[TextMatches]) {
         if !matches.is_empty() {
-            for match_text in matches {
+
+            // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
+            if !matches.is_empty() {
+                model.block_signals(true);
+            }
+
+            for (index, match_text) in matches.iter().enumerate() {
                 if !match_text.matches().is_empty() {
                     let path = match_text.path();
                     let qlist_daddy = QListOfQStandardItem::new();
@@ -853,13 +857,20 @@ impl GlobalSearchUI {
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new();
 
+                        // Long rows take forever to load. Instead, we truncate them around the match.
+                        let text_value = if match_row.text().chars().count() > 100 {
+                            QString::from_std_str(&(match_row.text()[..match_row.text().char_indices().map(|(i, _)| i).nth(100).unwrap()].to_owned() + "..."))
+                        } else {
+                            QString::from_std_str(&match_row.text())
+                        };
+
                         // Create an empty row.
-                        let text = QStandardItem::new();
+                        let text = QStandardItem::from_q_string(&text_value);
                         let row = QStandardItem::new();
                         let column = QStandardItem::new();
                         let len = QStandardItem::new();
 
-                        text.set_text(&QString::from_std_str(&match_row.text()));
+                        //text.set_text(&QString::from_std_str(&match_row.text()));
                         row.set_data_2a(&QVariant::from_u64(match_row.row() + 1), 2);
                         column.set_data_2a(&QVariant::from_u64(*match_row.column()), 2);
                         len.set_data_2a(&QVariant::from_i64(*match_row.len()), 2);
@@ -883,6 +894,11 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
+
+                    // Unlock the model before the last insertion.
+                    if index == matches.len() - 1 {
+                        model.block_signals(false);
+                    }
 
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }

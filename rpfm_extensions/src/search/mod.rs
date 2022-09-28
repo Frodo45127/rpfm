@@ -199,6 +199,11 @@ impl GlobalSearch {
         // Schema matches do not support "update search".
         self.matches_schema = SchemaMatches::new();
 
+        let pattern = self.pattern.to_owned();
+        if !self.case_sensitive {
+            self.pattern = self.pattern.to_lowercase();
+        }
+
         match self.source {
             SearchSource::Pack => {
 
@@ -416,6 +421,8 @@ impl GlobalSearch {
         if self.search_on_schema {
             self.matches_schema = schema.search("", &self.pattern, self.case_sensitive, &matching_mode);
         }
+
+        self.pattern = pattern;
     }
 
     /// This function clears the Global Search result's data, and reset the UI for it.
