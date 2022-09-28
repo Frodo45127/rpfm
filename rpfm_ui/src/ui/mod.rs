@@ -26,7 +26,6 @@ use qt_widgets::q_message_box::Icon;
 use qt_widgets::q_message_box::StandardButton;
 
 use qt_gui::QFont;
-use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::QIcon;
 
 use qt_core::QFlags;

@@ -40,12 +40,11 @@ use qt_core::QVariant;
 use cpp_core::CastInto;
 use cpp_core::Ptr;
 
-use anyhow::Result
-;
+use anyhow::Result;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-
 
 use rpfm_lib::games::supported_games::*;
 
@@ -301,7 +300,7 @@ impl SettingsUI {
         let mut paths_asskit_line_edits = BTreeMap::new();
         let mut paths_asskit_buttons = BTreeMap::new();
 
-        for (index, game_supported) in SUPPORTED_GAMES.games().iter().enumerate() {
+        for (index, game_supported) in SUPPORTED_GAMES.games_sorted().iter().enumerate() {
             let spoiler = new_spoiler_safe(&QString::from_std_str(game_supported.display_name()).as_ptr(), 200, &paths_frame.as_ptr().static_upcast());
 
             // Note: ignore the warnings caused by this. They're harmless.
@@ -949,8 +948,11 @@ impl SettingsUI {
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
             if let Some(spoiler) = self.paths_spoilers.get(key) {
-                path.set_text(&QString::from_std_str(&setting_string(key)));
-                toggle_animated_safe(&spoiler.as_ptr());
+                let stored_path = setting_string(key);
+                if !stored_path.is_empty() {
+                    path.set_text(&QString::from_std_str(&setting_string(key)));
+                    toggle_animated_safe(&spoiler.as_ptr());
+                }
             }
         }
 

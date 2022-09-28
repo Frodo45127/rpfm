@@ -57,6 +57,7 @@ pub struct SupportedGames {
     /// List of games supported.
     games: HashMap<&'static str, GameInfo>,
 
+    /// Order the games were released.
     order: Vec<&'static str>
 }
 
@@ -1598,5 +1599,10 @@ impl SupportedGames {
     /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports.
     pub fn game_keys(&self) -> Vec<&str> {
         self.games.keys().cloned().collect::<Vec<&str>>()
+    }
+
+    /// This function returns a vec with references to the full list of supported games, sorted by release date.
+    pub fn games_sorted(&self) -> Vec<&GameInfo> {
+        self.order.iter().map(|key| self.game(key).unwrap()).collect::<Vec<&GameInfo>>()
     }
 }

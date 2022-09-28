@@ -118,7 +118,7 @@ impl RawDefinition {
                     .filter(|x| !BLACKLISTED_TABLES.contains(&x.file_name().unwrap().to_str().unwrap()))
                     .filter(|x| {
                         let table_name = x.file_stem().unwrap().to_str().unwrap().split_at(5).1;
-                        tables_to_skip.par_iter().any(|vanilla_name| vanilla_name == &table_name)
+                        !tables_to_skip.par_iter().any(|vanilla_name| vanilla_name == &table_name)
                     })
                     .map(|x| Self::read(x, version))
                     .collect::<Result<Vec<Self>>>()

@@ -207,13 +207,13 @@ pub enum Command {
     DeleteFromAnimpack((String, Vec<ContainerPath>)),
 
     // This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the ContainerPath of each PackedFile to delete.
-    //DeletePackedFiles(Vec<ContainerPath>),
+    DeletePackedFiles(Vec<ContainerPath>),
 
     // This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the ContainerPaths to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
-    //ExtractPackedFiles(Vec<ContainerPath>, PathBuf, bool),
+    ExtractPackedFiles(Vec<ContainerPath>, PathBuf, bool),
 
     // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
-    //RenamePackedFiles(Vec<(ContainerPath, String)>),
+    RenamePackedFiles(Vec<(ContainerPath, String)>),
 
     // This command is used when we want to import a large amount of table-like files from TSV files.
     //MassImportTSV(Vec<PathBuf>, Option<String>),
@@ -305,7 +305,7 @@ pub enum Command {
     DiagnosticsCheck,
 
     // This command is used to trigger a partial diagnostics check over the open PackFile.
-    //DiagnosticsUpdate((Diagnostics, Vec<ContainerPath>)),
+    DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>),
 
     /// This command is used to get the settings of the currently open PackFile.
     GetPackSettings,
@@ -435,7 +435,7 @@ pub enum Response {
     VecContainerPath(Vec<ContainerPath>),
 
     // Response to return (Vec<(ContainerPath, Vec<String>)>).
-    VecContainerPathVecString(Vec<(ContainerPath, Vec<String>)>),
+    VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),

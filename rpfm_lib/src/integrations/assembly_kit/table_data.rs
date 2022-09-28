@@ -82,7 +82,7 @@ impl RawTable {
 
             // Version 2 is Rome 2+. Version 1 is Shogun 2. Almost the same format, but we have to
             // provide a different path for Shogun 2, so it has his own version.
-            2 | 1 => definitions.par_iter().map(|definition| Self::read(definition, raw_tables_folder, version)).collect(),
+            2 | 1 => Ok(definitions.par_iter().filter_map(|definition| Self::read(definition, raw_tables_folder, version).ok()).collect()),
 
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
             // So... these are kinda unique. The schemas are xsd files, and the data format is kinda different and it's not yet supported.

@@ -268,7 +268,7 @@ impl Dependencies {
     ///
     /// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK2 file.
     fn generate_asskit_only_db_tables(&mut self, raw_db_path: &Path, version: i16) -> Result<()> {
-        let files_to_ignore = self.vanilla_tables.keys().map(|x| &**x).collect::<Vec<&str>>();
+        let files_to_ignore = self.vanilla_tables.keys().map(|table_name| &table_name[..table_name.len() - 7]).collect::<Vec<_>>();
         let raw_tables = RawTable::read_all(raw_db_path, version, &files_to_ignore)?;
         let asskit_only_db_tables = raw_tables.par_iter().map(TryFrom::try_from).collect::<Result<Vec<DB>>>()?;
         self.asskit_only_db_tables = asskit_only_db_tables.par_iter().map(|table| (table.table_name().to_owned(), table.clone())).collect::<HashMap<String, DB>>();

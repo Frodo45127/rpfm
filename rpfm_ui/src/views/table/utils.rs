@@ -435,7 +435,7 @@ pub unsafe fn load_data(
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
     // This wipes out header information, so remember to run "build_columns" after this.
     table_model.clear();
-    /*
+
     // Set the right data, depending on the table type you get.
     let (data, table_name) = match data {
         TableType::AnimFragment(data) => (data.data().unwrap(), None),
@@ -445,6 +445,7 @@ pub unsafe fn load_data(
         TableType::Loc(data) => (data.data(&None).unwrap(), None),
         TableType::MatchedCombat(data) => (data.data().unwrap(), None),
         TableType::NormalTable(data) => (data.data(&None).unwrap(), None),
+        TableType::DependencyManager(_) => todo!(),
     };
 
     if !data.is_empty() {
@@ -472,7 +473,7 @@ pub unsafe fn load_data(
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
-        let qlist = get_new_row(definition, table_name.as_deref());
+        let qlist = get_new_row(definition, table_name.as_deref(), None);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
     }
@@ -483,7 +484,7 @@ pub unsafe fn load_data(
         definition,
         &dependency_data.read().unwrap(),
         timer
-    )*/
+    )
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
@@ -800,7 +801,7 @@ pub unsafe fn get_column_tooltips(
 
 /// This function returns the reference data for an entire table.
 pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, TableReferences>> {
-    Err(anyhow!("test"))
+    Ok(BTreeMap::new())
     /*
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();

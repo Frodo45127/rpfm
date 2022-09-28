@@ -230,7 +230,8 @@ impl Diagnostics {
 
         // TODO: Get the table reference data here, outside the parallel loop.
         // That way we can get it fast on the first try, and skip.
-        //dependencies.generate_local_db_references(pack, paths_to_check);
+        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragments" && **key != "locs").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
+        dependencies.generate_local_db_references(pack, &table_names);
 
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {

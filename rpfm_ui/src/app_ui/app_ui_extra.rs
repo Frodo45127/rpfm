@@ -1648,6 +1648,8 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                /*
                                 Err(error) => {
 
                                     // Try to get the data of the table to send it for decoding.
@@ -1660,7 +1662,7 @@ impl AppUI {
                                     };
 
                                     return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error, file_info.table_name().unwrap(), &data);
-                                },
+                                },*/
                             }
                         }
 

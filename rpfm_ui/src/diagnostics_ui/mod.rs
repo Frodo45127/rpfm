@@ -70,7 +70,7 @@ use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
 use crate::utils::create_grid_layout;
-//use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
+use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
 
 pub mod connections;
 pub mod slots;
@@ -474,8 +474,9 @@ impl DiagnosticsUI {
         app_ui.menu_bar_packfile.set_enabled(false);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
-        diagnostics_ui.diagnostics_table_model.clear();
         let response = CentralCommand::recv_try(&receiver);
+        diagnostics_ui.diagnostics_table_model.clear();
+
         match response {
             Response::Diagnostics(diagnostics) => {
                 Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
@@ -496,22 +497,25 @@ impl DiagnosticsUI {
         if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
             return;
         }
-        /*
-        let diagnostics = UI_STATE.get_diagnostics();
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate((diagnostics, paths)));
-        let response = CentralCommand::recv_try(&receiver);
-        match response {
-            Response::DiagnosticsVecRFileInfo(diagnostics, packed_files_info) => {
-                diagnostics_ui.diagnostics_table_model.clear();
-                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
+        app_ui.menu_bar_packfile.set_enabled(false);
+
+        let diagnostics = UI_STATE.get_diagnostics();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
+        let response = CentralCommand::recv_try(&receiver);
+        diagnostics_ui.diagnostics_table_model.clear();
+
+        match response {
+            Response::Diagnostics(diagnostics) => {
+                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
                 Self::filter(app_ui, diagnostics_ui);
-                Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+                Self::update_level_counts(diagnostics_ui, diagnostics.results());
                 UI_STATE.set_diagnostics(&diagnostics);
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        }*/
+        }
+
+        app_ui.menu_bar_packfile.set_enabled(true);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
@@ -599,7 +603,7 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            //cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(&diagnostic.path()));
                             message.set_text(&QString::from_std_str(&result.message()));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
@@ -692,7 +696,7 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            //cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(&diagnostic.path()));
                             message.set_text(&QString::from_std_str(&result.message()));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
@@ -809,10 +813,10 @@ impl DiagnosticsUI {
         let item_path = model.item_2a(model_index.row(), 3);
         let path = item_path.text().to_std_string();
         let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
-        /*
+
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
-            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
+            //AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
         } else if !path.is_empty() {
 
             // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
@@ -826,7 +830,7 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.
@@ -883,7 +887,9 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
-                    } else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
+                    }
+                    /*
+                    else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
 
                         let table_view = view.get_ref_table();
                         let table_view = table_view.get_mut_ptr_table_view_primary();
@@ -903,7 +909,7 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
-                    }
+                    }*/
                 }
             }
 
@@ -935,7 +941,7 @@ impl DiagnosticsUI {
                 }
             }
             _ => {}
-        }*/
+        }
     }
 
     /// This function tries to paint the results from the provided diagnostics into their file view, if the file is open.
@@ -951,13 +957,13 @@ impl DiagnosticsUI {
             //DiagnosticType::DependencyManager(ref diagnostic) => diagnostic.get_path(),
             _ => return,
         };
-        /*
-        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| view.get_path() == path) {
+
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| &view.get_path() == path) {
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
+                //else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
                 else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.get_ref_table_view_2() }
                 else { return };
 
@@ -969,8 +975,8 @@ impl DiagnosticsUI {
                 match diagnostic {
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
-                            for (row, column) in &result.cells_affected {
+                        for result in diagnostic.results() {
+                            for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
@@ -979,7 +985,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -993,7 +999,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1006,7 +1012,7 @@ impl DiagnosticsUI {
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
-                                            match result.level {
+                                            match result.level() {
                                                 DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                 DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                 DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1017,6 +1023,7 @@ impl DiagnosticsUI {
                             }
                         }
                     },
+                    /*
                     DiagnosticType::DependencyManager(ref diagnostic) => {
                         for result in diagnostic.get_ref_result() {
                             for (row, column) in &result.cells_affected {
@@ -1115,7 +1122,7 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
-                    },
+                    },*/
                     _ => return,
                 }
 
@@ -1123,7 +1130,7 @@ impl DiagnosticsUI {
                 blocker.unblock();
                 table_view.viewport().repaint();
             }
-        }*/
+        }
     }
 
     pub unsafe fn clean_diagnostics_from_views(app_ui: &Rc<AppUI>) {
@@ -1131,7 +1138,7 @@ impl DiagnosticsUI {
 
             // Only update the visible tables.
             if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
-                /*
+
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.get_view() {
                     let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
@@ -1156,7 +1163,7 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
+                } /*else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
                     let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();

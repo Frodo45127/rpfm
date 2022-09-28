@@ -27,9 +27,11 @@ use directories::ProjectDirs;
 use std::fs::{DirBuilder, File};
 use std::path::{Path, PathBuf};
 
+use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
 
+use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater::STABLE;
 
@@ -470,4 +472,22 @@ pub fn backup_autosave_path() -> Result<PathBuf> {
 /// This function returns the dependencies path.
 pub fn dependencies_cache_path() -> Result<PathBuf> {
     Ok(config_path()?.join(DEPENDENCIES_FOLDER))
+}
+
+/// This function returns the dependencies path.
+pub fn assembly_kit_path() -> Result<PathBuf> {
+    let game_selected = GAME_SELECTED.read().unwrap();
+    let mut base_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
+    let version = game_selected.raw_db_version();
+    match version {
+
+        // Post-Shogun 2 games.
+        2 | 1 => {
+            base_path.push("raw_data/db");
+            Ok(base_path)
+        }
+
+        // Shogun 2/Older games
+        _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
+    }
 }

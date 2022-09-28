@@ -198,6 +198,7 @@ pub fn background_loop() {
             /*
 
             // In case we want to change the current shortcuts...
+            // TODO: Migrate the entire shortcut system to the Qt one.
             Command::SetShortcuts(shortcuts) => {
                 match shortcuts.save() {
                     Ok(()) => CentralCommand::send_back(&sender, Response::Success),
@@ -312,8 +313,7 @@ pub fn background_loop() {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let game_selected = GAME_SELECTED.read().unwrap();
                     let game_path = setting_path(&game_selected.game_key_name());
-                    let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
-                    let asskit_path = if asskit_path.is_dir() { Some(asskit_path) } else { None };
+                    let asskit_path = assembly_kit_path().ok();
 
                     if game_path.is_dir() {
                         match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path) {
@@ -802,25 +802,40 @@ pub fn background_loop() {
                     }
                 }
                 CentralCommand::send_back(&sender, Response::Success);
-            }/*
-
-            // In case we want to delete PackedFiles from a PackFile...
-            Command::DeletePackedFiles(item_types) => {
-                CentralCommand::send_back(&sender, Response::VecContainerPath(pack_file_decoded.remove_packed_files_by_type(&item_types)));
             }
 
+            // In case we want to delete PackedFiles from a PackFile...
+            Command::DeletePackedFiles(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths.iter().map(|path| pack_file_decoded.remove(&path)).flatten().collect())),
+
             // In case we want to extract PackedFiles from a PackFile...
-            Command::ExtractPackedFiles(item_types, path, extract_tables_to_tsv) => {
-                match pack_file_decoded.extract_packed_files_by_type(&item_types, &path, extract_tables_to_tsv) {
-                    Ok(result) => CentralCommand::send_back(&sender, Response::String(tre("files_extracted_success", &[&result.to_string()]))),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+            Command::ExtractPackedFiles(container_paths, path, extract_tables_to_tsv) => {
+                let schema = SCHEMA.read().unwrap();
+                let schema = if extract_tables_to_tsv { &*schema } else { &None };
+                let mut errors = 0;
+                let mut success = 0;
+                for container_path in container_paths {
+                    if pack_file_decoded.extract(container_path, &path, true, &schema).is_err() {
+                        errors += 1;
+                    }else {
+                        success += 1;
+                    }
+                }
+
+                if errors == 0 {
+                    CentralCommand::send_back(&sender, Response::String(tre("files_extracted_success", &[&success.to_string()])));
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
                 }
             }
 
             // In case we want to rename one or more PackedFiles...
+            // TODO: make sure we don't pass folders here.
             Command::RenamePackedFiles(renaming_data) => {
-                CentralCommand::send_back(&sender, Response::VecContainerPathVecString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
-            }
+                match pack_file_decoded.rename_paths(&renaming_data) {
+                    Ok(data) => CentralCommand::send_back(&sender, Response::VecContainerPathContainerPath(data.iter().map(|(x, y)| (x.clone(), y[0].to_owned())).collect::<Vec<_>>())),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                }
+            }/*
 
             // In case we want to Mass-Import TSV Files...
             Command::MassImportTSV(paths, name) => {
@@ -1294,14 +1309,29 @@ pub fn background_loop() {
                         CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
                     }));
                 }
-            }/*
+            }
 
-            // In case we want to "Open one or more PackFiles"...
-            Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
-                diagnostics.update(&pack_file_decoded, &path_types, &mut dependencies);
-                let packed_files_info = diagnostics.get_update_paths_packed_file_info(&pack_file_decoded, &path_types);
-                CentralCommand::send_back(&sender, Response::DiagnosticsVecRFileInfo(diagnostics, packed_files_info));
-            }*/
+            Command::DiagnosticsUpdate(mut diagnostics, path_types) => {
+                let game_selected = GAME_SELECTED.read().unwrap().clone();
+                let game_path = setting_path(&game_selected.game_key_name());
+                let schema = SCHEMA.read().unwrap().clone();
+
+                if let Some(schema) = schema {
+
+                    // Spawn a separate thread so the UI can keep working.
+                    //
+                    // NOTE: Find a way to not fucking clone dependencies.
+                    thread::spawn(clone!(
+                        mut dependencies,
+                        mut pack_file_decoded => move || {
+                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                            diagnostics.check(&pack_file_decoded, &mut dependencies, &game_selected, &game_path, &path_types, &schema);
+                        }
+                        CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+                    }));
+                }
+            }
 
             // In case we want to get the open PackFile's Settings...
             Command::GetPackSettings => CentralCommand::send_back(&sender, Response::PackSettings(pack_file_decoded.settings().clone())),

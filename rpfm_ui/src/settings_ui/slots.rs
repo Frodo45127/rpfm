@@ -95,22 +95,23 @@ impl SettingsUISlots {
     /// This function creates a new `SettingsUISlots`.
     pub unsafe fn new(ui: &Rc<SettingsUI>, app_ui: &Rc<AppUI>) -> Self {
 
-        // What happens when we hit thr "Restore Default" button.
+        // What happens when we hit the "Restore Default" button.
         let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
-                /*
-                // Restore RPFM settings.
+
+                // Restore RPFM settings and reload the view.
+                init_settings();
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
-                // Restore layout settings.
+                // Restore layout settings. TODO: move this to initialization of settings.
                 let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
                 app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
                 app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
-                */
+
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
             }
         ));
