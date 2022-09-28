@@ -34,8 +34,7 @@ use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 
-use rpfm_lib::packedfile::esf::RecordNodeFlags;
-use rpfm_lib::packedfile::esf::{ESF, NodeType};
+use rpfm_lib::files::esf::{ESF, NodeType, RecordNodeFlags};
 
 const ESF_DATA: i32 = 40;
 const CHILDLESS_NODE: i32 = 41;
@@ -199,10 +198,10 @@ impl ESFTree for QBox<QTreeView> {
 
                 // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
                 // with the name of the PackFile. All big things start with a lie.
-                let root_node = esf_data.get_ref_root_node();
+                let root_node = esf_data.root_node();
                 if let NodeType::Record(node) = root_node {
 
-                    let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&node.get_ref_name()));
+                    let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&node.name()));
                     let state_item = QStandardItem::new();
                     big_parent.set_editable(false);
                     state_item.set_editable(false);
@@ -211,13 +210,13 @@ impl ESFTree for QBox<QTreeView> {
                     let esf_data_no_node: ESF = esf_data.clone_without_root_node();
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&esf_data_no_node).unwrap())), ESF_DATA);
                     big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&root_node.clone_without_children()).unwrap())), CHILDLESS_NODE);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
-                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+                    big_parent.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
 
                     let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                     state_item.set_flags(QFlags::from(flags));
 
-                    for node_group in node.get_ref_children() {
+                    for node_group in node.children() {
                         for node in node_group {
                             load_node_to_view(&big_parent, node, None);
                         }
@@ -256,7 +255,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
     if let NodeType::Record(node) = child {
 
         // Create the node for the record.
-        let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.get_ref_name()));
+        let child_item = QStandardItem::from_q_string(&QString::from_std_str(node.name()));
         let state_item = QStandardItem::new();
         child_item.set_editable(false);
         state_item.set_editable(false);
@@ -268,13 +267,13 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
         }
 
         // Prepare the data in a way or another, depending if we have nested blocks or not.
-        if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
-            for (index, node_group) in node.get_ref_children().iter().enumerate() {
+        if node.record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
+            for (index, node_group) in node.children().iter().enumerate() {
                 let node_group_name = if node_group.len() == 2 {
                     if let NodeType::Ascii(ref key) = node_group[0] {
                         key.to_owned()
-                    } else { format!("{}_{}", node.get_ref_name(), index) }
-                } else { format!("{}_{}", node.get_ref_name(), index) };
+                    } else { format!("{}_{}", node.name(), index) }
+                } else { format!("{}_{}", node.name(), index) };
                 let node_group_item = QStandardItem::from_q_string(&QString::from_std_str(&node_group_name));
                 let node_group_state_item = QStandardItem::new();
                 node_group_item.set_editable(false);
@@ -284,7 +283,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 // Put all record nodes under the "Group Node".
                 for grandchild_node in node_group {
                     if let NodeType::Record(_) = grandchild_node {
-                        load_node_to_view(&node_group_item, grandchild_node, None);
+                        load_node_to_view(&node_group_item, &grandchild_node, None);
                     }
                 }
 
@@ -301,23 +300,23 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
 
             // Set the child's data, and add the child to the TreeView.
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
         }
 
         // If it doesn't have nested blocks, just grab the first block's pack.
         else {
 
             // First, load record nodes into the view.
-            for child_node in &node.get_ref_children()[0] {
+            for child_node in &node.children()[0] {
                 if let NodeType::Record(_) = child_node {
-                    load_node_to_view(&child_item, child_node, None);
+                    load_node_to_view(&child_item, &child_node, None);
                 }
             }
 
             // Once done, store its data and it's values.
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&child.clone_without_children()).unwrap())), CHILDLESS_NODE);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.get_ref_children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
-            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.get_ref_name())), RECORD_NODE_NAME);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string_pretty(&node.children()[0].iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
+            child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node.name())), RECORD_NODE_NAME);
         }
 
         let qlist = QListOfQStandardItem::new();
@@ -340,7 +339,7 @@ unsafe fn get_node_type_from_tree_node(current_item: Option<Ptr<QStandardItem>>,
         NodeType::Record(ref mut node) => {
 
             // Depending if we should have nested blocks or not, get the children in one way or another.
-            if node.get_ref_record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
+            if node.record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
 
                 // Get the record group nodes, and process the groups one by one.
                 let record_group_count = item.row_count();

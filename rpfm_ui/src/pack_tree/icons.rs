@@ -42,7 +42,7 @@ pub enum IconType {
     Folder,
 
     // For files. Includes the path without the PackFile's name on it.
-    File(Vec<String>),
+    File(String),
 }
 
 /// This struct is used to hold all the QIcons used by the `TreeView`s.
@@ -99,10 +99,11 @@ impl IconType {
             IconType::File(path) => {
 
                 // Get the name of the file.
-                let packed_file_name = path.last().unwrap();
+                let path_split = path.split('/').collect::<Vec<_>>();
+                let packed_file_name = path_split.last().unwrap();
 
                 // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                if path[0] == "db" { &TREEVIEW_ICONS.table }
+                if path_split[0] == "db" { &TREEVIEW_ICONS.table }
 
                 // If it ends in ".loc", it's a localisation PackedFile.
                 else if packed_file_name.ends_with(".loc") { &TREEVIEW_ICONS.table }
@@ -154,10 +155,11 @@ impl IconType {
             IconType::File(path) => {
 
                 // Get the name of the file.
-                let packed_file_name = path.last().unwrap();
+                let path_split = path.split('/').collect::<Vec<_>>();
+                let packed_file_name = path_split.last().unwrap();
 
                 // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                if path[0] == "db" { &TREEVIEW_ICONS.table }
+                if path_split[0] == "db" { &TREEVIEW_ICONS.table }
 
                 // If it ends in ".loc", it's a localisation PackedFile.
                 else if packed_file_name.ends_with(".loc") { &TREEVIEW_ICONS.table }

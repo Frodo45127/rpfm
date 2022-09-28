@@ -19,12 +19,11 @@ use qt_widgets::QWidget;
 use qt_core::QBox;
 use qt_core::QPtr;
 
+use anyhow::Result;
+
 use std::sync::{Arc, RwLock};
 
-use rpfm_error::Result;
-
-use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::files::{FileType, RFileDecoded};
 
 use crate::ffi::{new_text_editor_safe, set_text_safe, get_text_safe};
 use crate::locale::qtr;
@@ -45,8 +44,8 @@ mod slots;
 pub struct DebugView {
     editor: QBox<QWidget>,
     save_button: QBox<QPushButton>,
-    packed_file_type: PackedFileType,
-    path: Arc<RwLock<Vec<String>>>,
+    packed_file_type: FileType,
+    path: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,8 +58,8 @@ impl DebugView {
     /// This function creates a new Debug View, and sets up his slots and connections.
     pub unsafe fn new_view(
         parent: &QBox<QWidget>,
-        packed_file: DecodedPackedFile,
-        packed_file_path: Arc<RwLock<Vec<String>>>
+        packed_file: RFileDecoded,
+        packed_file_path: Arc<RwLock<String>>
     ) -> Result<Arc<Self>> {
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
 
@@ -71,9 +70,9 @@ impl DebugView {
         layout.add_widget_5a(&save_button, 2, 0, 1, 1);
 
         let (packed_file_type, text) = match packed_file {
-            DecodedPackedFile::AnimFragment(data) => (PackedFileType::AnimFragment, serde_json::to_string_pretty(&data)?),
-            DecodedPackedFile::UnitVariant(data) => (PackedFileType::UnitVariant, serde_json::to_string_pretty(&data)?),
-            DecodedPackedFile::ESF(data) => (PackedFileType::ESF, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::AnimFragment(data) => (FileType::AnimFragment, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::UnitVariant(data) => (FileType::UnitVariant, serde_json::to_string_pretty(&data)?),
+            RFileDecoded::ESF(data) => (FileType::ESF, serde_json::to_string_pretty(&data)?),
             _ => unimplemented!(),
         };
 
@@ -93,13 +92,13 @@ impl DebugView {
     }
 
     /// This function tries to parse the passed file as a PackedFile and returns it.
-    pub fn save_view(&self) -> Result<DecodedPackedFile> {
+    pub fn save_view(&self) -> Result<RFileDecoded> {
         let string = get_text_safe(&self.editor).to_std_string();
 
         let decoded_packed_file = match self.packed_file_type {
-            PackedFileType::AnimFragment => DecodedPackedFile::AnimFragment(serde_json::from_str(&string)?),
-            PackedFileType::UnitVariant => DecodedPackedFile::UnitVariant(serde_json::from_str(&string)?),
-            PackedFileType::ESF => DecodedPackedFile::ESF(serde_json::from_str(&string)?),
+            FileType::AnimFragment => RFileDecoded::AnimFragment(serde_json::from_str(&string)?),
+            FileType::UnitVariant => RFileDecoded::UnitVariant(serde_json::from_str(&string)?),
+            FileType::ESF => RFileDecoded::ESF(serde_json::from_str(&string)?),
             _ => unimplemented!(),
         };
 
@@ -113,7 +112,7 @@ impl DebugView {
     }
 
     /// This function returns a copy of the path of this `DebugView`.
-    pub fn get_path(&self) -> Vec<String> {
-      self.path.read().unwrap().to_vec()
+    pub fn get_path(&self) -> String {
+      self.path.read().unwrap().to_owned()
     }
 }

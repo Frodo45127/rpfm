@@ -49,7 +49,7 @@ impl PackedFileExternalViewSlots {
         view: &Arc<PackedFileExternalView>,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        packed_file_path: &Rc<RefCell<Vec<String>>>
+        packed_file_path: &Rc<RefCell<String>>
     )  -> Self {
 
         // Slot to close the open view.

@@ -33,17 +33,13 @@ use qt_core::QTimer;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_error::{ErrorKind, Result};
+use anyhow::{anyhow, Result};
 
-use rpfm_lib::packedfile::esf::ESF;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::files::{esf::ESF, FileType};
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
@@ -82,7 +78,7 @@ pub struct PackedFileESFView {
 
     detailed_view: Arc<RwLock<ESFDetailedView>>,
 
-    _path: Arc<RwLock<Vec<String>>>,
+    _path: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -101,16 +97,8 @@ impl PackedFileESFView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-    ) -> Result<Option<PackedFileInfo>> {
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let (data, packed_file_info) = match response {
-            Response::ESFPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        data: ESF
+    ) -> Result<()> {
 
         let splitter = QSplitter::from_q_widget(packed_file_view.get_mut_widget());
 
@@ -191,9 +179,9 @@ impl PackedFileESFView {
 
         connections::set_connections(&view, &slots);
         packed_file_view.view = ViewType::Internal(View::ESF(view));
-        packed_file_view.packed_file_type = PackedFileType::ESF;
+        packed_file_view.packed_file_type = FileType::ESF;
 
-        Ok(Some(packed_file_info))
+        Ok(())
     }
 
     /// This function tries to reload the current view with the provided data.

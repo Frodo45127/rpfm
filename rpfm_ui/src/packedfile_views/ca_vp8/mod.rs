@@ -24,14 +24,9 @@ use qt_core::QPtr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 
-use rpfm_error::{Result, ErrorKind};
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::files::{ca_vp8::*, FileType};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -58,7 +53,7 @@ pub struct PackedFileCaVp8View {
     convert_to_camv_button: QBox<QPushButton>,
     convert_to_ivf_button: QBox<QPushButton>,
     current_format: Arc<Mutex<SupportedFormats>>,
-    path: Arc<RwLock<Vec<String>>>,
+    path: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -72,17 +67,9 @@ impl PackedFileCaVp8View {
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>
-    ) -> Result<PackedFileInfo> {
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let (data, packed_file_info) = match response {
-            Response::CaVp8PackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        data: &CaVp8, // TODO: Remove this and use an info struct instead.
+    ) {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.set_contents_margins_4a(4, 4, 4, 4);
@@ -96,13 +83,13 @@ impl PackedFileCaVp8View {
         let num_frames_label = QLabel::from_q_string_q_widget(&qtr("num_frames"), packed_file_view.get_mut_widget());
         let framerate_label = QLabel::from_q_string_q_widget(&qtr("framerate"), packed_file_view.get_mut_widget());
 
-        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}.", data.get_format())), packed_file_view.get_mut_widget());
-        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.get_version())), packed_file_view.get_mut_widget());
-        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.get_ref_codec_four_cc())), packed_file_view.get_mut_widget());
-        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.get_width())), packed_file_view.get_mut_widget());
-        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.get_height())), packed_file_view.get_mut_widget());
-        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.get_num_frames())), packed_file_view.get_mut_widget());
-        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} FPS.", data.get_framerate())), packed_file_view.get_mut_widget());
+        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}.", data.format())), packed_file_view.get_mut_widget());
+        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.version())), packed_file_view.get_mut_widget());
+        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.codec_four_cc())), packed_file_view.get_mut_widget());
+        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.width())), packed_file_view.get_mut_widget());
+        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.height())), packed_file_view.get_mut_widget());
+        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.num_frames())), packed_file_view.get_mut_widget());
+        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} FPS.", data.framerate())), packed_file_view.get_mut_widget());
 
         let convert_to_camv_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_camv"), packed_file_view.get_mut_widget());
         let convert_to_ivf_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_ivf"), packed_file_view.get_mut_widget());
@@ -149,7 +136,7 @@ impl PackedFileCaVp8View {
             framerate_data_label,
             convert_to_camv_button,
             convert_to_ivf_button,
-            current_format: Arc::new(Mutex::new(data.get_format())),
+            current_format: Arc::new(Mutex::new(*data.format())),
             path: packed_file_view.get_path_raw()
         });
 
@@ -161,20 +148,18 @@ impl PackedFileCaVp8View {
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
         packed_file_view.view = ViewType::Internal(View::CaVp8(packed_file_ca_vp8_view));
-        packed_file_view.packed_file_type = PackedFileType::CaVp8;
-
-        Ok(packed_file_info)
+        packed_file_view.packed_file_type = FileType::CaVp8;
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &CaVp8) {
-        self.get_mut_ptr_format_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_format())));
-        self.get_mut_ptr_version_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_version())));
-        self.get_mut_ptr_codec_four_cc_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())));
-        self.get_mut_ptr_width_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_width())));
-        self.get_mut_ptr_height_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_height())));
-        self.get_mut_ptr_num_frames_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_num_frames())));
-        self.get_mut_ptr_framerate_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_framerate())));
+        self.get_mut_ptr_format_data_label().set_text(&QString::from_std_str(format!("{:?}", data.format())));
+        self.get_mut_ptr_version_data_label().set_text(&QString::from_std_str(format!("{:?}", data.version())));
+        self.get_mut_ptr_codec_four_cc_data_label().set_text(&QString::from_std_str(format!("{:?}", data.codec_four_cc())));
+        self.get_mut_ptr_width_data_label().set_text(&QString::from_std_str(format!("{:?}", data.width())));
+        self.get_mut_ptr_height_data_label().set_text(&QString::from_std_str(format!("{:?}", data.height())));
+        self.get_mut_ptr_num_frames_data_label().set_text(&QString::from_std_str(format!("{:?}", data.num_frames())));
+        self.get_mut_ptr_framerate_data_label().set_text(&QString::from_std_str(format!("{:?}", data.framerate())));
     }
 
     /// This function returns a copy of the format the video is currently on.

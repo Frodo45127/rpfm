@@ -29,16 +29,16 @@ use qt_core::QPtr;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 
+use anyhow::{anyhow, Result};
+use getset::*;
+
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_error::{Result, ErrorKind};
-use rpfm_lib::packfile::PackFileInfo;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
-use rpfm_lib::packedfile::PackedFileType;
-use getset::*;
+use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
+use crate::backend::{ContainerInfo, RFileInfo};
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
@@ -59,8 +59,9 @@ mod shortcuts;
 
 /// This struct contains the view of an AnimPack PackedFile.
 #[derive(Getters)]
+#[getset(get = "pub")]
 pub struct PackedFileAnimPackView {
-    path: Arc<RwLock<Vec<String>>>,
+    path: Arc<RwLock<String>>,
 
     pack_tree_view: QBox<QTreeView>,
     pack_tree_model_filter: QBox<QSortFilterProxyModel>,
@@ -98,17 +99,9 @@ impl PackedFileAnimPackView {
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) -> Result<PackedFileInfo> {
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let ((anim_pack_file_info, anim_packed_file_info), packed_file_info) = match response {
-            Response::AnimPackPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
-
+        container_info: ContainerInfo,
+        files_info: &[RFileInfo],
+    ) {
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
         // Create and configure the left `TreeView`, AKA the open PackFile.
@@ -161,7 +154,9 @@ impl PackedFileAnimPackView {
         anim_pack_tree_view.header().set_stretch_last_section(false);
 
         let mut build_data = BuildData::new();
-        build_data.data = Some((anim_pack_file_info, anim_packed_file_info));
+
+        // TODO: This is wrong, it names the pack wrong.
+        build_data.data = Some((container_info, files_info.to_vec()));
         build_data.editable = false;
         anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
@@ -224,13 +219,11 @@ impl PackedFileAnimPackView {
         connections::set_connections(&packed_file_animpack_view, &packed_file_animpack_view_slots);
         shortcuts::set_shortcuts(&packed_file_animpack_view);
         packed_file_view.view = ViewType::Internal(View::AnimPack(packed_file_animpack_view));
-        packed_file_view.packed_file_type = PackedFileType::AnimPack;
-
-        Ok(packed_file_info)
+        packed_file_view.packed_file_type = FileType::AnimPack;
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: (PackFileInfo, Vec<PackedFileInfo>)) {
+    pub unsafe fn reload_view(&self, data: (ContainerInfo, Vec<RFileInfo>)) {
         let mut build_data = BuildData::new();
         build_data.data = Some(data);
         build_data.editable = false;

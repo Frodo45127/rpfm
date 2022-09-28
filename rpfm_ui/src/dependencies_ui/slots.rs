@@ -20,6 +20,7 @@ use qt_gui::QGuiApplication;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
+use rpfm_lib::files::ContainerPath;
 use rpfm_lib::integrations::log::*;
 
 use std::rc::Rc;
@@ -138,7 +139,6 @@ impl DependenciesUISlots {
             dependencies_ui.dependencies_tree_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
-
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
             pack_file_contents_ui,
@@ -182,8 +182,8 @@ impl DependenciesUISlots {
                 info!("Triggering `Import Dependencies` from context menu By Slot");
 
                 let paths = dependencies_ui.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
-                let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
-                let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(PathType::from(path)) } else { None }).collect::<Vec<PathType>>();
+                let parent_paths = paths.iter().filter_map(|(path, source)| if let DataSource::ParentFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
+                let game_paths = paths.iter().filter_map(|(path, source)| if let DataSource::GameFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
 
                 let mut paths_by_source = BTreeMap::new();
                 if !parent_paths.is_empty() {
@@ -202,7 +202,7 @@ impl DependenciesUISlots {
             dependencies_ui => move |_| {
             let selected_paths = dependencies_ui.dependencies_tree_view.get_path_from_selection();
             if selected_paths.len() == 1 && !selected_paths[0].is_empty() {
-                QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(selected_paths[0].join("/")));
+                QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(&selected_paths[0]));
             }
         }));
 

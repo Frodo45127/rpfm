@@ -20,7 +20,7 @@ use rpfm_error::Result;
 
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::DecodedData;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packfile::packedfile::RFileInfo;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -58,7 +58,7 @@ impl DependenciesManagerView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-    ) -> Result<Option<PackedFileInfo>> {
+    ) -> Result<Option<RFileInfo>> {
 
         // Get the decoded Table.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetDependencyPackFilesList);

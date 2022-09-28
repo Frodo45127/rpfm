@@ -26,14 +26,12 @@ use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
 
-use rpfm_lib::integrations::log::*;
-
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
-use rpfm_lib::packfile::PathType;
-use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::files::{ContainerPath, table::Table};
+use rpfm_lib::integrations::log::*;
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -46,7 +44,6 @@ use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
 use crate::utils::{check_regex, log_to_status_bar, show_dialog};
 use crate::UI_STATE;
-
 use super::utils::*;
 use super::*;
 
@@ -132,7 +129,7 @@ impl TableViewSlots {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+        packed_file_path: Option<Arc<RwLock<String>>>,
     ) -> Self {
 
         // When we want to update the diagnostic/global search data of this table.
@@ -151,14 +148,14 @@ impl TableViewSlots {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
                         } else if let Some(path) = view.get_packed_file_path() {
-                            paths_to_check.push(path.to_vec());
+                            paths_to_check.push(path.to_owned());
                         }
                     }
 
-                    if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_table_edit"] {
-                        if diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible() {
+                    if setting_bool("diagnostics_trigger_on_table_edit") {
+                        if diagnostics_ui.diagnostics_dock_widget().is_visible() {
                             for path in &paths_to_check {
-                                let path_types = vec![PathType::File(path.to_vec())];
+                                let path_types = vec![ContainerPath::File(path.to_owned())];
                                 DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
                             }
                         }
@@ -233,7 +230,7 @@ impl TableViewSlots {
                     }
                 }
 
-                if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
+                if setting_bool("table_resize_on_edit") {
                     view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
@@ -450,8 +447,8 @@ impl TableViewSlots {
                     // Run it and, if we receive 1 (Accept), try to import the TSV file.
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-
-                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                        /*
+                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::TableType(data) => {
@@ -496,7 +493,7 @@ impl TableViewSlots {
                             },
                             Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }
+                        }*/
 
                         //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                         view.context_menu_update();
@@ -535,7 +532,7 @@ impl TableViewSlots {
                                 }
                             }
 
-                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path));
                             let response = CentralCommand::recv_try(&receiver);
                             match response {
                                 Response::Success => return,
@@ -551,7 +548,7 @@ impl TableViewSlots {
         // When we want to resize the columns depending on their contents...
         let resize_columns = SlotNoArgs::new(&view.table_view_primary, clone!(view => move || {
             view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
-            if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
+            if setting_bool("extend_last_column_on_tables") {
                 view.table_view_primary.horizontal_header().set_stretch_last_section(false);
                 view.table_view_primary.horizontal_header().set_stretch_last_section(true);
             }
@@ -599,9 +596,9 @@ impl TableViewSlots {
         let patch_column = SlotNoArgs::new(&view.table_view_primary, clone!(
             view => move || {
                 info!("Triggering `Patch Column` By Slot");
-                if let Err(error) = view.patch_column() {
-                    show_dialog(&view.table_view_primary, error, false);
-                }
+                //if let Err(error) = view.patch_column() {
+                //    show_dialog(&view.table_view_primary, error, false);
+                //}
             }
         ));
 
@@ -615,13 +612,13 @@ impl TableViewSlots {
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
                     if let Some(field) = view.table_definition.read().unwrap().fields_processed().get(index.column() as usize) {
-                        if let Some(reference_data) = view.reference_map.get(field.get_name()) {
+                        if let Some(reference_data) = view.reference_map.get(field.name()) {
 
                             // Stop if we have another find already running.
-                            if references_ui.get_ref_references_table_view().is_enabled() {
-                                references_ui.get_ref_references_dock_widget().show();
-                                references_ui.get_ref_references_table_view().set_enabled(false);
-
+                            if references_ui.references_table_view.is_enabled() {
+                                references_ui.references_dock_widget.show();
+                                references_ui.references_table_view.set_enabled(false);
+                                /*
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
                                 let response = CentralCommand::recv_try(&receiver);
@@ -630,10 +627,10 @@ impl TableViewSlots {
                                         references_ui.load_references_to_ui(data);
 
                                         // Reenable the table.
-                                        references_ui.get_ref_references_table_view().set_enabled(true);
+                                        references_ui.references_table_view.set_enabled(true);
                                     }
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                                }
+                                }*/
                             }
                         }
                     }
@@ -658,8 +655,8 @@ impl TableViewSlots {
 
         let mut go_to_loc = vec![];
 
-        for field in view.get_ref_table_definition().get_localised_fields() {
-            let field_name = field.get_name().to_owned();
+        for field in view.get_ref_table_definition().localised_fields() {
+            let field_name = field.name().to_owned();
             let slot = SlotNoArgs::new(&view.table_view_primary, clone!(
                 view,
                 app_ui,
@@ -681,7 +678,7 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.get_ref_table_definition().get_fields_sorted();
+        let fields = view.get_ref_table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for field in &fields {
             if let Some(index) = view.get_ref_table_definition().fields_processed().iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
@@ -781,11 +778,10 @@ impl TableViewSlots {
                     let data = model_index.data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
                     let table: Table = serde_json::from_str(&data).unwrap();
                     let table_data = match *view.packed_file_type {
-                        PackedFileType::DB => TableType::DB(From::from(table)),
-                        PackedFileType::Loc => TableType::Loc(From::from(table)),
-                        PackedFileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),
-                        PackedFileType::AnimTable => TableType::AnimTable(From::from(table)),
-                        PackedFileType::DependencyPackFilesList => unimplemented!("This should never happen, unless you messed up the schemas"),
+                        FileType::DB => TableType::DB(From::from(table)),
+                        FileType::Loc => TableType::Loc(From::from(table)),
+                        FileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),
+                        FileType::AnimsTable => TableType::AnimsTable(From::from(table)),
                         _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
                     };
                     if let Some(new_data) = open_subtable(

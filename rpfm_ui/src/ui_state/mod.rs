@@ -25,8 +25,9 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::GlobalSearch;
 
 use crate::app_ui::AppUI;
-//use crate::packedfile_views::PackedFileView;
-//use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::packedfile_views::PackedFileView;
+use crate::packfile_contents_ui::PackFileContentsUI;
+
 use self::shortcuts::Shortcuts;
 
 pub mod shortcuts;
@@ -48,7 +49,7 @@ pub struct UIState {
     packfile_contents_read_only: AtomicBool,
 
     /// This stores the list to all the widgets of the open PackedFiles.
-    //open_packedfiles: Arc<RwLock<Vec<PackedFileView>>>,
+    open_packedfiles: Arc<RwLock<Vec<PackedFileView>>>,
 
     /// This stores the current operational mode of the application.
     operational_mode: Arc<RwLock<OperationalMode>>,
@@ -84,7 +85,7 @@ impl Default for UIState {
             is_modified: AtomicBool::new(false),
             shortcuts: Arc::new(RwLock::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new()))),
             packfile_contents_read_only: AtomicBool::new(false),
-            //open_packedfiles: Arc::new(RwLock::new(vec![])),
+            open_packedfiles: Arc::new(RwLock::new(vec![])),
             operational_mode: Arc::new(RwLock::new(OperationalMode::Normal)),
             global_search: Arc::new(RwLock::new(GlobalSearch::default())),
             diagnostics: Arc::new(RwLock::new(Diagnostics::default())),
@@ -101,10 +102,10 @@ impl UIState {
     }
 
     /// This function sets the flag that stores if the open PackFile has been modified or not.
-    //pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-    //    self.is_modified.store(is_modified, Ordering::SeqCst);
-    //    AppUI::update_window_title(app_ui, pack_file_contents_ui);
-    //}
+    pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+        self.is_modified.store(is_modified, Ordering::SeqCst);
+        AppUI::update_window_title(app_ui, pack_file_contents_ui);
+    }
 
     /// This function returns the current Shortcuts.
     pub fn get_shortcuts(&self) -> Shortcuts{
@@ -132,10 +133,10 @@ impl UIState {
     }
 
     /// This function returns the open packedfiles list with a reading lock.
-    //pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<PackedFileView>> {
-    //    self.open_packedfiles.read().unwrap()
-    //}
-/*
+    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<PackedFileView>> {
+        self.open_packedfiles.read().unwrap()
+    }
+
     /// This function returns the open packedfiles list with a writing lock. This acts kinda like a setter.
     ///
     /// Use this only if you need to perform multiple write operations with this.
@@ -156,7 +157,7 @@ impl UIState {
             }
         }
     }
-*/
+
     /// This function returns a reference to the current `Operational Mode`.
     pub fn get_operational_mode(&self) -> OperationalMode {
         self.operational_mode.read().unwrap().clone()

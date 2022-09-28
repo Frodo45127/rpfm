@@ -58,13 +58,13 @@ use crate::SUPPORTED_GAMES;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::updater::{BETA, STABLE, update_channel, UpdateChannel};
 
-use self::backend::{MYMOD_BASE_PATH, ZIP_PATH};
-//use self::slots::SettingsUISlots;
+use self::backend::*;
+use self::slots::SettingsUISlots;
 
 pub mod backend;
-//mod connections;
-//mod slots;
-//mod tips;
+mod connections;
+mod slots;
+mod tips;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -239,9 +239,9 @@ pub struct SettingsUI {
 
 /// Implementation of `SettingsUI`.
 impl SettingsUI {
-    /*
+
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
-    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<Settings> {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> bool {
         let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
         let slots = SettingsUISlots::new(&settings_ui, app_ui);
 
@@ -249,13 +249,11 @@ impl SettingsUI {
         tips::set_tips(&settings_ui);
 
         // If load fails due to missing locale folder, show the error and cancel the settings edition.
-        if let Err(error) = settings_ui.load(&SETTINGS.read().unwrap()) {
-            show_dialog(&app_ui.main_window, error, false);
-            return None;
-        }
-
-        if settings_ui.dialog.exec() == 1 { Some(settings_ui.save()) }
-        else { None }
+        settings_ui.load();
+        if settings_ui.dialog.exec() == 1 {
+            settings_ui.save();
+            true
+        } else { false }
     }
 
     /// This function creates a new `SettingsUI` and links it to the provided parent.
@@ -405,7 +403,7 @@ impl SettingsUI {
         let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
         extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
         for game in SUPPORTED_GAMES.games().iter() {
-            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
+            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name()));
         }
 
         // Update channel combo.
@@ -940,39 +938,38 @@ impl SettingsUI {
     }
 
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
-    pub unsafe fn load(&self, settings: &Settings) -> Result<()> {
+    pub unsafe fn load(&self) -> Result<()> {
+        // TODO: Pass this everywhere so we don't call it again on every request.
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
 
         // Load the MyMod and 7Zip paths, if exists.
-        self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[MYMOD_BASE_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
-        self.paths_zip_line_edit.set_text(&QString::from_std_str(settings.paths[ZIP_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
+        self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string(MYMOD_BASE_PATH)));
+        self.paths_zip_line_edit.set_text(&QString::from_std_str(setting_string(ZIP_PATH)));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter() {
-            if let Some(ref path_data) = settings.paths[key] {
-                if let Some(spoiler) = self.paths_spoilers.get(key) {
-                    path.set_text(&QString::from_std_str(&path_data.to_string_lossy()));
-                    toggle_animated_safe(&spoiler.as_ptr());
-                }
+            if let Some(spoiler) = self.paths_spoilers.get(key) {
+                path.set_text(&QString::from_std_str(&setting_string(key)));
+                toggle_animated_safe(&spoiler.as_ptr());
             }
         }
 
         for (key, path) in self.paths_asskit_line_edits.iter() {
-            if let Some(ref path_data) = settings.paths[&(key.to_owned() + "_assembly_kit")] {
-                path.set_text(&QString::from_std_str(&path_data.to_string_lossy()));
-            }
+            path.set_text(&QString::from_std_str(&setting_string(&(key.to_owned() + "_assembly_kit"))));
         }
 
         // Get the default game.
         for (index, game) in SUPPORTED_GAMES.games().iter().enumerate() {
-            if game.get_game_key_name() == settings.settings_string["default_game"] {
+            if game.game_key_name() == setting_string("default_game") {
                 self.extra_global_default_game_combobox.set_current_index(index as i32);
                 break;
             }
         }
 
-        let language_selected = settings.settings_string["language"].split('_').collect::<Vec<&str>>()[0];
+        let language_selected = setting_string("language");
+        let language_selected_split = language_selected.split('_').collect::<Vec<&str>>()[0];
         for (index, (language,_)) in Locale::get_available_locales()?.iter().enumerate() {
-            if *language == language_selected {
+            if *language == language_selected_split {
                 self.general_language_combobox.set_current_index(index as i32);
                 break;
             }
@@ -986,37 +983,35 @@ impl SettingsUI {
         }
 
         // Load the General Stuff.
-        self.extra_packfile_autosave_amount_spinbox.set_value(settings.settings_string["autosave_amount"].parse::<i32>().unwrap_or(10));
-        self.extra_packfile_autosave_interval_spinbox.set_value(settings.settings_string["autosave_interval"].parse::<i32>().unwrap_or(10));
-        self.ui_global_use_dark_theme_checkbox.set_checked(settings.settings_bool["use_dark_theme"]);
-        self.ui_window_start_maximized_checkbox.set_checked(settings.settings_bool["start_maximized"]);
-        self.ui_window_hide_background_icon_checkbox.set_checked(settings.settings_bool["hide_background_icon"]);
-        self.extra_network_check_updates_on_start_checkbox.set_checked(settings.settings_bool["check_updates_on_start"]);
-        self.extra_network_check_schema_updates_on_start_checkbox.set_checked(settings.settings_bool["check_schema_updates_on_start"]);
-        self.extra_network_check_message_updates_on_start_checkbox.set_checked(settings.settings_bool["check_message_updates_on_start"]);
-        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(settings.settings_bool["check_lua_autogen_updates_on_start"]);
-        self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]);
-        self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
-        self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
-        self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
-        self.extra_packfile_disable_file_previews_checkbox.set_checked(settings.settings_bool["disable_file_previews"]);
-        self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.set_checked(settings.settings_bool["disable_mymod_automatic_git_repo"]);
-        self.extra_packfile_disable_mymod_automatic_configs_checkbox.set_checked(settings.settings_bool["disable_mymod_automatic_configs"]);
-        self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(settings.settings_bool["packfile_treeview_resize_to_fit"]);
-        self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(settings.settings_bool["expand_treeview_when_adding_items"]);
+        self.extra_packfile_autosave_amount_spinbox.set_value(setting_int("autosave_amount"));
+        self.extra_packfile_autosave_interval_spinbox.set_value(setting_int("autosave_interval"));
+        self.ui_global_use_dark_theme_checkbox.set_checked(setting_bool("use_dark_theme"));
+        self.ui_window_start_maximized_checkbox.set_checked(setting_bool("start_maximized"));
+        self.ui_window_hide_background_icon_checkbox.set_checked(setting_bool("hide_background_icon"));
+        self.extra_network_check_updates_on_start_checkbox.set_checked(setting_bool("check_updates_on_start"));
+        self.extra_network_check_schema_updates_on_start_checkbox.set_checked(setting_bool("check_schema_updates_on_start"));
+        self.extra_network_check_message_updates_on_start_checkbox.set_checked(setting_bool("check_message_updates_on_start"));
+        self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(setting_bool("check_lua_autogen_updates_on_start"));
+        self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(setting_bool("allow_editing_of_ca_packfiles"));
+        self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(setting_bool("optimize_not_renamed_packedfiles"));
+        self.extra_packfile_use_lazy_loading_checkbox.set_checked(setting_bool("use_lazy_loading"));
+        self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(setting_bool("disable_uuid_regeneration_on_db_tables"));
+        self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool("disable_file_previews"));
+        self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.set_checked(setting_bool("disable_mymod_automatic_git_repo"));
+        self.extra_packfile_disable_mymod_automatic_configs_checkbox.set_checked(setting_bool("disable_mymod_automatic_configs"));
+        self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(setting_bool("packfile_treeview_resize_to_fit"));
+        self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool("expand_treeview_when_adding_items"));
 
         // Load the Table Stuff.
-        self.ui_table_adjust_columns_to_content_checkbox.set_checked(settings.settings_bool["adjust_columns_to_content"]);
-        self.ui_table_disable_combos_checkbox.set_checked(settings.settings_bool["disable_combos_on_tables"]);
-        self.ui_table_extend_last_column_checkbox.set_checked(settings.settings_bool["extend_last_column_on_tables"]);
-        self.ui_table_tight_table_mode_checkbox.set_checked(settings.settings_bool["tight_table_mode"]);
-        self.ui_table_resize_on_edit_checkbox.set_checked(settings.settings_bool["table_resize_on_edit"]);
-        self.ui_table_use_old_column_order_checkbox.set_checked(settings.settings_bool["tables_use_old_column_order"]);
-        self.ui_table_use_right_size_markers_checkbox.set_checked(settings.settings_bool["use_right_size_markers"]);
+        self.ui_table_adjust_columns_to_content_checkbox.set_checked(setting_bool("adjust_columns_to_content"));
+        self.ui_table_disable_combos_checkbox.set_checked(setting_bool("disable_combos_on_tables"));
+        self.ui_table_extend_last_column_checkbox.set_checked(setting_bool("extend_last_column_on_tables"));
+        self.ui_table_tight_table_mode_checkbox.set_checked(setting_bool("tight_table_mode"));
+        self.ui_table_resize_on_edit_checkbox.set_checked(setting_bool("table_resize_on_edit"));
+        self.ui_table_use_old_column_order_checkbox.set_checked(setting_bool("tables_use_old_column_order"));
+        self.ui_table_use_right_size_markers_checkbox.set_checked(setting_bool("use_right_size_markers"));
 
         // Load colours.
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-
         let colour_light_table_added = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_added")).to_string());
         let colour_light_table_modified = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_table_modified")).to_string());
         let colour_light_diagnostic_error = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_diagnostic_error")).to_string());
@@ -1055,12 +1050,12 @@ impl SettingsUI {
         }
 
         // Load the Debug Stuff.
-        self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
-        self.debug_enable_debug_menu_checkbox.set_checked(settings.settings_bool["enable_debug_menu"]);
-        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(settings.settings_bool["spoof_ca_authoring_tool"]);
-        self.debug_enable_rigidmodel_editor_checkbox.set_checked(settings.settings_bool["enable_rigidmodel_editor"]);
-        self.debug_enable_esf_editor_checkbox.set_checked(settings.settings_bool["enable_esf_editor"]);
-        self.debug_enable_unit_editor_checkbox.set_checked(settings.settings_bool["enable_unit_editor"]);
+        self.debug_check_for_missing_table_definitions_checkbox.set_checked(setting_bool("check_for_missing_table_definitions"));
+        self.debug_enable_debug_menu_checkbox.set_checked(setting_bool("enable_debug_menu"));
+        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(setting_bool("spoof_ca_authoring_tool"));
+        self.debug_enable_rigidmodel_editor_checkbox.set_checked(setting_bool("enable_rigidmodel_editor"));
+        self.debug_enable_esf_editor_checkbox.set_checked(setting_bool("enable_esf_editor"));
+        self.debug_enable_unit_editor_checkbox.set_checked(setting_bool("enable_unit_editor"));
 
         let colour_light_local_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_local_tip")).to_string());
         let colour_light_remote_tip = QColor::from_q_string(&q_settings.value_1a(&QString::from_std_str("colour_light_remote_tip")).to_string());
@@ -1080,89 +1075,79 @@ impl SettingsUI {
         }
 
         // Load the Diagnostics Stuff.
-        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_open"]);
-        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(settings.settings_bool["diagnostics_trigger_on_table_edit"]);
+        self.diagnostics_diagnostics_trigger_on_open_checkbox.set_checked(setting_bool("diagnostics_trigger_on_open"));
+        self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.set_checked(setting_bool("diagnostics_trigger_on_table_edit"));
 
         Ok(())
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
-    pub unsafe fn save(&self) -> Settings {
+    pub unsafe fn save(&self) {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
 
-        // Create a new Settings.
-        let mut settings = Settings::new();
-
-        // Only if we have a valid directory, we save it. Otherwise we wipe it out.
-        let mymod_new_path = PathBuf::from(self.paths_mymod_line_edit.text().to_std_string());
-        settings.paths.insert(MYMOD_BASE_PATH.to_owned(), if mymod_new_path.is_dir() { Some(mymod_new_path) } else { None });
-
-        let zip_new_path = PathBuf::from(self.paths_zip_line_edit.text().to_std_string());
-        settings.paths.insert(ZIP_PATH.to_owned(), if zip_new_path.is_file() { Some(zip_new_path) } else { None });
+        set_setting_string_to_q_setting(&q_settings, MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
+        set_setting_string_to_q_setting(&q_settings, ZIP_PATH, &self.paths_zip_line_edit.text().to_std_string());
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
-            let new_path = PathBuf::from(line_edit.text().to_std_string());
-            settings.paths.insert(key.to_owned(), if new_path.is_dir() { Some(new_path) } else { None });
+            set_setting_string_to_q_setting(&q_settings, key, &line_edit.text().to_std_string());
         }
 
         for (key, line_edit) in self.paths_asskit_line_edits.iter() {
-            let new_path = PathBuf::from(line_edit.text().to_std_string());
-            settings.paths.insert(key.to_owned() + "_assembly_kit", if new_path.is_dir() { Some(new_path) } else { None });
+            set_setting_string_to_q_setting(&q_settings, &(key.to_owned() + "_assembly_kit"), &line_edit.text().to_std_string());
         }
 
         // We get his game's folder, depending on the selected game.
         let mut game = self.extra_global_default_game_combobox.current_text().to_std_string();
         if let Some(index) = game.find('&') { game.remove(index); }
         game = game.replace(' ', "_").to_lowercase();
-        settings.settings_string.insert("default_game".to_owned(), game);
+        set_setting_string_to_q_setting(&q_settings, "default_game", &game);
 
         // We need to store the full locale filename, not just the visible name!
         let mut language = self.general_language_combobox.current_text().to_std_string();
         if let Some(index) = language.find('&') { language.remove(index); }
         if let Some((_, locale)) = Locale::get_available_locales().unwrap().iter().find(|(x, _)| &language == x) {
             let file_name = format!("{}_{}", language, locale.language);
-            settings.settings_string.insert("language".to_owned(), file_name);
+            set_setting_string_to_q_setting(&q_settings, "language", &file_name);
         }
 
-        let update_channel = self.extra_network_update_channel_combobox.current_text().to_std_string();
-        settings.settings_string.insert("update_channel".to_owned(), update_channel);
+        set_setting_string_to_q_setting(&q_settings, "update_channel", &self.extra_network_update_channel_combobox.current_text().to_std_string());
 
         let current_font = QGuiApplication::font();
-        settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
-        settings.settings_string.insert("font_size".to_owned(), current_font.point_size().to_string());
+        set_setting_string_to_q_setting(&q_settings, "font_name", &current_font.family().to_std_string());
+        set_setting_string_to_q_setting(&q_settings, "font_size", &current_font.point_size().to_string());
 
         // Get the General Settings.
-        settings.settings_string.insert("autosave_amount".to_owned(), self.extra_packfile_autosave_amount_spinbox.value().to_string());
-        settings.settings_string.insert("autosave_interval".to_owned(), self.extra_packfile_autosave_interval_spinbox.value().to_string());
-        settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_global_use_dark_theme_checkbox.is_checked());
-        settings.settings_bool.insert("start_maximized".to_owned(), self.ui_window_start_maximized_checkbox.is_checked());
-        settings.settings_bool.insert("hide_background_icon".to_owned(), self.ui_window_hide_background_icon_checkbox.is_checked());
-        settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_network_check_updates_on_start_checkbox.is_checked());
-        settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
-        settings.settings_bool.insert("check_message_updates_on_start".to_owned(), self.extra_network_check_message_updates_on_start_checkbox.is_checked());
-        settings.settings_bool.insert("check_lua_autogen_updates_on_start".to_owned(), self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());
-        settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
-        settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
-        settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
-        settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
-        settings.settings_bool.insert("disable_file_previews".to_owned(), self.extra_packfile_disable_file_previews_checkbox.is_checked());
-        settings.settings_bool.insert("disable_mymod_automatic_git_repo".to_owned(), self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.is_checked());
-        settings.settings_bool.insert("disable_mymod_automatic_configs".to_owned(), self.extra_packfile_disable_mymod_automatic_configs_checkbox.is_checked());
-        settings.settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
-        settings.settings_bool.insert("expand_treeview_when_adding_items".to_owned(), self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
+        set_setting_int_to_q_setting(&q_settings, "autosave_amount", self.extra_packfile_autosave_amount_spinbox.value());
+        set_setting_int_to_q_setting(&q_settings, "autosave_interval", self.extra_packfile_autosave_interval_spinbox.value());
+        set_setting_bool_to_q_setting(&q_settings, "use_dark_theme", self.ui_global_use_dark_theme_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "start_maximized", self.ui_window_start_maximized_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "hide_background_icon", self.ui_window_hide_background_icon_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "check_updates_on_start", self.extra_network_check_updates_on_start_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "check_schema_updates_on_start", self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "check_message_updates_on_start", self.extra_network_check_message_updates_on_start_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "check_lua_autogen_updates_on_start", self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "allow_editing_of_ca_packfiles", self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "optimize_not_renamed_packedfiles", self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "use_lazy_loading", self.extra_packfile_use_lazy_loading_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "disable_uuid_regeneration_on_db_tables", self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "disable_file_previews", self.extra_packfile_disable_file_previews_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "disable_mymod_automatic_git_repo", self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "disable_mymod_automatic_configs", self.extra_packfile_disable_mymod_automatic_configs_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "packfile_treeview_resize_to_fit", self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "expand_treeview_when_adding_items", self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
 
         // Get the Table Settings.
-        settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_table_adjust_columns_to_content_checkbox.is_checked());
-        settings.settings_bool.insert("disable_combos_on_tables".to_owned(), self.ui_table_disable_combos_checkbox.is_checked());
-        settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_table_extend_last_column_checkbox.is_checked());
-        settings.settings_bool.insert("tight_table_mode".to_owned(), self.ui_table_tight_table_mode_checkbox.is_checked());
-        settings.settings_bool.insert("table_resize_on_edit".to_owned(), self.ui_table_resize_on_edit_checkbox.is_checked());
-        settings.settings_bool.insert("tables_use_old_column_order".to_owned(), self.ui_table_use_old_column_order_checkbox.is_checked());
-        settings.settings_bool.insert("use_right_size_markers".to_owned(), self.ui_table_use_right_size_markers_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "adjust_columns_to_content", self.ui_table_adjust_columns_to_content_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "disable_combos_on_tables", self.ui_table_disable_combos_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "extend_last_column_on_tables", self.ui_table_extend_last_column_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "tight_table_mode", self.ui_table_tight_table_mode_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "table_resize_on_edit", self.ui_table_resize_on_edit_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "tables_use_old_column_order", self.ui_table_use_old_column_order_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "use_right_size_markers", self.ui_table_use_right_size_markers_checkbox.is_checked());
+
 
         // Get the colours high.
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-
         q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&self.ui_table_colour_light_table_added_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&self.ui_table_colour_light_table_modified_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_error_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
@@ -1179,21 +1164,21 @@ impl SettingsUI {
         q_settings.set_value(&QString::from_std_str("colour_dark_local_tip"), &QVariant::from_q_string(&self.debug_colour_dark_local_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
         q_settings.set_value(&QString::from_std_str("colour_dark_remote_tip"), &QVariant::from_q_string(&self.debug_colour_dark_remote_tip_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
 
-        q_settings.sync();
 
         // Get the Debug Settings.
-        settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());
-        settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.is_checked());
-        settings.settings_bool.insert("spoof_ca_authoring_tool".to_owned(), self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
-        settings.settings_bool.insert("enable_rigidmodel_editor".to_owned(), self.debug_enable_rigidmodel_editor_checkbox.is_checked());
-        settings.settings_bool.insert("enable_esf_editor".to_owned(), self.debug_enable_esf_editor_checkbox.is_checked());
-        settings.settings_bool.insert("enable_unit_editor".to_owned(), self.debug_enable_unit_editor_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "check_for_missing_table_definitions", self.debug_check_for_missing_table_definitions_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_debug_menu", self.debug_enable_debug_menu_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "spoof_ca_authoring_tool", self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_rigidmodel_editor", self.debug_enable_rigidmodel_editor_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_esf_editor", self.debug_enable_esf_editor_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "enable_unit_editor", self.debug_enable_unit_editor_checkbox.is_checked());
 
         // Get the Diagnostics Settings.
-        settings.settings_bool.insert("diagnostics_trigger_on_open".to_owned(), self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
-        settings.settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "diagnostics_trigger_on_open", self.diagnostics_diagnostics_trigger_on_open_checkbox.is_checked());
+        set_setting_bool_to_q_setting(&q_settings, "diagnostics_trigger_on_table_edit", self.diagnostics_diagnostics_trigger_on_table_edit_checkbox.is_checked());
 
-        settings
+        // Save the settings.
+        q_settings.sync();
     }
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)
@@ -1262,5 +1247,5 @@ impl SettingsUI {
             // Add the Path to the LineEdit.
             line_edit.set_text(path);
         }
-    }*/
+    }
 }

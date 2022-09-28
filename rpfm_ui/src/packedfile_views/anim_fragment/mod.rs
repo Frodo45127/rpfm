@@ -23,25 +23,20 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QPtr;
-use crate::GAME_SELECTED;
-use rpfm_lib::games::supported_games::KEY_WARHAMMER_2;
+
+use anyhow::{anyhow, Result};
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_error::{Result, ErrorKind};
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::table::DecodedData;
-use rpfm_lib::packedfile::table::anim_fragment::AnimFragment;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::files::{anim_fragment::AnimFragment, FileType, RFileDecoded, table::*};
+use rpfm_lib::games::supported_games::KEY_WARHAMMER_2;
 use rpfm_lib::schema::Definition;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
+use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -69,7 +64,7 @@ pub struct PackedFileAnimFragmentView {
     integer_2: QBox<QLineEdit>,
 
     definition: Arc<RwLock<Definition>>,
-    packed_file_path: Arc<RwLock<Vec<String>>>,
+    packed_file_path: Arc<RwLock<String>>,
     data_source: Arc<RwLock<DataSource>>,
 }
 
@@ -93,28 +88,17 @@ impl PackedFileAnimFragmentView {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
-        references_ui: &Rc<ReferencesUI>
-    ) -> Result<PackedFileInfo> {
-
-        // Get the decoded Table.
-        let receiver = if packed_file_view.get_ref_path().is_empty() { CENTRAL_COMMAND.send_background(Command::GetDependencyPackFilesList) }
-        else { CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source())) };
-
-        let response = CentralCommand::recv(&receiver);
-        let (data, packed_file_info) = match response {
-            Response::AnimFragmentPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        references_ui: &Rc<ReferencesUI>,
+        data: AnimFragment
+    ) -> Result<()> {
 
         // For any other game, use the debug view.
-        if GAME_SELECTED.read().unwrap().get_game_key_name() != KEY_WARHAMMER_2 {
+        if GAME_SELECTED.read().unwrap().game_key_name() != KEY_WARHAMMER_2 {
 
             // For now just build a debug view.
             let debug_view = DebugView::new_view(
                 packed_file_view.get_mut_widget(),
-                DecodedPackedFile::AnimFragment(data),
+                RFileDecoded::AnimFragment(data),
                 packed_file_view.get_path_raw(),
             )?;
 
@@ -123,21 +107,21 @@ impl PackedFileAnimFragmentView {
             };
 
             packed_file_view.view = ViewType::Internal(View::AnimFragmentDebug(Arc::new(packed_file_debug_view)));
-            packed_file_view.packed_file_type = PackedFileType::AnimFragment;
+            packed_file_view.packed_file_type = FileType::AnimFragment;
 
             // Return success.
-            Ok(packed_file_info)
+            Ok(())
         }
 
         // For Wh2, use the fancy view.
         else {
             let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-            let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
-            let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
+            let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.definition().fields_processed()[1].name()), packed_file_view.get_mut_widget());
+            let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.definition().fields_processed()[2].name()), packed_file_view.get_mut_widget());
 
-            let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()), packed_file_view.get_mut_widget());
-            let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()), packed_file_view.get_mut_widget());
+            let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.data()?[0][1].data_to_string()), packed_file_view.get_mut_widget());
+            let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.data()?[0][2].data_to_string()), packed_file_view.get_mut_widget());
 
             let table_1 = QWidget::new_1a(packed_file_view.get_mut_widget());
             let table_2 = QWidget::new_1a(packed_file_view.get_mut_widget());
@@ -155,13 +139,16 @@ impl PackedFileAnimFragmentView {
             layout.add_widget_5a(&table_1, 0, 2, 2, 1);
             layout.add_widget_5a(&table_2, 2, 0, 1, 3);
 
-            let table_data = data.get_ref_table_data().get(0).unwrap();
+            return Err(anyhow!("to fix later"));
+
+            /*
+            let table_data = data.data()?.get(0).unwrap();
             let table_data_1 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(0) {
-                data.clone()
+                Table::new(/* &rpfm_lib::schema::Definition */, /* &str */, /* bool */)//data.clone()
             } else { unimplemented!() };
 
             let table_data_2 = if let Some(DecodedData::SequenceU32(data)) = table_data.get(3) {
-                data.clone()
+                Table::new(/* &rpfm_lib::schema::Definition */, /* &str */, /* bool */)//data.clone()
             } else { unimplemented!() };
 
             let table_view_1 = TableView::new_view(
@@ -172,7 +159,7 @@ impl PackedFileAnimFragmentView {
                 diagnostics_ui,
                 dependencies_ui,
                 references_ui,
-                TableType::AnimFragment(From::from(*table_data_1)),
+                TableType::AnimFragment(From::from(table_data_1)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -185,7 +172,7 @@ impl PackedFileAnimFragmentView {
                 diagnostics_ui,
                 dependencies_ui,
                 references_ui,
-                TableType::AnimFragment(From::from(*table_data_2)),
+                TableType::AnimFragment(From::from(table_data_2)),
                 None,
                 packed_file_view.data_source.clone()
             )?;
@@ -198,7 +185,7 @@ impl PackedFileAnimFragmentView {
                 integer_1: i1_line_edit,
                 integer_2: i2_line_edit,
 
-                definition: Arc::new(RwLock::new(data.get_definition())),
+                definition: Arc::new(RwLock::new(data.definition().clone())),
                 packed_file_path: packed_file_view.get_path_raw(),
                 data_source: packed_file_view.data_source.clone(),
             });
@@ -212,10 +199,10 @@ impl PackedFileAnimFragmentView {
 
             connections::set_connections(&packed_file_table_view, &packed_file_anim_fragment_view_slots);
             packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_table_view));
-            packed_file_view.packed_file_type = PackedFileType::AnimFragment;
+            packed_file_view.packed_file_type = FileType::AnimFragment;
 
             // Return success.
-            Ok(packed_file_info)
+            Ok(())*/
         }
     }
 
@@ -223,8 +210,8 @@ impl PackedFileAnimFragmentView {
     pub unsafe fn reload_view(&self, data: AnimFragment) -> Result<()> {
 
         // Update the stored definition.
-        let definition = data.get_definition();
-        *self.definition.write().unwrap() = definition;
+        let definition = data.definition();
+        *self.definition.write().unwrap() = definition.clone();
 
         // Load the data to the view itself.
         self.load_data(&data)
@@ -232,31 +219,31 @@ impl PackedFileAnimFragmentView {
 
     /// This function takes care of loading the data into the AnimFragment View.
     pub unsafe fn load_data(&self, original_data: &AnimFragment) -> Result<()> {
-        match original_data.get_table_data().get(0) {
+        match original_data.data()?.get(0) {
             Some(data) => {
-                self.integer_label_1.set_text(&QString::from_std_str(original_data.get_ref_definition().fields_processed()[1].get_name()));
-                self.integer_label_2.set_text(&QString::from_std_str(original_data.get_ref_definition().fields_processed()[2].get_name()));
+                self.integer_label_1.set_text(&QString::from_std_str(original_data.definition().fields_processed()[1].name()));
+                self.integer_label_2.set_text(&QString::from_std_str(original_data.definition().fields_processed()[2].name()));
 
                 self.integer_1.set_text(&QString::from_std_str(&data[1].data_to_string()));
                 self.integer_2.set_text(&QString::from_std_str(&data[2].data_to_string()));
 
                 // Each table view, we just load them.
-                if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
-                    self.table_view_1.reload_view(TableType::AnimFragment(From::from(*data.clone())));
-                }
+                //if let Some(DecodedData::SequenceU32(data)) = data.get(0) {
+                //    self.table_view_1.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                //}
 
-                if let Some(DecodedData::SequenceU32(data)) = data.get(3) {
-                    self.table_view_2.reload_view(TableType::AnimFragment(From::from(*data.clone())));
-                }
+                //if let Some(DecodedData::SequenceU32(data)) = data.get(3) {
+                //    self.table_view_2.reload_view(TableType::AnimFragment(From::from(data.clone())));
+                //}
 
                 Ok(())
             }
-            None => Err(ErrorKind::Generic.into()),
+            None => Err(anyhow!("WTF did you do? Things broke.")),
         }
     }
 
-    /// This function takes care of building a DecodedPackedFile from the view's data.
-    pub unsafe fn save_data(&self) -> Result<DecodedPackedFile> {
+    /// This function takes care of building a RFileDecoded from the view's data.
+    pub unsafe fn save_data(&self) -> Result<RFileDecoded> {
         let mut table = AnimFragment::new(&self.get_definition());
         let mut data = vec![];
         let i1 = DecodedData::I32(self.integer_1.text().to_std_string().parse::<i32>()?);
@@ -270,14 +257,14 @@ impl PackedFileAnimFragmentView {
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let data_2 = get_table_from_view(&table_model, &self.table_view_2.get_ref_table_definition())?;
 
-        data.push(DecodedData::SequenceU32(Box::new(data_1)));
+        //data.push(DecodedData::SequenceU32(Box::new(data_1)));
         data.push(i1);
         data.push(i2);
-        data.push(DecodedData::SequenceU32(Box::new(data_2)));
+        //data.push(DecodedData::SequenceU32(Box::new(data_2)));
 
         let data = vec![data; 1];
-        table.set_table_data(&data)?;
-        Ok(DecodedPackedFile::AnimFragment(table))
+        //table.set_table_data(&data)?;
+        Ok(RFileDecoded::AnimFragment(table))
     }
 
     /// This function returns a copy of the definition of this AnimFragment.

@@ -135,23 +135,14 @@ impl Loc {
         self.table.set_data(None, data)
     }
 
-    /*
-    /// This function returns if the provided data corresponds to a LOC Table or not.
-    pub fn is_loc(data: &[u8]) -> bool {
-        if data.len() < HEADER_SIZE { return false }
-        if BYTEORDER_MARK != data.decode_integer_u16(0).unwrap() { return false }
-        if PACKED_FILE_TYPE != data.decode_string_u8(2, 3).unwrap() { return false }
-        true
-    }
-
-    /// This function returns the position of a column in a definition, or an error if the column is not found.
-    pub fn get_column_position_by_name(&self, column_name: &str) -> Result<usize> {
-        self.table.get_column_position_by_name(column_name)
+    /// This function returns the position of a column in a definition, or None if the column is not found.
+    pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
+        self.table().column_position_by_name(column_name)
     }
 
     /// This function returns the amount of entries in this Loc Table.
-    pub fn get_entry_count(&self) -> usize {
-        self.table.get_entry_count()
+    pub fn len(&self) -> usize {
+        self.table.len(None).unwrap()
     }
 
     /// This function replaces the definition of this table with the one provided.
@@ -161,7 +152,6 @@ impl Loc {
         self.table.set_definition(new_definition);
     }
 
-    */
     /// This function tries to read the header of a Loc file from a reader.
     pub fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, u32)> {
 
@@ -185,8 +175,7 @@ impl Loc {
 
         Ok((version, entry_count))
     }
-/*
-
+    /*
     /// This function returns the table/column/key from the provided key, if it exists in the current PackFile.
     ///
     /// We return the table without "_tables". Keep that in mind if you use this.
@@ -224,8 +213,8 @@ impl Loc {
         }
 
         None
-    }
-*/
+    }*/
+
     /// This function imports a TSV file into a decoded Loc file.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>) -> Result<Self> {
         let definition = Self::new_definition();
@@ -238,16 +227,6 @@ impl Loc {
     pub fn tsv_export(&self, writer: &mut Writer<File>, table_path: &str) -> Result<()> {
         self.table.tsv_export(writer, table_path)
     }
-/*
-    /// This function exports the provided data to a TSV file.
-    pub fn export_tsv(
-        &self,
-        path: &Path,
-        table_name: &str,
-        file_path: &[String],
-    ) -> Result<()> {
-        self.table.export_tsv(path, table_name, file_path)
-    }*/
 }
 
 

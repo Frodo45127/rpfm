@@ -45,11 +45,11 @@ use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
 use crate::utils::*;
 
-//mod app_ui_extra;
-//pub mod connections;
-//pub mod shortcuts;
-//pub mod slots;
-//pub mod tips;
+mod app_ui_extra;
+pub mod connections;
+pub mod shortcuts;
+pub mod slots;
+pub mod tips;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

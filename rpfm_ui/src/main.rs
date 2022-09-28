@@ -87,19 +87,20 @@ macro_rules! clone {
 }
 
 mod app_ui;
+mod backend;
 mod background_thread;
 mod communications;
-//mod dependencies_ui;
-//mod diagnostics_ui;
+mod dependencies_ui;
+mod diagnostics_ui;
 mod ffi;
-//mod global_search_ui;
+mod global_search_ui;
 mod locale;
-//mod mymod_ui;
+mod mymod_ui;
 mod network_thread;
 mod pack_tree;
-//mod packfile_contents_ui;
-//mod packedfile_views;
-//mod references_ui;
+mod packfile_contents_ui;
+mod packedfile_views;
+mod references_ui;
 mod shortcuts_ui;
 mod settings_ui;
 //mod tools;
@@ -107,7 +108,7 @@ mod ui;
 mod ui_state;
 mod updater;
 mod utils;
-//mod views;
+mod views;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {
@@ -249,6 +250,9 @@ lazy_static! {
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = "I forgot about this message";
+
+const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";
+const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 
 /// Main function.
 fn main() {

@@ -48,6 +48,7 @@ use qt_core::QObject;
 use cpp_core::Ptr;
 
 use anyhow::{anyhow, Result};
+use rpfm_lib::schema::DefinitionPatch;
 
 use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
@@ -55,12 +56,11 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::rc::Rc;
 
+use rpfm_extensions::dependencies::TableReferences;
+
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, FileType, table::*, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::schema::{Definition, FieldType, Schema};
 use rpfm_lib::utils::parse_str_as_bool;
-
-use rpfm_lib::files::FileType;
-use rpfm_lib::files::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat, Table};
-use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
-
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -113,7 +113,7 @@ pub static ITEM_SEQUENCE_DATA: i32 = 36;
 #[derive(Clone, Debug)]
 pub enum TableType {
     AnimFragment(AnimFragment),
-    AnimTable(AnimTable),
+    AnimsTable(AnimsTable),
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
     Loc(Loc),
@@ -234,10 +234,11 @@ pub struct TableView {
     table_name: Option<String>,
     table_uuid: Option<String>,
     data_source: Arc<RwLock<DataSource>>,
-    packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+    packed_file_path: Option<Arc<RwLock<String>>>,
     packed_file_type: Arc<FileType>,
     table_definition: Arc<RwLock<Definition>>,
-    dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
+    patches: Arc<RwLock<DefinitionPatch>>,
+    dependency_data: Arc<RwLock<BTreeMap<i32, TableReferences>>>,
     banned_table: bool,
     reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
 
@@ -283,28 +284,29 @@ impl TableView {
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
         table_data: TableType,
-        packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+        packed_file_path: Option<Arc<RwLock<String>>>,
         data_source: Arc<RwLock<DataSource>>,
     ) -> Result<Arc<Self>> {
 
-        let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
-            TableType::DependencyManager(_) => {
-                if let Some(schema) = &*SCHEMA.read().unwrap() {
-                    (schema.get_ref_versioned_file_dep_manager()?.get_version_list()[0].clone(), None, None, PackedFileType::DependencyPackFilesList)
-                } else {
-                    return Err(ErrorKind::SchemaNotFound.into());
-                }
-            },
-            TableType::DB(ref table) => (table.get_definition(), Some(table.get_table_name()), Some(table.get_uuid()), PackedFileType::DB),
-            TableType::Loc(ref table) => (table.get_definition(), None, None, PackedFileType::Loc),
-            TableType::MatchedCombat(ref table) => (table.get_definition(), None, None, PackedFileType::MatchedCombat),
-            TableType::AnimTable(ref table) => (table.get_definition(), None, None, PackedFileType::AnimTable),
-            TableType::AnimFragment(ref table) => (table.get_definition(), None, None, PackedFileType::AnimFragment),
-            TableType::NormalTable(ref table) => (table.get_definition(), None, None, PackedFileType::Unknown),
+        let (table_definition, patches, table_name, table_uuid, packed_file_type) = match table_data {
+            //TableType::DependencyManager(_) => {
+            //    if let Some(schema) = &*SCHEMA.read().unwrap() {
+            //        (schema.get_ref_versioned_file_dep_manager()?.get_version_list()[0].clone(), None, None, FileType::DependencyPackFilesList)
+            //    } else {
+            //        return Err(anyhow!("There is no Schema for the Game Selected."));
+            //    }
+            //},
+            TableType::DB(ref table) => (table.definition(), table.patches().clone(), Some(table.table_name()), Some(table.guid()), FileType::DB),
+            TableType::Loc(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::Loc),
+            TableType::MatchedCombat(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::MatchedCombat),
+            TableType::AnimsTable(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::AnimsTable),
+            TableType::AnimFragment(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::AnimFragment),
+            TableType::NormalTable(ref table) => (table.definition(), DefinitionPatch::new(), None, None, FileType::Unknown),
+            _ => todo!()
         };
 
         // Get the dependency data of this Table.
-        let table_name_for_ref = if let Some(ref name) = table_name { name.to_owned() } else { "".to_owned() };
+        let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
         let dependency_data = get_reference_data(&table_name_for_ref, &table_definition)?;
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
@@ -345,11 +347,12 @@ impl TableView {
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
 
         let mut banned_table = false;
-        if let PackedFileType::DependencyPackFilesList = packed_file_type {
-            let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
-            layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
-        } else if let PackedFileType::DB = packed_file_type {
-            banned_table = GAME_SELECTED.read().unwrap().is_packedfile_banned(&["db".to_owned(), table_name_for_ref]);
+        //if let FileType::DependencyPackFilesList = packed_file_type {
+        //    let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
+        //    layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+        //} else if let FileType::DB = packed_file_type {
+        if let FileType::DB = packed_file_type {
+            banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", &table_name_for_ref));
             if banned_table {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
                 layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
@@ -409,8 +412,8 @@ impl TableView {
         let context_menu_go_to_definition = context_menu_go_to.add_action_q_string(&qtr("context_menu_go_to_definition"));
         let mut context_menu_go_to_loc = vec![];
 
-        for (index, loc_column) in table_definition.get_localised_fields().iter().enumerate() {
-            let context_menu_go_to_loc_action = context_menu_go_to.add_action_q_string(&qtre("context_menu_go_to_loc", &[loc_column.get_name()]));
+        for (index, loc_column) in table_definition.localised_fields().iter().enumerate() {
+            let context_menu_go_to_loc_action = context_menu_go_to.add_action_q_string(&qtre("context_menu_go_to_loc", &[loc_column.name()]));
             if index == 0 { context_menu_go_to.insert_separator(&context_menu_go_to_loc_action); }
             context_menu_go_to_loc.push(context_menu_go_to_loc_action)
         }
@@ -454,9 +457,9 @@ impl TableView {
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
 
-        let fields = table_definition.get_fields_sorted();
+        let fields = table_definition.fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for column in &fields {
-            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(column.get_name())));
+            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(column.name())));
         }
         search_case_sensitive_button.set_checkable(true);
 
@@ -525,7 +528,7 @@ impl TableView {
         let mut sidebar_hide_checkboxes = vec![];
         let mut sidebar_freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
-            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(column.get_name())), &sidebar_widget);
+            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(column.name())), &sidebar_widget);
             let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             freeze_unfreeze_checkbox.set_enabled(false);
@@ -551,13 +554,13 @@ impl TableView {
 
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
-            if let Some(table_name) = &table_name {
-                schema.get_referencing_columns_for_table(&table_name, &table_definition)
+            if let Some(ref table_name) = table_name {
+                schema.referencing_columns_for_table(&table_name, &table_definition)
             } else {
                 HashMap::new()
             }
         } else {
-            return Err(ErrorKind::SchemaNotFound.into());
+            return Err(anyhow!("There is no Schema for the Game Selected."));
         };
 
         // Create the raw Struct and begin
@@ -626,10 +629,11 @@ impl TableView {
             _table_status_bar: table_status_bar,
             table_status_bar_line_counter_label,
 
-            table_name,
-            table_uuid,
+            table_name: table_name.map(|x| x.to_owned()),
+            table_uuid: table_uuid.map(|x| x.to_owned()),
             dependency_data: Arc::new(RwLock::new(dependency_data)),
-            table_definition: Arc::new(RwLock::new(table_definition)),
+            table_definition: Arc::new(RwLock::new(table_definition.clone())),
+            patches: Arc::new(RwLock::new(patches.clone())),
             data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
@@ -676,15 +680,11 @@ impl TableView {
         update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        let table_name = if let Some(ref path) = packed_file_path {
-            path.read().unwrap().get(1).cloned()
-        } else { None };
-
         build_columns(
             &packed_file_table_view.get_mut_ptr_table_view_primary(),
             Some(&packed_file_table_view.get_mut_ptr_table_view_frozen()),
             &packed_file_table_view.table_definition.read().unwrap(),
-            table_name.as_ref()
+            packed_file_table_view.table_name.as_deref()
         );
 
         // Set the connections and return success.
@@ -714,16 +714,16 @@ impl TableView {
 
         // Update the stored definition.
         let table_definition = match data {
-            TableType::AnimFragment(ref table) => table.get_definition(),
-            TableType::AnimTable(ref table) => table.get_definition(),
-            TableType::DB(ref table) => table.get_definition(),
-            TableType::Loc(ref table) => table.get_definition(),
-            TableType::MatchedCombat(ref table) => table.get_definition(),
-            TableType::NormalTable(ref table) => table.get_definition(),
+            TableType::AnimFragment(ref table) => table.definition(),
+            TableType::AnimsTable(ref table) => table.definition(),
+            TableType::DB(ref table) => table.definition(),
+            TableType::Loc(ref table) => table.definition(),
+            TableType::MatchedCombat(ref table) => table.definition(),
+            TableType::NormalTable(ref table) => table.definition(),
             _ => unimplemented!(),
         };
 
-        *self.table_definition.write().unwrap() = table_definition;
+        *self.table_definition.write().unwrap() = table_definition.clone();
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
@@ -746,16 +746,12 @@ impl TableView {
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
-        let table_name = if let Some(path) = self.get_packed_file_path() {
-            path.get(1).cloned()
-        } else { None };
-
         // Rebuild the column's stuff.
         build_columns(
             table_view_primary,
             Some(table_view_frozen),
             &self.get_ref_table_definition(),
-            table_name.as_ref()
+            self.table_name.as_deref()
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
@@ -763,8 +759,8 @@ impl TableView {
         for filter in self.get_ref_mut_filters().iter() {
             let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
             filter.filter_column_selector.clear();
-            for column in self.table_definition.read().unwrap().get_fields_sorted() {
-                let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
+            for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
+                let name = QString::from_std_str(&utils::clean_column_names(column.name()));
                 filter.filter_column_selector.add_item_q_string(&name);
             }
         }
@@ -772,8 +768,8 @@ impl TableView {
         let search_column_selector = &self.search_column_selector;
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in self.table_definition.read().unwrap().fields_sorted() {
-            let name = QString::from_std_str(&utils::clean_column_names(column.get_name()));
+        for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
+            let name = QString::from_std_str(&utils::clean_column_names(column.name()));
             search_column_selector.add_item_q_string(&name);
         }
 
@@ -1025,6 +1021,10 @@ impl TableView {
         self.table_definition.read().unwrap()
     }
 
+    pub fn patches(&self) -> RwLockReadGuard<DefinitionPatch> {
+        self.patches.read().unwrap()
+    }
+
     pub fn get_ref_filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
         self.filters.read().unwrap()
     }
@@ -1034,12 +1034,12 @@ impl TableView {
     }
 
     /// This function allows you to set a new dependency data to an already created table.
-    pub fn set_dependency_data(&self, data: &BTreeMap<i32, DependencyData>) {
+    pub fn set_dependency_data(&self, data: &BTreeMap<i32, TableReferences>) {
         *self.dependency_data.write().unwrap() = data.clone();
     }
 
     /// This function returns the path of the PackedFile corresponding to this table, if exists.
-    pub fn get_packed_file_path(&self) -> Option<Vec<String>> {
+    pub fn get_packed_file_path(&self) -> Option<String> {
         self.packed_file_path.as_ref().map(|path| path.read().unwrap().clone())
     }
 
@@ -1386,7 +1386,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.get_ref_table_definition().fields_processed().iter().position(|x| x.get_name() == column).unwrap() as i32) }
+                else { Some(parent.get_ref_table_definition().fields_processed().iter().position(|x| x.name() == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -1460,11 +1460,11 @@ impl TableSearch {
 
                     // We need to do an extra check to ensure the new text can be in the field.
                     match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
-                        FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         _ =>  {}
                     }
                 } else { return }
@@ -1517,7 +1517,7 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() {
+                        let original_text = match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
                             FieldType::F32 => item.data_0a().to_float_0a().to_string(),
                             FieldType::I16 => item.data_0a().to_int_0a().to_string(),
@@ -1526,7 +1526,7 @@ impl TableSearch {
                             _ => item.text().to_std_string(),
                         };
 
-                        let replaced_text = if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
+                        let replaced_text = if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -1540,12 +1540,12 @@ impl TableSearch {
                         }
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].get_ref_field_type() {
-                            FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                            //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             _ =>  {}
                         }
 
@@ -1557,7 +1557,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.get_ref_table_definition().fields_processed()[item.column() as usize].get_ref_field_type() {
+                match parent.get_ref_table_definition().fields_processed()[item.column() as usize].field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -1628,9 +1628,9 @@ impl FilterView {
             filter_column_selector.set_model(&filter_column_list);
             filter_match_group_selector.set_model(&filter_match_group_list);
 
-            let fields = view.get_ref_table_definition().get_fields_sorted();
+            let fields = view.get_ref_table_definition().fields_processed_sorted(false);
             for field in &fields {
-                let name = clean_column_names(field.get_name());
+                let name = clean_column_names(field.name());
                 filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
             }
 

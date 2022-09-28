@@ -33,6 +33,7 @@ use cpp_core::Ref;
 use cpp_core::CastFrom;
 
 use chrono::naive::NaiveDateTime;
+use itertools::Itertools;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -40,20 +41,21 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_lib::files::ContainerPath;
 use rpfm_lib::utils::*;
 
-//use rpfm_lib::packfile::packedfile::PackedFileInfo;
-//use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
+//use rpfm_lib::packfile::{CompressionState, ContainerInfo, ContainerPath, PFHFlags};
 
-use crate::SUPPORTED_GAMES;
 
+use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
-//use crate::packfile_contents_ui::PackFileContentsUI;
-//use crate::packedfile_views::DataSource;
+use crate::packedfile_views::DataSource;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
+use crate::SUPPORTED_GAMES;
 use crate::utils::*;
 
 // This one is needed for initialization on boot, so it has to be public.
@@ -104,13 +106,10 @@ const ITEM_STATUS_ADDED: i32 = 1;
 /// Used to specify that it or any of its contents has been modified.
 const ITEM_STATUS_MODIFIED: i32 = 2;
 
-// Used to specify that a PackedFile inside it has been deleted. Unused for now.
-//const ITEM_STATUS_DELETED: i32 = 4;
-
 //-------------------------------------------------------------------------------//
 //                          Enums & Structs (and trait)
 //-------------------------------------------------------------------------------//
-/*
+
 /// This trait adds multiple util functions to the `TreeView` you implement it for.
 ///
 /// Keep in mind that this trait has been created with `PackFile TreeView's` in mind, so his methods
@@ -120,18 +119,18 @@ pub trait PackTree {
     /// This function allows us to add the provided item into the path we want on the `TreeView`, taking care of adding missing parents.
     ///
     /// The way this function works is by replacing the destination path of the UI, if exists, so be careful with that..
-    unsafe fn add_row_to_path(item: Ptr<QListOfQStandardItem>, model: &QPtr<QStandardItemModel>, path: &[String], packed_file_info: &Option<PackedFileInfo>);
+    unsafe fn add_row_to_path(item: Ptr<QListOfQStandardItem>, model: &QPtr<QStandardItemModel>, path: &str, packed_file_info: &RFileInfo);
 
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
     ///
     /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
-    unsafe fn expand_treeview_to_item(&self, path: &[String], source: DataSource) -> Option<Ptr<QModelIndex>>;
+    unsafe fn expand_treeview_to_item(&self, path: &str, source: DataSource) -> Option<Ptr<QModelIndex>>;
 
     /// This function is used to expand an item and all it's children recursively.
     unsafe fn expand_all_from_item(tree_view: &QTreeView, item: Ptr<QStandardItem>, first_item: bool);
 
     /// This function is used to expand an item and all it's children recursively.
-    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &TreePathType);
+    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &ContainerPath);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     unsafe fn get_items_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Ptr<QStandardItem>>;
@@ -140,21 +139,21 @@ pub trait PackTree {
     unsafe fn get_items_from_selection(&self, has_filter: bool) -> Vec<Ptr<QStandardItem>>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the PackFile Content's TreeView.
-    unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<TreePathType>;
+    unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<ContainerPath>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the provided TreeView.
-    unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType>;
+    unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<ContainerPath>;
 
-    /// This function returns the `TreePathType`s not hidden by the applied filter corresponding to the current selection.
+    /// This function returns the `ContainerPath`s not hidden by the applied filter corresponding to the current selection.
     ///
     /// This always assumes the `TreeView` has a filter. It'll die horrendously otherwise.
-    unsafe fn get_item_types_from_selection_filtered(&self) -> Vec<TreePathType>;
+    unsafe fn get_item_types_from_selection_filtered(&self) -> Vec<ContainerPath>;
 
-    /// This function gives you the `TreePathTypes` and source of all items in a TreeView.
-    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(TreePathType, DataSource)>;
+    /// This function gives you the `ContainerPaths` and source of all items in a TreeView.
+    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(ContainerPath, DataSource)>;
 
-    /// This function gives you the item corresponding to an specific `TreePathType`.
-    unsafe fn get_item_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
+    /// This function gives you the item corresponding to an specific `ContainerPath`.
+    unsafe fn get_item_from_type(item_type: &ContainerPath, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem>;
 
     /// This function gives you the DataSource of the selection of the provided TreeView.
     unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> Option<DataSource>;
@@ -166,23 +165,23 @@ pub trait PackTree {
     /// the number of selected files, and the number of selected folders.
     unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32);
 
-    /// This function returns the `TreePathType` of the provided item. Unsafe version.
-    unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> TreePathType;
+    /// This function returns the `ContainerPath` of the provided item. Unsafe version.
+    unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> ContainerPath;
 
     /// This function is used to get the path of a specific Item in a StandardItemModel. Unsafe version.
-    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
+    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> String;
 
     /// This function is used to get the path of a specific ModelIndex in a StandardItemModel. Unsafe version.
-    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String>;
+    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> String;
 
     /// This function gives you the path of the items selected in the provided TreeView.
-    unsafe fn get_path_from_selection(&self) -> Vec<Vec<String>>;
+    unsafe fn get_path_from_selection(&self) -> Vec<String>;
 
     /// This function gives you the path it'll have in the PackFile Content's TreeView a file from disk.
-    unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &Path, is_file: bool) -> Vec<Vec<String>>;
+    unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &Path, is_file: bool) -> Vec<String>;
 
     /// This function removes the item under the provided path and returns it.
-    unsafe fn take_row_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QListOfQStandardItem>;
+    unsafe fn take_row_from_type(item_type: &ContainerPath, model: &QPtr<QStandardItemModel>) -> Ptr<QListOfQStandardItem>;
 
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
@@ -199,26 +198,26 @@ pub trait PackTree {
 pub enum TreeViewOperation {
 
     /// Build the entire `TreeView` from nothing. Requires an option: Some<PathBuf> if the `PackFile` is not editable, `None` if it is.
-    /// Also, you can pass a PackFileInfo/PackedFileInfo if you want to build a TreeView with custom data.
+    /// Also, you can pass a ContainerInfo/RFileInfo if you want to build a TreeView with custom data.
     Build(BuildData),
 
-    /// Add one or more files/folders to the `TreeView`. Requires a `Vec<TreePathType>` to add to the `TreeView`.
-    Add(Vec<TreePathType>),
+    /// Add one or more files/folders to the `TreeView`. Requires a `Vec<ContainerPath>` to add to the `TreeView`.
+    Add(Vec<ContainerPath>),
 
-    /// Remove the files/folders corresponding to the `Vec<TreePathType>` we provide from the `TreeView`.
-    Delete(Vec<TreePathType>),
+    /// Remove the files/folders corresponding to the `Vec<ContainerPath>` we provide from the `TreeView`.
+    Delete(Vec<ContainerPath>),
 
-    /// Set the provided paths as *modified*. It requires the `Vec<TreePathType>` of whatever you want to mark as modified.
-    Modify(Vec<TreePathType>),
+    /// Set the provided paths as *modified*. It requires the `Vec<ContainerPath>` of whatever you want to mark as modified.
+    Modify(Vec<ContainerPath>),
 
-    /// Change the name of a file/folder from the `TreeView`. Requires the `TreePathType` of whatever you want to move, and its new name.
-    Move(Vec<(TreePathType, Vec<String>)>),
+    /// Change the name of a file/folder from the `TreeView`. Requires the `ContainerPath` of whatever you want to move, and its new name.
+    Move(Vec<(ContainerPath, String)>),
 
     /// Mark an item as ***Always Modified*** so it cannot be marked as unmodified by an undo operation.
-    MarkAlwaysModified(Vec<TreePathType>),
+    MarkAlwaysModified(Vec<ContainerPath>),
 
-    /// Resets the state of one or more `TreePathType` to 0, or unmodified.
-    Undo(Vec<TreePathType>),
+    /// Resets the state of one or more `ContainerPath` to 0, or unmodified.
+    Undo(Vec<ContainerPath>),
 
     /// Remove all status and color from the entire `TreeView`.
     Clean,
@@ -227,26 +226,7 @@ pub enum TreeViewOperation {
     Clear,
 
     /// Updates the tooltip of the PackedFiles with the provided info.
-    UpdateTooltip(Vec<PackedFileInfo>),
-}
-
-/// This enum represents the different basic types of an element in the TreeView.
-///
-/// None of the paths have the PackFile on them.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TreePathType {
-
-    /// A normal `PackedFile`. It contains his path without the PackFile's name on it.
-    File(Vec<String>),
-
-    /// A folder. It contains his path without the PackFile's name on it.
-    Folder(Vec<String>),
-
-    /// The PackFile itself.
-    PackFile,
-
-    /// If this comes up, we fucked it up.
-    None,
+    UpdateTooltip(Vec<RFileInfo>),
 }
 
 /// This struct represents the data needed to build a TreeView.
@@ -257,52 +237,10 @@ pub struct BuildData {
     pub path: Option<PathBuf>,
 
     /// The "data" to load this instead of a PackFile from the backend.
-    pub data: Option<(PackFileInfo, Vec<PackedFileInfo>)>,
+    pub data: Option<(ContainerInfo, Vec<RFileInfo>)>,
 
     /// If this Tree is editable or not (for the root icon).
     pub editable: bool,
-}
-
-//-------------------------------------------------------------------------------//
-//                      Implementations of `TreePathType`
-//-------------------------------------------------------------------------------//
-
-/// Custom implementation of `PartialEq` for `TreePathType`, so we don't need to match each time while
-/// want to compare two `TreePathType`.
-///
-/// Keep in mind this means two *equal* `TreePathTypes` are not equal, but of the same type.
-impl PartialEq for TreePathType {
-    fn eq(&self, other: &TreePathType) -> bool {
-        matches!((self, other),
-            (&TreePathType::File(_), &TreePathType::File(_)) |
-            (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
-            (&TreePathType::PackFile, &TreePathType::PackFile) |
-            (&TreePathType::None, &TreePathType::None))
-    }
-}
-
-/// Implementation of `TreePathType` to get it from a `PathType`.
-impl From<&PathType> for TreePathType {
-    fn from(path_type: &PathType) -> TreePathType {
-        match path_type {
-            PathType::File(ref path) => TreePathType::File(path.to_vec()),
-            PathType::Folder(ref path) => TreePathType::Folder(path.to_vec()),
-            PathType::PackFile => TreePathType::PackFile,
-            PathType::None => TreePathType::None,
-        }
-    }
-}
-
-/// Implementation of `PathType` to get it from a `TreePathType`.
-impl From<&TreePathType> for PathType {
-    fn from(tree_path_type: &TreePathType) -> PathType {
-        match tree_path_type {
-            TreePathType::File(ref path) => PathType::File(path.to_vec()),
-            TreePathType::Folder(ref path) => PathType::Folder(path.to_vec()),
-            TreePathType::PackFile => PathType::PackFile,
-            TreePathType::None => PathType::None,
-        }
-    }
 }
 
 //-------------------------------------------------------------------------------//
@@ -312,7 +250,7 @@ impl From<&TreePathType> for PathType {
 /// Implementation of `PackTree` for `QPtr<QTreeView>.
 impl PackTree for QBox<QTreeView> {
 
-    unsafe fn add_row_to_path(row: Ptr<QListOfQStandardItem>, model: &QPtr<QStandardItemModel>, path: &[String], packed_file_info: &Option<PackedFileInfo>) {
+    unsafe fn add_row_to_path(row: Ptr<QListOfQStandardItem>, model: &QPtr<QStandardItemModel>, path: &str, packed_file_info: &RFileInfo) {
 
         // First, we go down the tree to the row we have to take.
         let type_to_skip = if row.value_1a(0).data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { ITEM_TYPE_FOLDER } else { ITEM_TYPE_FILE };
@@ -321,7 +259,8 @@ impl PackTree for QBox<QTreeView> {
         item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
 
         // First looping downwards. -1 because we want to reach the "parent" that will hold the new row, not the row itself.
-        for path_item in path {
+        let path = path.split('/').collect::<Vec<_>>();
+        for path_item in &path {
             for row in 0..item.row_count() {
                 let child = item.child_1a(row);
 
@@ -339,10 +278,8 @@ impl PackTree for QBox<QTreeView> {
         }
 
         // Now, update the row and add it.
-        if let Some(info) = packed_file_info {
-            let tooltip = new_packed_file_tooltip(info);
-            row.value_1a(0).set_tool_tip(&QString::from_std_str(tooltip));
-        }
+        let tooltip = new_packed_file_tooltip(packed_file_info);
+        row.value_1a(0).set_tool_tip(&QString::from_std_str(tooltip));
 
         // If there was an item with than name, remove it.
         for row in 0..item.row_count() {
@@ -365,7 +302,7 @@ impl PackTree for QBox<QTreeView> {
             sort_item_in_tree_view(
                 model,
                 row.value_1a(0),
-                &TreePathType::Folder(vec![String::new()])
+                &ContainerPath::Folder(String::new())
             );
         }
 
@@ -373,12 +310,12 @@ impl PackTree for QBox<QTreeView> {
             sort_item_in_tree_view(
                 model,
                 row.value_1a(0),
-                &TreePathType::File(vec![String::new()])
+                &ContainerPath::File(String::new())
             );
         }
     }
 
-    unsafe fn expand_treeview_to_item(&self, path: &[String], source: DataSource) -> Option<Ptr<QModelIndex>> {
+    unsafe fn expand_treeview_to_item(&self, path: &str, source: DataSource) -> Option<Ptr<QModelIndex>> {
         let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
@@ -432,6 +369,7 @@ impl PackTree for QBox<QTreeView> {
 
             // Indexes to see how deep we must go.
             let mut index = 0;
+            let path = path.split('/').collect::<Vec<_>>();
             let path_deep = path.len();
             if path_deep > 0 {
 
@@ -489,7 +427,7 @@ impl PackTree for QBox<QTreeView> {
         None
     }
 
-    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &TreePathType) {
+    unsafe fn expand_all_from_type(tree_view: &QTreeView, item: &ContainerPath) {
         let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let item = Self::get_item_from_type(item, &model);
@@ -548,12 +486,12 @@ impl PackTree for QBox<QTreeView> {
         indexes_real.iter().map(|x| model.item_from_index(x.as_ref())).collect()
     }
 
-    unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<TreePathType> {
+    unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<ContainerPath> {
         let items = Self::get_items_from_main_treeview_selection(pack_file_contents_ui);
         items.iter().map(|x| Self::get_type_from_item(*x, &pack_file_contents_ui.packfile_contents_tree_model.static_upcast())).collect()
     }
 
-    unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType> {
+    unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<ContainerPath> {
         let items = self.get_items_from_selection(has_filter);
 
         let model: QPtr<QStandardItemModel> = if has_filter {
@@ -566,7 +504,7 @@ impl PackTree for QBox<QTreeView> {
         items.iter().map(|x| Self::get_type_from_item(*x, &model)).collect()
     }
 
-    unsafe fn get_item_types_from_selection_filtered(&self)-> Vec<TreePathType> {
+    unsafe fn get_item_types_from_selection_filtered(&self)-> Vec<ContainerPath> {
         let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
@@ -574,19 +512,18 @@ impl PackTree for QBox<QTreeView> {
         let item_types_selected = self.get_item_types_from_selection(true);
         for item_type in &item_types_selected {
             match item_type {
-                 TreePathType::File(_) => item_types.push(item_type.clone()),
-                 TreePathType::Folder(_) | TreePathType::PackFile => {
+                 ContainerPath::File(_) => item_types.push(item_type.clone()),
+                 ContainerPath::Folder(_) => {
                     let item = <QBox<QTreeView> as PackTree>::get_item_from_type(item_type, &model);
                     get_visible_children_of_item(&item, self, &filter, &model, &mut item_types);
                  }
-                 TreePathType::None => unreachable!(),
             }
         }
 
         item_types
     }
 
-    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(TreePathType, DataSource)> {
+    unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(ContainerPath, DataSource)> {
         let items = self.get_items_from_selection(has_filter);
 
         let model: QPtr<QStandardItemModel> = if has_filter {
@@ -600,16 +537,17 @@ impl PackTree for QBox<QTreeView> {
     }
 
 
-    unsafe fn get_item_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem> {
+    unsafe fn get_item_from_type(item_type: &ContainerPath, model: &QPtr<QStandardItemModel>) -> Ptr<QStandardItem> {
 
         // Get it another time, this time to use it to hold the current item.
         let mut item = model.item_1a(0);
         match item_type {
-            TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+            ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
                 let mut index = 0;
+                let path = path.split('/').collect::<Vec<_>>();
                 let path_deep = path.len();
 
-                // If path is empty, is a mislabeled path. Return the bloody PackFile and stop crashing!!!
+                // If path is empty, is the Pack or a mislabeled path.
                 if path_deep == 0 {
                     return item;
                 }
@@ -619,21 +557,25 @@ impl PackTree for QBox<QTreeView> {
                     // If we reached the folder of the item...
                     let children_count = item.row_count();
                     if index == (path_deep - 1) {
+                        let path_2 = QString::from_std_str(&path[index]);
                         for row in 0..children_count {
                             let child = item.child_1a(row);
 
                             // We ignore files or folders, depending on what we want to create.
-                            if let TreePathType::File(_) = &item_type {
+                            if let ContainerPath::File(_) = &item_type {
                                 if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
                             }
 
-                            if let TreePathType::Folder(_) = &item_type {
+                            if let ContainerPath::Folder(_) = &item_type {
                                 if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
                             }
 
-                            let text = child.text().to_std_string();
-                            if text == path[index] {
+                            let compare = QString::compare_2_q_string(child.text().as_ref(), path_2.as_ref());
+                            if compare == 0 {
                                 item = child;
+                                break;
+                            } else if compare > 0 {
+                                dbg!("Bug?");
                                 break;
                             }
                         }
@@ -664,9 +606,6 @@ impl PackTree for QBox<QTreeView> {
                 }
                 item
             }
-
-            TreePathType::PackFile => item,
-            TreePathType::None => unimplemented!(),
         }
     }
 
@@ -725,14 +664,12 @@ impl PackTree for QBox<QTreeView> {
 
         // Get the currently selected paths, and get how many we have of each type.
         let selected_items = Self::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
-        let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
+        let (mut file, mut folder) = (0, 0);
         let mut item_types = vec![];
         for item_type in &selected_items {
             match item_type {
-                TreePathType::File(_) => file += 1,
-                TreePathType::Folder(_) => folder += 1,
-                TreePathType::PackFile => packfile += 1,
-                TreePathType::None => none += 1,
+                ContainerPath::File(_) => file += 1,
+                ContainerPath::Folder(_) => folder += 1,
             }
             item_types.push(item_type);
         }
@@ -741,28 +678,25 @@ impl PackTree for QBox<QTreeView> {
         let mut contents: u8 = 0;
         if file != 0 { contents |= 1; }
         if folder != 0 { contents |= 2; }
-        if packfile != 0 { contents |= 4; }
-        if none != 0 { contents |= 8; }
 
         (contents, file, folder)
     }
 
-    unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> TreePathType {
+    unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> ContainerPath {
         match item.data_1a(ITEM_TYPE).to_int_0a() {
-            0 => TreePathType::None,
-            ITEM_TYPE_FILE => TreePathType::File(Self::get_path_from_item(item, model)),
-            ITEM_TYPE_FOLDER => TreePathType::Folder(Self::get_path_from_item(item, model)),
-            ITEM_TYPE_PACKFILE => TreePathType::PackFile,
-            _ => unimplemented!()
+            ITEM_TYPE_FILE => ContainerPath::File(Self::get_path_from_item(item, model)),
+            ITEM_TYPE_FOLDER => ContainerPath::Folder(Self::get_path_from_item(item, model)),
+            ITEM_TYPE_PACKFILE => ContainerPath::Folder(String::new()),
+            _ => unreachable!()
         }
     }
 
-    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
+    unsafe fn get_path_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> String {
         let index = item.index();
         Self::get_path_from_index(index.as_ref(), model)
     }
 
-    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> Vec<String> {
+    unsafe fn get_path_from_index(index: Ref<QModelIndex>, model: &QPtr<QStandardItemModel>) -> String {
 
         // The logic is simple: we loop from item to parent until we reach the top.
         let mut path = vec![];
@@ -783,17 +717,17 @@ impl PackTree for QBox<QTreeView> {
 
         // Reverse it, as we want it from arent to children.
         path.reverse();
-        path
+        path.join("/")
     }
 
-    unsafe fn get_path_from_selection(&self) -> Vec<Vec<String>> {
+    unsafe fn get_path_from_selection(&self) -> Vec<String> {
 
         // Create the vector to hold the Paths and get the selected indexes of the TreeView.
         let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let selection_model = self.selection_model();
 
-        let mut paths: Vec<Vec<String>> = vec![];
+        let mut paths: Vec<_> = vec![];
         let indexes = filter.map_selection_to_source(&selection_model.selection()).indexes();
         for index_num in 0..indexes.count_0a() {
             paths.push(Self::get_path_from_index(indexes.at(index_num), &model));
@@ -801,11 +735,16 @@ impl PackTree for QBox<QTreeView> {
         paths
     }
 
-    unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &Path, is_file: bool) -> Vec<Vec<String>> {
+    unsafe fn get_path_from_pathbuf(pack_file_contents_ui: &Rc<PackFileContentsUI>, file_path: &Path, is_file: bool) -> Vec<String> {
         let mut paths = vec![];
+        // TO review later.
+        /*
+
 
         // If it's a single file, we get his name and push it to the paths vector.
-        if is_file { paths.push(vec![file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned()]); }
+        if is_file {
+            paths.push(file_path.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+        }
 
         // Otherwise, it's a folder, so we have to filter it first.
         else {
@@ -824,7 +763,7 @@ impl PackTree for QBox<QTreeView> {
                 // Turn it from &Path to a Vec<String>, reverse it, and push it to the list.
                 let mut filtered_path = filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>();
                 filtered_path.reverse();
-                paths.push(filtered_path);
+                paths.push(filtered_path.join("/").collect::<String>());
             }
         }
 
@@ -833,26 +772,27 @@ impl PackTree for QBox<QTreeView> {
 
             // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
-            let mut base_path = selected_paths[0].to_vec();
+            let mut base_path = selected_paths[0].split('/').collect::<Vec<_>>();
 
             // Combine it with his path to form his full form.
             base_path.reverse();
             path.append(&mut base_path);
             path.reverse();
-        }
+        }*/
 
         // Return the paths (sorted from parent to children)
         paths
     }
 
-    unsafe fn take_row_from_type(item_type: &TreePathType, model: &QPtr<QStandardItemModel>) -> Ptr<QListOfQStandardItem> {
+    unsafe fn take_row_from_type(item_type: &ContainerPath, model: &QPtr<QStandardItemModel>) -> Ptr<QListOfQStandardItem> {
         match item_type {
 
             // Different types require different methods...
-            TreePathType::File(path) | TreePathType::Folder(path) => {
+            ContainerPath::File(path) | ContainerPath::Folder(path) => {
+                let path = path.split('/').collect::<Vec<_>>();
 
                 // First, we go down the tree to the row we have to take.
-                let is_file = matches!(item_type, TreePathType::File(_));
+                let is_file = matches!(item_type, ContainerPath::File(_));
                 let mut item = model.item_1a(0);
                 item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -886,8 +826,6 @@ impl PackTree for QBox<QTreeView> {
                 // Take the child.
                 item.parent().take_row(item.row()).into_ptr()
             }
-
-            _ => unimplemented!()
         }
     }
 
@@ -914,19 +852,19 @@ impl PackTree for QBox<QTreeView> {
                         else if let Some(ref path) = build_data.path {
                             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
                             let response = CentralCommand::recv(&receiver);
-                            if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                            if let Response::ContainerInfoVecRFileInfo(data) = response { data }
                             else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
                         }
                         else {
                             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
                             let response = CentralCommand::recv(&receiver);
-                            if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                            if let Response::ContainerInfoVecRFileInfo(data) = response { data }
                             else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
                         };
 
                         // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
                         // with the name of the PackFile. All big things start with a lie.
-                        let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&pack_file_data.file_name));
+                        let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&pack_file_data.file_name()));
                         let tooltip = new_pack_file_tooltip(&pack_file_data);
                         big_parent.set_tool_tip(&QString::from_std_str(tooltip));
                         big_parent.set_editable(false);
@@ -1059,8 +997,8 @@ impl PackTree for QBox<QTreeView> {
                 // - FileA
                 // - FileB
                 packed_files_data.par_sort_unstable_by(|a, b| {
-                    let a = &a.path;
-                    let b = &b.path;
+                    let a = &a.path().split('/').collect::<Vec<_>>();
+                    let b = &b.path().split('/').collect::<Vec<_>>();
                     let mut index = 0;
                     loop {
 
@@ -1111,15 +1049,16 @@ impl PackTree for QBox<QTreeView> {
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
                 for packed_file in &packed_files_data {
+                    let path = packed_file.path().split("/").collect::<Vec<_>>();
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
                     let mut parent = big_parent;
-                    for (index_in_path, name) in packed_file.path.iter().enumerate() {
+                    for (index_in_path, name) in path.iter().enumerate() {
                         let name = QString::from_std_str(name);
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
-                        if index_in_path == packed_file.path.len() - 1 {
+                        if index_in_path == path.len() - 1 {
                             let file = QStandardItem::from_q_string(&name);
                             let tooltip = new_packed_file_tooltip(packed_file);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1127,7 +1066,7 @@ impl PackTree for QBox<QTreeView> {
                             file.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
                             file.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
 
-                            let icon_type = IconType::File(packed_file.path.to_vec());
+                            let icon_type = IconType::File(packed_file.path().to_owned());
                             icon_type.set_icon_to_item_safe(&file);
 
                             parent.append_row_q_standard_item(file.into_ptr());
@@ -1194,180 +1133,250 @@ impl PackTree for QBox<QTreeView> {
             //
             // BIG NOTE: This only works for files OR EMPTY FOLDERS. If you want to add a folder with files,
             // add his files individually, not the folder!!!
-            TreeViewOperation::Add(item_types) => {
+            TreeViewOperation::Add(mut item_types) => {
 
-                // First, get the `PackedFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
-                let mut item_paths = vec![];
-                for item_type in &item_types {
-                    match item_type {
-                        TreePathType::File(path) => item_paths.push(path.to_vec()),
-                        TreePathType::Folder(path) => item_paths.push(path.to_vec()),
-                        _ => unimplemented!()
+                // First, get the `RFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
+                let item_paths = item_types.par_iter().map(|path| match path {
+                    ContainerPath::File(path) => path.to_owned(),
+                    ContainerPath::Folder(path) => path.to_owned(),
+                }).collect::<Vec<_>>();
+
+                item_types.par_sort_unstable_by(|a, b| {
+                    let a = match a {
+                        ContainerPath::File(path) => path.split('/').collect::<Vec<_>>(),
+                        ContainerPath::Folder(path) => path.split('/').collect::<Vec<_>>(),
+                    };
+                    let b = match b {
+                        ContainerPath::File(path) => path.split('/').collect::<Vec<_>>(),
+                        ContainerPath::Folder(path) => path.split('/').collect::<Vec<_>>(),
+                    };
+                    //let a = &a.path().split('/').collect::<Vec<_>>();
+                    //let b = &b.path().split('/').collect::<Vec<_>>();
+                    let mut index = 0;
+                    loop {
+
+                        // If both options have the same name.
+                        if a[index] == b[index] {
+
+                            // If A doesn't have more children, but B has them, A is a file and B a folder.
+                            if index == (a.len() - 1) && index < (b.len() - 1) {
+                                return Ordering::Greater
+                            }
+
+                            // If B doesn't have more children, but A has them, B is a file and A a folder.
+                            else if index < (a.len() - 1) && index == (b.len() - 1) {
+                                return Ordering::Less
+                            }
+
+                            // If both options still has children, continue the loop.
+                            else if index < (a.len() - 1) && index < (b.len() - 1) {
+                                index += 1;
+                                continue;
+                            }
+
+                            // Otherwise, it means you got 2 files with the same name in the same PackFile, and I would like to know how the hell did you did it.
+                            else {
+                                return Ordering::Equal
+                            }
+                        }
+
+                        // If both are the same type (both have children, or none have them), doesn't matter if
+                        // they are files or folder. Just compare them to see what one it's first.
+                        else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
+                            (index < (a.len() - 1) && index < (b.len() - 1)) {
+                            return a.cmp(&b)
+                        }
+
+                        // If A doesn't have more children, but B has them, A is a file and B a folder.
+                        else if index == (a.len() - 1) && index < (b.len() - 1) {
+                            return Ordering::Greater
+
+                        }
+                        // If B doesn't have more children, but A has them, B is a file and A a folder.
+                        else if index < (a.len() - 1) && index == (b.len() - 1) {
+                            return Ordering::Less
+                        }
                     }
-                }
+                });
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
                 let response = CentralCommand::recv(&receiver);
-                let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                let packed_files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                dbg!("adding to view");
+
+                let mut x = 0;
                 for (item_type, packed_file_info) in item_types.iter().zip(packed_files_info.iter()) {
+                    let is_file = matches!(item_type, ContainerPath::File(_));
+                    let path = match item_type {
+                        ContainerPath::File(ref path) => path.to_owned(),
+                        ContainerPath::Folder(ref path) => path.to_owned(),
+                    };
+
+                    x += 1;
+
+                    if x % 500 == 0 {
+                        dbg!(x);
+                    }
 
                     // We only use this to add files and empty folders. Ignore the rest.
-                    if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = &item_type {
-                        let mut parent = model.item_1a(0);
-                        match parent.data_1a(ITEM_STATUS).to_int_0a() {
-                             ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
-                             ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                             ITEM_STATUS_ADDED | 3 => {},
-                             _ => unimplemented!(),
-                        }
-                        if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                            parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                        }
+                    let mut parent = model.item_1a(0);
+                    //match parent.data_1a(ITEM_STATUS).to_int_0a() {
+                    //     ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
+                    //     ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                    //     ITEM_STATUS_ADDED | 3 => {},
+                    //     _ => unimplemented!(),
+                    //}
+                    if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                        parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                    }
 
-                        for (index, name) in path.iter().enumerate() {
+                    let path_split = path.split("/").collect::<Vec<_>>();
+                    for (index, name) in path_split.iter().enumerate() {
+                        let name2 = QString::from_std_str(name);
 
-                            // If it's the last one of the path, it's a file or an empty folder. First, we check if it
-                            // already exists. If it does, then we update it and set it as new. If it doesn't, we create it.
-                            let mut duplicate_found = false;
-                            if index >= (path.len() - 1) {
+                        // If it's the last one of the path, it's a file or an empty folder. First, we check if it
+                        // already exists. If it does, then we update it and set it as new. If it doesn't, we create it.
+                        let mut duplicate_found = false;
+                        if index >= (path_split.len() - 1) {
 
-                                // If the current parent has at least one child, check if the folder already exists.
-                                if parent.has_children() {
+                            // If the current parent has at least one child, check if the folder already exists.
+                            if parent.has_children() {
 
-                                    // It's a folder, so we check his children.
-                                    for index in 0..parent.row_count() {
-                                        let child = parent.child_2a(index, 0);
+                                // It's a folder, so we check his children.
+                                for index in (0..parent.row_count()).rev() {
+                                    let child = parent.child_2a(index, 0);
 
-                                        // We ignore files or folders, depending on what we want to create.
-                                        if let TreePathType::File(_) = &item_type {
-                                            if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
-                                        }
-
-                                        if let TreePathType::Folder(_) = &item_type {
-                                            if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-                                        }
-
-                                        // Get his text. If it's the same file/folder we are trying to add, this is the one.
-                                        if child.text().to_std_string() == *name {
-                                            parent = parent.child_1a(index);
-                                            duplicate_found = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                // If the item already exist, re-use it.
-                                if duplicate_found {
-                                    parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
-                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                }
-
-                                // Otherwise, it's a new PackedFile, so do the usual stuff.
-                                else {
-
-                                    // Create the Item, configure it depending on if it's a file or a folder,
-                                    // and add the file to the TreeView.
-                                    let item = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
-                                    item.set_editable(false);
-
-                                    if let TreePathType::File(ref path) = &item_type {
-                                        item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
-                                        IconType::set_icon_to_item_safe(&IconType::File(path.to_vec()), &item);
-                                        if let Some(info) = packed_file_info {
-                                            let tooltip = new_packed_file_tooltip(info);
-                                            item.set_tool_tip(&QString::from_std_str(tooltip));
-                                        }
+                                    // We ignore files or folders, depending on what we want to create.
+                                    if is_file {
+                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
                                     }
 
-                                    else if let TreePathType::Folder(_) = &item_type {
-                                        item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                        IconType::set_icon_to_item_safe(&IconType::Folder, &item);
+                                    if !is_file {
+                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
                                     }
 
-                                    let qlist = QListOfQStandardItem::new().into_ptr();
-                                    qlist.append_q_standard_item(&item.as_mut_raw_ptr());
+                                    // Get his text. If it's the same file/folder we are trying to add, this is the one.
+                                    let compare = QString::compare_2_q_string(child.text().as_ref(), name2.as_ref());
+                                    if compare == 0 {
+                                        parent = parent.child_1a(index);
+                                        duplicate_found = true;
+                                        break;
+                                    }
 
-                                    parent.append_row_q_list_of_q_standard_item(qlist.as_ref().unwrap());
-
-                                    item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                    item.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
-
-                                    // Sort the TreeView.
-                                    sort_item_in_tree_view(
-                                        &model,
-                                        item,
-                                        item_type
-                                    );
+                                    // If our file should be after this one in sorting, take it as that the file doesn't exists.
+                                    else if compare < 0 {
+                                        break;
+                                    }
                                 }
                             }
 
-                            // Otherwise, it's a folder.
+                            // If the item already exist, re-use it.
+                            if duplicate_found {
+                                parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
+                                parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                            }
+
+                            // Otherwise, it's a new PackedFile, so do the usual stuff.
                             else {
 
-                                // If the current parent has at least one child, check if the folder already exists.
-                                if parent.has_children() {
+                                // Create the Item, configure it depending on if it's a file or a folder,
+                                // and add the file to the TreeView.
+                                let item = QStandardItem::from_q_string(&name2).into_ptr();
+                                item.set_editable(false);
 
-                                    // It's a folder, so we check his children. We are only interested in
-                                    // folders, so ignore the files.
-                                    for index in 0..parent.row_count() {
-                                        let child = parent.child_2a(index, 0);
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-
-                                        // Get his text. If it's the same folder we are trying to add, this is our parent now.
-                                        if child.text().to_std_string() == *name {
-                                            parent = parent.child_1a(index);
-                                            match parent.data_1a(ITEM_STATUS).to_int_0a() {
-                                                 ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
-                                                 ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                                 ITEM_STATUS_ADDED | 3 => {},
-                                                 _ => unimplemented!(),
-                                            }
-
-                                            if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                                                parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                            }
-
-                                            duplicate_found = true;
-                                            break;
-                                        }
-                                    }
+                                if let ContainerPath::File(ref path) = &item_type {
+                                    let icon_type = IconType::File(path.to_owned());
+                                    icon_type.set_icon_to_item_safe(&item);
+                                    item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
+                                    //let tooltip = new_packed_file_tooltip(packed_file_info);
+                                    //item.set_tool_tip(&QString::from_std_str(tooltip));
                                 }
 
-
-                                // If the folder doesn't already exists, just add it.
-                                if !duplicate_found {
-                                    let folder = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
-                                    folder.set_editable(false);
-                                    folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                    folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
-                                    folder.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-
-                                    IconType::set_icon_to_item_safe(&IconType::Folder, &folder);
-
-                                    let qlist = QListOfQStandardItem::new();
-                                    qlist.append_q_standard_item(&folder.as_mut_raw_ptr());
-
-                                    parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
-
-
-                                    // This is our parent now.
-                                    let index = parent.row_count() - 1;
-                                    parent = parent.child_1a(index);
-
-                                    // Sort the TreeView.
-                                    sort_item_in_tree_view(
-                                        &model,
-                                        folder,
-                                        &TreePathType::Folder(vec![String::new()])
-                                    );
+                                else if let ContainerPath::Folder(_) = &item_type {
+                                    item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
+                                    IconType::set_icon_to_item_safe(&IconType::Folder, &item);
                                 }
+
+                                item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                item.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
+
+                                parent.append_row_q_standard_item(item);
+
+
+                                // Sort the TreeView.
+                                sort_item_in_tree_view(
+                                    &model,
+                                    item,
+                                    item_type
+                                );
                             }
                         }
 
-                        if setting_bool("expand_treeview_when_adding_items") {
-                            self.expand_treeview_to_item(path, source);
+                        // Otherwise, it's a folder.
+                        else {
+
+                            // If the current parent has at least one child, check if the folder already exists.
+                            if parent.has_children() {
+
+                                // It's a folder, so we check his children. We are only interested in
+                                // folders, so ignore the files.
+                                for index in (0..parent.row_count()).rev() {
+                                    let child = parent.child_2a(index, 0);
+                                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
+
+                                    // Get his text. If it's the same folder we are trying to add, this is our parent now.
+                                    let compare = QString::compare_2_q_string(child.text().as_ref(), name2.as_ref());
+                                    if compare == 0 {
+                                        parent = parent.child_1a(index);
+                                        match parent.data_1a(ITEM_STATUS).to_int_0a() {
+                                             ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
+                                             ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                                             ITEM_STATUS_ADDED | 3 => {},
+                                             _ => unimplemented!(),
+                                        }
+
+                                        if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                                            parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                        }
+
+                                        duplicate_found = true;
+                                        break;
+                                    } else if compare < 0 {
+                                        break;
+                                    }
+                                }
+                            }
+
+
+                            // If the folder doesn't already exists, just add it.
+                            if !duplicate_found {
+                                let folder = QStandardItem::from_q_string(&name2).into_ptr();
+                                folder.set_editable(false);
+                                folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
+                                folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
+                                folder.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+
+                                IconType::set_icon_to_item_safe(&IconType::Folder, &folder);
+
+                                parent.append_row_q_standard_item(folder);
+
+                                // This is our parent now.
+                                let index = parent.row_count() - 1;
+                                parent = parent.child_1a(index);
+
+                                // Sort the TreeView.
+                                sort_item_in_tree_view(
+                                    &model,
+                                    folder,
+                                    &ContainerPath::Folder(String::new())
+                                );
+                            }
                         }
                     }
+
+                    //if setting_bool("expand_treeview_when_adding_items") {
+                    //    self.expand_treeview_to_item(&path, source);
+                    //}
                 }
             },
 
@@ -1378,13 +1387,14 @@ impl PackTree for QBox<QTreeView> {
                     match path_type {
 
                         // Different types require different methods...
-                        TreePathType::File(path) => {
+                        ContainerPath::File(path) => {
 
                             // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
                             let packfile = model.item_1a(0);
                             let mut item = model.item_1a(0);
                             let mut index = 0;
-                            let path_deep = path.len();
+                            let path_split = path.split("/").collect::<Vec<_>>();
+                            let path_deep = path_split.len();
 
                             // First looping downwards.
                             loop {
@@ -1396,7 +1406,7 @@ impl PackTree for QBox<QTreeView> {
                                         if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
 
                                         // If we found it, we're done.
-                                        if child.text().to_std_string() == path[index] {
+                                        if child.text().to_std_string() == path_split[index] {
                                             item = child;
                                             break;
                                         }
@@ -1413,7 +1423,7 @@ impl PackTree for QBox<QTreeView> {
                                         if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                         // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
-                                        if child.text().to_std_string() == path[index] {
+                                        if child.text().to_std_string() == path_split[index] {
                                             item = child;
                                             index += 1;
                                             break;
@@ -1447,7 +1457,7 @@ impl PackTree for QBox<QTreeView> {
                             }
 
                             // Third time's a charm.
-                            if let TreePathType::Folder(ref path) = Self::get_type_from_item(parent, &model) {
+                            if let ContainerPath::Folder(ref path) = Self::get_type_from_item(parent, &model) {
                                 for _ in 0..path.len() {
                                     parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                                     parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1456,13 +1466,14 @@ impl PackTree for QBox<QTreeView> {
                             }
                         }
 
-                        TreePathType::Folder(path) => {
+                        ContainerPath::Folder(path) => {
 
                             // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
                             let packfile = model.item_1a(0);
                             let mut item = model.item_1a(0);
                             let mut index = 0;
-                            let path_deep = path.len();
+                            let path_split = path.split("/").collect::<Vec<_>>();
+                            let path_deep = path_split.len();
 
                             // First looping downwards.
                             loop {
@@ -1479,7 +1490,7 @@ impl PackTree for QBox<QTreeView> {
                                         if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                         // If we found a folder that matches the one we want, that's out new good boy.
-                                        if child.text().to_std_string() == path[index] {
+                                        if child.text().to_std_string() == path_split[index] {
                                             item = child;
                                             index += 1;
                                             break;
@@ -1512,7 +1523,7 @@ impl PackTree for QBox<QTreeView> {
                             }
 
                             // Third time's a charm.
-                            if let TreePathType::Folder(ref path) = Self::get_type_from_item(parent, &model) {
+                            if let ContainerPath::Folder(ref path) = Self::get_type_from_item(parent, &model) {
                                 for _ in 0..path.len() {
                                     parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                                     parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1522,16 +1533,13 @@ impl PackTree for QBox<QTreeView> {
                         }
 
                         // Only editable packfiles can be deleted.
-                        TreePathType::PackFile => {
+                        /*ContainerPath::Pack => {
                             if model.item_1a(0).data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
                                 self.update_treeview(true, TreeViewOperation::Build(build_data), source)
                             }
-                        },
-
-                        // If we don't have anything selected, we do nothing.
-                        _ => {},
+                        },*/
                     }
                 }
             },
@@ -1540,7 +1548,7 @@ impl PackTree for QBox<QTreeView> {
             TreeViewOperation::Modify(path_types) => {
                 for path_type in path_types {
                     match path_type {
-                        TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+                        ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
 
                             let item = Self::get_item_from_type(&path_type, &model);
                             match item.data_1a(ITEM_STATUS).to_int_0a() {
@@ -1551,10 +1559,10 @@ impl PackTree for QBox<QTreeView> {
                             };
 
                             // If its a file, we get his new info and put it in a tooltip.
-                            if let TreePathType::File(_) = path_type {
-                                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileInfo(path.to_vec()));
+                            if let ContainerPath::File(_) = path_type {
+                                let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
                                 let response = CentralCommand::recv(&receiver);
-                                let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                                let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if let Some(info) = packed_file_info {
                                     let tooltip = new_packed_file_tooltip(&info);
                                     item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1578,7 +1586,7 @@ impl PackTree for QBox<QTreeView> {
                             }
                         }
 
-                        TreePathType::PackFile => {
+                        /*ContainerPath::PackFile => {
                             let item = model.item_2a(0, 0);
                             if !item.is_null() {
                                 let status = item.data_1a(ITEM_STATUS).to_int_0a();
@@ -1590,9 +1598,7 @@ impl PackTree for QBox<QTreeView> {
                                 };
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                             }
-                        }
-
-                        TreePathType::None => return,
+                        }*/
                     }
                 }
             }
@@ -1601,11 +1607,11 @@ impl PackTree for QBox<QTreeView> {
             // then we add it to the new one, keeping its attributes.
             TreeViewOperation::Move(path_types) => {
 
-                // First, get the `PackedFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
-                let new_paths = path_types.iter().map(|(_, y)| y.to_vec()).collect::<Vec<Vec<String>>>();
+                // First, get the `RFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
+                let new_paths = path_types.iter().map(|(_, y)| y.to_owned()).collect::<Vec<String>>();
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(new_paths));
                 let response = CentralCommand::recv(&receiver);
-                let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                let packed_files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                 for ((path_type, new_path), packed_file_info) in path_types.iter().zip(packed_files_info.iter())  {
                     let taken_row = Self::take_row_from_type(path_type, &model);
@@ -1628,7 +1634,7 @@ impl PackTree for QBox<QTreeView> {
             TreeViewOperation::Undo(item_types) => {
                 for item_type in item_types {
                     match item_type {
-                        TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+                        ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
 
                             // Get the item and only try to restore it if we didn't set it as "not to restore".
                             let item = Self::get_item_from_type(&item_type, &model);
@@ -1638,10 +1644,10 @@ impl PackTree for QBox<QTreeView> {
                                 }
 
                                 // If its a file, we get his new info and put it in a tooltip.
-                                if let TreePathType::File(_) = item_type {
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileInfo(path.to_vec()));
+                                if let ContainerPath::File(_) = item_type {
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
                                     let response = CentralCommand::recv(&receiver);
-                                    let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                                    let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);
                                         item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1668,7 +1674,7 @@ impl PackTree for QBox<QTreeView> {
                         }
 
                         // This one is a bit special. We need to check, not only him, but all his children too.
-                        TreePathType::PackFile => {
+                        /*ContainerPath::PackFile => {
                             let item = model.item_2a(0, 0);
                             let mut packfile_is_modified = false;
                             for row in 0..item.row_count() {
@@ -1682,8 +1688,7 @@ impl PackTree for QBox<QTreeView> {
                             if !packfile_is_modified {
                                 item.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             }
-                        }
-                        TreePathType::None => unimplemented!(),
+                        }*/
                     }
                 }
             }
@@ -1698,13 +1703,13 @@ impl PackTree for QBox<QTreeView> {
             TreeViewOperation::UpdateTooltip(packed_files_info) => {
                 for packed_file_info in packed_files_info {
                     let tooltip = QString::from_std_str(&new_packed_file_tooltip(&packed_file_info));
-                    let tree_path_type = TreePathType::File(packed_file_info.path.to_vec());
+                    let tree_path_type = ContainerPath::File(packed_file_info.path().to_owned());
                     let item = Self::get_item_from_type(&tree_path_type, &model);
                     item.set_tool_tip(&tooltip);
                 }
             },
         }
-        //*IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
+        // *IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
     }
 }
 
@@ -1713,8 +1718,8 @@ impl PackTree for QBox<QTreeView> {
 //----------------------------------------------------------------//
 
 /// This function is used to create the tooltip for the `PackFile` item in the PackFile Content's TreeView.
-pub fn new_pack_file_tooltip(info: &PackFileInfo) -> String {
-    let is_encrypted = info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA);
+pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
+    /*let is_encrypted = info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA);
     let is_compressed = match info.compression_state {
         CompressionState::Enabled => "true",
         CompressionState::Disabled => "false",
@@ -1737,12 +1742,13 @@ pub fn new_pack_file_tooltip(info: &PackFileInfo) -> String {
         is_encrypted,
         is_compressed,
         compatible_games
-    )
+    )*/
+    String::new()
 }
 
 /// This function is used to create the tooltip for each `PackedFile` item in the PackFile Content's TreeView.
-fn new_packed_file_tooltip(info: &PackedFileInfo) -> String {
-    format!("PackedFile Info: \
+fn new_packed_file_tooltip(info: &RFileInfo) -> String {
+    /*format!("PackedFile Info: \
         <ul> \
             <li><b>Original PackFile:</b> <i>{}</i></li> \
             <li><b>Last Modified:</b> <i>{:?}</i></li> \
@@ -1757,7 +1763,8 @@ fn new_packed_file_tooltip(info: &PackedFileInfo) -> String {
         info.is_compressed,
         info.is_cached,
         info.cached_type
-    )
+    )*/
+    String::new()
 }
 
 /// This function cleans the entire TreeView from colors. To be used when saving.
@@ -1781,8 +1788,8 @@ unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItem
     }
 }
 
-/// This function returns the currently visible children of the given parent, and add them as `TreePathType`s to the provided list.
-unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTreeView, filter: &QSortFilterProxyModel, model: &QPtr<QStandardItemModel>, item_types: &mut Vec<TreePathType>) {
+/// This function returns the currently visible children of the given parent, and add them as `ContainerPath`s to the provided list.
+unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTreeView, filter: &QSortFilterProxyModel, model: &QPtr<QStandardItemModel>, item_types: &mut Vec<ContainerPath>) {
     for row in 0..parent.row_count() {
         let child = parent.child_1a(row);
         let child_index = child.index();
@@ -1811,7 +1818,7 @@ unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTree
 unsafe fn sort_item_in_tree_view(
     model: &QPtr<QStandardItemModel>,
     mut item: Ptr<QStandardItem>,
-    item_type: &TreePathType,
+    item_type: &ContainerPath,
 ) {
 
     // Get the ModelIndex of our Item and his row, as that's what we are going to be changing.
@@ -1826,38 +1833,38 @@ unsafe fn sort_item_in_tree_view(
     let item_index_next = model.index_3a(item_index.row() + 1, item_index.column(), &parent_index);
 
     // Get the type of the previous item on the list.
-    let item_type_prev: TreePathType = if item_index_prev.is_valid() {
+    let item_type_prev: Option<ContainerPath> = if item_index_prev.is_valid() {
         let item_sibling = model.item_from_index(&item_index_prev);
-        <QBox<QTreeView>>::get_type_from_item(item_sibling, model)
+        Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
     }
 
     // Otherwise, return the type as `None`.
-    else { TreePathType::None };
+    else { None };
 
     // Get the type of the previous and next items on the list.
-    let item_type_next: TreePathType = if item_index_next.is_valid() {
+    let item_type_next: Option<ContainerPath> = if item_index_next.is_valid() {
 
         // Get the next item.
         let item_sibling = model.item_from_index(&item_index_next);
-        <QBox<QTreeView>>::get_type_from_item(item_sibling, model)
+        Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
     }
 
     // Otherwise, return the type as `None`.
-    else { TreePathType::None };
+    else { None };
 
     // We get the boolean to determinate the direction to move (true -> up, false -> down).
     // If the previous and the next Items are `None`, we don't need to move.
-    let direction = if item_type_prev == TreePathType::None && item_type_next == TreePathType::None { return }
+    let direction = if item_type_prev.is_none() && item_type_next.is_none() { return }
 
     // If the top one is `None`, but the bottom one isn't, we go down.
-    else if item_type_prev == TreePathType::None && item_type_next != TreePathType::None { false }
+    else if item_type_prev.is_none() && item_type_next.is_some() { false }
 
     // If the bottom one is `None`, but the top one isn't, we go up.
-    else if item_type_prev != TreePathType::None && item_type_next == TreePathType::None { true }
+    else if item_type_prev.is_some() && item_type_next.is_none() { true }
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
-    else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File(vec![String::new()]) {
-        *item_type == TreePathType::Folder(vec![String::new()])
+    else if item_type_prev.unwrap().is_folder() && item_type_next.unwrap().is_file() {
+        *item_type == ContainerPath::Folder(String::new())
     }
 
     // If the two around it are the same type, compare them and decide.
@@ -1959,7 +1966,7 @@ unsafe fn sort_item_in_tree_view(
             }
 
             // If the top one is a File and the bottom one a Folder, it's an special situation. Just swap them.
-            else if *item_type == TreePathType::Folder(vec![String::new()]) && item_sibling_type == TreePathType::File(vec![String::new()]) {
+            else if item_type.is_folder() && item_sibling_type.is_file() {
 
                 // We swap them, and update them for the next loop.
                 let item_x = parent.take_row(item_index.row());
@@ -1989,7 +1996,7 @@ impl BuildData {
         }
     }
 }
-*/*/
+
 pub unsafe fn get_color_correct() -> String {
     if setting_bool("use_dark_theme") {
         GREEN_DARK.to_owned()

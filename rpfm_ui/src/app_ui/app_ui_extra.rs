@@ -48,32 +48,33 @@ use std::process::exit;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-use rpfm_lib::files::{animpack, FileType, loc, text, text::TextFormat};
-use rpfm_lib::games::supported_games::*;
+use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::{PFHFlags, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}, text::TextFormat};
+use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::{git::*, log::*};
-//use rpfm_lib::packfile::{PathType, PackFileInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
+//use rpfm_lib::packfile::{ContainerPath, ContainerInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
 use rpfm_lib::utils::*;
 
 
 use super::AppUI;
+use crate::backend::*;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
-//use crate::dependencies_ui::DependenciesUI;
-//use crate::diagnostics_ui::DiagnosticsUI;
+use crate::dependencies_ui::DependenciesUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
-//use crate::global_search_ui::GlobalSearchUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
-use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{BuildData, icons::IconType, PackTree, TreeViewOperation};
 //use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
-//use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, decoder::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, table::*, text::*, unit_variant::*};
-//use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
-//use crate::references_ui::ReferencesUI;
+use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
@@ -162,7 +163,7 @@ impl AppUI {
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
+            if save_before_deleting && packed_file_view.get_path() != RESERVED_NAME_EXTRA_PACKFILE {
                 packed_file_view.save(app_ui, pack_file_contents_ui)?;
             }
             let widget = packed_file_view.get_mut_widget();
@@ -195,7 +196,7 @@ impl AppUI {
     pub unsafe fn purge_that_one_specifically(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        path: &[String],
+        path: &str,
         data_source: DataSource,
         save_before_deleting: bool
     ) -> Result<()> {
@@ -212,7 +213,7 @@ impl AppUI {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
                 // Do not try saving PackFiles.
-                if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
+                if save_before_deleting && path != RESERVED_NAME_EXTRA_PACKFILE {
                     did_it_worked = packed_file_view.save(app_ui, pack_file_contents_ui);
                 }
                 let widget = packed_file_view.get_mut_widget();
@@ -227,24 +228,21 @@ impl AppUI {
 
             if !path.is_empty() {
                 UI_STATE.set_open_packedfiles().remove(position);
-                if !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
+                if path != RESERVED_NAME_EXTRA_PACKFILE {
 
                     // We check if there are more tables open. This is because we cannot change the GameSelected
                     // when there is a PackedFile using his Schema.
                     let mut enable_game_selected_menu = true;
                     for path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
-                        if let Some(folder) = path.get(0) {
-                            if folder.to_lowercase() == "db" {
-                                enable_game_selected_menu = false;
-                                break;
-                            }
+                        let path = path.to_lowercase();
+                        if path.starts_with("db") {
+                            enable_game_selected_menu = false;
+                            break;
                         }
 
-                        else if let Some(file) = path.last() {
-                            if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
-                                enable_game_selected_menu = false;
-                                break;
-                            }
+                        else if path.ends_with(".loc") {
+                            enable_game_selected_menu = false;
+                            break;
                         }
                     }
 
@@ -312,31 +310,30 @@ impl AppUI {
         let response = CentralCommand::recv_try(&receiver);
         match response {
 
-            // If it's success....
-            Response::PackFileInfo(ui_data) => {
+            // If it's success...
+            Response::ContainerInfo(ui_data) => {
 
                 // We choose the right option, depending on our PackFile.
-                match ui_data.pfh_file_type {
+                match ui_data.pfh_file_type() {
                     PFHFileType::Boot => app_ui.change_packfile_type_boot.set_checked(true),
                     PFHFileType::Release => app_ui.change_packfile_type_release.set_checked(true),
                     PFHFileType::Patch => app_ui.change_packfile_type_patch.set_checked(true),
                     PFHFileType::Mod => app_ui.change_packfile_type_mod.set_checked(true),
                     PFHFileType::Movie => app_ui.change_packfile_type_movie.set_checked(true),
-                    PFHFileType::Other(_) => app_ui.change_packfile_type_other.set_checked(true),
                 }
 
                 // Enable or disable these, depending on what data we have in the header.
-                app_ui.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                app_ui.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER));
+                app_ui.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                app_ui.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
 
                 // Set the compression level correctly, because otherwise we may fuckup some files.
-                let compression_state = match ui_data.compression_state {
-                    CompressionState::Enabled => true,
-                    CompressionState::Partial | CompressionState::Disabled => false,
-                };
-                app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
+                //let compression_state = match ui_data.compression_state {
+                //    CompressionState::Enabled => true,
+                //    CompressionState::Partial | CompressionState::Disabled => false,
+                //};
+                //app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                 // Update the TreeView.
                 let mut build_data = BuildData::new();
@@ -377,8 +374,8 @@ impl AppUI {
                     UI_STATE.set_operational_mode(app_ui, None);
 
                     // Depending on the Id, choose one game or another.
-                    let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
-                    match ui_data.pfh_version {
+                    let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
+                    match ui_data.pfh_version() {
 
                         // PFH6 is for Troy and maybe WH3.
                         PFHVersion::PFH6 => {
@@ -397,7 +394,7 @@ impl AppUI {
                         PFHVersion::PFH5 => {
 
                             // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+                            if ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER) {
                                 app_ui.game_selected_arena.trigger();
                             }
 
@@ -519,7 +516,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -530,7 +527,7 @@ impl AppUI {
                 let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(path));
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
-                    Response::PackFileInfo(pack_file_info) => {
+                    /*Response::ContainerInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                         let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
@@ -538,7 +535,7 @@ impl AppUI {
 
                         UI_STATE.set_operational_mode(app_ui, None);
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                    }
+                    }*/
                     Response::Error(error) => result = Err(error),
 
                     // In ANY other situation, it's a message problem.
@@ -551,12 +548,12 @@ impl AppUI {
             let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFile);
             let response = CentralCommand::recv_try(&receiver);
             match response {
-                Response::PackFileInfo(pack_file_info) => {
+                /*Response::ContainerInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                     let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
-                }
+                }*/
                 Response::Error(error) => result = Err(error),
 
                 // In ANY other situation, it's a message problem.
@@ -565,7 +562,7 @@ impl AppUI {
         }
 
         // Clean the treeview and the views from markers.
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+        //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             packed_file_view.clean();
@@ -582,7 +579,7 @@ impl AppUI {
     pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, pack_path: &Path, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
+        let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
         if game_selected == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
@@ -606,13 +603,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -622,10 +619,8 @@ impl AppUI {
             app_ui.packfile_uninstall.set_enabled(enable_uninstall);
 
             // If there is a "MyMod" path set in the settings...
-            if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
-                if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
-                else { app_ui.mymod_new.set_enabled(false); }
-            }
+            let path = PathBuf::from(setting_string(MYMOD_BASE_PATH));
+            if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
             else { app_ui.mymod_new.set_enabled(false); }
         }
 
@@ -840,12 +835,12 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if setting_bool["diagnostics_trigger_on_open"] {
+                            if setting_bool("diagnostics_trigger_on_open") {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
 
-                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                 app_ui.menu_bar_packfile.set_enabled(true);
                             }
@@ -859,7 +854,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths();
+        let mut content_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -885,7 +880,7 @@ impl AppUI {
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
 
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                             app_ui.menu_bar_packfile.set_enabled(true);
                         }
@@ -898,7 +893,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths();
+        let mut data_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -919,12 +914,12 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool["diagnostics_trigger_on_open"] {
+                        if setting_bool("diagnostics_trigger_on_open") {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
 
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                            //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                             app_ui.menu_bar_packfile.set_enabled(true);
                         }
@@ -937,8 +932,8 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the autosave folder, sorted by modification date, and make an action for each one of them.
-        if let Ok(autosave_paths) = get_backup_autosave_path() {
-            let autosave_paths = get_files_in_folder_from_newest_to_oldest(&autosave_paths);
+        if let Ok(autosave_paths) = backup_autosave_path() {
+            let autosave_paths = files_in_folder_from_newest_to_oldest(&autosave_paths);
             if let Ok(ref paths) = autosave_paths {
                 for path in paths {
 
@@ -958,12 +953,12 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if setting_bool["diagnostics_trigger_on_open"] {
+                            if setting_bool("diagnostics_trigger_on_open") {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
 
-                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                 app_ui.menu_bar_packfile.set_enabled(true);
                             }
@@ -1017,14 +1012,15 @@ impl AppUI {
         app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
-        if let Some(ref mymod_base_path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
+        let mymod_base_path = PathBuf::from(setting_string(MYMOD_BASE_PATH));
+        if !mymod_base_path.is_dir() {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list {
                     if let Ok(game_folder) = game_folder {
 
                         // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        let is_supported = SUPPORTED_GAMES.get_games().iter().filter_map(|x| if x.get_supports_editing() { Some(x.get_game_key_name()) } else { None }).any(|x| x == game_folder_name);
+                        let is_supported = SUPPORTED_GAMES.games().iter().filter_map(|x| if x.supports_editing() { Some(x.game_key_name()) } else { None }).any(|x| x == game_folder_name);
                         if game_folder.path().is_dir() && is_supported {
                             let game_submenu = match &*game_folder_name {
                                 KEY_WARHAMMER_3 => &app_ui.mymod_open_warhammer_3,
@@ -1063,12 +1059,12 @@ impl AppUI {
                                                     return show_dialog(&app_ui.main_window, error, false);
                                                 }
 
-                                                if setting_bool["diagnostics_trigger_on_open"] {
+                                                if setting_bool("diagnostics_trigger_on_open") {
 
                                                     // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                     app_ui.menu_bar_mymod.set_enabled(false);
 
-                                                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                                                    //DiagnosticsUI::check(&app_ui, &diagnostics_ui);
 
                                                     app_ui.menu_bar_mymod.set_enabled(true);
                                                 }
@@ -1212,17 +1208,18 @@ impl AppUI {
         // When we get a response, act depending on the kind of response we got.
         let response_thread = CentralCommand::recv_try(&receiver);
         let message = match response_thread {
-            Response::APIResponseSchema(ref response) => {
+            Response::APIResponseGit(ref response) => {
                 match response {
-                    APIResponseSchema::NewUpdate => {
+                    GitResponse::NewUpdate |
+                    GitResponse::Diverged => {
                         update_button.set_enabled(true);
                         qtr("schema_new_update")
                     }
-                    APIResponseSchema::NoUpdate => {
+                    GitResponse::NoUpdate => {
                         if !use_dialog { return; }
                         qtr("schema_no_update")
                     }
-                    APIResponseSchema::NoLocalFiles => {
+                    GitResponse::NoLocalFiles => {
                         update_button.set_enabled(true);
                         qtr("update_no_local_schema")
                     }
@@ -1288,17 +1285,18 @@ impl AppUI {
         // When we get a response, act depending on the kind of response we got.
         let response_thread = CentralCommand::recv_try(&receiver);
         let message = match response_thread {
-            Response::APIResponseTips(ref response) => {
+            Response::APIResponseGit(ref response) => {
                 match response {
-                    APIResponseTips::NewUpdate => {
+                    GitResponse::NewUpdate |
+                    GitResponse::Diverged => {
                         update_button.set_enabled(true);
                         qtr("messages_new_update")
                     }
-                    APIResponseTips::NoUpdate => {
+                    GitResponse::NoUpdate => {
                         if !use_dialog { return; }
                         qtr("messages_no_update")
                     }
-                    APIResponseTips::NoLocalFiles => {
+                    GitResponse::NoLocalFiles => {
                         update_button.set_enabled(true);
                         qtr("update_no_local_messages")
                     }
@@ -1432,7 +1430,7 @@ impl AppUI {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        packed_file_path: Option<Vec<String>>,
+        packed_file_path: Option<String>,
         is_preview: bool,
         is_external: bool,
         mut data_source: DataSource,
@@ -1449,7 +1447,7 @@ impl AppUI {
 
         if should_be_opened {
             let item_type = match packed_file_path {
-                Some(packed_file_path) => TreePathType::File(packed_file_path),
+                Some(packed_file_path) => ContainerPath::File(packed_file_path),
 
                 // If none path has been provided, we have to do some magic to find out what we're opening.
                 None => {
@@ -1475,7 +1473,7 @@ impl AppUI {
                 }
             };
 
-            if let TreePathType::File(ref path) = item_type {
+            if let ContainerPath::File(ref path) = item_type {
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
@@ -1500,7 +1498,7 @@ impl AppUI {
                         }
 
                         if index == -1 {
-                            let icon_type = IconType::File(path.to_vec());
+                            let icon_type = IconType::File(path.to_owned());
                             let icon = icon_type.get_icon_from_path();
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
                         }
@@ -1525,7 +1523,7 @@ impl AppUI {
 
                 // Any table banned or from out of our PackFile should not be editable.
                 if let DataSource::PackFile = data_source {
-                    if GAME_SELECTED.read().unwrap().is_packedfile_banned(path) {
+                    if GAME_SELECTED.read().unwrap().is_file_banned(path) {
                         tab.set_is_read_only(true);
                     } else {
                         tab.set_is_read_only(false);
@@ -1538,18 +1536,17 @@ impl AppUI {
 
                 if !is_external {
                     tab.set_is_preview(is_preview);
-                    let icon_type = IconType::File(path.to_vec());
+                    let icon_type = IconType::File(path.to_owned());
                     let icon = icon_type.get_icon_from_path();
 
-                    // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
-                    let packed_file_type = get_packed_file_type(path);
-
-                    match packed_file_type {
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.get_data_source()));
+                    let response = CentralCommand::recv(&receiver);
+                    match response {
 
                         // If the file is an AnimFragment PackedFile...
-                        PackedFileType::AnimFragment => {
-                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                Ok(packed_file_info) => {
+                        Response::AnimFragmentRFileInfo(data, file_info) => {
+                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
+                                Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
@@ -1562,41 +1559,37 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if data_source == DataSource::PackFile {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
 
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
                         }
 
-                        // If the file is an AnimPack PackedFile...
-                        PackedFileType::AnimPack => {
-                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
-                                Ok(packed_file_info) => {
+                        Response::AnimPackRFileInfo(container_info, files_info, file_info) => {
+                            PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui, container_info, &files_info);
 
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            // Fix the tips view.
+                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
 
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if data_source == DataSource::PackFile {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+                            if data_source == DataSource::PackFile {
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                             }
-                        }
+                        },
 
                         // If the file is an AnimTable PackedFile...
-                        PackedFileType::AnimTable => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                Ok(packed_file_info) => {
+                        Response::AnimsTableRFileInfo(_, ref file_info) => {
+                            let file_info = file_info.clone();
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                                Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
@@ -1608,20 +1601,38 @@ impl AppUI {
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
                         }
 
                         // If the file is a CA_VP8 PackedFile...
-                        PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&mut tab, app_ui, pack_file_contents_ui) {
-                                Ok(packed_file_info) => {
+                        Response::CaVp8RFileInfo(data, file_info) => {
+                            PackedFileCaVp8View::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                            // Fix the tips view.
+                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+                            if data_source == DataSource::PackFile {
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                            }
+                        }
+
+                        // If the file is a DB PackedFile...
+                        Response::DBRFileInfo(_, ref file_info) => {
+                            let file_info = file_info.clone();
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                                Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
@@ -1634,79 +1645,103 @@ impl AppUI {
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if data_source == DataSource::PackFile {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a Loc PackedFile...
-                        PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                Ok(packed_file_info) => {
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                    // Fix the tips view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a DB PackedFile...
-                        PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                Ok(packed_file_info) => {
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                    // Fix the tips view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
                                 Err(error) => {
 
                                     // Try to get the data of the table to send it for decoding.
-                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_vec()));
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(path.to_owned()));
                                     let response = CentralCommand::recv(&receiver);
                                     let data = match response {
                                         Response::VecU8(data) => data,
-                                        Response::Error(_) => return show_dialog(&app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                                        Response::Error(_) => return show_dialog(&app_ui.main_window, error, false),
                                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                     };
 
-                                    return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), ErrorKind::DBTableDecode(format!("{}", error)), &path[1], &data);
+                                    return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error, file_info.table_name().unwrap(), &data);
                                 },
+                            }
+                        }
+
+                        Response::ESFRFileInfo(data, file_info) => {
+                            if setting_bool("enable_esf_editor") {
+                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
+                                    Ok(_) => {
+
+                                        // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                        // Fix the tips view.
+                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                        }
+                                    },
+                                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                }
+                            }
+                        }
+
+                        // If the file is a Image PackedFile, ignore failures while opening.
+                        Response::ImageRFileInfo(data, file_info) => {
+                            match PackedFileImageView::new_view(&mut tab, &data) {
+                                Ok(_) => {
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                    }
+                                }
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                            }
+                        }
+
+                        // If the file is a Loc PackedFile...
+                        Response::LocRFileInfo(_, ref file_info) => {
+                            let file_info = file_info.clone();
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                                Ok(_) => {
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                    // Fix the tips view.
+                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                    }
+                                },
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
                         }
 
                         // If the file is a MatchedCombat PackedFile...
-                        PackedFileType::MatchedCombat => {
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                Ok(packed_file_info) => {
+                        Response::MatchedCombatRFileInfo(_, ref file_info) => {
+                            let file_info = file_info.clone();
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                                Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
                                     app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
@@ -1718,44 +1753,79 @@ impl AppUI {
 
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
+                                    if data_source == DataSource::PackFile {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                                     }
                                 },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, error, false),
                             }
                         }
+
+                        // Generic files logic.
+                        Response::RFileDecodedRFileInfo(data, file_info) => {
+                            match file_info.file_type() {
+                                FileType::UnitVariant => {
+                                    match PackedFileUnitVariantView::new_view(&mut tab, data) {
+                                        Ok(_) => {
+
+                                            // Add the file to the 'Currently open' list and make it visible.
+                                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                            // Fix the tips view.
+                                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                            let mut open_list = UI_STATE.set_open_packedfiles();
+                                            open_list.push(tab);
+
+                                            if data_source == DataSource::PackFile {
+                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                            }
+                                        }
+                                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                    }
+                                }
+                                _ => {},
+                            }
+                        }
+
 
                         // If the file is a Text PackedFile...
-                        PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
-                                Ok(packed_file_info) => {
+                        Response::TextRFileInfo(data, file_info) => {
+                            PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
 
-                                    // Fix the tips view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+                            // Fix the tips view.
+                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
 
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+
+                            if data_source == DataSource::PackFile {
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                             }
                         }
+
+                        Response::Unknown => {},
+                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    };
+                    /*
+                    let packed_file_type = get_packed_file_type(path);
+
+                    match packed_file_type {
+
+
+
 
                         // If the file is a RigidModel PackedFile...
                         #[cfg(feature = "support_rigidmodel")]
-                        PackedFileType::RigidModel => {
+                        FileType::RigidModel => {
                             if setting_bool["enable_rigidmodel_editor"] {
                                 match PackedFileRigidModelView::new_view(&mut tab) {
                                     Ok(packed_file_info) => {
@@ -1782,30 +1852,10 @@ impl AppUI {
                             }
                         }
 
-                        // If the file is a Image PackedFile, ignore failures while opening.
-                        PackedFileType::Image => {
-                            if let Ok(packed_file_info) = PackedFileImageView::new_view(&mut tab) {
-
-                                // Add the file to the 'Currently open' list and make it visible.
-                                app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                // Fix the tips view.
-                                let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                let mut open_list = UI_STATE.set_open_packedfiles();
-                                open_list.push(tab);
-
-                                if data_source == DataSource::PackFile {
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
-                                }
-                            }
-                        }
 
                         // If the file is a UI Component...
                         #[cfg(feature = "support_uic")]
-                        PackedFileType::UIC => {
+                        FileType::UIC => {
                             match PackedFileUICView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {
 
@@ -1830,59 +1880,7 @@ impl AppUI {
                             }
                         }
 
-                        PackedFileType::UnitVariant => {
-                            match PackedFileUnitVariantView::new_view(&mut tab) {
-                                Ok(packed_file_info) => {
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                    // Fix the tips view.
-                                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-
-                                    if let Some(packed_file_info) = packed_file_info {
-                                        if data_source == DataSource::PackFile {
-                                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                        }
-                                    }
-                                },
-                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::UnitVariantDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        PackedFileType::ESF => {
-                            if setting_bool["enable_esf_editor"] {
-                                match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                                    Ok(packed_file_info) => {
-
-                                        // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                        // Fix the tips view.
-                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                        let mut open_list = UI_STATE.set_open_packedfiles();
-                                        open_list.push(tab);
-
-                                        if let Some(packed_file_info) = packed_file_info {
-                                            if data_source == DataSource::PackFile {
-                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                            }
-                                        }
-                                    },
-                                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::ESFDecode(format!("{}", error)), false),
-                                }
-                            }
-                        }
-
-                        PackedFileType::PackFile => {
+                        FileType::PackFile => {
                             let path_str = &tab.get_path()[1..].join("/");
                             let path = PathBuf::from(path_str.to_owned());
                             match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, path) {
@@ -1897,26 +1895,31 @@ impl AppUI {
 
                         // Ignore anything else.
                         _ => {}
-                    }
+                    }*/
                 }
 
                 // If it's external, we just create a view with just one button: "Stop Watching External File".
                 else {
-                    let icon_type = IconType::File(path.to_vec());
+                    let icon_type = IconType::File(path.to_owned());
                     let icon = icon_type.get_icon_from_path();
-                    let path = Rc::new(RefCell::new(path.to_vec()));
 
-                    match PackedFileExternalView::new_view(&path, app_ui,  &mut tab, pack_file_contents_ui) {
-                        Ok(_) => {
+                    let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(path.to_owned()));
+                    let path = Rc::new(RefCell::new(path.to_owned()));
 
-                            // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                            let mut open_list = UI_STATE.set_open_packedfiles();
-                            open_list.push(tab);
-                        }
-                        Err(error) => show_dialog(&app_ui.main_window, error, false),
-                    }
+                    let response = CentralCommand::recv(&receiver);
+                    let external_path = match response {
+                        Response::PathBuf(external_path) => external_path,
+                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    };
+
+                    PackedFileExternalView::new_view(&path, app_ui, &mut tab, pack_file_contents_ui, &external_path);
+
+                    // Add the file to the 'Currently open' list and make it visible.
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                    let mut open_list = UI_STATE.set_open_packedfiles();
+                    open_list.push(tab);
                 }
             }
         }
@@ -1924,10 +1927,10 @@ impl AppUI {
         Self::update_views_names(app_ui);
 
         // Try to paint the diagnostics results, if any.
-        for diagnostic_type in UI_STATE.get_diagnostics().get_ref_diagnostics() {
+        for diagnostic_type in UI_STATE.get_diagnostics().results() {
             DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
         }
-    }
+    }/*
 
     /// This function is used to open the PackedFile Decoder.
     pub unsafe fn open_decoder(
@@ -1944,7 +1947,7 @@ impl AppUI {
         if !UI_STATE.get_packfile_contents_read_only() {
             let mut selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &mut selected_items[0] } else { return };
-            if let TreePathType::File(ref mut path) = item_type {
+            if let ContainerPath::File(ref mut path) = item_type {
                 let mut fake_path = path.to_vec();
                 *fake_path.last_mut().unwrap() = fake_path.last().unwrap().to_owned() + DECODER_EXTENSION;
 
@@ -2120,16 +2123,16 @@ impl AppUI {
         }
 
         Self::update_views_names(app_ui);
-    }
+    }*/
 
     /// This function is the one that takes care of the creation of different PackedFiles.
-    pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_file_type: PackedFileType) {
-
+    pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) {
+        /*
         // DB Files require the dependencies cache to be generated, and the schemas to be downloaded.
-        if packed_file_type == PackedFileType::DB {
+        if file_type == FileType::DB {
 
             if SCHEMA.read().unwrap().is_none() {
-                return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
+                return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false);
             }
 
             let receiver = CENTRAL_COMMAND.send_background(Command::IsThereADependencyDatabase(false));
@@ -2142,7 +2145,7 @@ impl AppUI {
 
         // Create the "New PackedFile" dialog and wait for his data (or a cancellation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
-        if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, packed_file_type) {
+        if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, file_type) {
             match new_packed_file {
                 Ok(mut new_packed_file) => {
 
@@ -2159,13 +2162,13 @@ impl AppUI {
                             }
 
                             // Fix their name termination if needed.
-                            if let PackedFileType::AnimPack = packed_file_type {
+                            if let FileType::AnimPack = file_type {
                                 if !name.ends_with(animpack::EXTENSION) { name.push_str(animpack::EXTENSION); }
                             }
-                            if let PackedFileType::Loc = packed_file_type {
+                            if let FileType::Loc = file_type {
                                 if !name.ends_with(loc::EXTENSION) { name.push_str(loc::EXTENSION); }
                             }
-                            if let PackedFileType::Text(_) = packed_file_type {
+                            if let FileType::Text = file_type {
                                 if !text::EXTENSIONS.iter().any(|(x, _)| name.ends_with(x)) {
                                     name.push_str(".txt");
                                 }
@@ -2210,15 +2213,15 @@ impl AppUI {
                                 let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(complete_path.to_vec()));
                                 let response = CentralCommand::recv(&receiver);
                                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                                if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                                if exists { return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false)}
 
                                 // Get the response, just in case it failed.
-                                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
+                                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(complete_path.to_owned(), new_packed_file));
                                 let response = CentralCommand::recv(&receiver);
                                 match response {
                                     Response::Success => {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]), DataSource::PackFile);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(complete_path.to_owned()); 1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(complete_path); 1]), DataSource::PackFile);
                                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                     }
 
@@ -2231,7 +2234,7 @@ impl AppUI {
                 }
                 Err(error) => show_dialog(&app_ui.main_window, error, false),
             }
-        }
+        }*/
     }
 
     /// This function creates a new PackedFile based on the current path selection, being:
@@ -2248,21 +2251,17 @@ impl AppUI {
             let item = &selected_items[0];
 
             let path = match item {
-                TreePathType::File(ref path) => {
-                    let mut path = path.to_vec();
-                    path.pop();
-                    path
-                },
-                TreePathType::Folder(path) => path.to_vec(),
-                _ => return show_dialog(&app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false),
+                ContainerPath::File(ref path) => item.parent_path(),
+                ContainerPath::Folder(path) => path.to_owned(),
             };
+            let path_split = path.split('/').collect::<Vec<_>>();
 
             if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui) {
 
                 // DB Check.
-                let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && (path.len() == 2 || path.len() == 3) {
-                    let new_path = vec!["db".to_owned(), path[1].to_owned(), name];
-                    let table = &path[1];
+                let (new_path, new_packed_file) = if path.starts_with("db") && (path_split.len() == 2 || path_split.len() == 3) {
+                    let new_path = format!("{}/{}", path, name);
+                    let table = path_split[1];
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
                     let response = CentralCommand::recv(&receiver);
@@ -2272,61 +2271,70 @@ impl AppUI {
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
-                    let new_packed_file = NewPackedFile::DB(new_path.last().unwrap().to_owned(), table.to_owned(), version);
+                    let new_packed_file = NewPackedFile::DB(name.to_owned(), table.to_owned(), version);
                     (new_path, new_packed_file)
                 }
 
                 // Loc Check.
-                else if path.starts_with(&["text".to_owned()]) && !path.is_empty() {
+                else if path.starts_with("text") && !path.is_empty() {
                     if !name.ends_with(".loc") { name.push_str(".loc"); }
-                    let mut new_path = path.to_vec();
-                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
-                    new_path.append(&mut name);
+                    let mut new_path = path.to_owned();
 
-                    let new_packed_file = NewPackedFile::Loc(new_path.last().unwrap().to_owned());
+                    if !new_path.ends_with('/') {
+                        new_path.push('/');
+                    }
+                    new_path.push_str(&name);
+
+                    let new_packed_file = NewPackedFile::Loc(name.to_owned());
                     (new_path, new_packed_file)
                 }
 
                 // Lua Check.
-                else if path.starts_with(&["script".to_owned()]) && !path.is_empty() {
+                else if path.starts_with("script") && !path.is_empty() {
                     if !name.ends_with(".lua") { name.push_str(".lua"); }
-                    let mut new_path = path.to_vec();
-                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
-                    new_path.append(&mut name);
+                    let mut new_path = path.to_owned();
 
-                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned(), TextType::Lua);
+                    if !new_path.ends_with('/') {
+                        new_path.push('/');
+                    }
+                    new_path.push_str(&name);
+
+                    let new_packed_file = NewPackedFile::Text(name.to_owned(), TextFormat::Lua);
                     (new_path, new_packed_file)
                 }
 
                 // VMD Check.
-                else if path.starts_with(&["variantmeshes".to_owned(), "variantmeshdefinitions".to_owned()]) && !path.is_empty() {
+                else if path.starts_with("variantmeshes/variantmeshdefinitions") && !path.is_empty() {
                     if !name.ends_with(".variantmeshdefinition") { name.push_str(".variantmeshdefinition"); }
-                    let mut new_path = path.to_vec();
-                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
-                    new_path.append(&mut name);
+                    let mut new_path = path.to_owned();
 
-                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned(), TextType::Xml);
+                    if !new_path.ends_with('/') {
+                        new_path.push('/');
+                    }
+                    new_path.push_str(&name);
+
+                    let new_packed_file = NewPackedFile::Text(name.to_owned(), TextFormat::Xml);
                     (new_path, new_packed_file)
                 }
 
                 // Neutral Check, for folders without a predefined type.
                 else {
-                    return show_dialog(&app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false);
+                    return show_dialog(&app_ui.main_window, "I don't know what type of file goes in that folder, boi.", false);
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
-                let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_vec()));
-                let response = CentralCommand::recv(&receiver);
-                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                //let receiver = CENTRAL_COMMAND.send_background(Command::PackedFileExists(new_path.to_vec()));
+                //let response = CentralCommand::recv(&receiver);
+                //let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                //if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                 // Create the PackFile.
-                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
+                let receiver = CENTRAL_COMMAND.send_background(Command::NewPackedFile(new_path.to_owned(), new_packed_file));
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => {
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]), DataSource::PackFile);
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(new_path.to_owned()); 1]), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(new_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -2362,15 +2370,15 @@ impl AppUI {
     /// This function creates all the "New PackedFile" dialogs.
     ///
     /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
-    pub unsafe fn new_packed_file_dialog(app_ui: &Rc<Self>, packed_file_type: PackedFileType) -> Option<Result<NewPackedFile>> {
+    pub unsafe fn new_packed_file_dialog(app_ui: &Rc<Self>, file_type: FileType) -> Option<Result<NewPackedFile>> {
 
         // Create and configure the "New PackedFile" Dialog.
         let dialog = QDialog::new_1a(&app_ui.main_window);
-        match packed_file_type {
-            PackedFileType::AnimPack => dialog.set_window_title(&qtr("new_animpack_file")),
-            PackedFileType::DB => dialog.set_window_title(&qtr("new_db_file")),
-            PackedFileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
-            PackedFileType::Text(_) => dialog.set_window_title(&qtr("new_txt_file")),
+        match file_type {
+            FileType::AnimPack => dialog.set_window_title(&qtr("new_animpack_file")),
+            FileType::DB => dialog.set_window_title(&qtr("new_db_file")),
+            FileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
+            FileType::Text => dialog.set_window_title(&qtr("new_txt_file")),
             _ => unimplemented!(),
         }
         dialog.set_modal(true);
@@ -2407,7 +2415,7 @@ impl AppUI {
         main_grid.add_widget_5a(&create_button, 0, 1, 1, 1);
 
         // If it's a DB Table, add its widgets, and populate the table list.
-        if let PackedFileType::DB = packed_file_type {
+        if let FileType::DB = file_type {
             let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
             let response = CentralCommand::recv(&receiver);
             let tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
@@ -2415,8 +2423,7 @@ impl AppUI {
                 Some(ref schema) => {
 
                     // Add every table to the dropdown if exists in the dependency database.
-                    schema.get_ref_versioned_file_db_all().iter()
-                        .filter_map(|x| if let VersionedFile::DB(name, _) = x { Some(name) } else { None })
+                    schema.definitions().keys()
                         .filter(|x| tables.contains(x))
                         .for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
                     table_filter.set_source_model(&table_model);
@@ -2425,7 +2432,7 @@ impl AppUI {
                     main_grid.add_widget_5a(&table_dropdown, 1, 0, 1, 1);
                     main_grid.add_widget_5a(&table_filter_line_edit, 2, 0, 1, 1);
                 }
-                None => return Some(Err(ErrorKind::SchemaNotFound.into())),
+                None => return Some(Err(anyhow!("There is no Schema for the Game Selected."))),
             }
         }
 
@@ -2451,9 +2458,9 @@ impl AppUI {
         // Show the Dialog and, if we hit the "Create" button, return the corresponding NewPackedFileType.
         if dialog.exec() == 1 {
             let packed_file_name = name_line_edit.text().to_std_string();
-            match packed_file_type {
-                PackedFileType::AnimPack => Some(Ok(NewPackedFile::AnimPack(packed_file_name))),
-                PackedFileType::DB => {
+            match file_type {
+                FileType::AnimPack => Some(Ok(NewPackedFile::AnimPack(packed_file_name))),
+                FileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
                     let response = CentralCommand::recv(&receiver);
@@ -2464,8 +2471,8 @@ impl AppUI {
                     };
                     Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
                 },
-                PackedFileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
-                PackedFileType::Text(_) => Some(Ok(NewPackedFile::Text(packed_file_name, TextType::Plain))),
+                FileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
+                FileType::Text => Some(Ok(NewPackedFile::Text(packed_file_name, TextFormat::Plain))),
                 _ => unimplemented!(),
             }
         }
@@ -2575,12 +2582,13 @@ impl AppUI {
 
                 // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
-                if *path == [RESERVED_NAME_NOTES.to_owned()] {
+                let path_split = path.split("/").collect::<Vec<_>>();
+                if &*path == RESERVED_NAME_NOTES {
                     names.insert("Notes".to_owned(), 1);
-                } else if let Some(name) = path.last() {
-                    match names.get_mut(name) {
+                } else if let Some(name) = path_split.last() {
+                    match names.get_mut(*name) {
                         Some(name) => *name += 1,
-                        None => { names.insert(name.to_owned(), 1); },
+                        None => { names.insert(name.to_string(), 1); },
                     }
                 }
             }
@@ -2588,10 +2596,12 @@ impl AppUI {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = packed_file_view.get_mut_widget();
-            let widget_name = if *packed_file_view.get_ref_path() == [RESERVED_NAME_NOTES.to_owned()] {
+            let path = packed_file_view.get_ref_path();
+            let path_split = path.split("/").collect::<Vec<_>>();
+            let widget_name = if &*path == RESERVED_NAME_NOTES {
                 "Notes".to_owned()
-            } else if let Some(widget_name) = packed_file_view.get_ref_path().last() {
-                widget_name.to_owned()
+            } else if let Some(widget_name) = path_split.last() {
+                widget_name.to_string()
             } else {
                 "".to_owned()
             };
@@ -2615,7 +2625,7 @@ impl AppUI {
                 }
 
                 if count > &1 {
-                    name.push_str(&packed_file_view.get_ref_path().join("/"));
+                    name.push_str(&path);
                 } else {
                     name.push_str(&widget_name.to_owned());
                 };
@@ -2651,13 +2661,13 @@ impl AppUI {
             if indexes.contains(&index_widget) {
                 let path = packed_file_view.get_ref_path();
                 if !path.is_empty() {
-                    if path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                        purge_on_delete.push(path.to_vec());
-                        let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
+                    if *path == RESERVED_NAME_EXTRA_PACKFILE {
+                        purge_on_delete.push(path.to_owned());
+                        //let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
                     }
-                    else if path.last().unwrap().ends_with(DECODER_EXTENSION) {
-                        purge_on_delete.push(path.to_vec());
-                    }
+                    //else if path.ends_with(DECODER_EXTENSION) {
+                    //    purge_on_delete.push(path.to_owned());
+                    //}
                 }
             }
         }
@@ -2696,7 +2706,9 @@ impl AppUI {
         let was_window_disabled = !app_ui.main_window.is_enabled();
 
         // If the game changed, change the game selected.
-        if new_game_selected != GAME_SELECTED.read().unwrap().get_game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
+        dbg!(new_game_selected != GAME_SELECTED.read().unwrap().game_key_name());
+        dbg!(!FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst));
+        if new_game_selected != GAME_SELECTED.read().unwrap().game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
             FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
             game_changed = true;
 
@@ -2717,7 +2729,7 @@ impl AppUI {
             // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
             if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
                 UI_STATE.set_operational_mode(app_ui, None);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
@@ -2729,8 +2741,8 @@ impl AppUI {
         if rebuild_dependencies {
 
             // Purge all views that depend on the dependencies.
-            let paths_to_close: Vec<(DataSource, Vec<String>)> = UI_STATE.set_open_packedfiles().iter()
-                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_ref_path().to_vec()))} else { None })
+            let paths_to_close: Vec<(DataSource, String)> = UI_STATE.set_open_packedfiles().iter()
+                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_path()))} else { None })
                 .collect();
 
             for (data_source, path) in paths_to_close {
@@ -2744,16 +2756,18 @@ impl AppUI {
             let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::DependenciesInfo(response) => {
+                    dbg!(1111);
                     let mut parent_build_data = BuildData::new();
-                    parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+                    parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
                     dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
 
                     if game_changed {
+                    dbg!(2222);
                         let mut game_build_data = BuildData::new();
-                        game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+                        game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files().to_vec()));
 
                         let mut asskit_build_data = BuildData::new();
-                        asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+                        asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
 
                         dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
                         dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
@@ -2790,7 +2804,7 @@ impl AppUI {
         let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
 
         // Reset the autosave timer.
-        let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+        let timer = setting_int("autosave_interval");
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -2805,7 +2819,7 @@ impl AppUI {
         // Close any open PackedFile and clear the global search panel.
         let _ = AppUI::purge_them_all(app_ui,  pack_file_contents_ui, false);
         GlobalSearchUI::clear(global_search_ui);
-        diagnostics_ui.get_ref_diagnostics_table_model().clear();
+        diagnostics_ui.diagnostics_table_model().clear();
 
         // New PackFiles are always of Mod type.
         app_ui.change_packfile_type_mod.set_checked(true);
@@ -2837,7 +2851,7 @@ impl AppUI {
         match response {
             Response::DependenciesInfo(response) => {
                 let mut parent_build_data = BuildData::new();
-                parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+                parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
                 dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
             }
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -2861,7 +2875,8 @@ impl AppUI {
 
             // If we have a "MyMod" selected...
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+                let mymods_base_path = setting_path("mymods_base_path");
+                if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
                     let mut mod_name = mod_name.to_owned();
@@ -2876,7 +2891,7 @@ impl AppUI {
                     assets_folder.push(&mod_name);
 
                     // Get the Paths of the files inside the folders we want to add.
-                    let paths: Vec<PathBuf> = match get_files_from_subdir(&assets_folder, true) {
+                    let paths: Vec<PathBuf> = match files_from_subdir(&assets_folder, true) {
                         Ok(paths) => paths,
                         Err(error) => {
                             app_ui.main_window.set_enabled(true);
@@ -2885,16 +2900,16 @@ impl AppUI {
                     };
 
                     // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                    let mut paths_packedfile: Vec<String> = vec![];
                     for path in &paths {
                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                        paths_packedfile.push(filtered_path.to_string_lossy().to_string());
                     }
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(false));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
                     let response = CentralCommand::recv(&receiver);
                     let settings = match response {
-                        Response::PackFileSettings(settings) => settings,
+                        Response::PackSettings(settings) => settings,
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
@@ -2910,9 +2925,9 @@ impl AppUI {
                 }
 
                 // If there is no MyMod path configured, report it.
-                else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
+                else { show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false) }
             }
-            OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAMyMod, false),
+            OperationalMode::Normal => show_dialog(&app_ui.main_window, "This action is only available for MyMods.", false),
         }
 
         app_ui.main_window.set_enabled(true);
@@ -2922,7 +2937,7 @@ impl AppUI {
     pub unsafe fn export_mymod(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        paths_to_extract: Option<Vec<PathType>>
+        paths_to_extract: Option<Vec<ContainerPath>>
     ) {
         PackFileContentsUI::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
     }

@@ -19,7 +19,7 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
+use rpfm_lib::files::ca_vp8::SupportedFormats;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::DataSource;
@@ -56,8 +56,8 @@ impl PackedFileCaVp8ViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                view.set_current_format(SupportedFormats::Camv);
-                view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Camv)));
+                view.set_current_format(SupportedFormats::CaVp8);
+                view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::CaVp8)));
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.

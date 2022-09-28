@@ -91,7 +91,7 @@ impl PackFileExtraView {
         let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFileExtra(pack_file_path.clone()));
         let response = CentralCommand::recv(&receiver);
         match response {
-            Response::PackFileInfo(_) => {},
+            Response::ContainerInfo(_) => {},
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

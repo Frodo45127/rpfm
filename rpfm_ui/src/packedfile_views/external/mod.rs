@@ -21,17 +21,13 @@ use qt_core::QString;
 use qt_core::QPtr;
 
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_error::Result;
-
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -60,20 +56,12 @@ impl PackedFileExternalView {
 
     /// This function creates a new CaVp8 View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
+        packed_file_path: &Rc<RefCell<String>>,
         app_ui: &Rc<AppUI>,
         packed_file_view: &mut PackedFileView,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) -> Result<()> {
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(packed_file_path.borrow().to_vec()));
-        let response = CentralCommand::recv(&receiver);
-        let external_path = match response {
-            Response::PathBuf(external_path) => external_path,
-            Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
-
+        external_path: &Path,
+    ) {
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
         let current_name_label = QLabel::from_q_string_q_widget(&qtr("external_current_path"), packed_file_view.get_mut_widget());
@@ -87,7 +75,7 @@ impl PackedFileExternalView {
         layout.add_widget_5a(&open_folder_button, 1, 1, 1, 1);
 
         let packed_file_external_view = Arc::new(PackedFileExternalView {
-            external_path: Arc::new(external_path),
+            external_path: Arc::new(external_path.to_owned()),
             stop_watching_button,
             open_folder_button,
         });
@@ -101,9 +89,7 @@ impl PackedFileExternalView {
 
         connections::set_connections(&packed_file_external_view, &packed_file_external_view_slots);
         packed_file_view.view = ViewType::External(packed_file_external_view);
-        packed_file_view.packed_file_type = PackedFileType::Unknown;
-
-        Ok(())
+        packed_file_view.packed_file_type = FileType::Unknown;
     }
 
     /// This function returns a copy of the external path of the PackedFile.

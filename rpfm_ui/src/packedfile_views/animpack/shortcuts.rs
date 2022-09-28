@@ -28,16 +28,16 @@ use super::PackedFileAnimPackView;
 pub unsafe fn set_shortcuts(ui: &Arc<PackedFileAnimPackView>) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
-    ui.get_ref_pack_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
-    ui.get_ref_pack_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
-    ui.get_ref_anim_pack_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
-    ui.get_ref_anim_pack_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
-    ui.get_ref_anim_pack_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["delete"])));
+    ui.pack_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
+    ui.pack_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
+    ui.anim_pack_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
+    ui.anim_pack_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
+    ui.anim_pack_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["delete"])));
 
-    ui.get_ref_pack_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.get_ref_pack_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.get_ref_anim_pack_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.get_ref_anim_pack_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.get_ref_anim_pack_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.pack_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.pack_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.anim_pack_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.anim_pack_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.anim_pack_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
 
 }

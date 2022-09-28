@@ -34,6 +34,7 @@ use qt_core::QString;
 
 use crate::ffi::*;
 use crate::locale::qtr;
+use crate::settings_ui::backend::*;
 use crate::utils::create_grid_layout;
 
 pub mod connections;

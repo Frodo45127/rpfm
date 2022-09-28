@@ -26,19 +26,20 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QPtr;
 
+use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::GAME_SELECTED;
-
-use crate::SUPPORTED_GAMES;
-
 use crate::app_ui::AppUI;
+use crate::GAME_SELECTED;
 use crate::locale::qtr;
+use crate::settings_ui::backend::*;
+use crate::SUPPORTED_GAMES;
 use crate::utils::create_grid_layout;
-use self::slots::MyModUISlots;
 
-mod connections;
-mod slots;
+//use self::slots::MyModUISlots;
+
+//mod connections;
+//mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -98,12 +99,12 @@ impl MyModUI {
         // Add the games to the ComboBox.
         let mut selected_index = 0;
         let mut selected_index_counter = 0;
-        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
-        for game in SUPPORTED_GAMES.get_games() {
-            if game.get_supports_editing() {
-                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
+        let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
+        for game in SUPPORTED_GAMES.games() {
+            if game.supports_editing() {
+                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name()));
 
-                if game.get_game_key_name() == game_selected {
+                if game.game_key_name() == game_selected {
                     selected_index = selected_index_counter
                 }
                 selected_index_counter += 1;
@@ -136,8 +137,8 @@ impl MyModUI {
             mymod_accept_button,
         });
 
-        let mymod_slots = MyModUISlots::new(&mymod_ui);
-        connections::set_connections(&mymod_ui, &mymod_slots);
+        //let mymod_slots = MyModUISlots::new(&mymod_ui);
+        //connections::set_connections(&mymod_ui, &mymod_slots);
 
         // Execute the dialog and return the result if we accepted.
         if mymod_ui.mymod_dialog.exec() == 1 {
@@ -160,7 +161,8 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+        let mod_path = PathBuf::from(setting_string("mymods_base_path"));
+        if !mod_path.is_dir() {
 
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {

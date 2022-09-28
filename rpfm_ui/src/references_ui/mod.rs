@@ -37,6 +37,8 @@ use qt_core::q_item_selection_model::SelectionFlag;
 
 use cpp_core::Ptr;
 
+use getset::Getters;
+
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
@@ -60,16 +62,16 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the References panel.
-#[derive(Getters, MutGetters, Set)]
+#[derive(Getters)]
 pub struct ReferencesUI {
 
     //-------------------------------------------------------------------------------//
     // `References` Dock Widget.
     //-------------------------------------------------------------------------------//
-    references_dock_widget: QBox<QDockWidget>,
-    references_table_view: QBox<QTableView>,
-    references_table_filter: QBox<QSortFilterProxyModel>,
-    references_table_model: QBox<QStandardItemModel>,
+    pub references_dock_widget: QBox<QDockWidget>,
+    pub references_table_view: QBox<QTableView>,
+    pub references_table_filter: QBox<QSortFilterProxyModel>,
+    pub references_table_model: QBox<QStandardItemModel>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -198,7 +200,7 @@ impl ReferencesUI {
         references_ui: &Rc<Self>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
-
+        /*
         let filter_model: QPtr<QSortFilterProxyModel> = model_index_filtered.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter_model.source_model().static_downcast();
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
@@ -252,6 +254,6 @@ impl ReferencesUI {
                     table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
                 }
             }
-        }
+        }*/
     }
 }

@@ -12,6 +12,8 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use rpfm_lib::files::ContainerPath;
+use crate::pack_tree::new_pack_file_tooltip;
 use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
@@ -32,46 +34,47 @@ use qt_core::QString;
 use qt_core::QUrl;
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::packfile::PackFileSettings;
+use rpfm_lib::files::pack::PackSettings;
 
 use std::collections::BTreeMap;
 use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_error::ErrorKind;
-
-use rpfm_lib::DOCS_BASE_URL;
+//use rpfm_lib::DOCS_BASE_URL;
 use crate::GAME_SELECTED;
-use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType, CompressionState};
-use rpfm_lib::PATREON_URL;
-use rpfm_lib::schema::patch::SchemaPatch;
-use rpfm_lib::settings::get_config_path;
+use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
+//use rpfm_lib::packfile::{ContainerInfo, ContainerPath, PFHFileType, CompressionState};
+//use rpfm_lib::PATREON_URL;
+//use rpfm_lib::schema::patch::SchemaPatch;
+//use rpfm_lib::settings::get_config_path;
 
 
 use crate::app_ui::AppUI;
+use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
+use crate::DOCS_BASE_URL;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
-use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
+use crate::pack_tree::{BuildData, PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::pack_tree::TreePathType;
+//use crate::pack_tree::ContainerPath;
+use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::SettingsUI;
-use crate::tools::faction_painter::ToolFactionPainter;
-use crate::tools::unit_editor::ToolUnitEditor;
+use crate::settings_ui::{backend::*, SettingsUI};
+//use crate::tools::faction_painter::ToolFactionPainter;
+//use crate::tools::unit_editor::ToolUnitEditor;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
 use crate::VERSION;
 use crate::VERSION_SUBTITLE;
-use crate::views::table::utils::{get_reference_data, setup_item_delegates};
+//use crate::views::table::utils::{get_reference_data, setup_item_delegates};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -266,7 +269,7 @@ impl AppUISlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if setting_bool["diagnostics_trigger_on_open"] {
+                        if setting_bool("diagnostics_trigger_on_open") {
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
@@ -316,40 +319,40 @@ impl AppUISlots {
 
                 // Ensure it's a file and it's not in data before proceeding.
                 if !pack_path.is_file() {
-                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
+                    return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
 
                     if pack_path.starts_with(&game_local_mods_path) {
-                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                        return show_dialog(&app_ui.main_window, "This Pack is already being edited from the data folder of the game. You cannot install/uninstall it.", false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
                         game_local_mods_path.push(&mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
-                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                            Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
 
                         if ca_paths.contains(&game_local_mods_path) {
-                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
+                            return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false);
                         }
 
                         if copy(pack_path, &game_local_mods_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
+                            return show_dialog(&app_ui.main_window, "Error installing a Pack. Make sure the game/assembly kit is close and try again.", false);
                         }
 
                         // Try to copy the image too if exists.
                         game_local_mods_path.pop();
                         game_local_mods_path.push(pack_image_path.file_name().unwrap());
                         if pack_image_path.is_file() && copy(pack_image_path, &game_local_mods_path).is_err()  {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_local_mods_path), false);
+                            return show_dialog(&app_ui.main_window, "Error installing the thumbnail of a Pack. Make sure the game/assembly kit is close and try again.", false);
                         }
 
                         // Report the success, so the user knows it worked.
@@ -374,32 +377,32 @@ impl AppUISlots {
 
                 // Ensure it's a file and it's not in data before proceeding.
                 if !pack_path.is_file() {
-                    return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsNotAFile, false);
+                    return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path() {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
-                        return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                        return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
 
                     if pack_path.starts_with(&game_local_mods_path) {
-                        return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsAlreadyInDataFolder, false);
+                        return show_dialog(&app_ui.main_window, "This Pack is already being edited from the data folder of the game. You cannot install/uninstall it.", false);
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
                         game_local_mods_path.push(&mod_name);
 
-                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths() {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
-                            Err(_) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false),
+                            Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
 
                         if ca_paths.contains(&game_local_mods_path) {
-                            return show_dialog(&app_ui.main_window, ErrorKind::PackFileIsACAPackFile, false);
+                            return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false);
                         }
 
                         if remove_file(&game_local_mods_path).is_err() {
-                            return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_local_mods_path; 1]), false);
+                            return show_dialog(&app_ui.main_window, "Error uninstalling the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
                         }
 
                         // Report the success, so the user knows it worked.
@@ -418,14 +421,13 @@ impl AppUISlots {
             pack_file_contents_ui,
             global_search_ui => move |_| {
 
-
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
             if AppUI::are_you_sure(&app_ui, false) {
                 info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
-                let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                let timer = setting_int("autosave_interval");
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -443,10 +445,10 @@ impl AppUISlots {
                 match response {
 
                     // If it's success....
-                    Response::PackFileInfo(ui_data) => {
+                    Response::ContainerInfo(ui_data) => {
 
-                        // Set this PackFile always to type `Other`.
-                        app_ui.change_packfile_type_other.set_checked(true);
+                        // Set this PackFile always to type `Release`.
+                        app_ui.change_packfile_type_release.set_checked(true);
 
                         // Disable all of these.
                         app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
@@ -455,18 +457,18 @@ impl AppUISlots {
                         app_ui.change_packfile_type_header_is_extended.set_checked(false);
 
                         // Set the compression level correctly, because otherwise we may fuckup some files.
-                        let compression_state = match ui_data.compression_state {
-                            CompressionState::Enabled => true,
-                            CompressionState::Partial | CompressionState::Disabled => false,
-                        };
-                        app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
+                        //let compression_state = match ui_data.compression_state {
+                        //    CompressionState::Enabled => true,
+                        //    CompressionState::Partial | CompressionState::Disabled => false,
+                        //};
+                        //app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
-                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+                        match &*GAME_SELECTED.read().unwrap().game_key_name() {
                             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
                             KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
@@ -505,7 +507,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Change PackFile Type` By Slot");
-
+                // TODO: Replace this with the libs function.
                 // Get the currently selected PackFile's Type.
                 let packfile_type = match &*(app_ui.change_packfile_type_group
                     .checked_action().text().to_std_string()) {
@@ -514,7 +516,7 @@ impl AppUISlots {
                     "&Patch" => PFHFileType::Patch,
                     "&Mod" => PFHFileType::Mod,
                     "Mo&vie" => PFHFileType::Movie,
-                    _ => PFHFileType::Other(99),
+                    _ => unreachable!()
                 };
 
                 // Send the type to the Background Thread, and update the UI.
@@ -551,42 +553,27 @@ impl AppUISlots {
             global_search_ui => move |_| {
                 info!("Triggering `Preferences Dialog` By Slot");
 
-                // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
-                let old_settings = SETTINGS.read().unwrap().clone();
-                if let Some(settings) = SettingsUI::new(&app_ui) {
+                let game_key = GAME_SELECTED.read().unwrap().game_key_name();
+                let mymod_path_old = setting_path(MYMOD_BASE_PATH);
+                let game_path_old = setting_path(&game_key);
+                let ak_path_old = setting_path(&format!("{}_assembly_kit", game_key));
+                if SettingsUI::new(&app_ui) {
 
-                    // If we returned new settings, save them and wait for confirmation.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::SetSettings(settings.clone()));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
+                    let mymod_path_new = setting_path(MYMOD_BASE_PATH);
+                    let game_path_new = setting_path(&game_key);
+                    let ak_path_new = setting_path(&format!("{}_assembly_kit", game_key));
 
-                        // If it worked, do some checks to ensure the UI keeps his consistency.
-                        Response::Success => {
+                    // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
+                    // next time we open the MyMod menu.
+                    if mymod_path_old != mymod_path_new {
+                        UI_STATE.set_operational_mode(&app_ui, None);
+                        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                    }
 
-                            // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
-                            // next time we open the MyMod menu.
-                            if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
-                                UI_STATE.set_operational_mode(&app_ui, None);
-                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
-                            }
-
-                            // If we have changed the path of any of the games, and that game is the current `GameSelected`,
-                            // re-select the current `GameSelected` to force it to reload the game's files.
-                            let game_selected_key = GAME_SELECTED.read().unwrap().get_game_key_name();
-                            let has_game_selected_path_changed = settings.paths.iter()
-                                .filter(|x| x.0 != "mymods_base_path" && &old_settings.paths[x.0] != x.1)
-                                .any(|x| x.0 == &game_selected_key);
-
-                            if has_game_selected_path_changed {
-                                QAction::trigger(&app_ui.game_selected_group.checked_action());
-                            }
-                        }
-
-                        // If we got an error, report it.
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-
-                        // In ANY other situation, it's a message problem.
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                    // If we have changed the path of any of the games, and that game is the current `GameSelected`,
+                    // re-select the current `GameSelected` to force it to reload the game's files.
+                    if game_path_old != game_path_new || ak_path_old != ak_path_new {
+                        QAction::trigger(&app_ui.game_selected_group.checked_action());
                     }
                 }
             }
@@ -617,10 +604,12 @@ impl AppUISlots {
         // What happens when we trigger the "Open MyMod Folder" action.
         let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+            let path = setting_path("mymods_base_path");
+            if path.is_dir() {
                 open::that_in_background(&path);
+            } else {
+                show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
-            else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
         }));
 
         // This slot is used for the "New MyMod" action.
@@ -666,22 +655,22 @@ impl AppUISlots {
                             GlobalSearchUI::clear(&global_search_ui);
 
                             // Reset the autosave timer.
-                            let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                            let timer = setting_int("autosave_interval");
                             if timer > 0 {
                                 app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                                 app_ui.timer_backup_autosave.start_0a();
                             }
 
                             // Prepare the settings to automatically ignore the .vscode, .git and sublime-project files.
-                            let mut pack_file_settings = PackFileSettings::default();
-                            pack_file_settings.settings_text.insert("import_files_to_ignore".to_owned(), format!(".vscode\n.git\n{}.sublime-project", mod_name));
+                            let mut pack_settings = PackSettings::default();
+                            pack_settings.settings_text.insert("import_files_to_ignore".to_owned(), format!(".vscode\n.git\n{}.sublime-project", mod_name));
 
                             let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
-                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackFileSettings(pack_file_settings));
+                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
                             let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
                             let response = CentralCommand::recv_try(&receiver);
                             match response {
-                                Response::PackFileInfo(pack_file_info) => {
+                                Response::ContainerInfo(pack_file_info) => {
 
                                     let mut build_data = BuildData::new();
                                     build_data.editable = true;
@@ -698,7 +687,7 @@ impl AppUISlots {
                                     app_ui.change_packfile_type_header_is_extended.set_checked(false);
                                     app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
-                                    AppUI::enable_packfile_actions(&app_ui, &pack_file_info.file_path, true);
+                                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
 
                                     UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
                                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -749,8 +738,8 @@ impl AppUISlots {
                         // copy the PackFile to the data folder of the selected game.
                         OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                             old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
-                            if let Some(ref mymods_base_path) = mymods_base_path {
+                            let mymods_base_path = setting_path("mymods_base_path");
+                            if mymods_base_path.is_dir() {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -758,12 +747,12 @@ impl AppUISlots {
                                 mymod_path.push(&mod_name);
 
                                 if !mymod_path.is_file() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
+                                    return show_dialog(&app_ui.main_window, "The Pack of the selected MyMod doesn't exists, so it can't be installed or removed.", false);
                                 }
 
                                 // Try to delete his PackFile. If it fails, return error.
                                 if remove_file(&mymod_path).is_err() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_path; 1]), false);
+                                    return show_dialog(&app_ui.main_window, "Error deleting the MyMod's Pack.", false);
                                 }
 
                                 // Now we get his assets folder.
@@ -774,23 +763,23 @@ impl AppUISlots {
                                 // We check that path exists. This is optional, so it should allow the deletion
                                 // process to continue with a warning.
                                 if !mymod_assets_path.is_dir() {
-                                    show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDeletedFolderNotFound, false);
+                                    show_dialog(&app_ui.main_window, "The Mod's Pack has been deleted, but his assets folder is nowhere to be found.", false);
                                 }
 
                                 // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
                                 else if remove_dir_all(&mymod_assets_path).is_err() {
-                                    show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]), false);
+                                    show_dialog(&app_ui.main_window, "Error deleting the MyMod's Asset Folder.", false);
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
                                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
                                 true
                             }
-                            else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+                            else { return show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false); }
                         }
 
                         // If we have no "MyMod" selected, return an error.
-                        OperationalMode::Normal => return show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                        OperationalMode::Normal => return show_dialog(&app_ui.main_window, "You can't delete the selected MyMod if there is no MyMod selected.", false),
                     };
 
                     // If we deleted the "MyMod", we allow chaos to form below.
@@ -818,7 +807,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `Export MyMod` By Slot");
-            AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![PathType::PackFile]));
+            AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![ContainerPath::Folder("".to_owned())]));
         }));
 
         //-----------------------------------------------//
@@ -835,9 +824,9 @@ impl AppUISlots {
             references_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
                 app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
-                app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible());
+                app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.diagnostics_dock_widget.is_visible());
                 app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
-                app_ui.view_toggle_references_panel.set_checked(references_ui.get_ref_references_dock_widget().is_visible());
+                app_ui.view_toggle_references_panel.set_checked(references_ui.references_dock_widget.is_visible());
         }));
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -857,8 +846,8 @@ impl AppUISlots {
 
         let view_toggle_diagnostics_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             diagnostics_ui => move |state| {
-                if !state { diagnostics_ui.get_ref_diagnostics_dock_widget().hide(); }
-                else { diagnostics_ui.get_ref_diagnostics_dock_widget().show();}
+                if !state { diagnostics_ui.diagnostics_dock_widget.hide(); }
+                else { diagnostics_ui.diagnostics_dock_widget.show();}
         }));
 
         let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -869,8 +858,8 @@ impl AppUISlots {
 
         let view_toggle_references_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             references_ui => move |state| {
-                if !state { references_ui.get_ref_references_dock_widget().hide(); }
-                else { references_ui.get_ref_references_dock_widget().show();}
+                if !state { references_ui.references_dock_widget.hide(); }
+                else { references_ui.references_dock_widget.show();}
         }));
 
         //-----------------------------------------------//
@@ -880,39 +869,40 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match GAME_SELECTED.read().unwrap().get_game_launch_command() {
+            match GAME_SELECTED.read().unwrap().get_game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 Ok(command) => { open::that_in_background(&command); },
-                _ => show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false),
+                _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
         }));
 
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path() {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 open::that_in_background(&path);
             } else {
-                show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
         }));
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().get_assembly_kit_path() {
+            let path = setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().game_key_name()));
+            if path.is_dir() {
                 open::that_in_background(&path);
             } else {
-                show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
         }));
 
         // What happens when we trigger the "Open Config Folder" action.
         let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = get_config_path() {
+            if let Ok(path) = config_path() {
                 open::that_in_background(&path);
             } else {
-                show_dialog(&app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false);
+                show_dialog(&app_ui.main_window, "RPFM's config folder couldn't be open (maybe it doesn't exists?).", false);
             }
         }));
 
@@ -939,15 +929,9 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
                     info!("Triggering `Generate Dependencies Cache` By Slot");
 
-                    let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
-                    let asskit_path = match GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path() {
-                        Ok(path) => Some(path),
-                        Err(error) => {
-                            let error_message = error.to_string() + "<p>" + &tr("generate_dependencies_cache_warn") + "</p>";
-                            show_dialog(&app_ui.main_window, error_message, true);
-                            None
-                        }
-                    };
+                    if !setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().game_key_name())).is_dir() {
+                        show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), true);
+                    }
 
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
@@ -964,19 +948,19 @@ impl AppUISlots {
                     wait_dialog.set_standard_buttons(QFlags::from(0));
                     wait_dialog.show();
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache(asskit_path, version));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache);
                     let response = CentralCommand::recv_try(&receiver);
 
                     match response {
                         Response::DependenciesInfo(response) => {
                             let mut parent_build_data = BuildData::new();
-                            parent_build_data.data = Some((PackFileInfo::default(), response.parent_packed_files));
+                            parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
 
                             let mut game_build_data = BuildData::new();
-                            game_build_data.data = Some((PackFileInfo::default(), response.vanilla_packed_files));
+                            game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files().to_vec()));
 
                             let mut asskit_build_data = BuildData::new();
-                            asskit_build_data.data = Some((PackFileInfo::default(), response.asskit_tables));
+                            asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
 
                             dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
                             dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
@@ -1018,8 +1002,8 @@ impl AppUISlots {
                     let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
                     let response = CentralCommand::recv_try(&receiver);
                     match response {
-                        Response::VecVecString(response) => {
-                            let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                        Response::HashSetString(response) => {
+                            let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response), DataSource::PackFile);
                             show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
@@ -1053,9 +1037,9 @@ impl AppUISlots {
                 let receiver = CENTRAL_COMMAND.send_background(Command::PatchSiegeAI);
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
-                    Response::StringVecVecString(response) => {
-                        let message = response.0;
-                        let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                    Response::StringHashSetString(message, paths) => {
+                        let paths = paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
                         show_dialog(&app_ui.main_window, &message, true);
                     }
@@ -1101,7 +1085,7 @@ impl AppUISlots {
                         let receiver = CENTRAL_COMMAND.send_background(Command::CleanAndSavePackFileAs(path));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
-                            Response::PackFileInfo(pack_file_info) => {
+                            Response::ContainerInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
@@ -1138,11 +1122,11 @@ impl AppUISlots {
             diagnostics_ui,
             dependencies_ui => move || {
                 info!("Triggering `Faction Painter Tool` By Slot");
-
+                /*
                 app_ui.main_window.set_enabled(false);
                 if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
-                }
+                }*/
                 app_ui.main_window.set_enabled(true);
             }
         ));
@@ -1154,11 +1138,11 @@ impl AppUISlots {
             diagnostics_ui,
             dependencies_ui => move || {
                 info!("Triggering `Unit Editor Tool` By Slot");
-
+                /*
                 app_ui.main_window.set_enabled(false);
                 if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
-                }
+                }*/
                 app_ui.main_window.set_enabled(true);
             }
         ));
@@ -1287,7 +1271,7 @@ impl AppUISlots {
                 info!("Triggering `Update Current Schema from AssKit` By Slot");
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = GAME_SELECTED.read().unwrap().get_raw_db_version();
+                let version = GAME_SELECTED.read().unwrap().raw_db_version();
                 let path = match version {
                     1| 0 => {
 
@@ -1311,7 +1295,7 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit(path));
+                let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit);
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
                     Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
@@ -1327,7 +1311,7 @@ impl AppUISlots {
         let debug_import_schema_patch = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 info!("Triggering `Import Schema Patch` By Slot");
-
+                /*
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
@@ -1355,7 +1339,7 @@ impl AppUISlots {
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
-                }
+                }*/
 
                 app_ui.main_window.set_enabled(true);
             }
@@ -1378,6 +1362,7 @@ impl AppUISlots {
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = packed_file_view.get_mut_widget();
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                        /*
                         if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
@@ -1394,13 +1379,13 @@ impl AppUISlots {
                                     &table.timer_delayed_updates
                                 );
                             }
-                        }
+                        }*/
                         break;
                     }
                 }
 
                 // We also have to check for colliding packedfile names, so we can use their full path instead.
-                AppUI::update_views_names(&app_ui);
+                app_ui.update_views_names();
 
                 // Update the background icon.
                 GameSelectedIcons::set_game_selected_icon(&app_ui);
@@ -1416,8 +1401,10 @@ impl AppUISlots {
                     if app_ui.tab_bar_packed_file.index_of(widget) == index {
                         if packed_file_view.get_is_preview() {
                             packed_file_view.set_is_preview(false);
+                            let path = packed_file_view.get_ref_path();
+                            let path_split = path.split("/").collect::<Vec<_>>();
 
-                            let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+                            let name = path_split.last().unwrap().to_owned();
                             app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
                         }
                         break;
@@ -1431,23 +1418,15 @@ impl AppUISlots {
             app_ui => move || {
                 info!("Triggering `Autosave` By Slot");
 
-                let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileSettings(true));
-                let response = CentralCommand::recv_try(&receiver);
-                let settings = match response {
-                    Response::PackFileSettings(settings) => settings,
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                };
+                if !setting_bool("disable_autosaves") {
+                    let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
+                    log_to_status_bar(&tr("autosaving"));
 
-                if let Some(disable_autosaves) = settings.settings_bool.get("disable_autosaves") {
-                    if !disable_autosaves {
-                        let _ = CENTRAL_COMMAND.send_background(Command::TriggerBackupAutosave);
-                        log_to_status_bar(&tr("autosaving"));
-                        // Reset the timer.
-                        let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
-                        if timer > 0 {
-                            app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                            app_ui.timer_backup_autosave.start_0a();
-                        }
+                    // Reset the timer.
+                    let timer = setting_int("autosave_interval");
+                    if timer > 0 {
+                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                        app_ui.timer_backup_autosave.start_0a();
                     }
                 }
             }
@@ -1535,7 +1514,7 @@ impl AppUISlots {
             pack_file_contents_ui,
             dependencies_ui => move || {
                 info!("Triggering `Import from Dependencies` By Slot");
-
+                /*
                 // Only allow importing if we currently have a PackFile open.
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
 
@@ -1551,7 +1530,7 @@ impl AppUISlots {
                         }) {
                             let path = packed_file_view.get_ref_path();
                             let data_source = packed_file_view.get_data_source();
-                            paths_by_source.insert(data_source, vec![PathType::File(path.to_vec())]);
+                            paths_by_source.insert(data_source, vec![ContainerPath::File(path.to_vec())]);
                             Some((data_source, path.to_vec()))
                         } else { None };
 
@@ -1587,7 +1566,7 @@ impl AppUISlots {
                         }
                     }
                     app_ui.update_views_names();
-                }
+                }*/
             }
         ));
 

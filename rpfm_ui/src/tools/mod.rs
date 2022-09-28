@@ -53,7 +53,7 @@ use rpfm_error::{ErrorKind, Result};
 use getset::*;
 
 use crate::GAME_SELECTED;
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::packfile::ContainerPath;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc, Table};
@@ -69,7 +69,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, ContainerPath, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::*;
 use crate::UI_STATE;
@@ -116,7 +116,7 @@ pub struct Tool {
     main_widget: QBox<QWidget>,
 
     /// Paths which the tool requires data from.
-    used_paths: Vec<PathType>,
+    used_paths: Vec<ContainerPath>,
 
     /// Stored PackedFiles, for quickly pulling data from them if needed.
     packed_files: Rc<RefCell<HashMap<DataSource, HashMap<Vec<String>, PackedFile>>>>,
@@ -136,7 +136,7 @@ pub struct Tool {
 impl Tool {
 
     /// This function creates a Tool with the data it needs.
-    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[PathType], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
+    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[ContainerPath], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
 
         // First, some checks to ensure we can actually open a tool.
         // The requirements for all tools are:
@@ -171,7 +171,7 @@ impl Tool {
         kmessage_widget_close_safe(&message_widget.as_ptr());
 
         // Dedup the paths.
-        let used_paths = PathType::dedup(paths);
+        let used_paths = ContainerPath::dedup(paths);
 
         // Then, build the tool.
         Ok(Self{
@@ -217,8 +217,8 @@ impl Tool {
             Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)) => {
 
                 // Get the list of paths to add, removing those we "replaced".
-                let paths_to_add = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                let paths_to_delete = paths_to_delete.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                let paths_to_add = paths_to_add.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
+                let paths_to_delete = paths_to_delete.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
 
                 // Update the TreeView.
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
@@ -238,7 +238,7 @@ impl Tool {
 
     /// This function takes care of backing up the open files we need for the tool, so we always have their latest data.
     ///
-    /// Really... we backup everything. To be optimized in the future for backing up only specific PathTypes.
+    /// Really... we backup everything. To be optimized in the future for backing up only specific ContainerPaths.
     pub unsafe fn backup_used_paths(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)
     }
@@ -250,28 +250,28 @@ impl Tool {
         let mut paths_to_purge = vec![];
         for path_type in &self.used_paths {
             match path_type {
-                PathType::File(ref path) => {
+                ContainerPath::File(ref path) => {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
-                PathType::Folder(ref path) => {
+                ContainerPath::Folder(ref path) => {
                     for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
-                PathType::PackFile => {
+                ContainerPath::PackFile => {
                     for packed_file_view in &mut *UI_STATE.set_open_packedfiles() {
                         if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(packed_file_view.get_path().to_vec());
                         }
                     }
                 },
-                PathType::None => unimplemented!(),
+                ContainerPath::None => unimplemented!(),
             }
         }
 

@@ -35,9 +35,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_error::ErrorKind;
-
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::files::ContainerPath;
 
 
 use crate::app_ui::AppUI;
@@ -46,8 +44,9 @@ use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICA
 use crate::ffi::trigger_treeview_filter_safe;
 use crate::locale::{qtr, qtre};
 use crate::packedfile_views::DataSource;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::settings_ui::backend::setting_path;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
@@ -64,7 +63,7 @@ impl PackFileContentsUI {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
-        paths_packedfile: &[Vec<String>],
+        paths_packedfile: &[String],
         paths_to_ignore: Option<Vec<PathBuf>>,
         import_tables_from_tsv: bool
     ) {
@@ -72,13 +71,13 @@ impl PackFileContentsUI {
         if !window_was_disabled {
             app_ui.main_window.set_enabled(false);
         }
-
+        /*
         let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
-            Response::VecPathType(paths) => {
-                let paths = paths.iter().map(From::from).collect::<Vec<TreePathType>>();
+            Response::VecContainerPath(paths) => {
+                let paths = paths.iter().map(From::from).collect::<Vec<ContainerPath>>();
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
@@ -105,7 +104,7 @@ impl PackFileContentsUI {
             Response::Success => {},
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
-        }
+        }*/
 
         // Re-enable the Main Window.
         if !window_was_disabled {
@@ -118,24 +117,24 @@ impl PackFileContentsUI {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
-        paths_packedfile: &[Vec<String>],
+        paths_packedfile: &[String],
         paths_to_ignore: Option<Vec<PathBuf>>,
         import_tables_from_tsv: bool
-    ) {
+    ) {/*
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
         let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
         let response = CentralCommand::recv(&receiver);
         match response {
-            Response::VecPathType(paths_packedfile) => {
-                let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
+            Response::VecContainerPath(paths_packedfile) => {
+                let paths = paths_packedfile.iter().map(From::from).collect::<Vec<ContainerPath>>();
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths_packedfile.iter().filter_map(|path| {
-                    if let PathType::File(path) = path {
+                    if let ContainerPath::File(path) = path {
                         if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                                 Some(path.to_vec())
@@ -151,7 +150,7 @@ impl PackFileContentsUI {
 
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        }
+        }*/
 
         // Re-enable the Main Window.
         app_ui.main_window.set_enabled(true);
@@ -180,7 +179,7 @@ impl PackFileContentsUI {
     /// This function creates the entire "Rename" dialog.
     ///
     ///It returns the new name of the Item, or `None` if the dialog is canceled or closed.
-    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[TreePathType]) -> Option<String> {
+    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[ContainerPath]) -> Option<String> {
 
         // Create and configure the dialog.
         let dialog = QDialog::new_1a(&app_ui.main_window);
@@ -200,8 +199,8 @@ impl PackFileContentsUI {
 
         // If we only have one selected item, put his name by default in the rename dialog.
         if selected_items.len() == 1 {
-            if let TreePathType::File(path) | TreePathType::Folder(path) = &selected_items[0] {
-                rewrite_sequence_line_edit.set_text(&QString::from_std_str(path.last().unwrap()));
+            if let ContainerPath::File(path) | ContainerPath::Folder(path) = &selected_items[0] {
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(path));
             }
         }
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
@@ -303,24 +302,22 @@ impl PackFileContentsUI {
     pub unsafe fn extract_packed_files(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
-        paths_to_extract: Option<Vec<PathType>>,
+        paths_to_extract: Option<Vec<ContainerPath>>,
         extract_tables_as_tsv: bool,
     ) {
 
         // Get the currently selected paths (and visible) paths, or the ones received from the function.
         let items_to_extract = match paths_to_extract {
             Some(paths) => paths,
-            None => {
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                selected_items.iter().map(From::from).collect::<Vec<PathType>>()
-            }
+            None => <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui),
         };
 
         let extraction_path = match UI_STATE.get_operational_mode() {
 
             // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+                let mymods_base_path = setting_path("mymods_base_path");
+                if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
                     let mut mod_name = mod_name.to_owned();
@@ -337,7 +334,10 @@ impl PackFileContentsUI {
                 }
 
                 // If there is no MyMod path configured, report it.
-                else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
+                else {
+                    return;
+                    //return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true);
+                }
             }
 
             // In normal mode, we ask the user to provide us with a path.
@@ -361,6 +361,7 @@ impl PackFileContentsUI {
         }
 
         else {
+            /*
             let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
             app_ui.main_window.set_enabled(false);
             let response = CentralCommand::recv_try(&receiver);
@@ -370,6 +371,7 @@ impl PackFileContentsUI {
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
             app_ui.main_window.set_enabled(true);
+            */
         }
     }
 

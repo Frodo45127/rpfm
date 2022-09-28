@@ -99,9 +99,9 @@ impl SettingsUISlots {
         let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
-
+                /*
                 // Restore RPFM settings.
-                if let Err(error) = ui.load(&Settings::new()) {
+                if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
@@ -110,7 +110,7 @@ impl SettingsUISlots {
                 app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
                 app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
-
+                */
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
             }
         ));

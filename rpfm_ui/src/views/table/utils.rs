@@ -36,15 +36,17 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 
 use rayon::prelude::*;
+use rpfm_lib::schema::DefinitionPatch;
 
 use std::collections::BTreeMap;
 use std::cmp::{Ordering, Reverse};
 use std::rc::Rc;
 use std::sync::{atomic::AtomicPtr, RwLock};
 
-use rpfm_lib::packedfile::table::{DependencyData, Table};
-use rpfm_lib::schema::{Definition, Field, FieldType};
+use rpfm_extensions::dependencies::TableReferences;
 
+use rpfm_lib::files::table::Table;
+use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use crate::ffi::*;
 use crate::locale::{qtr, tr, tre};
@@ -211,18 +213,18 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 }
 
 /// This function returns a new default row.
-pub unsafe fn get_new_row(table_definition: &Definition, table_name: Option<&str>) -> CppBox<QListOfQStandardItem> {
+pub unsafe fn get_new_row(table_definition: &Definition, table_name: Option<&str>, patches: Option<&DefinitionPatch>) -> CppBox<QListOfQStandardItem> {
     let qlist = QListOfQStandardItem::new();
     for field in table_definition.fields_processed() {
-        let item = get_default_item_from_field(&field, table_name);
+        let item = get_default_item_from_field(&field, table_name, patches);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
     qlist
 }
 
 /// This function generates a *Default* StandardItem for the provided field.
-pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str>) -> CppBox<QStandardItem> {
-    let item = match field.get_ref_field_type() {
+pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str>, patches: Option<&DefinitionPatch>) -> CppBox<QStandardItem> {
+    let item = match field.field_type() {
         FieldType::Boolean => {
             let item = QStandardItem::new();
             item.set_editable(false);
@@ -230,7 +232,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
 
-            let check_state = if let Some(default_value) = field.get_default_value(table_name) {
+            let check_state = if let Some(default_value) = field.default_value(patches) {
                 default_value.to_lowercase() == "true"
             } else { false };
 
@@ -248,7 +250,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         }
         FieldType::F32 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value(table_name) {
+            let data = if let Some(default_value) = field.default_value(patches) {
                 if let Ok(default_value) = default_value.parse::<f32>() {
                     default_value
                 } else {
@@ -267,7 +269,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         },
         FieldType::F64 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value(table_name) {
+            let data = if let Some(default_value) = field.default_value(patches) {
                 if let Ok(default_value) = default_value.parse::<f64>() {
                     default_value
                 } else {
@@ -284,9 +286,10 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
             item.set_data_2a(&QVariant::from_double(data), 2);
             item
         },
-        FieldType::I16 => {
+        FieldType::I16 |
+        FieldType::OptionalI16 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value(table_name) {
+            let data = if let Some(default_value) = field.default_value(patches) {
                 if let Ok(default_value) = default_value.parse::<i16>() {
                     default_value as i32
                 } else {
@@ -302,9 +305,10 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
             item.set_data_2a(&QVariant::from_int(data), 2);
             item
         },
-        FieldType::I32 => {
+        FieldType::I32 |
+        FieldType::OptionalI32 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value(table_name) {
+            let data = if let Some(default_value) = field.default_value(patches) {
                 if let Ok(default_value) = default_value.parse::<i32>() {
                     default_value
                 } else {
@@ -320,9 +324,10 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
             item.set_data_2a(&QVariant::from_int(data), 2);
             item
         },
-        FieldType::I64 => {
+        FieldType::I64 |
+        FieldType::OptionalI64 => {
             let item = QStandardItem::new();
-            let data = if let Some(default_value) = field.get_default_value(table_name) {
+            let data = if let Some(default_value) = field.default_value(patches) {
                 if let Ok(default_value) = default_value.parse::<i64>() {
                     default_value
                 } else {
@@ -339,7 +344,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
             item
         },
         FieldType::ColourRGB => {
-            let text = if let Some(default_value) = field.get_default_value(table_name) {
+            let text = if let Some(default_value) = field.default_value(patches) {
                 if u32::from_str_radix(&default_value, 16).is_ok() {
                     default_value.to_owned()
                 } else {
@@ -359,7 +364,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         FieldType::StringU16 |
         FieldType::OptionalStringU8 |
         FieldType::OptionalStringU16 => {
-            let text = if let Some(default_value) = field.get_default_value(table_name) {
+            let text = if let Some(default_value) = field.default_value(patches) {
                 default_value.to_owned()
             } else {
                 String::new()
@@ -373,18 +378,18 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         },
 
         FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
-            let table = serde_json::to_string(&Table::new(definition)).unwrap();
+            //let table = serde_json::to_string(&Table::new(definition)).unwrap();
             let item = QStandardItem::new();
 
             item.set_text(&qtr("packedfile_editable_sequence"));
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
+            //item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
             item
         }
     };
 
-    if field.get_is_key() {
+    if field.is_key() {
         item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_KEY);
     }
 
@@ -419,7 +424,7 @@ pub unsafe fn load_data(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &RwLock<BTreeMap<i32, DependencyData>>,
+    dependency_data: &RwLock<BTreeMap<i32, TableReferences>>,
     data: &TableType,
     timer: &QBox<QTimer>,
     data_source: DataSource,
@@ -430,23 +435,23 @@ pub unsafe fn load_data(
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
     // This wipes out header information, so remember to run "build_columns" after this.
     table_model.clear();
-
+    /*
     // Set the right data, depending on the table type you get.
     let (data, table_name) = match data {
-        TableType::AnimFragment(data) => (data.get_ref_table_data(), None),
-        TableType::AnimTable(data) => (data.get_ref_table_data(), None),
-        TableType::DependencyManager(data) => (&**data, None),
-        TableType::DB(data) => (data.get_ref_table_data(), Some(data.get_table_name())),
-        TableType::Loc(data) => (data.get_ref_table_data(), None),
-        TableType::MatchedCombat(data) => (data.get_ref_table_data(), None),
-        TableType::NormalTable(data) => (data.get_ref_table_data(), None),
+        TableType::AnimFragment(data) => (data.data().unwrap(), None),
+        TableType::AnimsTable(data) => (data.data().unwrap(), None),
+        //TableType::DependencyManager(data) => (&**data, None),
+        TableType::DB(data) => (data.data(&None).unwrap(), Some(data.table_name())),
+        TableType::Loc(data) => (data.data(&None).unwrap(), None),
+        TableType::MatchedCombat(data) => (data.data().unwrap(), None),
+        TableType::NormalTable(data) => (data.data(&None).unwrap(), None),
     };
 
     if !data.is_empty() {
 
         // Load the data, row by row.
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
-        let keys = definition.fields_processed().iter().enumerate().filter_map(|(x, y)| if y.get_is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
+        let keys = definition.fields_processed().iter().enumerate().filter_map(|(x, y)| if y.is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
         for (row, entry) in data.iter().enumerate() {
             let qlist = QListOfQStandardItem::new();
             for (column, field) in entry.iter().enumerate() {
@@ -478,7 +483,7 @@ pub unsafe fn load_data(
         definition,
         &dependency_data.read().unwrap(),
         timer
-    )
+    )*/
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
@@ -539,7 +544,8 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_double(data), 2);
             item
         },
-        DecodedData::I16(ref data) => {
+        DecodedData::I16(ref data) |
+        DecodedData::OptionalI16(ref data) => {
             let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -548,7 +554,8 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_int(*data as i32), 2);
             item
         },
-        DecodedData::I32(ref data) => {
+        DecodedData::I32(ref data) |
+        DecodedData::OptionalI32(ref data) => {
             let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -557,7 +564,8 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_int(*data), 2);
             item
         },
-        DecodedData::I64(ref data) => {
+        DecodedData::I64(ref data) |
+        DecodedData::OptionalI64(ref data) => {
             let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -614,7 +622,7 @@ pub unsafe fn build_columns(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: Option<&QPtr<QTableView>>,
     definition: &Definition,
-    table_name: Option<&String>,
+    table_name: Option<&str>,
 ) {
     let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
@@ -625,7 +633,7 @@ pub unsafe fn build_columns(
 
     for (index, field) in definition.fields_processed().iter().enumerate() {
 
-        let name = clean_column_names(field.get_name());
+        let name = clean_column_names(field.name());
         let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -633,14 +641,17 @@ pub unsafe fn build_columns(
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
         // Depending on his type, set one width or another.
-        if !SETTINGS.read().unwrap().settings_bool["adjust_columns_to_content"] {
-            match field.get_ref_field_type() {
+        if !setting_bool("adjust_columns_to_content") {
+            match field.field_type() {
                 FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
                 FieldType::F32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::F64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::I64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::ColourRGB => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                 FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
                 FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
@@ -651,16 +662,16 @@ pub unsafe fn build_columns(
         }
 
         // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
-        if field.get_is_key() { keys.push(index); }
-        if field.get_ca_order() != -1 { do_we_have_ca_order |= true; }
+        if field.is_key() { keys.push(index); }
+        if field.ca_order() != -1 { do_we_have_ca_order |= true; }
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    if !SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] && do_we_have_ca_order {
+    if !setting_bool("tables_use_old_column_order") && do_we_have_ca_order {
         let header_primary = table_view_primary.horizontal_header();
         let mut fields = definition.fields_processed().iter()
             .enumerate()
-            .map(|(x, y)| (x, y.get_ca_order()))
+            .map(|(x, y)| (x, y.ca_order()))
             .collect::<Vec<(usize, i16)>>();
         fields.sort_by(|a, b| {
             if a.1 == -1 || b.1 == -1 { Ordering::Equal }
@@ -694,7 +705,7 @@ pub unsafe fn build_columns(
     }
 
     // If we want to let the columns resize themselves...
-    if SETTINGS.read().unwrap().settings_bool["adjust_columns_to_content"] {
+    if setting_bool("adjust_columns_to_content") {
         table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
     }
 }
@@ -703,7 +714,7 @@ pub unsafe fn build_columns(
 pub unsafe fn get_column_tooltips(
     schema: &Option<Schema>,
     fields: &[Field],
-    table_name: Option<&String>,
+    table_name: Option<&str>,
 ) -> Vec<String> {
 
     let mut tooltips = vec![];
@@ -714,23 +725,23 @@ pub unsafe fn get_column_tooltips(
     // - If the column is referenced by another column, we add it to the tooltip.
     if let Some(table_name) = table_name {
         if let Some(ref schema) = schema {
-
+            /*
             let versioned_files = schema.get_ref_versioned_file_db_all().into_iter();
             tooltips = fields.par_iter().map(|field| {
                 let mut tooltip_text = String::new();
-                if !field.get_description().is_empty() {
-                    tooltip_text.push_str(&format!("<p>{}</p>", field.get_description()));
+                if !field.description().is_empty() {
+                    tooltip_text.push_str(&format!("<p>{}</p>", field.description()));
                 }
 
-                if field.get_is_filename() {
-                    if let Some(path) = field.get_filename_relative_path() {
+                if field.is_filename() {
+                    if let Some(path) = field.filename_relative_path() {
                         tooltip_text.push_str(&format!("<p>{} <ul><li>{}</li></ul></p>", tr("column_tooltip_5"), path));
                     } else {
                         tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_4")));
                     }
                 }
 
-                if let Some(ref reference) = field.get_is_reference() {
+                if let Some(ref reference) = field.is_reference() {
                     tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
                 }
 
@@ -746,7 +757,7 @@ pub unsafe fn get_column_tooltips(
                                 for ref_version in ref_definition {
                                     for ref_field in ref_version.fields_processed() {
                                         if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
-                                            if ref_ref_table == short_table_name && ref_ref_field == field.get_name() {
+                                            if ref_ref_table == short_table_name && ref_ref_field == field.name() {
                                                 found = true;
                                                 columns.push((ref_table_name.to_owned(), ref_field.get_name().to_owned()));
                                             }
@@ -780,7 +791,7 @@ pub unsafe fn get_column_tooltips(
                     }
                 }
                 tooltip_text
-            }).collect::<Vec<String>>();
+            }).collect::<Vec<String>>();*/
         }
     }
 
@@ -788,13 +799,14 @@ pub unsafe fn get_column_tooltips(
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, DependencyData>> {
-
+pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, TableReferences>> {
+    Err(anyhow!("test"))
+    /*
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
     let receiver = CENTRAL_COMMAND.send_background(Command::GetterserenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
 
-    let reference_data = definition.get_reference_data();
+    let reference_data = definition.reference_data();
     let mut dependency_data_visual = BTreeMap::new();
 
     // If we have a referenced PackedFile open in a view, get the data from the view itself.
@@ -836,7 +848,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
 
     let mut response = CentralCommand::recv(&receiver);
     match response {
-        Response::BTreeMapI32DependencyData(ref mut dependency_data) => {
+        Response::BTreeMapI32TableReferences(ref mut dependency_data) => {
             for index in reference_data.keys() {
                 if let Some(column_data_visual) = dependency_data_visual.get(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
@@ -849,7 +861,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         },
         Response::Error(error) => Err(error),
         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-    }
+    }*/
 }
 
 /// This function sets up the item delegates for all columns in a table.
@@ -857,23 +869,23 @@ pub unsafe fn setup_item_delegates(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &BTreeMap<i32, DependencyData>,
+    dependency_data: &BTreeMap<i32, TableReferences>,
     timer: &QBox<QTimer>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
     for (column, field) in definition.fields_processed().iter().enumerate() {
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
+        if !setting_bool("disable_combos_on_tables") && dependency_data.get(&(column as i32)).is_some() || !field.enum_values().is_empty() {
             let list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
-                let mut data = data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
+                let mut data = data.data().iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
                 data.sort();
                 data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            if !field.get_enum_values().is_empty() {
-                field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+            if !field.enum_values().is_empty() {
+                field.enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
             new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
@@ -881,7 +893,7 @@ pub unsafe fn setup_item_delegates(
         }
 
         else {
-            match field.get_ref_field_type() {
+            match field.field_type() {
                 FieldType::Boolean => {
                     new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
                     new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
@@ -905,6 +917,20 @@ pub unsafe fn setup_item_delegates(
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
                 FieldType::I64 => {
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
+                },
+                FieldType::OptionalI16 => {
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
+                },
+                FieldType::OptionalI32 => {
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
+                },
+
+                // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+                FieldType::OptionalI64 => {
                     new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
                     new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
                 },
@@ -970,7 +996,7 @@ pub unsafe fn get_table_from_view(
         for (column, field) in definition.fields_processed().iter().enumerate() {
 
             // Create a new Item.
-            let item = match field.get_ref_field_type() {
+            let item = match field.field_type() {
 
                 // This one needs a couple of changes before turning it into an item in the table.
                 FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
@@ -981,9 +1007,12 @@ pub unsafe fn get_table_from_view(
                 FieldType::I16 => DecodedData::I16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
                 FieldType::I32 => DecodedData::I32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
                 FieldType::I64 => DecodedData::I64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
+                FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
+                FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
+                FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
 
                 // Colours need parsing to turn them into integers.
-                FieldType::ColourRGB => DecodedData::ColourRGB(u32::from_str_radix(&model.item_2a(row as i32, column as i32).text().to_std_string(), 16).unwrap()),
+                FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
 
                 // All these are just normal Strings.
                 FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
@@ -1000,9 +1029,11 @@ pub unsafe fn get_table_from_view(
         entries.push(new_row);
     }
 
+    /*
     let mut table = Table::new(definition);
     table.set_table_data(&entries)?;
-    Ok(table)
+    Ok(table)*/
+    Err(anyhow!("test"))
 }
 
 /// This function creates a new subtable from the current table.
@@ -1040,7 +1071,7 @@ pub unsafe fn open_subtable(
         if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.get_ref_table_definition()) {
             Some(serde_json::to_string(&table).unwrap())
         } else {
-            show_dialog(&table_view.table_view_primary, ErrorKind::Generic, false);
+            show_dialog(&table_view.table_view_primary, "This should never happen.", false);
             None
         }
     } else { None }

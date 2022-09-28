@@ -25,7 +25,7 @@ use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 
 use std::fs::{DirBuilder, File};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
@@ -290,8 +290,14 @@ pub unsafe fn init_settings() {
     set_setting_if_new_string(&q_settings, "colour_dark_local_tip", "#363636");
     set_setting_if_new_string(&q_settings, "colour_dark_remote_tip", "#7e7e7e");
 
-
     q_settings.sync();
+}
+
+pub fn setting_path(setting: &str) -> PathBuf {
+    unsafe {
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        PathBuf::from(q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
+    }
 }
 
 pub fn setting_string(setting: &str) -> String {
@@ -313,6 +319,10 @@ pub fn setting_bool(setting: &str) -> bool {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
         q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
     }
+}
+
+pub fn set_setting_path(setting: &str, value: &Path) {
+    set_setting_string(setting, &value.to_string_lossy())
 }
 
 pub fn set_setting_string(setting: &str, value: &str) {
@@ -337,6 +347,32 @@ pub fn set_setting_bool(setting: &str, value: bool) {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
         q_settings.sync();
     }
+}
+
+pub fn set_setting_path_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
+    set_setting_string_to_q_setting(q_settings, setting, &value.to_string_lossy())
+}
+
+pub fn set_setting_string_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
+    }
+}
+
+pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
+    }
+}
+
+pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
+    unsafe {
+        q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
+    }
+}
+
+pub fn set_setting_if_new_path(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
+    set_setting_if_new_string(q_settings, setting, &value.to_string_lossy())
 }
 
 pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {

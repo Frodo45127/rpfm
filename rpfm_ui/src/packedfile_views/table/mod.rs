@@ -12,14 +12,12 @@
 Module with all the code for managing the view for Table PackedFiles.
 !*/
 
-use std::sync::Arc;
+use anyhow::Result;
 
+use std::sync::Arc;
 use std::rc::Rc;
 
-use rpfm_error::{ErrorKind, Result};
-
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -57,30 +55,28 @@ impl PackedFileTableView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-    ) -> Result<Option<PackedFileInfo>> {
+        response: Response
+    ) -> Result<()> {
 
         // Get the decoded Table.
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-
-        let response = CentralCommand::recv(&receiver);
         let (table_data, packed_file_info) = match response {
-            Response::AnimTablePackedFileInfo((table, packed_file_info)) => (TableType::AnimTable(table), Some(packed_file_info)),
-            Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), Some(packed_file_info)),
-            Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
-            Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => (TableType::MatchedCombat(table), Some(packed_file_info)),
+            Response::AnimsTableRFileInfo(table, packed_file_info) => (TableType::AnimsTable(table), Some(packed_file_info)),
+            Response::DBRFileInfo(table, packed_file_info) => (TableType::DB(table), Some(packed_file_info)),
+            Response::LocRFileInfo(table, packed_file_info) => (TableType::Loc(table), Some(packed_file_info)),
+            Response::MatchedCombatRFileInfo(table, packed_file_info) => (TableType::MatchedCombat(table), Some(packed_file_info)),
             Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
+            //Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         let packed_file_type = match table_data {
 
             // This one should never happen.
-            TableType::AnimFragment(_) => PackedFileType::AnimFragment,
-            TableType::AnimTable(_) => PackedFileType::AnimTable,
-            TableType::DB(_) => PackedFileType::DB,
-            TableType::Loc(_) => PackedFileType::Loc,
-            TableType::MatchedCombat(_) => PackedFileType::MatchedCombat,
+            TableType::AnimFragment(_) => FileType::AnimFragment,
+            TableType::AnimsTable(_) => FileType::AnimsTable,
+            TableType::DB(_) => FileType::DB,
+            TableType::Loc(_) => FileType::Loc,
+            TableType::MatchedCombat(_) => FileType::MatchedCombat,
             _ => unimplemented!()
         };
 
@@ -105,7 +101,7 @@ impl PackedFileTableView {
         packed_file_view.packed_file_type = packed_file_type;
 
         // Return success.
-        Ok(packed_file_info)
+        Ok(())
     }
 
     pub fn get_ref_table(&self) ->&TableView {

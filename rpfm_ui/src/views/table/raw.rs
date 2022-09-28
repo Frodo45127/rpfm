@@ -46,16 +46,15 @@ use qt_ui_tools::QUiLoader;
 use cpp_core::CppBox;
 use cpp_core::Ref;
 
+use anyhow::anyhow;
+use rpfm_lib::schema::DefinitionPatch;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::sync::atomic::Ordering;
 
-use rpfm_error::Error;
-
-use rpfm_lib::packedfile::table::db::CascadeEdition;
-use rpfm_lib::packedfile::table::Table;
-use rpfm_lib::schema::patch::SchemaPatch;
+use rpfm_lib::files::{ContainerPath, FileType, table::*};
 
 use crate::ASSETS_PATH;
 use crate::dependencies_ui::DependenciesUI;
@@ -108,14 +107,14 @@ impl TableView {
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
 
-            if *self.packed_file_type == PackedFileType::DB {
+            if *self.packed_file_type == FileType::DB {
                 self.context_menu_find_references.set_enabled(true);
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(true));
             } else {
                 self.context_menu_go_to_loc.iter().for_each(|x| x.set_enabled(false));
             }
 
-            if [PackedFileType::DB, PackedFileType::Loc].contains(&self.packed_file_type) {
+            if [FileType::DB, FileType::Loc].contains(&self.packed_file_type) {
                 self.context_menu_go_to_definition.set_enabled(true);
             } else {
                 self.context_menu_go_to_definition.set_enabled(false);
@@ -407,7 +406,7 @@ impl TableView {
                 }
 
                 // Fix for weird precision issues on copy.
-                else if self.table_definition.read().unwrap().fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
+                else if self.table_definition.read().unwrap().fields_processed()[model_index.column() as usize].field_type() == &FieldType::F32 {
                     copy.push_str(&format!("{}", (item.data_1a(2).to_float_0a() * 1000.0).round() / 1000.0));
                 }
                 else { copy.push_str(&QString::to_std_string(&item.text())); }
@@ -436,7 +435,7 @@ impl TableView {
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
-                    .any(|z| self.get_ref_table_definition().fields_processed()[z.column() as usize].get_is_key())
+                    .any(|z| self.get_ref_table_definition().fields_processed()[z.column() as usize].is_key())
             );
 
         let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
@@ -589,13 +588,16 @@ impl TableView {
                 if let Some(field) = fields_processed.get(real_column as usize) {
 
                     // Check if, according to the definition, we have a valid value for the type.
-                    let is_valid_data = match field.get_ref_field_type() {
+                    let is_valid_data = match field.field_type() {
                         FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
                         FieldType::F32 => text.parse::<f32>().is_ok(),
                         FieldType::F64 => text.parse::<f64>().is_ok(),
                         FieldType::I16 => text.parse::<i16>().is_ok() || text.parse::<f32>().is_ok(),
                         FieldType::I32 => text.parse::<i32>().is_ok() || text.parse::<f32>().is_ok(),
                         FieldType::I64 => text.parse::<i64>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::OptionalI16 => text.parse::<i16>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::OptionalI32 => text.parse::<i32>().is_ok() || text.parse::<f32>().is_ok(),
+                        FieldType::OptionalI64 => text.parse::<i64>().is_ok() || text.parse::<f32>().is_ok(),
                         FieldType::ColourRGB => u32::from_str_radix(text, 16).is_ok(),
 
                         // All these are Strings, so we can skip their checks....
@@ -614,7 +616,7 @@ impl TableView {
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
+                            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
                             for index in 0..row.count_0a() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
@@ -833,7 +835,7 @@ impl TableView {
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index);
-                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             entry.1.push(data);
@@ -844,7 +846,7 @@ impl TableView {
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
+                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             table_data.push(entry);
@@ -854,7 +856,7 @@ impl TableView {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].get_is_key() {
+                        if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
@@ -910,14 +912,14 @@ impl TableView {
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
     unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
-        format!(" [\"{}\"] = {},", self.get_ref_table_definition().fields_processed()[index.column() as usize].get_name(), self.escape_string_from_index(index))
+        format!(" [\"{}\"] = {},", self.get_ref_table_definition().fields_processed()[index.column() as usize].name(), self.escape_string_from_index(index))
     }
 
     /// This function escapes the value inside an index.
     unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
         let item = self.table_model.item_from_index(index);
         let definition = &self.get_ref_table_definition().clone();
-        match definition.fields_processed()[index.column() as usize].get_ref_field_type() {
+        match definition.fields_processed()[index.column() as usize].field_type() {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
             // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
@@ -947,7 +949,10 @@ impl TableView {
             },
             FieldType::I16 |
             FieldType::I32 |
-            FieldType::I64 => format!("{}", item.data_1a(2).to_long_long_0a()),
+            FieldType::I64 |
+            FieldType::OptionalI16 |
+            FieldType::OptionalI32 |
+            FieldType::OptionalI64 => format!("{}", item.data_1a(2).to_long_long_0a()),
             FieldType::ColourRGB => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
 
             // All these are Strings, so they need to escape certain chars and include commas in Lua.
@@ -971,8 +976,8 @@ impl TableView {
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
-        let mut row_numbers = vec![];
-
+        //let mut row_numbers = vec![];
+        /*
         let rows = if clone {
             let mut rows = vec![];
             for index in indexes_sorted.iter() {
@@ -1027,7 +1032,7 @@ impl TableView {
         self.start_delayed_updates_timer();
         self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }*/
     }
 
     /// This function is used to insert new rows into a table.
@@ -1041,8 +1046,8 @@ impl TableView {
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
-        let mut row_numbers = vec![];
-
+        //let mut row_numbers = vec![];
+        /*
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
             let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
@@ -1096,6 +1101,7 @@ impl TableView {
         self.start_delayed_updates_timer();
         self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+        */
     }
 
     /// This function returns a copy of the entire model.
@@ -1257,13 +1263,16 @@ impl TableView {
                 for column in columns {
                     let index = self.table_model.index_2a(*row, *column);
                     if index.is_valid() {
-                        match self.get_ref_table_definition().fields_processed()[*column as usize].get_ref_field_type() {
+                        match self.get_ref_table_definition().fields_processed()[*column as usize].field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
                             FieldType::F32 => values.push(&*default_f32),
                             FieldType::F64 => values.push(&*default_f64),
                             FieldType::I16 |
                             FieldType::I32 |
                             FieldType::I64 => values.push(&*default_i32),
+                            FieldType::OptionalI16 |
+                            FieldType::OptionalI32 |
+                            FieldType::OptionalI64 => values.push(&*default_i32),
                             FieldType::ColourRGB => values.push(&*default_colour_rgb),
                             FieldType::StringU8 |
                             FieldType::StringU16 |
@@ -1309,7 +1318,7 @@ impl TableView {
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
                 let definition = self.get_ref_table_definition();
-                match definition.fields_processed()[real_cell.column() as usize].get_ref_field_type() {
+                match definition.fields_processed()[real_cell.column() as usize].field_type() {
 
                     FieldType::Boolean => {
                         let current_value = self.table_model.item_from_index(real_cell).check_state();
@@ -1490,7 +1499,7 @@ impl TableView {
             }
         }
 
-        if setting_bool["table_resize_on_edit"] {
+        if setting_bool("table_resize_on_edit") {
             self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 
@@ -1529,7 +1538,7 @@ impl TableView {
 
             // Stop the timer again.
             self.timer_delayed_updates.stop();
-
+            /*
             // Initialize our cascade editions.
             let mut cascade_editions = CascadeEdition::default();
             cascade_editions.set_edited_table_name(edited_table_name);
@@ -1557,10 +1566,10 @@ impl TableView {
                         }
                     },
                 }
-            });
+            });*/
 
             // Now that we know what to edit, save all views of referencing files, so we only have to deal with them in the background.
-            UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
+            /*UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
 
                 // Check for tables.
                 if let Some(folder) = packed_file_view.get_path().get(0) {
@@ -1581,16 +1590,16 @@ impl TableView {
                         }
                     }
                 }
-            });
-
+            });*/
+            /*
             // Then ask the backend to do the heavy work.
             let receiver = CENTRAL_COMMAND.send_background(Command::CascadeEdition(cascade_editions));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::VecVecStringVecPackedFileInfo(edited_paths, packed_files_info) => {
+                Response::VecVecStringVecRFileInfo(edited_paths, packed_files_info) => {
 
                     // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    let edited_path_types = edited_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                    let edited_path_types = edited_paths.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(edited_path_types.to_vec()), DataSource::PackFile);
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_path_types), DataSource::PackFile);
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
@@ -1611,7 +1620,7 @@ impl TableView {
                     self.start_delayed_updates_timer();
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }
+            }*/
         }
 
         // If we didn't do anything, but we cut a timer, continue it.
@@ -1662,22 +1671,25 @@ impl TableView {
     }
 
     /// This function creates the "Patch Column" dialog and submits a patch of accepted.
-    pub unsafe fn patch_column(&self) -> Result<()> {
+    pub unsafe fn patch_column(&self, definition_patches: Option<&DefinitionPatch>) -> Result<()> {
 
         // We only want to do this for tables we can identify.
-        let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return Err(ErrorKind::DBTableIsNotADBTable.into()) };
+        let edited_table_name = match self.get_ref_table_name() {
+            Some(table_name) => table_name.to_lowercase(),
+            None => return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted.")),
+        };
 
         // Get the selected indexes.
         let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
 
         // Only works with a column selected.
         let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();
-        if indexes.iter().map(|x| x.column()).sorted().dedup().count() != 1 {
-            return Err(ErrorKind::Generic.into())
+        if columns.len() != 1 {
+            return Err(anyhow!("Either 0 or more than 1 column selected. This only works with 1 column selected."));
         }
 
         let column_index = columns[0];
-        let field = self.get_ref_table_definition().fields_processed().get(column_index as usize).cloned().ok_or(Error::from(ErrorKind::Generic))?;
+        let field = self.get_ref_table_definition().fields_processed().get(column_index as usize).cloned().unwrap();
 
         // Create and configure the dialog.
         let view = if cfg!(debug_assertions) { PATCH_COLUMN_VIEW_DEBUG } else { PATCH_COLUMN_VIEW_RELEASE };
@@ -1712,11 +1724,11 @@ impl TableView {
         explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
 
         // Setup data.
-        if let Some(default_value) = field.get_default_value(self.get_ref_table_name().as_deref()) {
+        if let Some(default_value) = field.default_value(definition_patches) {
             default_value_line_edit.set_text(&QString::from_std_str(&default_value));
         }
-        not_empty_checkbox.set_checked(field.get_cannot_be_empty(self.get_ref_table_name().as_deref()));
-        explanation_text_edit.set_text(&QString::from_std_str(field.get_schema_patch_explanation(self.get_ref_table_name().as_deref())));
+        not_empty_checkbox.set_checked(field.cannot_be_empty(definition_patches));
+        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(definition_patches)));
 
         // Launch.
         if dialog.exec() == 1 {
@@ -1727,8 +1739,8 @@ impl TableView {
             column_data.insert("explanation".to_owned(), explanation_text_edit.to_plain_text().to_std_string());
 
             let mut table_data = HashMap::new();
-            table_data.insert(field.get_name().to_owned(), column_data);
-
+            table_data.insert(field.name().to_owned(), column_data);
+            /*
             let mut schema_patch = SchemaPatch::default();
             schema_patch.get_ref_mut_tables().insert(edited_table_name.to_owned(), table_data);
 
@@ -1738,7 +1750,7 @@ impl TableView {
                 Response::Success => show_dialog(&self.table_view_primary, tr("schema_patch_submitted_correctly"), true),
                 Response::Error(error) => return Err(error),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }
+            }*/
         }
 
         Ok(())
@@ -1763,17 +1775,17 @@ impl TableView {
             let ref_info = match *self.packed_file_type {
 
                 // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
-                PackedFileType::DB => {
+                FileType::DB => {
                     let index = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0));
                     if let Some(field) = self.get_ref_table_definition().fields_processed().get(index.column() as usize) {
-                        if let Some((ref_table, ref_column)) = field.get_is_reference() {
+                        if let Some((ref_table, ref_column)) = field.is_reference() {
                             Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
                         } else { None }
                     } else { None }
                 }
 
                 // For Locs, we use the column 0 of the row with the selected item.
-                PackedFileType::Loc => {
+                FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
@@ -1787,7 +1799,7 @@ impl TableView {
             };
 
             if let Some((ref_table, ref_column, ref_data)) = ref_info {
-
+                /*
                 // Save the tables that may be the source before searching, to ensure their data is updated.
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
                     if let Some(folder) = packed_file_view.get_path().get(0) {
@@ -1799,8 +1811,8 @@ impl TableView {
                             }
                         }
                     }
-                });
-
+                });*/
+                /*
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToDefinition(ref_table, ref_column, ref_data));
                 let response = CentralCommand::recv_try(&receiver);
@@ -1863,7 +1875,7 @@ impl TableView {
 
                     Response::Error(error) => error_message = error.to_terminal(),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
+                }*/
             } else {
                 error_message = tr("source_data_for_field_not_found");
             }
@@ -1892,11 +1904,11 @@ impl TableView {
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut error_message = String::new();
         if indexes.count_0a() > 0 {
-            if let PackedFileType::DB = *self.packed_file_type {
+            if let FileType::DB = *self.packed_file_type {
 
                 // Save the currently open locs, to ensure the backend has the most up-to-date data.
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
-                    if let PackedFileType::Loc = packed_file_view.get_packed_file_type() {
+                    if let FileType::Loc = packed_file_view.get_packed_file_type() {
                         let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                     }
                 });
@@ -1907,12 +1919,12 @@ impl TableView {
                 } else { return Some(tr("loc_key_not_found")) };
 
                 let table_definition = self.get_ref_table_definition();
-                let key_field_names = table_definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
-                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
+                let key_field_names = table_definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
+                let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
 
                 let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
-
+                /*
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));
                 let response = CentralCommand::recv_try(&receiver);
@@ -1975,7 +1987,7 @@ impl TableView {
 
                     Response::Error(error) => error_message = error.to_terminal(),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
+                }*/
             }
         }
 
