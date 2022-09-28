@@ -1021,7 +1021,7 @@ pub trait Container {
     ///
     /// BE CAREFUL WITH USING THIS. IT MAY (PROBABLY WILL) CAUSE DATA LOSSES.
     fn clean_undecoded(&mut self) {
-        self.files_mut().retain(|_, file| file.decoded().is_ok());
+        self.files_mut().retain(|_, file| file.decoded().is_ok() || file.cached().is_ok());
     }
 }
 
@@ -1137,6 +1137,15 @@ impl RFile {
         }
     }
 
+    /// This function returns a reference to the cached data of an RFile, if said RFile has been cached. If not, it returns an error.
+    ///
+    /// Useful for accessing preloaded data.
+    pub fn cached(&self) -> Result<&[u8]> {
+        match self.data {
+            RFileInnerData::Cached(ref data) => Ok(data),
+            _ => Err(RLibError::FileNotCached(self.path_in_container_raw().to_string()))
+        }
+    }
 
     /// This function returns a reference to the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
     ///

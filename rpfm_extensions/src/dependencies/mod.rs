@@ -20,7 +20,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{Result, RLibError};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
 use rpfm_lib::schema::{Definition, Schema};
@@ -738,7 +738,6 @@ impl Dependencies {
                             }
 
                             references.data.insert(reference_data, lookup_data.join(" "));
-
                         }
 
                         // Once done with the table, check if we should return its definition.
@@ -884,153 +883,54 @@ impl Dependencies {
         !self.asskit_only_db_tables.is_empty()
     }
 
+    /// This function is used to check if a table is outdated or not.
+    pub fn is_db_outdated(&self, rfile: &RFileDecoded) -> bool {
+        match rfile {
+            RFileDecoded::DB(data) => {
+                let dep_db_undecoded = if let Ok(undecoded) = self.db_data(data.table_name(), true, false) { undecoded } else { return false };
+                let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
+
+                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(&y.definition().version())) {
+                    if vanilla_db.definition().version() > data.definition().version() {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        false
+    }
+
+    /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the vanilla files.
+    ///
+    /// It returns both, old and new versions, or an error.
+    pub fn update_db(&mut self, rfile: &mut RFileDecoded) -> Result<(i32, i32)> {
+        match rfile {
+            RFileDecoded::DB(data) => {
+                let dep_db_undecoded = self.db_data(data.table_name(), true, false)?;
+                let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
+
+                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(&y.definition().version())) {
+
+                    let definition_new = vanilla_db.definition();
+                    let definition_old = data.definition().clone();
+                    if definition_old != *definition_new {
+                        data.set_definition(&definition_new);
+                        Ok((*definition_old.version(), *definition_new.version()))
+                    }
+                    else {
+                        Err(RLibError::NoDefinitionUpdateAvailable.into())
+                    }
+                }
+                else { Err(RLibError::NoTableInGameFilesToCompare.into()) }
+            }
+            _ => Err(RLibError::DecodingDBNotADBTable.into()),
+        }
+    }
 
 /*
-    /// This function returns the db/locs from the cache, according to the params you pass it.
-    pub fn get_db_and_loc_tables_from_cache(&self, include_db: bool, include_loc: bool, include_vanilla: bool, include_modded: bool) -> Result<Vec<PackedFile>> {
-        if self.needs_updating()? {
-            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
 
-            if include_vanilla {
-                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if (include_db && packed_file_type == PackedFileType::DB) ||
-                        (include_loc && packed_file_type == PackedFileType::Loc) {
-                        Some(packed_file.clone())
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            if include_modded {
-                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(_, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if (include_db && packed_file_type == PackedFileType::DB) ||
-                        (include_loc && packed_file_type == PackedFileType::Loc) {
-                        Some(packed_file.clone())
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            Ok(cache)
-        }
-    }
-
-    /// This function returns the provided dbs from the cache, according to the params you pass it. Table name must end in _tables.
-    pub fn get_db_tables_from_cache(&self, table_name: &str, include_vanilla: bool, include_modded: bool) -> Result<Vec<DB>> {
-        if self.needs_updating()? {
-            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
-            let mut table_folder = "db/".to_owned();
-            table_folder.push_str(&table_name.to_lowercase());
-
-            if include_vanilla {
-                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                            Some(db.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            if include_modded {
-                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                            Some(db.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            Ok(cache)
-        }
-    }
-
-    /// This function returns the provided dbs from the cache with their full path, according to the params you pass it. Table name must end in _tables.
-    pub fn get_db_tables_with_path_from_cache(&self, table_name: &str, include_vanilla: bool, include_modded: bool) -> Result<Vec<(String, DB)>> {
-        if self.needs_updating()? {
-            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
-        } else {
-            let mut cache = vec![];
-            let mut table_folder = "db/".to_owned();
-            table_folder.push_str(&table_name.to_lowercase());
-
-            if include_vanilla {
-                cache.append(&mut self.vanilla_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                            Some((path.to_owned(), db.clone()))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            if include_modded {
-                cache.append(&mut self.parent_packed_files_cache.read().unwrap().par_iter().filter_map(|(path, packed_file)| {
-                    let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), false);
-                    if packed_file_type == PackedFileType::DB && path.to_lowercase().starts_with(&table_folder) {
-                        if let Ok(DecodedPackedFile::DB(db)) = packed_file.get_decoded_from_memory() {
-                            Some((path.to_owned(), db.clone()))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }).collect())
-            }
-
-            Ok(cache)
-        }
-    }
-
-    /// This function checks if the current Game Selected has a dependencies file created.
-    pub fn game_has_dependencies_generated(&self) -> bool {
-        let mut file_path = get_config_path().unwrap().join(DEPENDENCIES_FOLDER);
-        file_path.push(GAME_SELECTED.read().unwrap().get_dependencies_cache_file_name());
-        file_path.set_extension(BINARY_EXTENSION);
-
-        file_path.is_file()
-    }
-
-    /// This function checks if the current Game Selected has the vanilla data loaded in the dependencies.
-    ///
-    /// TODO: rework this to use the build date, so it's more accurate.
-    pub fn game_has_vanilla_data_loaded(&self, include_asskit: bool) -> bool {
-        if include_asskit {
-            !self.vanilla_packed_files_cache.read().unwrap().is_empty() && self.game_has_asskit_data_loaded()
-        } else {
-            !self.vanilla_packed_files_cache.read().unwrap().is_empty()
-        }
-    }
-
-    /// This function checks if the current Game Selected has the asskit data loaded in the dependencies.
-    pub fn game_has_asskit_data_loaded(&self) -> bool {
-        !self.asskit_only_db_tables.is_empty()
-    }
 
     /// This function is used to kinda-lazily initialize the vanilla paths from the dependencies checks. This speeds up reloads at the cost of a slight delay later.
     pub fn initialize_vanilla_paths(&mut self) {
@@ -1093,37 +993,6 @@ impl Dependencies {
             if let LazyLoadedData::Loaded(parent_cached_folders_cased) = &mut self.parent_cached_folders_cased {
                 self.parent_cached_folders_caseless = LazyLoadedData::Loaded(Box::new(parent_cached_folders_cased.par_iter().map(|x| UniCase::new(x.to_owned())).collect::<HashSet<UniCase<String>>>()));
             }
-        }
-    }
-
-    /// This function returns the provided file, if exists, or an error if not, from the game files.
-    pub fn get_packedfile_from_game_files(&self, path: &[String]) -> Result<PackedFile> {
-        if self.needs_updating()? {
-            return Err(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into());
-        }
-
-        let path = path.join("/");
-        let packed_file = self.vanilla_packed_files_cache.read().unwrap().par_iter()
-            .find_map_any(|(cached_path, packed_file)| if cached_path == &path { Some(packed_file.clone()) } else { None })
-            .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound));
-
-        // If we found it in the cache, return it.
-        if packed_file.is_ok() {
-            packed_file
-        }
-
-        // If not, check on the big list.
-        else {
-            let packed_file = self.vanilla_cached_packed_files.par_iter()
-                .find_map_any(|(cached_path, cache_packed_file)| if cached_path == &path {
-                    Some(PackedFile::try_from(cache_packed_file))
-                } else { None })
-                .ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))??;
-
-            // If we found one, add it to the cache to reduce load times later on.
-            self.vanilla_packed_files_cache.write().unwrap().insert(path, packed_file.clone());
-
-            Ok(packed_file)
         }
     }
 

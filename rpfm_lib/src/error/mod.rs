@@ -203,6 +203,9 @@ pub enum RLibError {
     #[error("The following file hasn't yet been decoded: {0}.")]
     FileNotDecoded(String),
 
+    #[error("The following file hasn't yet been cached: {0}.")]
+    FileNotCached(String),
+
     #[error("Operation not allowed: reserved file detected.")]
     ReservedFiles,
 
@@ -223,6 +226,12 @@ pub enum RLibError {
 
     #[error("The file with the path {0} hasn't been found in the dependencies cache.")]
     DependenciesCacheFileNotFound(String),
+
+    #[error("This table already has the newer definition available.")]
+    NoDefinitionUpdateAvailable,
+
+    #[error("This table cannot be found in the Game Files, so it cannot be automatically updated (yet).")]
+    NoTableInGameFilesToCompare,
 
     #[error("Operations over the Assembly Kit of version {0} are not currently supported.")]
     AssemblyKitUnsupportedVersion(i16),

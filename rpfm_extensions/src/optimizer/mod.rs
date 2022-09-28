@@ -31,7 +31,7 @@ pub trait Optimizable {
     /// This function optimizes the provided struct to reduce its size and improve compatibility.
     ///
     /// It returns if the struct has been left in an state where it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, schema_patches: Option<&DefinitionPatch>) -> bool;
+    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool;
 }
 
 /// This trait marks a [Container](rpfm_lib::files::Container) as an `Optimizable` container, meaning it can be cleaned up to reduce size and improve compatibility.
@@ -107,7 +107,7 @@ impl OptimizableContainer for Pack {
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
                         if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
                             if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
-                                if db.optimize(dependencies, schema.patches_for_table(db.table_name())) {
+                                if db.optimize(dependencies) {
                                     return Some(path.to_owned());
                                 }
                             }
@@ -119,7 +119,7 @@ impl OptimizableContainer for Pack {
                         // Same as with tables, don't optimize them if they're overwriting.
                         if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
                             if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
-                                if loc.optimize(dependencies, None) {
+                                if loc.optimize(dependencies) {
                                     return Some(path.to_owned());
                                 }
                             }
@@ -160,7 +160,7 @@ impl Optimizable for DB {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the DB is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, schema_patches: Option<&DefinitionPatch>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
         match self.data(&None) {
             Ok(entries) => {
 
@@ -195,7 +195,7 @@ impl Optimizable for DB {
                             .collect::<HashSet<String>>();
 
                         // Remove ITM and ITNR entries.
-                        let new_row = self.new_row(schema_patches).iter().map(|data|
+                        let new_row = self.new_row().iter().map(|data|
                             if let DecodedData::F32(value) = data {
                                 DecodedData::StringU8(format!("{:.4}", value))
                             } else {
@@ -259,7 +259,7 @@ impl Optimizable for Loc {
     /// - Removal of ITNR (Identical To New Row) entries.
     ///
     /// It returns if the Loc is empty, meaning it can be safetly deleted.
-    fn optimize(&mut self, dependencies: &mut Dependencies, _schema_patches: Option<&DefinitionPatch>) -> bool {
+    fn optimize(&mut self, dependencies: &mut Dependencies) -> bool {
         match self.data(&None) {
             Ok(entries) => {
 
