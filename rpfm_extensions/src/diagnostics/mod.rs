@@ -140,8 +140,25 @@ impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
     pub fn check(&mut self, pack: &Pack, dependencies: &mut Dependencies, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], schema: &Schema) {
-        // Clear the diagnostics first.
-        self.results.clear();
+
+        // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
+        if paths_to_check.is_empty() {
+            self.results.clear();
+        } else {
+            self.results.retain(|diagnostic| paths_to_check.contains(&ContainerPath::File(diagnostic.path().to_string())));
+            self.results.iter_mut().for_each(|x| {
+                if let DiagnosticType::Config(config) = x {
+                    config.results_mut().retain(|x|
+                        match x.report_type() {
+                            ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
+                            ConfigDiagnosticReportType::DependenciesCacheOutdated |
+                            ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) |
+                            ConfigDiagnosticReportType::IncorrectGamePath => false,
+                        }
+                    );
+                }
+            });
+        }
 
         // First, check for config issues, as some of them may stop the checking prematurely.
         if let Some(diagnostics) = Self::check_config(dependencies, game_info, game_path) {
@@ -169,7 +186,12 @@ impl Diagnostics {
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
-        let files = pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc]);
+        let files = if paths_to_check.is_empty() {
+            pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc])
+        } else {
+            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], &paths_to_check)
+        };
+
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
 
         for file in &files {
@@ -211,7 +233,7 @@ impl Diagnostics {
         //dependencies.generate_local_db_references(pack, paths_to_check);
 
         // Process the files in batches.
-        self.results = files_split.par_iter().filter_map(|(_, files)| {
+        self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
 
             let mut diagnostics = Vec::with_capacity(files.len());
             let mut data_prev: BTreeMap<String, HashMap<String, Vec<(i32, i32)>>> = BTreeMap::new();
@@ -332,7 +354,7 @@ impl Diagnostics {
             });
             */
             Some(diagnostics)
-        }).flatten().collect();
+        }).flatten().collect());
 
         if let Some(diagnostics) = Self::check_dependency_manager(pack) {
             self.results_mut().push(diagnostics);
@@ -905,250 +927,6 @@ impl Diagnostics {
         } else { None }
     }
 /*
-    /// This function performs a limited diagnostic check on the `PackedFiles` in the provided paths, and updates the `Diagnostic` with the results.
-    ///
-    /// This means that, as long as you change any `PackedFile` in the `PackFile`, you should trigger this. That way, the `Diagnostics`
-    /// will always be up-to-date in an efficient way.
-    ///
-    /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
-    /// use the normal check function, because it's a lot more efficient than this one.
-    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &mut Dependencies) {
-
-        // First, remove all current config blocking diagnostics, so they get check properly again.
-        self.0.iter_mut().for_each(|x| {
-            if let DiagnosticType::Config(config) = x {
-                config.get_ref_mut_result().retain(|x|
-                    match x.report_type {
-                        ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
-                        ConfigDiagnosticReportType::DependenciesCacheOutdated |
-                        ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_) |
-                        ConfigDiagnosticReportType::IncorrectGamePath => false,
-                    }
-                );
-            }
-        });
-
-        // Next, check for config issues, as some of them may stop the checking prematurely.
-        if let Some(diagnostics) = Self::check_config(dependencies) {
-            let is_diagnostic_blocking = if let DiagnosticType::Config(ref diagnostic) = diagnostics {
-                diagnostic.get_ref_result().iter().any(|diagnostic| matches!(diagnostic.report_type,
-                    ConfigDiagnosticReportType::DependenciesCacheNotGenerated |
-                    ConfigDiagnosticReportType::DependenciesCacheOutdated |
-                    ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(_)))
-            } else { false };
-
-            // If we have one of the blocking diagnostics, report it and return.
-            self.0.push(diagnostics);
-            if is_diagnostic_blocking {
-                return;
-            }
-        }
-
-        // Turn all our updated packs into `PackedFile` paths, and get them. Keep in mind we need to also get:
-        // - Other tables related with the ones we update.
-        // - Other locs, if a loc is on the list.
-        let mut packed_files = vec![];
-        for path_type in updated_paths {
-            match path_type {
-                PathType::File(path) => if let Some(packed_file) = pack_file.get_ref_packed_file_by_path(path) { packed_files.push(packed_file) },
-                PathType::Folder(path) => packed_files.append(&mut pack_file.get_ref_packed_files_by_path_start(path)),
-
-                // PackFile in this instance means the dependency manager.
-                PathType::PackFile => {}
-                _ => unimplemented!()
-            }
-        }
-
-        let mut packed_files_complete: Vec<&PackedFile> = vec![];
-        let mut locs_added = false;
-        for packed_file in &packed_files {
-            match packed_file.get_packed_file_type(false) {
-                PackedFileType::AnimFragment => {
-                    packed_files_complete.push(packed_file);
-                }
-                PackedFileType::DB => {
-                    let tables = pack_file.get_ref_packed_files_by_path_start(&packed_file.get_path()[..=1]);
-                    for table in tables {
-                        if !packed_files_complete.contains(&table) {
-                            packed_files_complete.push(table);
-                        }
-                    }
-                },
-                PackedFileType::Loc => {
-                    if !locs_added {
-                        packed_files_complete.append(&mut pack_file.get_ref_packed_files_by_type(PackedFileType::Loc, false));
-                        locs_added = true;
-                    }
-                }
-
-                _ => packed_files_complete.push(packed_file),
-            }
-        }
-
-        // We remove the added/edited/deleted files from all the search.
-        for packed_file in &packed_files_complete {
-            self.get_ref_mut_diagnostics().retain(|x| x.get_path() != packed_file.get_path());
-        }
-
-        // Also remove Dependency/PackFile diagnostics, as they're going to be regenerated.
-        self.get_ref_mut_diagnostics().retain(|x| match x {
-            DiagnosticType::AnimFragment(_) => true,
-            DiagnosticType::Config(_) => true,
-            DiagnosticType::DB(_) => true,
-            DiagnosticType::DependencyManager(_) => false,
-            DiagnosticType::Loc(_) => true,
-            DiagnosticType::PackFile(_) => false,
-        });
-
-        let files_to_ignore = pack_file.get_settings().get_diagnostics_files_to_ignore();
-
-        // Prefetch them here, so we don't need to re-search them again.
-        dependencies.initialize_vanilla_paths();
-        dependencies.initialize_parent_paths();
-        let vanilla_dependencies = if let Ok(dependencies) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) { dependencies } else { return };
-        let asskit_dependencies = dependencies.get_ref_asskit_only_db_tables();
-
-        // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
-        // To do that, we have to sort/split the file list, the process that.
-        let mut packed_files_split: BTreeMap<&str, Vec<&PackedFile>> = BTreeMap::new();
-        for packed_file in &packed_files_complete {
-            match packed_file.get_packed_file_type(false) {
-                PackedFileType::AnimFragment => {
-                    if let Some(table_set) = packed_files_split.get_mut("anim_fragments") {
-                        table_set.push(packed_file);
-                    } else {
-                        packed_files_split.insert("anim_fragments", vec![packed_file]);
-                    }
-                },
-                PackedFileType::DB => {
-                    if let Some(table_set) = packed_files_split.get_mut(&*packed_file.get_path()[1]) {
-                        table_set.push(packed_file);
-                    } else {
-                        packed_files_split.insert(&packed_file.get_path()[1], vec![packed_file]);
-                    }
-                },
-                PackedFileType::Loc => {
-                    if let Some(table_set) = packed_files_split.get_mut("locs") {
-                        table_set.push(packed_file);
-                    } else {
-                        packed_files_split.insert("locs", vec![packed_file]);
-                    }
-                },
-                _ => {},
-            }
-        }
-        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-            let local_packed_file_path_list = pack_file.get_packed_files_all_paths_as_string();
-            let local_folder_path_list = pack_file.get_folder_all_paths_as_string();
-
-            for packed_files in packed_files_split.values() {
-                let mut data_prev: BTreeMap<String, HashMap<String, Vec<(i32, i32)>>> = BTreeMap::new();
-                let mut dependency_data_for_table = BTreeMap::new();
-
-                for packed_file in packed_files {
-
-                    // Prepare the ignore data for this PackedFile.
-                    let mut ignored_file = false;
-                    let mut ignored_fields = vec![];
-                    let mut ignored_diagnostics = vec![];
-                    let mut ignored_diagnostics_for_fields: HashMap<String, Vec<String>> = HashMap::new();
-                    if let Some(ref files_to_ignore) = files_to_ignore {
-                        for (path_to_ignore, fields, diags_to_ignore) in files_to_ignore {
-
-                            // If the rule doesn't affect this PackedFile, ignore it.
-                            if !path_to_ignore.is_empty() && packed_file.get_path().starts_with(path_to_ignore) {
-
-                                // If we don't have either fields or diags specified, we ignore the entire file.
-                                if fields.is_empty() && diags_to_ignore.is_empty() {
-                                    ignored_file = true;
-                                    break;
-                                }
-
-                                // If we have both, fields and diags, disable only those diags for those fields.
-                                if !fields.is_empty() && !diags_to_ignore.is_empty() {
-                                    for field in fields {
-                                        match ignored_diagnostics_for_fields.get_mut(field) {
-                                            Some(diagnostics) => diagnostics.append(&mut diags_to_ignore.to_vec()),
-                                            None => { ignored_diagnostics_for_fields.insert(field.to_owned(), diags_to_ignore.to_vec()); },
-                                        }
-                                    }
-                                }
-
-                                // Otherwise, check if we only have fields or diags, and put them separately.
-                                else if !fields.is_empty() {
-                                    ignored_fields.append(&mut fields.to_vec());
-                                }
-
-                                else if !diags_to_ignore.is_empty() {
-                                    ignored_diagnostics.append(&mut diags_to_ignore.to_vec());
-                                }
-                            }
-                        }
-                    }
-
-                    // If we ignore this full file, skip to the next one.
-                    if ignored_file {
-                        continue;
-                    }
-
-                    let diagnostic = match packed_file.get_packed_file_type(false) {
-                        PackedFileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
-                                Self::check_anim_fragment(&decoded, packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
-                            } else { None }
-                        PackedFileType::DB => {
-
-                            // Get the dependency data for tables once per batch.
-                            // That way we can speed up this a lot.
-                            let decoded_packed_file = packed_file.get_ref_decoded();
-                            if dependency_data_for_table.is_empty() {
-                                if let DecodedPackedFile::DB(table) = decoded_packed_file {
-                                    dependency_data_for_table = DB::get_dependency_data(
-                                        pack_file,
-                                        table.get_ref_table_name(),
-                                        table.get_ref_definition(),
-                                        &vanilla_dependencies,
-                                        asskit_dependencies,
-                                        dependencies,
-                                        &[],
-                                    );
-                                }
-                            }
-
-                            Self::check_db(packed_file.get_ref_decoded(), packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev, &local_packed_file_path_list, &local_folder_path_list, &dependency_data_for_table)
-                        },
-                        PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path(), &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev),
-                        _ => None,
-                    };
-
-                    if let Some(diagnostic) = diagnostic {
-                        self.get_ref_mut_diagnostics().push(diagnostic);
-                    }
-                }
-            }
-        }
-
-        // Check for the dependency manager.
-        if let Some(diagnostics) = Self::check_dependency_manager(pack_file) {
-            self.0.push(diagnostics);
-        }
-
-        // Check for the PackFile.
-        if let Some(diagnostics) = Self::check_packfile(pack_file) {
-            self.0.push(diagnostics);
-        }
-
-        self.get_ref_mut_diagnostics().sort_by(|a, b| {
-            if !a.get_path().is_empty() && !b.get_path().is_empty() {
-                a.get_path().cmp(b.get_path())
-            } else if a.get_path().is_empty() && !b.get_path().is_empty() {
-                Ordering::Greater
-            } else if !a.get_path().is_empty() && b.get_path().is_empty() {
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        });
-    }
 
     /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.
     pub fn get_update_paths_packed_file_info(&self, pack_file: &PackFile, paths: &[PathType]) -> Vec<PackedFileInfo> {
