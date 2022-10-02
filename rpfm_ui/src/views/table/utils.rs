@@ -798,67 +798,73 @@ pub unsafe fn get_column_tooltips(
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<HashMap<i32, TableReferences>> {
+pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definition: &Definition) -> Result<HashMap<i32, TableReferences>> {
+    match file_type {
+        FileType::DB => {
 
-    // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-    let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone()));
+            // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone()));
 
-    let reference_data = definition.reference_data();
-    let mut dependency_data_visual = BTreeMap::new();
+            let reference_data = definition.reference_data();
+            let mut dependency_data_visual = BTreeMap::new();
 
-    // If we have a referenced PackedFile open in a view, get the data from the view itself.
-    let open_packedfiles = UI_STATE.get_open_packedfiles();
-    for (index, (table, column, lookup)) in &reference_data {
-        let mut dependency_data_visual_column = BTreeMap::new();
-        for packed_file_view in open_packedfiles.iter() {
-            let path = packed_file_view.get_ref_path();
-            if packed_file_view.get_data_source() == DataSource::PackFile {
-                let path_split = path.split('/').collect::<Vec<_>>();
-                if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{}_tables", table) {
-                    if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
-                        let table = table.get_ref_table();
-                        let column = clean_column_names(column);
-                        let table_model = &table.table_model;
-                        for column_index in 0..table_model.column_count_0a() {
-                            if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
-                                for row in 0..table_model.row_count_0a() {
-                                    let item = table_model.item_2a(row, column_index);
-                                    let value = item.text().to_std_string();
-                                    let lookup_value = match lookup {
-                                        Some(columns) => {
-                                            let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
-                                                columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
-                                            }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
-                                            data.join(" ")
-                                        },
-                                        None => String::new(),
-                                    };
-                                    dependency_data_visual_column.insert(value, lookup_value);
+            // If we have a referenced PackedFile open in a view, get the data from the view itself.
+            let open_packedfiles = UI_STATE.get_open_packedfiles();
+            for (index, (table, column, lookup)) in &reference_data {
+                let mut dependency_data_visual_column = BTreeMap::new();
+                for packed_file_view in open_packedfiles.iter() {
+                    let path = packed_file_view.get_ref_path();
+                    if packed_file_view.get_data_source() == DataSource::PackFile {
+                        let path_split = path.split('/').collect::<Vec<_>>();
+                        if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{}_tables", table) {
+                            if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
+                                let table = table.get_ref_table();
+                                let column = clean_column_names(column);
+                                let table_model = &table.table_model;
+                                for column_index in 0..table_model.column_count_0a() {
+                                    if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
+                                        for row in 0..table_model.row_count_0a() {
+                                            let item = table_model.item_2a(row, column_index);
+                                            let value = item.text().to_std_string();
+                                            let lookup_value = match lookup {
+                                                Some(columns) => {
+                                                    let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
+                                                        columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
+                                                    }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
+                                                    data.join(" ")
+                                                },
+                                                None => String::new(),
+                                            };
+                                            dependency_data_visual_column.insert(value, lookup_value);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                dependency_data_visual.insert(index, dependency_data_visual_column);
+            }
+
+            let mut response = CentralCommand::recv(&receiver);
+            match response {
+                Response::HashMapI32TableReferences(ref mut dependency_data) => {
+                    for index in reference_data.keys() {
+                        if let Some(column_data_visual) = dependency_data_visual.get(index) {
+                            if let Some(column_data) = dependency_data.get_mut(index) {
+                                column_data.data_mut().extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
+                            }
+                        }
+                    }
+
+                    Ok(dependency_data.clone())
+                },
+                Response::Error(error) => Err(error),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
-        dependency_data_visual.insert(index, dependency_data_visual_column);
-    }
 
-    let mut response = CentralCommand::recv(&receiver);
-    match response {
-        Response::HashMapI32TableReferences(ref mut dependency_data) => {
-            for index in reference_data.keys() {
-                if let Some(column_data_visual) = dependency_data_visual.get(index) {
-                    if let Some(column_data) = dependency_data.get_mut(index) {
-                        column_data.data_mut().extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
-                    }
-                }
-            }
-
-            Ok(dependency_data.clone())
-        },
-        Response::Error(error) => Err(error),
-        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        _ => Ok(HashMap::new())
     }
 }
 

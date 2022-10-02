@@ -418,6 +418,21 @@ impl Pack {
             PFHVersion::PFH0 => pack.read_pfh0(data, extra_data)?,
         };
 
+        // Remove the reserved files from the Pack and read them properly.
+        if let Some(mut notes) = pack.files.remove(RESERVED_NAME_NOTES) {
+            notes.load()?;
+            let data = notes.cached()?;
+            let len = data.len();
+            let mut data = Cursor::new(data);
+            pack.notes = data.read_string_u8(len)?;
+        }
+
+        if let Some(mut settings) = pack.files.remove(RESERVED_NAME_SETTINGS) {
+            settings.load()?;
+            let data = settings.cached()?;
+            pack.settings = PackSettings::load(data)?;
+        }
+
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
         // NOTE: Arena PackFiles have extra data at the end. If we detect one of those PackFiles, take that into account.
         if pack.header.pfh_version == PFHVersion::PFH5 && pack.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {

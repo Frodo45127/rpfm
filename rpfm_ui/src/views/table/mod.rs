@@ -307,7 +307,7 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(&table_name_for_ref, &table_definition)?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
@@ -1009,6 +1009,10 @@ impl TableView {
     /// This function returns a reference to this table's name.
     pub fn get_ref_table_name(&self) -> &Option<String> {
         &self.table_name
+    }
+
+    pub fn get_packed_file_type(&self) -> &FileType {
+        &&self.packed_file_type
     }
 
     /// This function returns a reference to this table's uuid.
