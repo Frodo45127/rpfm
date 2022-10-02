@@ -273,6 +273,10 @@ pub enum RLibError {
     #[error(transparent)]
     RonError(#[from] ron::Error),
 
+    /// Represents all other cases of `ron::error::SpannedError`.
+    #[error(transparent)]
+    RonSpannedError(#[from] ron::error::SpannedError),
+
     /// Represents all other cases of `csv::Error`.
     #[error(transparent)]
     CSVError(#[from] csv::Error),

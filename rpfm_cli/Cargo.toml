@@ -18,7 +18,7 @@ rpfm_extensions = { path = "../rpfm_extensions" }
 anyhow = "1.0"
 
 # CLI parsing, formatting and color support.
-clap = { version = "^3.2", features = ["derive"] }
+clap = { version = "^4", features = ["derive", "wrap_help"] }
 
 # Serialize support.
 serde = "^1.0"

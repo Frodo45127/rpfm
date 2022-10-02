@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, db::DB, FileType, loc::Loc, pack::Pack, RFileDecoded, table::DecodedData};
-use rpfm_lib::schema::{DefinitionPatch, Schema};
+use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
 

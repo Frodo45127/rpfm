@@ -20,7 +20,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{Result, RLibError};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
 use rpfm_lib::schema::{Definition, Schema};
