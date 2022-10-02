@@ -83,7 +83,7 @@ use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::updater::{APIResponse, CHANGELOG_FILE};
-use crate::utils::{create_grid_layout, file_type, show_dialog, show_dialog_decode_button, log_to_status_bar};
+use crate::utils::{create_grid_layout, show_dialog, show_dialog_decode_button, log_to_status_bar};
 
 #[cfg(feature = "support_rigidmodel")]
 use crate::packedfile_views::rigidmodel::*;

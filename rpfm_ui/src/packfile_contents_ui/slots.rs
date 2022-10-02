@@ -471,9 +471,10 @@ impl PackFileContentsSlots {
                             file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
 
                             // We check that path exists, and create it if it doesn't.
-                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
-                                return;
-                                //return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
+                            if !assets_folder.is_dir() {
+                                if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                    return show_dialog(&app_ui.main_window, format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                }
                             }
 
                             // Run it and expect a response (1 => Accept, 0 => Cancel).
@@ -514,7 +515,7 @@ impl PackFileContentsSlots {
 
                         // If there is no "MyMod" path configured, report it.
                         else {
-                            //show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false)
+                            show_dialog(&app_ui.main_window, "MyMod path is not configured. Configure it in the settings and try again.", false)
                         }
                     }
 
@@ -574,9 +575,10 @@ impl PackFileContentsSlots {
                             file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
 
                             // We check that path exists, and create it if it doesn't.
-                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
-                                return;
-                                //return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
+                            if !assets_folder.is_dir() {
+                                if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
+                                    return show_dialog(&app_ui.main_window, format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                }
                             }
 
                             // Run it and expect a response (1 => Accept, 0 => Cancel).
@@ -618,7 +620,7 @@ impl PackFileContentsSlots {
 
                         // If there is no "MyMod" path configured, report it.
                         else {
-                            //show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false)
+                            show_dialog(&app_ui.main_window, "MyMod path is not configured. Configure it in the settings and try again.", false)
                         }
                     }
 
@@ -673,19 +675,19 @@ impl PackFileContentsSlots {
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        /*
                         Response::ContainerInfoVecRFileInfo((pack_file_info, _)) => {
-                            if pack_file_info.file_path == path {
-                                 return show_dialog(&app_ui.main_window, ErrorKind::CannotAddFromOpenPackFile, false);
+                            if pack_file_info.file_path() == &path_str {
+                                 return show_dialog(&app_ui.main_window, "You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.", false);
                             }
-                        },*/
+                        },
                         Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     app_ui.main_window.set_enabled(false);
-                    let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str];
-                    //AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
+                    let fake_path = RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + &path_str;
+                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
+
                     app_ui.main_window.set_enabled(true);
                 }
             }
@@ -697,15 +699,13 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
                     info!("Triggering `Delete` By Slot");
-                    /*
+
                     let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                    let selected_items = selected_items.iter().map(From::from).collect::<Vec<ContainerPath>>();
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::VecContainerPath(deleted_items) => {
-                            let items = deleted_items.iter().map(From::from).collect::<Vec<ContainerPath>>();
+                        Response::VecContainerPath(items) => {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -720,7 +720,7 @@ impl PackFileContentsSlots {
                                             let open_packedfiles = UI_STATE.set_open_packedfiles();
                                             for packed_file_path in open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
                                                 if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
-                                                    paths_to_remove.push(packed_file_path.to_vec());
+                                                    paths_to_remove.push(packed_file_path.to_owned());
                                                 }
                                             }
                                         }
@@ -730,13 +730,11 @@ impl PackFileContentsSlots {
                                         }
 
                                     }
-                                    ContainerPath::PackFile => { let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false); },
-                                    ContainerPath::None => unreachable!(),
                                 }
                             }
                         },
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                    };*/
+                    };
                 }
             }
         ));
@@ -873,7 +871,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New AnimPack` By Slot");
-            //AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::AnimPack);
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::AnimPack);
         }));
 
         // What happens when we trigger the "Create DB PackedFile" Action.
@@ -881,7 +879,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New DB` By Slot");
-            //AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::DB);
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::DB);
         }));
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
@@ -889,7 +887,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New Loc` By Slot");
-            //AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Loc);
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Loc);
         }));
 
         // What happens when we trigger the "Create Text PackedFile" Action.
@@ -897,7 +895,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `New Text` By Slot");
-            //AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Text);
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, FileType::Text);
         }));
 
         // What happens when we trigger the "New Folder" Action.
@@ -915,17 +913,20 @@ impl PackFileContentsSlots {
 
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_owned();
-                        //complete_path.append(&mut (new_folder_name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+
+                        if complete_path.ends_with("/") {
+                            complete_path.push('/');
+                        }
+                        complete_path.push_str(&new_folder_name);
 
                         // Check if the folder exists.
-                        //let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(complete_path.to_vec()));
-                        //let response = CentralCommand::recv(&receiver);
-                        //let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                        let receiver = CENTRAL_COMMAND.send_background(Command::FolderExists(complete_path.to_owned()));
+                        let response = CentralCommand::recv(&receiver);
+                        let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                         // If the folder already exists, return an error.
-                        //if folder_exists { return show_dialog(&app_ui.main_window, ErrorKind::FolderAlreadyInPackFile, false)}
-                        //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path.to_vec()); 1]), DataSource::PackFile);
-                        //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile);
+                        if folder_exists { return show_dialog(&app_ui.main_window, "That folder already exists in the current path.", false)}
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
                 }
@@ -981,7 +982,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             info!("Triggering `Open In External Program` By Slot");
-            //AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -1000,7 +1001,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             info!("Triggering `Open Notes` By Slot");
-            //AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(vec![RESERVED_NAME_NOTES.to_owned()]), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(RESERVED_NAME_NOTES.to_owned()), false, false, DataSource::PackFile);
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.
@@ -1127,23 +1128,22 @@ impl PackFileContentsSlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
                     }
-                    /*
-                    let path_type: ContainerPath = From::from(item_type);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(path_type));
+
+                    let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::I32I32((old_version, new_version)) => {
                             let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
                             show_dialog(&app_ui.main_window, message, true);
 
-                            //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile);
-                            //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                    }*/
+                    }
                 }
                 _ => unimplemented!()
             }
@@ -1158,9 +1158,8 @@ impl PackFileContentsSlots {
             let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::VecString(path_to_add) => {
-                    //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
-                    //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                Response::String(path_to_add) => {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                 }
 
@@ -1179,12 +1178,12 @@ impl PackFileContentsSlots {
 
                 // Create the "Mass-Import TSV" dialog and wait for his data (or a cancellation).
                 if let Some(data) = PackFileContentsUI::create_mass_import_tsv_dialog(&app_ui) {
-                    /*
+
                     // If there is no name provided, nor TSV file selected, return an error.
                     if let Some(ref name) = data.1 {
-                        if name.is_empty() { return show_dialog(&app_ui.main_window, ErrorKind::EmptyInput, false) }
+                        if name.is_empty() { return show_dialog(&app_ui.main_window, "Only my hearth can be empty.", false) }
                     }
-                    if data.0.is_empty() { return show_dialog(&app_ui.main_window, ErrorKind::NoFilesToImport, false) }
+                    if data.0.is_empty() { return show_dialog(&app_ui.main_window, "It's mathematically impossible to successfully import zero TSV files.", false) }
 
                     // Otherwise, try to import all of them and report the result.
                     else {
@@ -1194,16 +1193,16 @@ impl PackFileContentsSlots {
                         match response {
 
                             // If it's success....
-                            Response::VecVecStringVecVecString(paths) => {
+                            Response::VecStringVecString(paths_to_remove, paths_to_add) => {
 
                                 // Get the list of paths to add, removing those we "replaced".
-                                let mut paths_to_add = paths.1.to_vec();
-                                paths_to_add.retain(|x| !paths.0.contains(x));
-                                //let paths_to_add2 = paths_to_add.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
+                                let mut paths_to_add = paths_to_add.to_vec();
+                                paths_to_add.retain(|x| !paths_to_remove.contains(x));
+                                let paths_to_add2 = paths_to_add.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
                                 // Update the TreeView.
-                                //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2.to_vec()), DataSource::PackFile);
-                                //pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add2), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2.to_vec()), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add2), DataSource::PackFile);
                                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                             }
 
@@ -1213,7 +1212,7 @@ impl PackFileContentsSlots {
 
                         // Re-enable the Main Window.
                         app_ui.main_window.set_enabled(true);
-                    }*/
+                    }
                 }
             }
         ));
@@ -1236,14 +1235,13 @@ impl PackFileContentsSlots {
                     if export_path.is_dir() {
                         app_ui.main_window.set_enabled(false);
                         let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                        /*let selected_items = selected_items.iter().map(From::from).collect::<Vec<ContainerPath>>();
                         let receiver = CENTRAL_COMMAND.send_background(Command::MassExportTSV(selected_items, export_path));
                         let response = CentralCommand::recv(&receiver);
                         match response {
                             Response::String(response) => show_dialog(&app_ui.main_window, response, true),
                             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }*/
+                        }
 
                         app_ui.main_window.set_enabled(true);
                     }

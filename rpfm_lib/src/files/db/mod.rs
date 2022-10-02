@@ -232,7 +232,7 @@ impl DB {
     /// - `mysterious_byte`: don't know what this is.
     /// - `guid`: the GUID of this table.
     /// - `entry_count`: amount of entries this `DB` has.
-    fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, bool, String, u32)> {
+    pub fn read_header<R: ReadBytes>(data: &mut R) -> Result<(i32, bool, String, u32)> {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.

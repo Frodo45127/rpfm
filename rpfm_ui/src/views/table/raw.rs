@@ -976,8 +976,8 @@ impl TableView {
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
-        //let mut row_numbers = vec![];
-        /*
+        let mut row_numbers = vec![];
+
         let rows = if clone {
             let mut rows = vec![];
             for index in indexes_sorted.iter() {
@@ -997,7 +997,7 @@ impl TableView {
             }
             rows
         } else {
-            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
+            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1032,7 +1032,7 @@ impl TableView {
         self.start_delayed_updates_timer();
         self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }*/
+        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
 
     /// This function is used to insert new rows into a table.
@@ -1046,11 +1046,11 @@ impl TableView {
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
-        //let mut row_numbers = vec![];
-        /*
+        let mut row_numbers = vec![];
+
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
+            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1077,7 +1077,7 @@ impl TableView {
                 }
                 qlist
             } else {
-                let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref());
+                let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
                 for index in 0..row.count_0a() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
@@ -1101,7 +1101,6 @@ impl TableView {
         self.start_delayed_updates_timer();
         self.update_line_counter();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-        */
     }
 
     /// This function returns a copy of the entire model.
@@ -1799,27 +1798,22 @@ impl TableView {
             };
 
             if let Some((ref_table, ref_column, ref_data)) = ref_info {
-                /*
+
                 // Save the tables that may be the source before searching, to ensure their data is updated.
+                let ref_path = format!("db/{}", ref_table);
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
-                    if let Some(folder) = packed_file_view.get_path().get(0) {
-                        if folder.to_lowercase() == "db" {
-                            if let Some(table_name) = packed_file_view.get_path().get(1) {
-                                if &ref_table == table_name {
-                                    let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
-                                }
-                            }
-                        }
+                    if packed_file_view.get_path().starts_with(&ref_path) {
+                        let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
                     }
-                });*/
-                /*
+                });
+
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToDefinition(ref_table, ref_column, ref_data));
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
+                    Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
                         match data_source {
                             DataSource::PackFile => {
                                 let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
@@ -1854,7 +1848,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1873,9 +1867,9 @@ impl TableView {
                         }
                     }
 
-                    Response::Error(error) => error_message = error.to_terminal(),
+                    Response::Error(error) => error_message = error.to_string(),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }*/
+                }
             } else {
                 error_message = tr("source_data_for_field_not_found");
             }
@@ -1924,14 +1918,14 @@ impl TableView {
 
                 let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
-                /*
+
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Response::DataSourceVecStringUsizeUsize(data_source, path, column, row) => {
+                    Response::DataSourceStringUsizeUsize(data_source, path, column, row) => {
                         match data_source {
                             DataSource::PackFile => {
                                 let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, data_source);
@@ -1966,7 +1960,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_vec()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_owned()), true, false, data_source);
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
@@ -1985,9 +1979,9 @@ impl TableView {
                         }
                     }
 
-                    Response::Error(error) => error_message = error.to_terminal(),
+                    Response::Error(error) => error_message = error.to_string(),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }*/
+                }
             }
         }
 

@@ -71,25 +71,24 @@ impl PackFileContentsUI {
         if !window_was_disabled {
             app_ui.main_window.set_enabled(false);
         }
-        /*
+
         let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
             Response::VecContainerPath(paths) => {
-                let paths = paths.iter().map(From::from).collect::<Vec<ContainerPath>>();
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
+
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths_packedfile.iter().filter_map(|path| {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                            Some(path.to_vec())
+                            Some(path.to_owned())
                         } else { None }
                     } else { None }
-                }).collect::<Vec<Vec<String>>>();
+                }).collect::<Vec<String>>();
 
                 for path in &failed_paths {
                     let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
@@ -104,7 +103,7 @@ impl PackFileContentsUI {
             Response::Success => {},
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
-        }*/
+        }
 
         // Re-enable the Main Window.
         if !window_was_disabled {
@@ -120,28 +119,24 @@ impl PackFileContentsUI {
         paths_packedfile: &[String],
         paths_to_ignore: Option<Vec<PathBuf>>,
         import_tables_from_tsv: bool
-    ) {/*
+    ) {
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
         let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
         let response = CentralCommand::recv(&receiver);
         match response {
-            Response::VecContainerPath(paths_packedfile) => {
-                let paths = paths_packedfile.iter().map(From::from).collect::<Vec<ContainerPath>>();
+            Response::VecContainerPath(paths) => {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let failed_paths = paths_packedfile.iter().filter_map(|path| {
-                    if let ContainerPath::File(path) = path {
-                        if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                            if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                Some(path.to_vec())
-                            } else { None }
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
+                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
+                            Some(path.to_owned())
                         } else { None }
                     } else { None }
-                }).collect::<Vec<Vec<String>>>();
+                }).collect::<Vec<String>>();
 
                 for path in &failed_paths {
                     let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
@@ -150,7 +145,7 @@ impl PackFileContentsUI {
 
             Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        }*/
+        }
 
         // Re-enable the Main Window.
         app_ui.main_window.set_enabled(true);
@@ -335,8 +330,7 @@ impl PackFileContentsUI {
 
                 // If there is no MyMod path configured, report it.
                 else {
-                    return;
-                    //return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true);
+                    return show_dialog(&app_ui.main_window, "MyMod path is not configured. Configure it in the settings and try again.", true);
                 }
             }
 
@@ -361,7 +355,6 @@ impl PackFileContentsUI {
         }
 
         else {
-            /*
             let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
             app_ui.main_window.set_enabled(false);
             let response = CentralCommand::recv_try(&receiver);
@@ -371,7 +364,6 @@ impl PackFileContentsUI {
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
             app_ui.main_window.set_enabled(true);
-            */
         }
     }
 

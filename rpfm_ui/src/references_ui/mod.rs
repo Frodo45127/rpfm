@@ -127,7 +127,7 @@ impl ReferencesUI {
     }
 
     /// This function takes care of loading the results of a reference search into the table.
-    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, Vec<String>, String, usize, usize)>) {
+    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, String, String, usize, usize)>) {
 
         // First, clean the current diagnostics.
         self.references_table_model.clear();
@@ -151,7 +151,7 @@ impl ReferencesUI {
                 let row_number_item = QStandardItem::new();
 
                 data_source_item.set_text(&QString::from_std_str(&format!("{}", data_source)));
-                path_item.set_text(&QString::from_std_str(path.join("/")));
+                path_item.set_text(&QString::from_std_str(path));
                 column_name_item.set_text(&QString::from_std_str(column_name));
                 column_number_item.set_data_2a(&QVariant::from_int(*column_number as i32), 2);
                 column_number_item.set_data_1a(&QVariant::from_int(*column_number as i32));
@@ -200,14 +200,14 @@ impl ReferencesUI {
         references_ui: &Rc<Self>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
-        /*
+
         let filter_model: QPtr<QSortFilterProxyModel> = model_index_filtered.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter_model.source_model().static_downcast();
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
         let row = model_index.row();
 
         let reference_data_source = DataSource::from(&*model.item_2a(row, 0).text().to_std_string());
-        let reference_path = model.item_2a(row, 1).text().to_std_string().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+        let reference_path = model.item_2a(row, 1).text().to_std_string();
         let reference_column_number = model.item_2a(row, 3).data_0a().to_int_0a();
         let reference_row_number = model.item_2a(row, 4).data_0a().to_int_0a();
 
@@ -238,7 +238,7 @@ impl ReferencesUI {
         }
 
         // Open the table and select the cell.
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_vec()), true, false, reference_data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_owned()), true, false, reference_data_source);
         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == reference_path && x.get_data_source() == reference_data_source) {
             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                 let table_view = view.get_ref_table();
@@ -254,6 +254,6 @@ impl ReferencesUI {
                     table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
                 }
             }
-        }*/
+        }
     }
 }

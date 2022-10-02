@@ -10,7 +10,7 @@
 
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
 
-use getset::Getters;
+use getset::{Getters, MutGetters};
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -116,8 +116,8 @@ pub struct Dependencies {
 }
 
 /// This holds the reference data for a table's column.
-#[derive(PartialEq, Clone, Default, Debug, Getters, Serialize, Deserialize)]
-#[getset(get = "pub")]
+#[derive(PartialEq, Clone, Default, Debug, Getters, MutGetters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct TableReferences {
 
     /// If the table is only present in the Ak. Useful to identify unused tables on diagnostics checks.
@@ -841,6 +841,53 @@ impl Dependencies {
             }
         });
         data_found
+    }
+
+    /// This function returns the table/column/key from the provided loc key.
+    ///
+    /// We return the table without "_tables". Keep that in mind if you use this.
+    pub fn loc_key_source(&self, key: &str) -> Option<(String, String, String)> {
+        let key_split = key.split('_').collect::<Vec<_>>();
+        let mut table_name = String::new();
+
+        // We don't know how much of the string the key the table is, so we try adding parts until we find a table that matches.
+        for (index, value) in key_split.iter().enumerate() {
+            table_name.push_str(value);
+
+            let full_table_name = format!("{}_tables", table_name);
+
+            if let Ok(rfiles) = self.db_data(&full_table_name, true, false) {
+                for rfile in rfiles {
+                    if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+                        let definition = table.definition();
+                        let localised_fields = definition.localised_fields();
+                        if !localised_fields.is_empty() && key_split.len() > index + 2 {
+                            let mut field = String::new();
+                            let fields_processed = definition.fields_processed();
+
+                            // Loop to get the column.
+                            for (second_index, value) in key_split[index + 1..].iter().enumerate() {
+                                field.push_str(value);
+                                if localised_fields.iter().any(|x| x.name() == field) {
+
+                                    // If we reached this, the rest is the value.
+                                    let key_field = &key_split[index + second_index + 2..].join("_");
+                                    if let Some(field) = fields_processed.iter().find(|x| (x.name() == "key" || x.name() == "id") && x.is_key()) {
+                                        return Some((table_name, field.name().to_string(), key_field.to_owned()));
+                                    }
+                                }
+                                field.push('_');
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Add an underscore before adding the next part of the table name in the next loop.
+            table_name.push('_');
+        }
+
+        None
     }
 
     //-----------------------------------//

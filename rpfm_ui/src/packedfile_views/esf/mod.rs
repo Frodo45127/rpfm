@@ -33,7 +33,7 @@ use qt_core::QTimer;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use rpfm_lib::files::{esf::ESF, FileType};
 
@@ -146,7 +146,6 @@ impl PackedFileESFView {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
-
 
         let view = Arc::new(Self {
             tree_view,

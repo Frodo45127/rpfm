@@ -339,16 +339,6 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
     widget.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", style_sheet)));
 }
 
-/// Util function to get the FileType of a File in a reliable way.
-pub fn file_type(path: &str) -> FileType {
-    let receiver = CENTRAL_COMMAND.send_background(Command::GetFileType(path.to_owned()));
-    let response = CentralCommand::recv(&receiver);
-    match response {
-        Response::FileType(file_type) => file_type,
-        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-    }
-}
-
 /// This functin returns the feature flags enabled for RPFM.
 pub fn get_feature_flags() -> String {
     let mut feature_flags = String::new();

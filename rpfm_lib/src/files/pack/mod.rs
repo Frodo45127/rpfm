@@ -24,8 +24,9 @@ use getset::*;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
+use itertools::Itertools;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Cursor, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -34,9 +35,11 @@ use std::str::FromStr;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::compression::Compressible;
 use crate::error::{RLibError, Result};
-use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, RFile};
+use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, Loc, RFile, table::DecodedData};
 use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 use crate::utils::{current_time, last_modified_time_from_file};
+
+use super::RFileDecoded;
 
 #[cfg(test)]
 mod pack_test;
@@ -686,6 +689,81 @@ impl Pack {
             _ => false
         }
     }
+
+    /// This function is used to generate all loc entries missing from a PackFile into a missing.loc file.
+    pub fn generate_missing_loc_data(&mut self) -> Result<Option<ContainerPath>> {
+
+        let db_tables = self.files_by_type(&[FileType::DB]);
+        let loc_tables = self.files_by_type(&[FileType::Loc]);
+        let mut missing_trads_file = Loc::new(false);
+
+        db_tables.iter().for_each(|rfile| {
+            if let RFileDecoded::DB(table) = rfile.decoded().unwrap() {
+                let definition = table.definition();
+                let fields_processed = definition.fields_processed();
+                let localised_fields = definition.localised_fields();
+                if !localised_fields.is_empty() && fields_processed.iter().filter(|x| x.is_key()).count() > 1 {
+                    println!("{}, keys: {}", table.table_name_without_tables(), fields_processed.iter().filter(|x| x.is_key()).count());
+                }
+            }
+        });
+
+        let loc_keys_from_memory = loc_tables.par_iter().filter_map(|rfile| {
+            if let RFileDecoded::Loc(table) = rfile.decoded().unwrap() {
+                Some(table.data(&None).unwrap().iter().filter_map(|x| {
+                    if let DecodedData::StringU16(data) = &x[0] {
+                        Some(data.to_owned())
+                    } else {
+                        None
+                    }
+                }).collect::<HashSet<String>>())
+            } else { None }
+        }).flatten().collect::<HashSet<String>>();
+
+        let missing_trads_file_table_data = db_tables.par_iter().filter_map(|rfile| {
+            if let RFileDecoded::DB(table) = rfile.decoded().unwrap() {
+                let definition = table.definition();
+                let loc_fields = definition.localised_fields();
+                let processed_fields = definition.fields_processed();
+                if !loc_fields.is_empty() {
+                    let table_data = table.data(&None).unwrap();
+                    let table_name = table.table_name_without_tables();
+
+                    // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
+                    let key_field_names = definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
+                    let key_field_positions = key_field_names.iter().filter_map(|name| processed_fields.iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
+
+                    let mut new_rows = vec![];
+
+                    for row in table_data.iter() {
+                        for loc_field in loc_fields {
+                            let key = key_field_positions.iter().map(|pos| row[*pos].data_to_string()).join("");
+                            let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
+
+                            if loc_keys_from_memory.get(&*loc_key).is_none() {
+                                let mut new_row = missing_trads_file.new_row();
+                                new_row[0] = DecodedData::StringU16(loc_key);
+                                new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
+                                new_rows.push(new_row);
+                            }
+                        }
+                    }
+
+                    return Some(new_rows)
+                }
+            }
+            None
+        }).flatten().collect::<Vec<Vec<DecodedData>>>();
+
+        // Save the missing translations to a missing_locs.loc file.
+        let _ = missing_trads_file.set_data(&missing_trads_file_table_data);
+        if !missing_trads_file_table_data.is_empty() {
+            let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file), 0,  "text/missing_locs.loc");
+            Ok(Some(self.insert(packed_file)?))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 /*
@@ -1247,79 +1325,8 @@ impl PackFile {
         self.add_packed_file(&packed_file, true)
     }
 
-
-    /// This function is used to generate all loc entries missing from a PackFile into a missing.loc file.
-    pub fn generate_missing_loc_data(&mut self, schema: &Schema) -> Result<Vec<String>> {
-
-        let db_tables = self.get_ref_packed_files_by_type(PackedFileType::DB, false);
-        let loc_tables = self.get_ref_packed_files_by_type(PackedFileType::Loc, false);
-        let mut missing_trads_file = Loc::new(schema.get_ref_last_definition_loc().unwrap());
-
-        db_tables.iter().for_each(|packed_file| {
-            if let DecodedPackedFile::DB(table) = packed_file.get_decoded_from_memory().unwrap() {
-                let definition = table.get_ref_definition();
-                if !definition.get_localised_fields().is_empty() && definition.get_fields_processed().iter().filter(|x| x.get_is_key()).count() > 1 {
-                    println!("{}, keys: {}", table.get_table_name_without_tables(), definition.get_fields_processed().iter().filter(|x| x.get_is_key()).count());
-                }
-            }
-        });
-
-        let loc_keys_from_memory = loc_tables.par_iter().filter_map(|packed_file| {
-            if let DecodedPackedFile::Loc(table) = packed_file.get_decoded_from_memory().unwrap() {
-                Some(table.get_ref_table_data().iter().filter_map(|x| {
-                    if let DecodedData::StringU16(data) = &x[0] {
-                        Some(data.as_str())
-                    } else {
-                        None
-                    }
-                }).collect::<HashSet<&str>>())
-            } else { None }
-        }).flatten().collect::<HashSet<&str>>();
-
-        let missing_trads_file_table_data = db_tables.par_iter().filter_map(|packed_file| {
-            if let DecodedPackedFile::DB(table) = packed_file.get_decoded_from_memory().unwrap() {
-                let definition = table.get_ref_definition();
-                let loc_fields = definition.get_localised_fields();
-                let processed_fields = definition.get_fields_processed();
-                if !loc_fields.is_empty() {
-                    let table_data = table.get_ref_table_data();
-                    let table_name = table.get_table_name_without_tables();
-
-                    // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
-                    let key_field_names = definition.get_ref_fields().iter().filter_map(|field| if field.get_is_key() { Some(field.get_name()) } else { None }).collect::<Vec<&str>>();
-                    let key_field_positions = key_field_names.iter().filter_map(|name| processed_fields.iter().position(|field| field.get_name() == *name)).collect::<Vec<usize>>();
-
-                    let mut new_rows = vec![];
-
-                    for row in table_data {
-                        for loc_field in loc_fields {
-                            let key = key_field_positions.iter().map(|pos| row[*pos].data_to_string()).join("");
-                            let loc_key = format!("{}_{}_{}", table_name, loc_field.get_name(), key);
-
-                            if loc_keys_from_memory.get(&*loc_key).is_none() {
-                                let mut new_row = missing_trads_file.get_new_row();
-                                new_row[0] = DecodedData::StringU16(loc_key);
-                                new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
-                                new_rows.push(new_row);
-                            }
-                        }
-                    }
-
-                    return Some(new_rows)
-                }
-            }
-            None
-        }).flatten().collect::<Vec<Vec<DecodedData>>>();
-
-        // Save the missing translations to a missing_locs.loc file.
-        let _ = missing_trads_file.set_table_data(&missing_trads_file_table_data);
-        if !missing_trads_file_table_data.is_empty() {
-            let packed_file = PackedFile::new_from_decoded(&DecodedPackedFile::Loc(missing_trads_file), &["text".to_owned(), "missing_locs.loc".to_owned()]);
-            self.add_packed_file(&packed_file, true)
-        } else {
-            Ok(vec![])
-        }
-    }
+    */
+   /*
 
     /// This function is used to patch Warhammer Siege map packs so their AI actually works.
     ///

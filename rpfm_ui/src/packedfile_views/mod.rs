@@ -85,6 +85,7 @@ pub mod unit_variant;
 pub mod utils;
 
 const RFILE_SAVED_ERROR: &str = "The following PackedFile failed to be saved: ";
+const RFILE_RELOAD_ERROR: &str = "The PackedFile you added is not the same type as the one you had before. So… the view showing it will get closed.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -492,64 +493,64 @@ impl PackedFileView {
         path: &str,
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
-        /*
+
         let data_source = self.get_data_source();
         if data_source != DataSource::ExternalFile {
             match self.get_ref_mut_view() {
                 ViewType::Internal(view) => {
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_vec(), data_source));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_owned(), data_source));
                     let response = CentralCommand::recv(&receiver);
 
                     match response {
 
-                        Response::AnimFragmentRFileInfo((fragment, packed_file_info)) => {
+                        Response::AnimFragmentRFileInfo(fragment, packed_file_info) => {
                             if let View::AnimFragment(old_fragment) = view {
                                 if old_fragment.reload_view(fragment).is_err() {
-                                    return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                    return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::AnimPackRFileInfo((anim_pack, packed_file_info)) => {
+                        Response::AnimPackRFileInfo(anim_pack, files_info, file_info) => {
                             if let View::AnimPack(old_anim_pack) = view {
-                                old_anim_pack.reload_view(anim_pack);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                old_anim_pack.reload_view((anim_pack, files_info));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::AnimTableRFileInfo((table, packed_file_info)) => {
+                        Response::AnimsTableRFileInfo(table, packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
-                                old_table.reload_view(TableType::AnimTable(table));
+                                old_table.reload_view(TableType::AnimsTable(table));
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::CaVp8RFileInfo((ca_vp8, packed_file_info)) => {
+                        Response::CaVp8RFileInfo(ca_vp8, packed_file_info) => {
                             if let View::CaVp8(old_ca_vp8) = view {
                                 old_ca_vp8.reload_view(&ca_vp8);
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::DBRFileInfo((table, packed_file_info)) => {
+                        Response::DBRFileInfo(table, packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::DB(table));
@@ -557,21 +558,21 @@ impl PackedFileView {
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::ImageRFileInfo((image, packed_file_info)) => {
+                        Response::ImageRFileInfo(image, packed_file_info) => {
                             if let View::Image(old_image) = view {
                                 old_image.reload_view(&image);
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::LocRFileInfo((table, packed_file_info)) => {
+                        Response::LocRFileInfo(table, packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Loc(table));
@@ -579,11 +580,11 @@ impl PackedFileView {
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::MatchedCombatRFileInfo((table, packed_file_info)) => {
+                        Response::MatchedCombatRFileInfo(table, packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::MatchedCombat(table));
@@ -591,7 +592,7 @@ impl PackedFileView {
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
@@ -603,23 +604,23 @@ impl PackedFileView {
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
-                        Response::TextRFileInfo((text, packed_file_info)) => {
+                        Response::TextRFileInfo(text, packed_file_info) => {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
-                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                return Err(anyhow!(RFILE_RELOAD_ERROR));
                             }
                         },
 
                         // Debug views retun their entire file.
-                        Response::RFileDecodedRFileInfo((packed_file, packed_file_info)) => {
+                        Response::RFileDecodedRFileInfo(packed_file, packed_file_info) => {
                             match packed_file {
                                 RFileDecoded::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
@@ -628,7 +629,7 @@ impl PackedFileView {
 
                                     }
                                     else {
-                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                        return Err(anyhow!(RFILE_RELOAD_ERROR));
                                     }
                                 }
                                 RFileDecoded::ESF(esf) => {
@@ -638,15 +639,15 @@ impl PackedFileView {
 
                                     }
                                     else {
-                                        return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                                        return Err(anyhow!(RFILE_RELOAD_ERROR));
                                     }
                                 }
-                                _ => return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into()),
+                                _ => return Err(anyhow!(RFILE_RELOAD_ERROR)),
                             }
                         },
 
                         Response::Error(error) => return Err(error),
-                        Response::Unknown => return Err(ErrorKind::FileTypeUnknown.into()),
+                        Response::Unknown => return Err(anyhow!("File Type Unknown.")),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
@@ -658,7 +659,7 @@ impl PackedFileView {
             }
         } else {
             Ok(())
-        }*/Ok(())
+        }
     }
 
     /// This function cleans the packedfile view from modified markers.

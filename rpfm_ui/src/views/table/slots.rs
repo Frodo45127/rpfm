@@ -447,7 +447,7 @@ impl TableViewSlots {
                     // Run it and, if we receive 1 (Accept), try to import the TSV file.
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        /*
+
                         let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
@@ -470,7 +470,7 @@ impl TableViewSlots {
                                 view.update_line_counter();
 
                                 let table_name = match data {
-                                    TableType::DB(_) => packed_file_path.read().unwrap().get(1).cloned(),
+                                    TableType::DB(db) => Some(db.table_name().to_owned()),
                                     _ => None,
                                 };
 
@@ -478,7 +478,7 @@ impl TableViewSlots {
                                     &view.get_mut_ptr_table_view_primary(),
                                     Some(&view.get_mut_ptr_table_view_frozen()),
                                     &view.get_ref_table_definition(),
-                                    table_name.as_ref()
+                                    table_name.as_deref()
                                 );
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
@@ -493,7 +493,7 @@ impl TableViewSlots {
                             },
                             Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }*/
+                        }
 
                         //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
                         view.context_menu_update();
@@ -618,19 +618,19 @@ impl TableViewSlots {
                             if references_ui.references_table_view.is_enabled() {
                                 references_ui.references_dock_widget.show();
                                 references_ui.references_table_view.set_enabled(false);
-                                /*
+
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
                                 let response = CentralCommand::recv_try(&receiver);
                                 match response {
-                                    Response::VecDataSourceVecStringStringUsizeUsize(data) => {
+                                    Response::VecDataSourceStringStringUsizeUsize(data) => {
                                         references_ui.load_references_to_ui(data);
 
                                         // Reenable the table.
                                         references_ui.references_table_view.set_enabled(true);
                                     }
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                                }*/
+                                }
                             }
                         }
                     }

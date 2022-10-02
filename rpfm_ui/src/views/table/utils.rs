@@ -801,8 +801,7 @@ pub unsafe fn get_column_tooltips(
 
 /// This function returns the reference data for an entire table.
 pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, TableReferences>> {
-    Ok(BTreeMap::new())
-    /*
+
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
     let receiver = CENTRAL_COMMAND.send_background(Command::GetterserenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
@@ -817,7 +816,8 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         for packed_file_view in open_packedfiles.iter() {
             let path = packed_file_view.get_ref_path();
             if packed_file_view.get_data_source() == DataSource::PackFile {
-                if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
+                let path_split = path.split('/').collect::<Vec<_>>();
+                if path_split.len() == 3 && path_split[0].to_lowercase() == "db" && path_split[1].to_lowercase() == format!("{}_tables", table) {
                     if let ViewType::Internal(View::Table(table)) = packed_file_view.get_view() {
                         let table = table.get_ref_table();
                         let column = clean_column_names(column);
@@ -853,7 +853,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
             for index in reference_data.keys() {
                 if let Some(column_data_visual) = dependency_data_visual.get(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
-                        column_data.data.extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
+                        column_data.data_mut().extend(column_data_visual.iter().map(|(k, v)| (k.clone(), v.clone())));
                     }
                 }
             }
@@ -862,7 +862,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
         },
         Response::Error(error) => Err(error),
         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-    }*/
+    }
 }
 
 /// This function sets up the item delegates for all columns in a table.
@@ -1030,11 +1030,9 @@ pub unsafe fn get_table_from_view(
         entries.push(new_row);
     }
 
-    /*
-    let mut table = Table::new(definition);
-    table.set_table_data(&entries)?;
-    Ok(table)*/
-    Err(anyhow!("test"))
+    let mut table = Table::new(definition, None, "", false);
+    table.set_data(None, &entries)?;
+    Ok(table)
 }
 
 /// This function creates a new subtable from the current table.

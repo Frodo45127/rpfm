@@ -1922,6 +1922,7 @@ dependencies = [
  "fraction",
  "getset",
  "git2",
+ "itertools 0.10.3",
  "log",
  "memchr",
  "os_info",
