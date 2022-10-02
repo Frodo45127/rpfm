@@ -11,12 +11,13 @@
 //! This module contains the input and command definitions for the tool.
 
 use anyhow::{anyhow, Result};
-use clap::{Parser, Subcommand};
+use clap::{builder::PossibleValuesParser, Parser, Subcommand};
 use csv::ReaderBuilder;
 
 use std::path::PathBuf;
 
 use rpfm_lib::games::pfh_file_type::PFHFileType;
+use rpfm_lib::games::supported_games::SupportedGames;
 
 //---------------------------------------------------------------------------//
 //                          Struct/Enum Definitions
@@ -30,9 +31,8 @@ pub(crate) struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
-    // TODO: move this to a function that gets the games supported from then lib.
     /// Game we are using this tool for.
-    #[arg(short, long, value_name = "GAME", value_parser = ["warhammer_3", "troy", "three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])]
+    #[arg(short, long, value_name = "GAME", value_parser = PossibleValuesParser::new(game_keys()))]
     pub game: String,
 
     #[clap(subcommand)]
@@ -410,4 +410,10 @@ fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
     }
 
     Ok((String::new(), PathBuf::new()))
+}
+
+/// Function to get the supported game keys.
+fn game_keys() -> Vec<&'static str> {
+    let supported_games = SupportedGames::new();
+    supported_games.game_keys_sorted().to_vec()
 }

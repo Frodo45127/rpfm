@@ -1605,4 +1605,9 @@ impl SupportedGames {
     pub fn games_sorted(&self) -> Vec<&GameInfo> {
         self.order.iter().map(|key| self.game(key).unwrap()).collect::<Vec<&GameInfo>>()
     }
+
+    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports, sorted by release date.
+    pub fn game_keys_sorted(&self) -> &[&'static str] {
+        &self.order
+    }
 }
