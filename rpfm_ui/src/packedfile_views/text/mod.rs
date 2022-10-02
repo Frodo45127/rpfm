@@ -25,8 +25,6 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::{FileType, text::*};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::ffi::{new_text_editor_safe, set_text_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};

@@ -29,7 +29,6 @@ use qt_core::QPtr;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 
-use anyhow::{anyhow, Result};
 use getset::*;
 
 use std::rc::Rc;
@@ -39,7 +38,6 @@ use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
 use crate::backend::{ContainerInfo, RFileInfo};
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
 use crate::locale::qtr;

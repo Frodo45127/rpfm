@@ -29,9 +29,6 @@ use rpfm_lib::files::{FileType, image::Image};
 
 #[cfg(feature = "support_modern_dds")]
 use crate::ffi::get_dds_qimage;
-
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 

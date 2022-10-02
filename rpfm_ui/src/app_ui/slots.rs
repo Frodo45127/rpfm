@@ -606,7 +606,7 @@ impl AppUISlots {
             app_ui => move |_| {
             let path = setting_path("mymods_base_path");
             if path.is_dir() {
-                open::that_in_background(&path);
+                let _ = open::that(&path);
             } else {
                 show_dialog(&app_ui.main_window, "MyMod path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
@@ -870,7 +870,7 @@ impl AppUISlots {
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             match GAME_SELECTED.read().unwrap().get_game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
-                Ok(command) => { open::that_in_background(&command); },
+                Ok(command) => { let _ = open::that(&command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
         }));
@@ -879,7 +879,7 @@ impl AppUISlots {
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
-                open::that_in_background(&path);
+                let _ = open::that(&path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
@@ -890,7 +890,7 @@ impl AppUISlots {
             app_ui => move |_| {
             let path = setting_path(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().game_key_name()));
             if path.is_dir() {
-                open::that_in_background(&path);
+                let _ = open::that(&path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
@@ -900,7 +900,7 @@ impl AppUISlots {
         let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = config_path() {
-                open::that_in_background(&path);
+                let _ = open::that(&path);
             } else {
                 show_dialog(&app_ui.main_window, "RPFM's config folder couldn't be open (maybe it doesn't exists?).", false);
             }

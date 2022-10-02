@@ -23,7 +23,6 @@ use anyhow::{anyhow, Result};
 use crossbeam::channel::Sender;
 use rpfm_lib::files::{Container, ContainerPath, db::DB, loc::Loc, RFileDecoded, text::*};
 use rpfm_lib::integrations::log::*;
-use open::that_in_background;
 use rayon::prelude::*;
 use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type};
 //use uuid::Uuid;
