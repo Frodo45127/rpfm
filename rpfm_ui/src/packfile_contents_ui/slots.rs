@@ -29,7 +29,7 @@ use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_lib::files::{ContainerPath, FileType, pack::*, text::TextFormat};
+use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
@@ -1021,20 +1021,21 @@ impl PackFileContentsSlots {
                     break;
                 }
             }
-            /*
+
             // Then DB Tables. The conditions are that they're in the same db folder and with the same version.
             // If ANY of these fails (until the "update table version" feature it's done), we fail the pass.
             // Due to performance reasons, the version thing will be done later.
             let mut db_pass = true;
             let mut db_folder = String::new();
             for path in &selected_paths {
-                if path.len() == 3 {
-                    if path[0].to_lowercase() == "db" {
+                let path_split = path.split('/').collect::<Vec<_>>();
+                if path_split.len() == 3 {
+                    if path_split[0].to_lowercase() == "db" {
                         if db_folder.is_empty() {
-                            db_folder = path[1].to_owned();
+                            db_folder = path_split[1].to_owned();
                         }
 
-                        if path[1] != db_folder {
+                        if path_split[1] != db_folder {
                             db_pass = false;
                             break;
                         }
@@ -1067,7 +1068,7 @@ impl PackFileContentsSlots {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
                         for path in open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path())  {
                             if selected_paths.contains(&path) {
-                                paths_to_close.push(path.to_vec());
+                                paths_to_close.push(path.to_owned());
                             }
                         }
                     }
@@ -1081,17 +1082,16 @@ impl PackFileContentsSlots {
                     let receiver = CENTRAL_COMMAND.send_background(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::VecString(path_to_add) => {
+                        Response::String(path_to_add) => {
 
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
-                                let items_to_remove = selected_paths.iter().map(|x| ContainerPath::File(x.to_vec())).collect();
+                                let items_to_remove = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect();
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove), DataSource::PackFile);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(path_to_add.to_vec()); 1]), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
 
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
@@ -1103,8 +1103,8 @@ impl PackFileContentsSlots {
             }
 
             else {
-                show_dialog(&app_ui.main_window, ErrorKind::InvalidFilesForMerging, false);
-            }*/
+                show_dialog(&app_ui.main_window, "The files you selected are not all LOCs, neither DB Tables of the same type and version.", false);
+            }
         }));
 
         // What happens when we trigger the "Update Table" action in the Contextual Menu.

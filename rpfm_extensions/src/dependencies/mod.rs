@@ -120,6 +120,9 @@ pub struct Dependencies {
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableReferences {
 
+    /// Name of the column these references are for. Only for debugging, do not rely on it for anything.
+    field_name: String,
+
     /// If the table is only present in the Ak. Useful to identify unused tables on diagnostics checks.
     referenced_table_is_ak_only: bool,
 
@@ -286,8 +289,8 @@ impl Dependencies {
         let local_tables_references = pack.files_by_type(&[FileType::DB]).par_iter().filter_map(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 
-                // Only generate references for the tables you pass it.
-                if table_names.iter().any(|x| x == db.table_name()) {
+                // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
+                if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
 
                     Some((db.table_name().to_owned(), db.definition().fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
                         if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
@@ -296,6 +299,7 @@ impl Dependencies {
                                 // Get his lookup data if it has it.
                                 let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                                 let mut references = TableReferences::default();
+                                *references.field_name_mut() = field.name().to_owned();
 
                                 let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
                                 let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
@@ -686,6 +690,7 @@ impl Dependencies {
                     // Get his lookup data if it has it.
                     let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = TableReferences::default();
+                    *references.field_name_mut() = field.name().to_owned();
 
                     let _local_found = Self::db_reference_data_from_local_pack(&mut references, (ref_table, ref_column, &lookup_data), pack);
 

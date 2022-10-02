@@ -424,7 +424,7 @@ pub unsafe fn load_data(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &RwLock<BTreeMap<i32, TableReferences>>,
+    dependency_data: &RwLock<HashMap<i32, TableReferences>>,
     data: &TableType,
     timer: &QBox<QTimer>,
     data_source: DataSource,
@@ -726,8 +726,8 @@ pub unsafe fn get_column_tooltips(
     // - If the column is referenced by another column, we add it to the tooltip.
     if let Some(table_name) = table_name {
         if let Some(ref schema) = schema {
-            /*
-            let versioned_files = schema.get_ref_versioned_file_db_all().into_iter();
+
+            let ref_definitions = schema.definitions();
             tooltips = fields.par_iter().map(|field| {
                 let mut tooltip_text = String::new();
                 if !field.description().is_empty() {
@@ -752,20 +752,18 @@ pub unsafe fn get_column_tooltips(
                         let mut columns = vec![];
 
                         // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
-                        for versioned_file in versioned_files.clone() {
-                            if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
-                                let mut found = false;
-                                for ref_version in ref_definition {
-                                    for ref_field in ref_version.fields_processed() {
-                                        if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
-                                            if ref_ref_table == short_table_name && ref_ref_field == field.name() {
-                                                found = true;
-                                                columns.push((ref_table_name.to_owned(), ref_field.get_name().to_owned()));
-                                            }
+                        for (ref_table_name, ref_definition) in ref_definitions.iter() {
+                            let mut found = false;
+                            for ref_version in ref_definition {
+                                for ref_field in ref_version.fields_processed() {
+                                    if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference() {
+                                        if ref_ref_table == short_table_name && ref_ref_field == field.name() {
+                                            found = true;
+                                            columns.push((ref_table_name.to_owned(), ref_field.name().to_owned()));
                                         }
                                     }
-                                    if found { break; }
                                 }
+                                if found { break; }
                             }
                         }
                         columns
@@ -792,7 +790,7 @@ pub unsafe fn get_column_tooltips(
                     }
                 }
                 tooltip_text
-            }).collect::<Vec<String>>();*/
+            }).collect::<Vec<String>>();
         }
     }
 
@@ -800,11 +798,10 @@ pub unsafe fn get_column_tooltips(
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, TableReferences>> {
+pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<HashMap<i32, TableReferences>> {
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-    let files_to_ignore = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_path()).collect();
-    let receiver = CENTRAL_COMMAND.send_background(Command::GetterserenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
+    let receiver = CENTRAL_COMMAND.send_background(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone()));
 
     let reference_data = definition.reference_data();
     let mut dependency_data_visual = BTreeMap::new();
@@ -849,7 +846,7 @@ pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> R
 
     let mut response = CentralCommand::recv(&receiver);
     match response {
-        Response::BTreeMapI32TableReferences(ref mut dependency_data) => {
+        Response::HashMapI32TableReferences(ref mut dependency_data) => {
             for index in reference_data.keys() {
                 if let Some(column_data_visual) = dependency_data_visual.get(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
@@ -870,16 +867,16 @@ pub unsafe fn setup_item_delegates(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &BTreeMap<i32, TableReferences>,
+    table_references: &HashMap<i32, TableReferences>,
     timer: &QBox<QTimer>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
     for (column, field) in definition.fields_processed().iter().enumerate() {
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !setting_bool("disable_combos_on_tables") && dependency_data.get(&(column as i32)).is_some() || !field.enum_values().is_empty() {
+        if !setting_bool("disable_combos_on_tables") && table_references.get(&(column as i32)).is_some() || !field.enum_values().is_empty() {
             let list = QStringList::new();
-            if let Some(data) = dependency_data.get(&(column as i32)) {
+            if let Some(data) = table_references.get(&(column as i32)) {
                 let mut data = data.data().iter().map(|x| if enable_lookups { x.1 } else { x.0 }).collect::<Vec<&String>>();
                 data.sort();
                 data.iter().for_each(|x| list.append_q_string(&QString::from_std_str(x)));

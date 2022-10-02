@@ -213,7 +213,7 @@ impl AppUI {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
                 // Do not try saving PackFiles.
-                if save_before_deleting && path != RESERVED_NAME_EXTRA_PACKFILE {
+                if save_before_deleting && !path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                     did_it_worked = packed_file_view.save(app_ui, pack_file_contents_ui);
                 }
                 let widget = packed_file_view.get_mut_widget();
@@ -228,7 +228,7 @@ impl AppUI {
 
             if !path.is_empty() {
                 UI_STATE.set_open_packedfiles().remove(position);
-                if path != RESERVED_NAME_EXTRA_PACKFILE {
+                if !path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
 
                     // We check if there are more tables open. This is because we cannot change the GameSelected
                     // when there is a PackedFile using his Schema.
@@ -1905,7 +1905,7 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = icon_type.get_icon_from_path();
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(path.to_owned()));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(DataSource::PackFile, ContainerPath::File(path.to_owned())));
                     let path = Rc::new(RefCell::new(path.to_owned()));
 
                     let response = CentralCommand::recv(&receiver);
@@ -2664,9 +2664,12 @@ impl AppUI {
             if indexes.contains(&index_widget) {
                 let path = packed_file_view.get_ref_path();
                 if !path.is_empty() {
-                    if *path == RESERVED_NAME_EXTRA_PACKFILE {
+                    if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                         purge_on_delete.push(path.to_owned());
-                        //let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
+
+                        let path_split = path.split('/').collect::<Vec<_>>();
+                        let path = path_split[1..].join("/");
+                        let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path)));
                     }
                     //else if path.ends_with(DECODER_EXTENSION) {
                     //    purge_on_delete.push(path.to_owned());

@@ -241,7 +241,7 @@ pub enum Command {
     /// - Vec<Vec<String>>: List of paths to merge.
     /// - String: Name of the new merged table.
     /// - Bool: Should we delete the source files after merging them?
-    MergeTables(Vec<Vec<String>>, String, bool),
+    MergeTables(Vec<String>, String, bool),
 
     // This command is used when we want to update a table to a newer version.
     UpdateTable(ContainerPath),
@@ -258,7 +258,7 @@ pub enum Command {
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
-    GetterserenceDataFromDefinition(String, Definition, Vec<String>),
+    GetReferenceDataFromDefinition(String, Definition),
 
     /// This command is used to get the list of PackFiles that are marked as dependency of our PackFile.
     GetDependencyPackFilesList,
@@ -267,7 +267,7 @@ pub enum Command {
     SetDependencyPackFilesList(Vec<String>),
 
     /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
-    GetPackedFile(Vec<String>),
+    FileFromLocalPack(String),
 
     // This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
     GetPackedFilesFromAllSources(Vec<ContainerPath>),
@@ -291,7 +291,7 @@ pub enum Command {
     OpenContainingFolder,
 
     /// This command is used to open a PackedFile on a external program. Requires the internal path of the PackedFile.
-    OpenPackedFileInExternalProgram(String),
+    OpenPackedFileInExternalProgram(DataSource, ContainerPath),
 
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView(String, PathBuf),
@@ -506,10 +506,10 @@ pub enum Response {
     I32I32((i32, i32)),
 
     /// Response to return `BTreeMap<i32, DependencyData>`.
-    BTreeMapI32TableReferences(BTreeMap<i32, TableReferences>),
+    HashMapI32TableReferences(HashMap<i32, TableReferences>),
 
-    /// Response to return `Option<PackedFile>`.
-    //OptionPackedFile(Option<PackedFile>),
+    /// Response to return `Option<RFile>`.
+    OptionRFile(Option<RFile>),
 
     /// Response to return `TableType`.
     TableType(TableType),

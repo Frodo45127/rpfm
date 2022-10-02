@@ -238,7 +238,7 @@ pub struct TableView {
     packed_file_type: Arc<FileType>,
     table_definition: Arc<RwLock<Definition>>,
     patches: Arc<RwLock<DefinitionPatch>>,
-    dependency_data: Arc<RwLock<BTreeMap<i32, TableReferences>>>,
+    dependency_data: Arc<RwLock<HashMap<i32, TableReferences>>>,
     banned_table: bool,
     reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
 
@@ -1034,7 +1034,7 @@ impl TableView {
     }
 
     /// This function allows you to set a new dependency data to an already created table.
-    pub fn set_dependency_data(&self, data: &BTreeMap<i32, TableReferences>) {
+    pub fn set_dependency_data(&self, data: &HashMap<i32, TableReferences>) {
         *self.dependency_data.write().unwrap() = data.clone();
     }
 

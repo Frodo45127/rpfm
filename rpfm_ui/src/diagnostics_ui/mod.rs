@@ -46,7 +46,7 @@ use qt_core::QSignalBlocker;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
-use getset::{Getters, MutGetters};
+use getset::Getters;
 
 use std::rc::Rc;
 

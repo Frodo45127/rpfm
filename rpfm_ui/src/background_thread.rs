@@ -14,6 +14,7 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use open::that;
 use std::io::Cursor;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_lib::error::RLibError;
@@ -938,59 +939,35 @@ pub fn background_loop() {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
                 CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)));
-            }
+            }*/
 
             // In case we want to get the reference data for a definition...
-            Command::GetterserenceDataFromDefinition(table_name, definition, files_to_ignore) => {
-
-                // This is a heavy function, so first check if we have the data we want in the cache.
-                let dependency_data = if dependencies.get_ref_cached_data().read().unwrap().get(&table_name).is_some() {
-                    DB::get_dependency_data(
-                        &pack_file_decoded,
-                        &table_name,
-                        &definition,
-                        &[],
-                        &[],
-                        &dependencies,
-                        &files_to_ignore,
-                    )
-                } else {
-                    if let Ok(dependencies_vanilla) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
-                        DB::get_dependency_data(
-                            &pack_file_decoded,
-                            &table_name,
-                            &definition,
-                            &dependencies_vanilla,
-                            dependencies.get_ref_asskit_only_db_tables(),
-                            &dependencies,
-                            &files_to_ignore,
-                        )
-                    } else { BTreeMap::new() }
-                };
-
-                CentralCommand::send_back(&sender, Response::BTreeMapI32DependencyData(dependency_data));
+            Command::GetReferenceDataFromDefinition(table_name, definition) => {
+                dependencies.generate_local_db_references(&pack_file_decoded, &[table_name.to_owned()]);
+                let reference_data = dependencies.db_reference_data(&pack_file_decoded, &table_name, &definition);
+                CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
 
             // In case we want to return an entire PackedFile to the UI.
-            Command::GetPackedFile(path) => CentralCommand::send_back(&sender, Response::OptionPackedFile(pack_file_decoded.get_packed_file_by_path(&path))),
+            Command::FileFromLocalPack(path) => CentralCommand::send_back(&sender, Response::OptionRFile(pack_file_decoded.files().get(&path).cloned())),
 
             // In case we want to change the format of a ca_vp8 video...
-            Command::SetCaVp8Format((path, format)) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref_mut() {
+            Command::SetCaVp8Format(path, format) => {
+                match pack_file_decoded.files_mut().get_mut(&path) {
+                    Some(ref mut rfile) => {
+                        match rfile.decoded_mut() {
                             Ok(data) => {
                                 if let RFileDecoded::CaVp8(ref mut data) = data {
                                     data.set_format(format);
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("This Pack doesn't exists as a file in the disk."))),
                 }
-            },*/
+            },
 
             // In case we want to save an schema to disk...
             Command::SaveSchema(mut schema) => {
@@ -1068,89 +1045,44 @@ pub fn background_loop() {
                 else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("This Pack doesn't exists as a file in the disk.")));
                 }
-            },/*
+            },
 
             // When we want to open a PackedFile in a external program...
-            Command::OpenPackedFileInExternalProgram(path) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(packed_file) => {
-                        let extension = path.last().unwrap().rsplitn(2, '.').next().unwrap();
-                        let name = format!("{}.{}", Uuid::new_v4(), extension);
-                        let mut temporal_file_path = temp_dir();
-                        temporal_file_path.push(name);
-                        match packed_file.get_packed_file_type(false) {
+            Command::OpenPackedFileInExternalProgram(data_source, path) => {
+                match data_source {
+                    DataSource::PackFile => {
+                        let folder = temp_dir().join(format!("rpfm_{}", pack_file_decoded.disk_file_name()));
+                        match pack_file_decoded.extract(path.clone(), &folder, true, &SCHEMA.read().unwrap()) {
+                            Ok(_) => {
 
-                            // Tables we extract them as TSV.
-                            PackedFileType::DB => {
-                                match packed_file.decode_return_clean_cache() {
-                                    Ok(data) => {
-                                        if let RFileDecoded::DB(data) = data {
-                                            temporal_file_path.set_extension("tsv");
-                                            match data.export_tsv(&temporal_file_path, &path[1], &packed_file.get_path()) {
-                                                Ok(_) => {
-                                                    that_in_background(&temporal_file_path);
-                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
-                                                }
-                                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                            }
-                                        }
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                                let mut extracted_path = folder.to_path_buf();
+                                if let ContainerPath::File(path) = path {
+                                    extracted_path.push(path);
                                 }
-                            },
 
-                            PackedFileType::Loc => {
-                                match packed_file.decode_return_clean_cache() {
-                                    Ok(data) => {
-                                        if let RFileDecoded::Loc(data) = data {
-                                            temporal_file_path.set_extension("tsv");
-                                            match data.export_tsv(&temporal_file_path, TSV_NAME_LOC, &packed_file.get_path()) {
-                                                Ok(_) => {
-                                                    that_in_background(&temporal_file_path);
-                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
-                                                }
-                                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                            }
-                                        }
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                                }
-                            },
-
-                            // The rest of the files, we extract them as we have them.
-                            _ => {
-                                match packed_file.get_raw_data_and_clean_cache() {
-                                    Ok(data) => {
-                                        match File::create(&temporal_file_path) {
-                                            Ok(mut file) => {
-                                                if file.write_all(&data).is_ok() {
-                                                    that_in_background(&temporal_file_path);
-                                                    CentralCommand::send_back(&sender, Response::PathBuf(temporal_file_path));
-                                                }
-                                                else {
-                                                    CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
-                                                }
-                                            }
-                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
-                                        }
-                                    }
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                                }
+                                let _ = that(&extracted_path);
+                                CentralCommand::send_back(&sender, Response::PathBuf(extracted_path));
                             }
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    _ => todo!("Make cases for dependencies."),
                 }
             }
 
             // When we want to save a PackedFile from the external view....
-            Command::SavePackedFileFromExternalView((path, external_path)) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+            Command::SavePackedFileFromExternalView(path, external_path) => {
+
+                /*
+                pack_file_decoded.insert_file(path, &folder, true, &SCHEMA.read().unwrap());
+
+
+                match pack_file_decoded.files().get(&path) {
                     Some(packed_file) => {
-                        match packed_file.get_packed_file_type(false) {
+                        match packed_file.file_type() {
 
                             // Tables we extract them as TSV.
-                            PackedFileType::DB | PackedFileType::Loc => {
+                            FileType::DB | FileType::Loc => {
                                 match *SCHEMA.read().unwrap() {
                                     Some(ref schema) => {
                                         match packed_file.decode_return_ref_mut() {
@@ -1268,8 +1200,8 @@ pub fn background_loop() {
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }*/
+                }*/
+            }
 
             // When we want to update our program...
             Command::UpdateMainProgram => {
