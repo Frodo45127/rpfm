@@ -156,7 +156,7 @@ impl TableViewSlots {
                         if diagnostics_ui.diagnostics_dock_widget().is_visible() {
                             for path in &paths_to_check {
                                 let path_types = vec![ContainerPath::File(path.to_owned())];
-                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
+                                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
                             }
                         }
                     }

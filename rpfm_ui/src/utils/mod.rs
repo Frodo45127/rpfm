@@ -39,17 +39,12 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 
 use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::FileType;
 
 use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use crate::{GAME_SELECTED, SENTRY_GUARD};
-
-use crate::ASSETS_PATH;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::{ASSETS_PATH, GAME_SELECTED, SENTRY_GUARD};
 use crate::ffi::*;
 use crate::locale::{qtr, qtre};
 use crate::STATUS_BAR;
@@ -253,7 +248,7 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
 /// - parent: a pointer to the widget that'll be the parent of the dialog.
 /// - table_name: the name of the table to decode.
 /// - table_data: data of the table to decode.
-pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_name: &str, table_data: &[u8]) {/*
+pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_name: &str, table_data: &[u8]) {
     let table_name = table_name.to_owned();
     let table_data = table_data.to_owned();
 
@@ -264,7 +259,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     dialog.resize_2a(400, 50);
 
     let main_grid = create_grid_layout(dialog.static_upcast());
-    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap().get_game_key_name(), &table_name]), &dialog);
+    let explanation_label = QLabel::from_q_string_q_widget(&qtre("send_table_for_decoding_explanation", &[&GAME_SELECTED.read().unwrap().game_key_name(), &table_name]), &dialog);
     let cancel_button = QPushButton::from_q_string(&qtr("cancel"));
     let accept_button = QPushButton::from_q_string(&qtr("send"));
 
@@ -273,27 +268,16 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     main_grid.add_widget_5a(&accept_button, 6, 1, 1, 1);
 
     let send_table_slot = SlotNoArgs::new(&dialog, move || {
-        if SENTRY_GUARD.read().unwrap().is_enabled() {
-            let mut event = Event::new();
-            event.level = Level::Info;
-            event.message = Some(format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap().get_display_name(), table_name));
-
-            let mut envelope = Envelope::from(event);
-            let attatchment = Attachment {
-                buffer: table_data.to_owned(),
-                filename: table_name.to_owned(),
-                ty: None
-            };
-
-            envelope.add_item(EnvelopeItem::Attachment(attatchment));
-            SENTRY_GUARD.read().unwrap().send_envelope(envelope);
+        let message = format!("{} - Request for table decoding: {}", GAME_SELECTED.read().unwrap().display_name(), table_name);
+        if let Err(error) = Logger::send_event(&SENTRY_GUARD.read().unwrap(), Level::Info, &message, Some((&table_name, &table_data))) {
+            show_dialog(parent, error, false)
         }
     });
 
     accept_button.released().connect(&send_table_slot);
     accept_button.released().connect(dialog.slot_accept());
     cancel_button.released().connect(dialog.slot_close());
-    dialog.exec();*/
+    dialog.exec();
 }
 
 /// This function deletes all widgets from a widget's layout.

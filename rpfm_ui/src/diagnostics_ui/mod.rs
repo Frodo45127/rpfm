@@ -491,7 +491,7 @@ impl DiagnosticsUI {
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
-    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<ContainerPath>) {
+    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, paths: Vec<ContainerPath>) {
 
         // Only check if we actually have the diagnostics open.
         if !diagnostics_ui.diagnostics_dock_widget.is_visible() {

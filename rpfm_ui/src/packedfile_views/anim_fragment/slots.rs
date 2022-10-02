@@ -68,7 +68,7 @@ impl PackedFileAnimFragmentViewSlots {
                         } else if setting_bool("diagnostics_trigger_on_table_edit") {
                             if diagnostics_ui.diagnostics_dock_widget().is_visible() {
                                 let path_types = vec![ContainerPath::File(view.packed_file_path.read().unwrap().to_string())];
-                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
+                                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
                             }
                         }
                     }

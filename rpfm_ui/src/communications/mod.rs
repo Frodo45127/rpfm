@@ -32,7 +32,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, ca_vp8::{CaVp8, SupportedFormats}, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::git::GitResponse;
-use rpfm_lib::schema::Definition;
+use rpfm_lib::schema::{Definition, Schema};
 
 /*
 
@@ -276,7 +276,7 @@ pub enum Command {
     SetCaVp8Format(String, SupportedFormats),
 
     // This command is used to save the provided schema to disk.
-    //SaveSchema(Schema),
+    SaveSchema(Schema),
 
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
     CleanCache(Vec<Vec<String>>),

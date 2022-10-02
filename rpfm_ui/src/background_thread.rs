@@ -990,18 +990,18 @@ pub fn background_loop() {
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
-            },
+            },*/
 
             // In case we want to save an schema to disk...
             Command::SaveSchema(mut schema) => {
-                match schema.save(GAME_SELECTED.read().unwrap().get_schema_name()) {
+                match schema.save(&schemas_path().unwrap().join(GAME_SELECTED.read().unwrap().schema_file_name())) {
                     Ok(_) => {
                         *SCHEMA.write().unwrap() = Some(schema);
                         CentralCommand::send_back(&sender, Response::Success);
                     },
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
-            }
+            }/*
 
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
@@ -1053,22 +1053,22 @@ pub fn background_loop() {
                     }
                     None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
                 }
-            }
+            }*/
 
             // In case we want to open a PackFile's location in the file manager...
             Command::OpenContainingFolder => {
 
                 // If the path exists, try to open it. If not, throw an error.
-                if pack_file_decoded.get_file_path().exists() {
-                    let mut temp_path = pack_file_decoded.get_file_path().to_path_buf();
-                    temp_path.pop();
-                    open::that_in_background(&temp_path);
+                let mut path = PathBuf::from(pack_file_decoded.disk_file_path());
+                if path.exists() {
+                    path.pop();
+                    let _ = open::that(&path);
                     CentralCommand::send_back(&sender, Response::Success);
                 }
                 else {
-                    CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackFileIsNotAFile.into()));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("This Pack doesn't exists as a file in the disk.")));
                 }
-            },
+            },/*
 
             // When we want to open a PackedFile in a external program...
             Command::OpenPackedFileInExternalProgram(path) => {
