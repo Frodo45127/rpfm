@@ -339,18 +339,33 @@ pub fn background_loop() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
                 }
             }
-            /*
+
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
                 if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
                     let game_selected = GAME_SELECTED.read().unwrap();
-                    let game_path = setting_path(&game_selected.game_key_name());
                     let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
                     let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
-                    let tables_to_skip = dependencies.vanilla_tables().keys().collect::<Vec<_>>();
+                    let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
 
                     if let Ok(tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
-                        match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check) {
+
+                        // Split the tables to check by table name.
+                        let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
+                        for table_to_check in tables_to_check {
+                            if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
+                                match tables_to_check_split.get_mut(table.table_name()) {
+                                    Some(tables) => {
+                                        tables.push(table.clone());
+                                    }
+                                    None => {
+                                        tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                    }
+                                }
+                            }
+                        }
+
+                        match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &*tables_to_skip, &tables_to_check_split) {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
@@ -358,7 +373,7 @@ pub fn background_loop() {
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
                 }
-            }*/
+            }
 
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
@@ -503,15 +518,15 @@ pub fn background_loop() {
                 }
 
                 // Force decoding of table/locs, so they're in memory for the diagnostics to work.
-                //if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                //    let paths = added_paths.iter().filter_map(|x| if let ContainerPath::File(path) = x { Some(&**path) } else { None }).collect::<Vec<&[String]>>();
-                //    let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths);
-                //    packed_files.par_iter_mut()
-                //        .filter(|x| [PackedFileType::DB, PackedFileType::Loc].contains(&x.get_packed_file_type(false)))
-                //        .for_each(|x| {
-                //        let _ = x.decode_no_locks(schema);
-                //    });
-                //}
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let mut decode_extra_data = DecodeableExtraData::default();
+                    decode_extra_data.set_schema(Some(&schema));
+                    let extra_data = Some(decode_extra_data);
+
+                    pack_file_decoded.files_by_paths_mut(&added_paths).par_iter_mut().for_each(|x| {
+                        let _ = x.decode(&extra_data, true, false);
+                    });
+                }
             }/*
 
             // In case we want to add one or more entire folders to our PackFile...
@@ -853,18 +868,18 @@ pub fn background_loop() {
                     Ok(result) => CentralCommand::send_back(&sender, Response::String(result)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
-            }
+            }*/
 
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
-                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.folder_exists(&path)));
+                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.has_folder(&path)));
             }
 
             // In case we want to know if PackedFile exists, knowing his path...
             Command::PackedFileExists(path) => {
-                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.packedfile_exists(&path)));
+                CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.has_file(&path)));
             }
-
+/*
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
                 let tables = if let Ok(tables) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
@@ -943,6 +958,8 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
+
+                // TODO: move this to pack opening.
                 dependencies.generate_local_db_references(&pack_file_decoded, &[table_name.to_owned()]);
                 let reference_data = dependencies.db_reference_data(&pack_file_decoded, &table_name, &definition);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));

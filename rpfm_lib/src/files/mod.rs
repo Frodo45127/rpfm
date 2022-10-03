@@ -744,6 +744,30 @@ pub trait Container {
     /// Implementors should return `0` if the provided Container is not within another Container.
     fn disk_file_offset(&self) -> u64;
 
+    /// This function checks if a file with a certain path exists in the provided Container.
+    fn has_file(&self, path: &str) -> bool {
+        self.files().get(path).is_some()
+    }
+
+    /// This function checks if a folder with files in it exists in the provided Container.
+    fn has_folder(&self, path: &str) -> bool {
+        if path.is_empty() {
+           false
+        } else {
+            self.files().keys().any(|x| x.starts_with(path) && x.len() > path.len())
+        }
+    }
+
+    /// This method returns a reference to a RFile in the Container, if the file exists.
+    fn file(&self, path: &str) -> Option<&RFile> {
+        self.files().get(path)
+    }
+
+    /// This method returns a mutable reference to a RFile in the Container, if the file exists.
+    fn file_mut(&mut self, path: &str) -> Option<&mut RFile> {
+        self.files_mut().get_mut(path)
+    }
+
     /// This method returns a reference to the RFiles inside the provided Container.
     fn files(&self) -> &HashMap<String, RFile>;
 
