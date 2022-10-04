@@ -20,11 +20,6 @@ pkgver() {
 
 build() {
     cd $_programname
-
-    # Fix the broken includes before compiling.
-    sudo sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/KSyntaxHighlighting\/Theme>/' /usr/include/KF5/KTextEditor/ktexteditor/editor.h
-    sudo sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/KSyntaxHighlighting\/Theme>/' /usr/include/KF5/KTextEditor/ktexteditor/view.h
-
     env CARGO_INCREMENTAL=0 cargo build --release
 }
 

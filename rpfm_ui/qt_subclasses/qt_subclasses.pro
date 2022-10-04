@@ -90,6 +90,9 @@ unix {
 
     # For some reason, these flags fuck up compilation on windows, so we leave them linux only.
     QMAKE_CXXFLAGS = -Wl,-rpath='${ORIGIN}'
+
+    # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
+    INCLUDEPATH += /usr/include/KF5/KSyntaxHighlighting
 }
 
 # This means we generate all the artifacts in target and drop the final lib in libs.
