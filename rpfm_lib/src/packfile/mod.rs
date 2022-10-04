@@ -1181,11 +1181,13 @@ impl PackFile {
     /// This function returns a copy of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
     pub fn get_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<PackedFile> {
         let path_provided_len = path.chars().count();
+        let path_provided_len_in_bytes = path.len();
         self.packed_files.par_iter().filter(|x| {
             if !path.is_empty() && path.starts_with(&x.get_path()[0]) {
                 let path_str = x.get_path().join("/");
                 let path_len = path_str.chars().count();
-                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+                let path_max_index = path_str.char_indices().map(|(index, _)| index).find(|index| index >= &path_provided_len_in_bytes).unwrap_or(path_str.len());
+                path_len > path_provided_len && UniCase::new(&path_str[..path_max_index]) == path
             } else { false }
         }).cloned().collect()
     }
@@ -1193,11 +1195,13 @@ impl PackFile {
     /// This function returns a reference of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
     pub fn get_ref_packed_files_by_path_start_unicased(&self, path: UniCase<String>) -> Vec<&PackedFile> {
         let path_provided_len = path.chars().count();
+        let path_provided_len_in_bytes = path.len();
         self.packed_files.par_iter().filter(|x| {
             if !path.is_empty() && path.starts_with(&x.get_path()[0]) {
                 let path_str = x.get_path().join("/");
                 let path_len = path_str.chars().count();
-                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+                let path_max_index = path_str.char_indices().map(|(index, _)| index).find(|index| index >= &path_provided_len_in_bytes).unwrap_or(path_str.len());
+                path_len > path_provided_len && UniCase::new(&path_str[..path_max_index]) == path
             } else { false }
         }).collect()
     }
@@ -1205,11 +1209,13 @@ impl PackFile {
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path, in a case insensitive manner.
     pub fn get_ref_mut_packed_files_by_path_start_unicased(&mut self, path: UniCase<String>) -> Vec<&mut PackedFile> {
         let path_provided_len = path.chars().count();
+        let path_provided_len_in_bytes = path.len();
         self.packed_files.par_iter_mut().filter(|x| {
             if !path.is_empty() && path.starts_with(&x.get_path()[0]){
                 let path_str = x.get_path().join("/");
                 let path_len = path_str.chars().count();
-                path_len > path_provided_len && UniCase::new(&path_str[..path_provided_len]) == path
+                let path_max_index = path_str.char_indices().map(|(index, _)| index).find(|index| index >= &path_provided_len_in_bytes).unwrap_or(path_str.len());
+                path_len > path_provided_len && UniCase::new(&path_str[..path_max_index]) == path
             } else { false }
         }).collect()
     }
