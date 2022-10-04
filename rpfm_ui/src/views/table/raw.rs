@@ -55,6 +55,7 @@ use rpfm_error::Error;
 
 use rpfm_lib::packedfile::table::db::CascadeEdition;
 use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::schema::Field;
 use rpfm_lib::schema::patch::SchemaPatch;
 
 use crate::ASSETS_PATH;
@@ -427,59 +428,40 @@ impl TableView {
 
         // Get the selection sorted visually.
         let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let fields_processed = self.get_ref_table_definition().get_fields_processed();
 
-        // Split the indexes in two groups: those who have a key column selected and those who haven't.
-        // Keep in mind this doesn't check what key column we have selected.
-        //
-        // TODO: Improve this.
-        //
-        // NOTE: Request by DrunkFlamingo: ignore keys if there are duplicates.
-        let mut rows: HashMap<i32, Vec<_>> = HashMap::new();
+        // Check if the table has duplicated keys, and filter out invalid indexes.
+        let mut has_unique_keys = true;
+        let mut processed: HashMap<i32, HashSet<String>> = HashMap::new();
+        let mut indexes: Vec<_> = vec![];
         for index_sorted in &indexes_sorted {
             let row_index = index_sorted.row();
             let column_index = index_sorted.column();
             if row_index != -1 && column_index != -1 {
-                match rows.get_mut(&row_index) {
-                    Some(row) => {
-                        row.push(index_sorted.as_ref());
-                    }
-                    None => {
-                        rows.insert(row_index, vec![index_sorted.as_ref()]);
+                indexes.push(index_sorted.as_ref());
+                let data = index_sorted.data_0a().to_string().to_std_string();
+
+                let column_data = processed.get_mut(&index_sorted.column());
+                let has_key = fields_processed[index_sorted.column() as usize].get_is_key();
+                if has_key {
+                    match column_data {
+                        Some(column_data) => {
+                            if column_data.get(&data).is_some() {
+                                has_unique_keys = false;
+                            }
+                            column_data.insert(data);
+                        },
+                        None => {
+                            let mut column_data = HashSet::new();
+                            column_data.insert(data);
+                            processed.insert(index_sorted.column(), column_data);
+                        },
                     }
                 }
-
             }
         }
 
-        let mut processed: HashMap<i32, HashSet<String>> = HashMap::new();
-        let fields_processed = self.get_ref_table_definition().get_fields_processed();
-        let (intexed_keys, indexes_no_keys): (Vec<Vec<Ref<QModelIndex>>>, Vec<Vec<Ref<QModelIndex>>>) = rows.into_values()
-            .partition(|indexes| {
-                indexes.iter().any(|index| {
-
-                    let data = index.data_0a().to_string().to_std_string();
-                    let column_data = processed.get(&index.column());
-                    let has_key = fields_processed[index.column() as usize].get_is_key() && (column_data.is_none() || column_data.unwrap().get(&data).is_none());
-                    if has_key {
-                        match processed.get_mut(&index.column()) {
-                            Some(column_data) => {
-                                column_data.insert(data);
-                            },
-                            None => {
-                                let mut column_data = HashSet::new();
-                                column_data.insert(data);
-                                processed.insert(index.column(), column_data);
-                            },
-                        }
-                    }
-
-                    has_key
-                })
-            });
-
-        let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys.into_iter().flatten().collect::<Vec<_>>(), true);
-        lua_table.push('\n');
-        lua_table.push_str(&self.get_indexes_as_lua_table(&indexes_no_keys.into_iter().flatten().collect::<Vec<_>>(), false));
+        let lua_table = self.get_indexes_as_lua_table(&indexes, has_unique_keys);
 
         // Put the baby into the oven.
         QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(lua_table));
@@ -874,9 +856,9 @@ impl TableView {
                         // If it's the same row as before, take the row from the table data and append it.
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
-                            let data = self.get_escaped_lua_string_from_index(*index);
+                            let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
                             if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
-                                entry.0 = Some(self.escape_string_from_index(*index));
+                                entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                             }
                             entry.1.push(data);
                         }
@@ -884,20 +866,20 @@ impl TableView {
                         // If it's not the same row as before, we create it as a new row.
                         else {
                             let mut entry = (None, vec![]);
-                            let data = self.get_escaped_lua_string_from_index(*index);
+                            let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
                             entry.1.push(data.to_string());
                             if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
-                                entry.0 = Some(self.escape_string_from_index(*index));
+                                entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                             }
                             table_data.push(entry);
                         }
                     }
                     None => {
                         let mut entry = (None, vec![]);
-                        let data = self.get_escaped_lua_string_from_index(*index);
+                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
                         entry.1.push(data.to_string());
                         if entry.0.is_none() && fields_processed[index.column() as usize].get_is_key() && has_keys {
-                            entry.0 = Some(self.escape_string_from_index(*index));
+                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                         }
                         table_data.push(entry);
                     }
@@ -951,15 +933,14 @@ impl TableView {
     }
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
-    unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
-        format!(" [\"{}\"] = {},", self.get_ref_table_definition().get_fields_processed()[index.column() as usize].get_name(), self.escape_string_from_index(index))
+    unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>, fields_processed: &[Field]) -> String {
+        format!(" [\"{}\"] = {},", fields_processed[index.column() as usize].get_name(), self.escape_string_from_index(index, fields_processed))
     }
 
     /// This function escapes the value inside an index.
-    unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
+    unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>, fields_processed: &[Field]) -> String {
         let item = self.table_model.item_from_index(index);
-        let definition = &self.get_ref_table_definition().clone();
-        match definition.get_fields_processed()[index.column() as usize].get_ref_field_type() {
+        match fields_processed[index.column() as usize].get_ref_field_type() {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
             // Floats need to be tweaked to fix trailing zeroes and precision issues, like turning 0.5000004 into 0.5.
