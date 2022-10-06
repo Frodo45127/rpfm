@@ -470,6 +470,32 @@ impl TableView {
         log_to_status_bar("Table copied as LUA Table.");
     }
 
+    /// This function copies the selected cells into the clipboard as a filterable string.
+    pub unsafe fn copy_selection_to_filter(&self) {
+
+        // Get the selection sorted visually.
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+
+        // Check if the table has duplicated keys, and filter out invalid indexes.
+        let mut string = String::new();
+        for index_sorted in &indexes_sorted {
+            let row_index = index_sorted.row();
+            let column_index = index_sorted.column();
+            if row_index != -1 && column_index != -1 {
+                let data = index_sorted.data_0a().to_string().to_std_string();
+                if !data.is_empty() {
+                    string.push_str(&data);
+                    string.push('|');
+                }
+            }
+        }
+
+        string.pop();
+
+        // Put the baby into the oven.
+        QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(string));
+    }
+
     /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
     pub unsafe fn paste_as_new_row(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         let mut text = QGuiApplication::clipboard().text().to_std_string();

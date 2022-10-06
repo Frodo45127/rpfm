@@ -38,6 +38,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_context_menu_clone_and_insert().triggered().connect(&slots.clone_and_insert);
     ui.get_mut_ptr_context_menu_copy().triggered().connect(&slots.copy);
     ui.get_mut_ptr_context_menu_copy_as_lua_table().triggered().connect(&slots.copy_as_lua_table);
+    ui.get_mut_ptr_context_menu_copy_to_filter().triggered().connect(&slots.copy_to_filter);
     ui.get_mut_ptr_context_menu_paste().triggered().connect(&slots.paste);
     ui.get_mut_ptr_context_menu_paste_as_new_row().triggered().connect(&slots.paste_as_new_row);
     ui.get_mut_ptr_context_menu_invert_selection().triggered().connect(&slots.invert_selection);

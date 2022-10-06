@@ -37,6 +37,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.get_mut_ptr_context_menu_clone_and_append().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["clone_and_append_row"])));
     ui.get_mut_ptr_context_menu_copy().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy"])));
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_as_lua_table"])));
+    ui.get_mut_ptr_context_menu_copy_to_filter().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_to_filter"])));
     ui.get_mut_ptr_context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
     ui.get_mut_ptr_context_menu_paste_as_new_row().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_as_new_row"])));
     ui.get_mut_ptr_context_menu_generate_ids().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["generate_ids"])));

@@ -182,6 +182,7 @@ pub struct TableView {
     context_menu_clone_and_insert: QPtr<QAction>,
     context_menu_copy: QPtr<QAction>,
     context_menu_copy_as_lua_table: QPtr<QAction>,
+    context_menu_copy_to_filter: QPtr<QAction>,
     context_menu_paste: QPtr<QAction>,
     context_menu_paste_as_new_row: QPtr<QAction>,
     context_menu_invert_selection: QPtr<QAction>,
@@ -379,6 +380,7 @@ impl TableView {
         let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view_primary);
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_copy_to_filter = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_to_filter"));
 
         let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
         let context_menu_paste_as_new_row = context_menu.add_action_q_string(&qtr("context_menu_paste_as_new_row"));
@@ -577,6 +579,7 @@ impl TableView {
             context_menu_clone_and_insert,
             context_menu_copy,
             context_menu_copy_as_lua_table,
+            context_menu_copy_to_filter,
             context_menu_paste,
             context_menu_paste_as_new_row,
             context_menu_invert_selection,
@@ -851,6 +854,11 @@ impl TableView {
     /// This function returns a pointer to the copy as lua table action.
     pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> &QPtr<QAction> {
         &self.context_menu_copy_as_lua_table
+    }
+
+    /// This function returns a pointer to the copy to filter action.
+    pub fn get_mut_ptr_context_menu_copy_to_filter(&self) -> &QPtr<QAction> {
+        &self.context_menu_copy_to_filter
     }
 
     /// This function returns a pointer to the paste action.
