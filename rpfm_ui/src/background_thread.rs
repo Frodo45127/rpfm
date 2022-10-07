@@ -255,7 +255,7 @@ pub fn background_loop() {
                     Some(ref schema) => {
                         global_search.search(&game_selected, &schema, &mut pack_file_decoded, &mut dependencies, &[]);
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
-                        CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)));
+                        CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, packed_files_info));
                     }
                     None => {}
                 }
@@ -932,14 +932,20 @@ pub fn background_loop() {
                 let _ = global_search.replace_matches(&mut pack_file_decoded, &matches);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
                 CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)));
-            }
+            }*/
 
             // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceAll(mut global_search) => {
-                let _ = global_search.replace_all(&mut pack_file_decoded);
-                let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)));
-            }*/
+                let game_info = GAME_SELECTED.read().unwrap();
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies);
+                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
+
+                    CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?")));
+                }
+            }
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(table_name, definition) => {

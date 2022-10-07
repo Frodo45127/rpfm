@@ -422,7 +422,7 @@ pub enum Response {
     VecRFileInfo(Vec<RFileInfo>),
 
     // Response to return (GlobalSearch, Vec<RFileInfo>).
-    GlobalSearchVecRFileInfo((GlobalSearch, Vec<RFileInfo>)),
+    GlobalSearchVecRFileInfo(GlobalSearch, Vec<RFileInfo>),
 
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),

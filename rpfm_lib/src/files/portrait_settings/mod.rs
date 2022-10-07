@@ -13,7 +13,7 @@
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
-use crate::error::{RLibError, Result};
+use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;

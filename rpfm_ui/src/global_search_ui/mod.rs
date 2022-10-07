@@ -482,7 +482,7 @@ impl GlobalSearchUI {
 
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
         match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)) => {
+            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
                 Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
                 Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
@@ -541,9 +541,9 @@ impl GlobalSearchUI {
         global_search_ui.global_search_matches_db_tree_model.clear();
         global_search_ui.global_search_matches_loc_tree_model.clear();
         global_search_ui.global_search_matches_text_tree_model.clear();
-        /*
+
         match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)) => {
+            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
@@ -551,12 +551,12 @@ impl GlobalSearchUI {
                 // Update the views of the updated PackedFiles.
                 for replace_match in matches {
                     let path = match replace_match {
-                        MatchHolder::Table(matches) => matches.path,
-                        MatchHolder::Text(matches) => matches.path,
+                        MatchHolder::Table(matches) => matches.path().to_owned(),
+                        MatchHolder::Text(matches) => matches.path().to_owned(),
                         _ => unimplemented!(),
                     };
 
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
                             show_dialog(&app_ui.main_window, error, false);
                         }
@@ -566,7 +566,7 @@ impl GlobalSearchUI {
                 }
             },
             _ => unimplemented!()
-        }*/
+        }
     }
 
     /// This function replace all the matches in the current search with the provided text.
@@ -617,13 +617,13 @@ impl GlobalSearchUI {
         model_db.clear();
         model_loc.clear();
         model_text.clear();
-        /*
+
         match CentralCommand::recv(&receiver) {
-            Response::GlobalSearchVecRFileInfo((global_search, packed_files_info)) => {
+            Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);
 
-                for path in packed_files_info.iter().map(|x| &x.path) {
+                for path in packed_files_info.iter().map(|x| x.path()) {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
                             show_dialog(&app_ui.main_window, error, false);
@@ -634,7 +634,7 @@ impl GlobalSearchUI {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
             _ => unimplemented!()
-        }*/
+        }
     }
 
     /// This function tries to open the PackedFile where the selected match is.
