@@ -14,6 +14,7 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use std::io::BufReader;
 use open::that;
 use std::io::Cursor;
 use rpfm_extensions::diagnostics::Diagnostics;
@@ -41,7 +42,7 @@ use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_lib::files::{DecodeableExtraData, EncodeableExtraData, FileType, pack::*};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{assembly_kit::*, git::*};
-use rpfm_lib::schema::Schema;
+use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
 
@@ -404,10 +405,10 @@ pub fn background_loop() {
                 bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state);
                 pack_file_decoded.set_bitmask(bitmask);
             },
-/*
+
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
-            Command::ChangeDataIsCompressed(state) => pack_file_decoded.toggle_compression(state),
-            */
+            Command::ChangeDataIsCompressed(state) => { pack_file_decoded.set_compress(state); },
+
             // In case we want to get the path of the currently open `PackFile`.
             Command::GetPackFilePath => CentralCommand::send_back(&sender, Response::PathBuf(PathBuf::from(pack_file_decoded.disk_file_path()))),
 
@@ -852,23 +853,7 @@ pub fn background_loop() {
                     Ok(data) => CentralCommand::send_back(&sender, Response::VecContainerPathContainerPath(data.iter().map(|(x, y)| (x.clone(), y[0].to_owned())).collect::<Vec<_>>())),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
-            }/*
-
-            // In case we want to Mass-Import TSV Files...
-            Command::MassImportTSV(paths, name) => {
-                match pack_file_decoded.mass_import_tsv(&paths, name, true) {
-                    Ok(result) => CentralCommand::send_back(&sender, Response::VecVecStringVecVecString(result)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
             }
-
-            // In case we want to Mass-Export TSV Files...
-            Command::MassExportTSV(path_types, path) => {
-                match pack_file_decoded.mass_export_tsv(&path_types, &path) {
-                    Ok(result) => CentralCommand::send_back(&sender, Response::String(result)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }*/
 
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
@@ -1090,112 +1075,82 @@ pub fn background_loop() {
             // When we want to save a PackedFile from the external view....
             Command::SavePackedFileFromExternalView(path, external_path) => {
 
-                /*
-                pack_file_decoded.insert_file(path, &folder, true, &SCHEMA.read().unwrap());
-
-
-                match pack_file_decoded.files().get(&path) {
-                    Some(packed_file) => {
-                        match packed_file.file_type() {
-
-                            // Tables we extract them as TSV.
-                            FileType::DB | FileType::Loc => {
-                                match *SCHEMA.read().unwrap() {
-                                    Some(ref schema) => {
-                                        match packed_file.decode_return_ref_mut() {
-                                            Ok(data) => {
-                                                match data {
-                                                    RFileDecoded::DB(ref mut data) => {
-                                                        match DB::import_tsv(&schema, &external_path) {
-                                                            Ok((new_data, _)) => {
-                                                                *data = new_data;
-                                                                match packed_file.encode_and_clean_cache() {
-                                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                                                                }
-                                                            }
-                                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                                        }
-                                                    }
-                                                    RFileDecoded::Loc(ref mut data) => {
-                                                        match Loc::import_tsv(&schema, &external_path) {
-                                                            Ok((new_data, _)) => {
-                                                                *data = new_data;
-                                                                match packed_file.encode_and_clean_cache() {
-                                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                                                                }
-                                                            }
-                                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                                        }
-                                                    }
-                                                    _ => unimplemented!(),
-                                                }
-                                            },
-                                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                        }
-                                    }
-                                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
-                                }
-                            },
-
-                            _ => {
-                                match File::open(external_path) {
-                                    Ok(mut file) => {
-                                        let mut data = vec![];
-                                        match file.read_to_end(&mut data) {
-                                            Ok(_) => {
-                                                packed_file.set_raw_data(&data);
-                                                CentralCommand::send_back(&sender, Response::Success);
+                // We do it manually instead of using insert_file because insert_file replaces the file's metadata.
+                match File::open(external_path) {
+                    Ok(file) => {
+                        let mut file = BufReader::new(file);
+                        let mut data = vec![];
+                        match file.read_to_end(&mut data) {
+                            Ok(_) => {
+                                match pack_file_decoded.file_mut(&path) {
+                                    Some(file) => {
+                                        file.set_cached(&data);
+                                        if file.file_type() == FileType::DB || file.file_type() == FileType::Loc {
+                                            if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                                                let mut extra_data = DecodeableExtraData::default();
+                                                extra_data.set_schema(Some(schema));
+                                                let extra_data = Some(extra_data);
+                                                let _ = file.decode(&extra_data, true, false);
                                             }
-                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOGeneric.into())),
                                         }
-                                    }
-                                    Err(_) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::IOGeneric.into())),
+
+                                        CentralCommand::send_back(&sender, Response::Success)
+                                    },
+                                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to find file with path {} on Pack.", path))),
                                 }
                             }
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Failed to save the file {} open externally due to the following error: ", error))),
                         }
-                    }
-                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
             // When we want to update our schemas...
             Command::UpdateSchemas => {
-                match Schema::update_schema_repo() {
+                match schemas_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
+                        match git_integration.update_repo() {
+                            Ok(_) => {
+                                let game = GAME_SELECTED.read().unwrap();
+                                let schema_path = schemas_path().unwrap().join(game.schema_file_name());
 
-                    // If it worked, we have to update the currently open schema with the one we just downloaded and rebuild cache/dependencies with it.
-                    Ok(_) => {
+                                // Encode the decoded tables with the old schema, then re-decode them with the new one.
+                                let mut tables = pack_file_decoded.files_by_type_mut(&[FileType::DB]);
+                                tables.par_iter_mut().for_each(|x| { let _ = x.encode(&None, true, true, false); });
 
-                        // Encode the decoded tables with the old schema, then re-decode them with the new one.
-                        pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-                        *SCHEMA.write().unwrap() = Schema::load(GAME_SELECTED.read().unwrap().get_schema_name()).ok();
-                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                            pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(schema); });
-                        }
+                                *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
 
-                        // Try to reload the schema patchs. Ignore them if fails due to missing file.
-                        if let Ok(schema_patches) = SchemaPatches::load() {
-                            *SCHEMA_PATCHES.write().unwrap() = schema_patches;
-                        }
+                                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                                    let mut extra_data = DecodeableExtraData::default();
+                                    extra_data.set_schema(Some(schema));
+                                    let extra_data = Some(extra_data);
+                                    tables.par_iter_mut().for_each(|x| { let _ = x.decode(&extra_data, true, false); });
 
-                        // Then rebuild the dependencies stuff.
-                        if dependencies.game_has_dependencies_generated() {
-                            match dependencies.rebuild(pack_file_decoded.get_packfiles_list(), false) {
-                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                Err(error) => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaUpdateRebuildError(error.to_string()).into())),
-                            }
-                        }
+                                    // Then rebuild the dependencies stuff.
+                                    if dependencies.is_vanilla_data_loaded(false) {
+                                        let game_path = setting_path(&game.game_key_name());
+                                        let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
-                        // Otherwise, just report the schema update success, and don't leave the ui waiting eternally again...
-                        else {
-                            CentralCommand::send_back(&sender, Response::Success);
+                                        match dependencies.rebuild(schema, pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
+                                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                            Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
+                                        }
+                                    } else {
+                                        CentralCommand::send_back(&sender, Response::Success)
+                                    }
+                                } else {
+                                    CentralCommand::send_back(&sender, Response::Success)
+                                }
+                            },
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
-
+            /*
             // When we want to update our messages...
             Command::UpdateMessages => {
 
@@ -1204,11 +1159,11 @@ pub fn background_loop() {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
-            }
+            }*/
 
             // When we want to update our lua setup...
             Command::UpdateLuaAutogen => {
-                match get_lua_autogen_path() {
+                match lua_autogen_base_path() {
                     Ok(local_path) => {
                         let git_integration = GitIntegration::new(&local_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE);
                         match git_integration.update_repo() {
@@ -1217,7 +1172,7 @@ pub fn background_loop() {
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }*/
+                }
             }
 
             // When we want to update our program...

@@ -67,9 +67,6 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_update_table.triggered().connect(&slots.contextual_menu_tables_update_table);
     ui.context_menu_generate_missing_loc_data.triggered().connect(&slots.contextual_menu_generate_missing_loc_data);
 
-    ui.context_menu_mass_import_tsv.triggered().connect(&slots.contextual_menu_mass_import_tsv);
-    ui.context_menu_mass_export_tsv.triggered().connect(&slots.contextual_menu_mass_export_tsv);
-
     ui.packfile_contents_tree_view_expand_all.triggered().connect(&slots.packfile_contents_tree_view_expand_all);
     ui.packfile_contents_tree_view_collapse_all.triggered().connect(&slots.packfile_contents_tree_view_collapse_all);
 

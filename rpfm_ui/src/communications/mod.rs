@@ -216,12 +216,6 @@ pub enum Command {
     // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
     RenamePackedFiles(Vec<(ContainerPath, String)>),
 
-    // This command is used when we want to import a large amount of table-like files from TSV files.
-    MassImportTSV(Vec<PathBuf>, Option<String>),
-
-    // This command is used when we want to export a large amount of table-like files as TSV files.
-    MassExportTSV(Vec<ContainerPath>, PathBuf),
-
     /// This command is used when we want to know if a folder exists in the currently open PackFile.
     FolderExists(String),
 

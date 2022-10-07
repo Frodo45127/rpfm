@@ -76,8 +76,6 @@ pub struct PackFileContentsUI {
     pub context_menu_new_packed_file_loc: QPtr<QAction>,
     pub context_menu_new_packed_file_text: QPtr<QAction>,
     pub context_menu_new_queek_packed_file: QPtr<QAction>,
-    pub context_menu_mass_import_tsv: QPtr<QAction>,
-    pub context_menu_mass_export_tsv: QPtr<QAction>,
     pub context_menu_rename: QPtr<QAction>,
     pub context_menu_delete: QPtr<QAction>,
     pub context_menu_extract: QPtr<QAction>,
@@ -188,8 +186,6 @@ impl PackFileContentsUI {
         let context_menu_new_packed_file_loc = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_loc"));
         let context_menu_new_packed_file_text = menu_create.add_action_q_string(&qtr("context_menu_new_packed_file_text"));
         let context_menu_new_queek_packed_file = menu_create.add_action_q_string(&qtr("context_menu_new_queek_packed_file"));
-        let context_menu_mass_import_tsv = menu_create.add_action_q_string(&qtr("context_menu_mass_import_tsv"));
-        let context_menu_mass_export_tsv = menu_create.add_action_q_string(&qtr("context_menu_mass_export_tsv"));
         let context_menu_rename = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_rename"));
         let context_menu_delete = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_delete"));
         let context_menu_extract = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_extract"));
@@ -221,8 +217,6 @@ impl PackFileContentsUI {
         context_menu_new_packed_file_loc.set_enabled(false);
         context_menu_new_packed_file_text.set_enabled(false);
         context_menu_new_queek_packed_file.set_enabled(false);
-        context_menu_mass_import_tsv.set_enabled(false);
-        context_menu_mass_export_tsv.set_enabled(false);
         context_menu_delete.set_enabled(false);
         context_menu_rename.set_enabled(false);
         context_menu_extract.set_enabled(false);
@@ -265,9 +259,6 @@ impl PackFileContentsUI {
             context_menu_new_packed_file_loc,
             context_menu_new_packed_file_text,
             context_menu_new_queek_packed_file,
-
-            context_menu_mass_import_tsv,
-            context_menu_mass_export_tsv,
 
             context_menu_rename,
             context_menu_delete,

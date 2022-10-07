@@ -921,67 +921,41 @@ impl GlobalSearchUI {
     /// This function takes care of loading the results of a global search of `SchemaMatches` into a model.
     unsafe fn load_schema_matches_to_ui(model: &QStandardItemModel, tree_view: &QTreeView, matches: &SchemaMatches) {
         if !matches.matches().is_empty() {
-            /*
-            for match_schema in matches {
-                if !match_schema.matches().is_empty() {
-                    let qlist_daddy = QListOfQStandardItem::new();
-                    let versioned_file = QStandardItem::new();
-                    let fill1 = QStandardItem::new();
-                    let fill2 = QStandardItem::new();
+            for match_schema in matches.matches() {
+                let qlist = QListOfQStandardItem::new();
+                let table_name = QStandardItem::new();
+                let version = QStandardItem::new();
+                let column_name = QStandardItem::new();
+                let column = QStandardItem::new();
 
-                    let name = if let Some(ref name) = match_schema.versioned_file_name {
-                        format!("{}/{}", match_schema.versioned_file_type, name)
-                    } else { match_schema.versioned_file_type.to_string() };
+                table_name.set_text(&QString::from_std_str(&match_schema.table_name()));
+                version.set_data_2a(&QVariant::from_int(*match_schema.version()), 2);
+                column_name.set_text(&QString::from_std_str(&match_schema.column_name()));
+                column.set_data_2a(&QVariant::from_uint(*match_schema.column()), 2);
 
-                    versioned_file.set_text(&QString::from_std_str(&name));
-                    versioned_file.set_editable(false);
-                    fill1.set_editable(false);
-                    fill2.set_editable(false);
+                table_name.set_editable(false);
+                version.set_editable(false);
+                column_name.set_editable(false);
+                column.set_editable(false);
 
-                    for match_row in match_schema.matches() {
+                qlist.append_q_standard_item(&table_name.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
 
-                        // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
-
-                        // Create an empty row.
-                        let name = QStandardItem::new();
-                        let version = QStandardItem::new();
-                        let column = QStandardItem::new();
-
-                        name.set_text(&QString::from_std_str(&match_row.name));
-                        version.set_data_2a(&QVariant::from_int(match_row.version()), 2);
-                        column.set_data_2a(&QVariant::from_uint(match_row.column()), 2);
-
-                        name.set_editable(false);
-                        version.set_editable(false);
-                        column.set_editable(false);
-
-                        // Add an empty row to the list.
-                        qlist_boi.append_q_standard_item(&name.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
-
-                        // Append the new row.
-                        versioned_file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-                    }
-
-                    qlist_daddy.append_q_standard_item(&versioned_file.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
-
-                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
-                }
+                model.append_row_q_list_of_q_standard_item(qlist.as_ref());
             }
 
-            model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_versioned_file")));
-            model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_definition_version")));
-            model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_index")));
+            model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_table_name")));
+            model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_version")));
+            model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
+            model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column")));
 
             // Hide the column number column for tables.
-            tree_view.hide_column(2);
+            tree_view.hide_column(3);
             tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
 
-            tree_view.header().resize_sections(ResizeMode::ResizeToContents);*/
+            tree_view.header().resize_sections(ResizeMode::ResizeToContents);
         }
     }
 

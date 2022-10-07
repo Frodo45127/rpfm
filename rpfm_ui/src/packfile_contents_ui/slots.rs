@@ -95,9 +95,6 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
     pub contextual_menu_generate_missing_loc_data: QBox<SlotOfBool>,
 
-    pub contextual_menu_mass_import_tsv: QBox<SlotOfBool>,
-    pub contextual_menu_mass_export_tsv: QBox<SlotOfBool>,
-
     pub packfile_contents_tree_view_expand_all: QBox<SlotNoArgs>,
     pub packfile_contents_tree_view_collapse_all: QBox<SlotNoArgs>,
 
@@ -201,8 +198,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(true);
@@ -230,8 +225,6 @@ impl PackFileContentsSlots {
 
                         // These options are valid for 1 or more folders.
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
@@ -268,8 +261,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
@@ -295,8 +286,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
@@ -322,8 +311,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
@@ -349,8 +336,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
@@ -375,8 +360,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
@@ -402,8 +385,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(false);
-                        pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(false);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(false);
                         pack_file_contents_ui.context_menu_extract.set_enabled(false);
@@ -437,8 +418,6 @@ impl PackFileContentsSlots {
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || SCHEMA.read().unwrap().is_none() {
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
-                    pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(false);
-                    pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(false);
                 }
             }
         ));
@@ -1168,87 +1147,6 @@ impl PackFileContentsSlots {
             }
         }));
 
-        // What happens when we trigger the "Mass-Import TSV" Action.
-        //
-        // TODO: Make it so the name of the table is split off when importing keeping the original name.
-        let contextual_menu_mass_import_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
-            app_ui,
-            pack_file_contents_ui => move |_| {
-                info!("Triggering `Mass-Import TSV` By Slot");
-
-                // Create the "Mass-Import TSV" dialog and wait for his data (or a cancellation).
-                if let Some(data) = PackFileContentsUI::create_mass_import_tsv_dialog(&app_ui) {
-
-                    // If there is no name provided, nor TSV file selected, return an error.
-                    if let Some(ref name) = data.1 {
-                        if name.is_empty() { return show_dialog(&app_ui.main_window, "Only my hearth can be empty.", false) }
-                    }
-                    if data.0.is_empty() { return show_dialog(&app_ui.main_window, "It's mathematically impossible to successfully import zero TSV files.", false) }
-
-                    // Otherwise, try to import all of them and report the result.
-                    else {
-                        app_ui.main_window.set_enabled(false);
-                        let receiver = CENTRAL_COMMAND.send_background(Command::MassImportTSV(data.0, data.1));
-                        let response = CentralCommand::recv(&receiver);
-                        match response {
-
-                            // If it's success....
-                            Response::VecStringVecString(paths_to_remove, paths_to_add) => {
-
-                                // Get the list of paths to add, removing those we "replaced".
-                                let mut paths_to_add = paths_to_add.to_vec();
-                                paths_to_add.retain(|x| !paths_to_remove.contains(x));
-                                let paths_to_add2 = paths_to_add.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-
-                                // Update the TreeView.
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2.to_vec()), DataSource::PackFile);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add2), DataSource::PackFile);
-                                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
-                            }
-
-                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                        }
-
-                        // Re-enable the Main Window.
-                        app_ui.main_window.set_enabled(true);
-                    }
-                }
-            }
-        ));
-
-        // What happens when we trigger the "Mass-Export TSV" Action.
-        let contextual_menu_mass_export_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
-            app_ui,
-            pack_file_contents_ui => move |_| {
-                info!("Triggering `Mass-Export TSV` By Slot");
-
-                // Get a "Folder-only" FileDialog.
-                let export_path = QFileDialog::get_existing_directory_2a(
-                    &app_ui.main_window,
-                    &qtr("context_menu_mass_export_tsv_folder")
-                );
-
-                // If we got an export path and it's not empty, try to export all selected files there.
-                if !export_path.is_empty() {
-                    let export_path = PathBuf::from(export_path.to_std_string());
-                    if export_path.is_dir() {
-                        app_ui.main_window.set_enabled(false);
-                        let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                        let receiver = CENTRAL_COMMAND.send_background(Command::MassExportTSV(selected_items, export_path));
-                        let response = CentralCommand::recv(&receiver);
-                        match response {
-                            Response::String(response) => show_dialog(&app_ui.main_window, response, true),
-                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                        }
-
-                        app_ui.main_window.set_enabled(true);
-                    }
-                }
-            }
-        ));
-
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
                 pack_file_contents_ui.packfile_contents_tree_view.expand_all();
@@ -1308,9 +1206,6 @@ impl PackFileContentsSlots {
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
             contextual_menu_generate_missing_loc_data,
-
-            contextual_menu_mass_import_tsv,
-            contextual_menu_mass_export_tsv,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,

@@ -44,8 +44,6 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_new_packed_file_loc.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_loc"])));
     ui.context_menu_new_packed_file_text.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_text"])));
     ui.context_menu_new_queek_packed_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_queek"])));
-    ui.context_menu_mass_import_tsv.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["mass_import_tsv"])));
-    ui.context_menu_mass_export_tsv.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["mass_export_tsv"])));
     ui.context_menu_merge_tables.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["merge_tables"])));
     ui.context_menu_update_table.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["update_tables"])));
     ui.context_menu_delete.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["delete"])));
@@ -71,8 +69,6 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_new_packed_file_loc.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_text.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_queek_packed_file.set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.context_menu_mass_import_tsv.set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.context_menu_mass_export_tsv.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_merge_tables.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_update_table.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_delete.set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -98,8 +94,6 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_loc);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_text);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_queek_packed_file);
-    ui.packfile_contents_tree_view.add_action(&ui.context_menu_mass_import_tsv);
-    ui.packfile_contents_tree_view.add_action(&ui.context_menu_mass_export_tsv);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_merge_tables);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_update_table);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_delete);

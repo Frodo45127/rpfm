@@ -329,11 +329,7 @@ impl AppUI {
                 app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
 
                 // Set the compression level correctly, because otherwise we may fuckup some files.
-                //let compression_state = match ui_data.compression_state {
-                //    CompressionState::Enabled => true,
-                //    CompressionState::Partial | CompressionState::Disabled => false,
-                //};
-                //app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
+                app_ui.change_packfile_type_data_is_compressed.set_checked(*ui_data.compress());
 
                 // Update the TreeView.
                 let mut build_data = BuildData::new();

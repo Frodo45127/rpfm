@@ -274,9 +274,10 @@ global_search_schema_matches = Schema Matches
 global_search_match_packedfile_column = PackedFile/Column
 global_search_match_packedfile_text = PackedFile/Text
 
-global_search_versioned_file = VersionFiled (Type, Name)/Column Name
-global_search_definition_version = Definition Version
-global_search_column_index = Column Index
+global_search_table_name = Table Name
+global_search_version = Version
+global_search_column_name = Column Name
+global_search_column = Column Index
 
 ## tips
 

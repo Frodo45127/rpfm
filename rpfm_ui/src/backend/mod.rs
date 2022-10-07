@@ -51,8 +51,8 @@ pub struct ContainerInfo {
     /// The bitmasks applied to the PackFile.
     bitmask: PFHFlags,
 
-    // The current state of the compression inside the PackFile.
-    //compression_state: bool,
+    /// If the container needs to be compress on save.
+    compress: bool,
 
     /// The timestamp of the last time the PackFile was saved.
     timestamp: u64,
@@ -115,7 +115,7 @@ impl From<&Pack> for ContainerInfo {
             pfh_file_type: *pack.header().pfh_file_type(),
             bitmask: *pack.header().bitmask(),
             timestamp: *pack.header().internal_timestamp(),
-            //compression_state: pack.header().comp(),
+            compress: *pack.compress(),
         }
     }
 }

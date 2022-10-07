@@ -1191,6 +1191,11 @@ impl RFile {
         }
     }
 
+    /// This function replace any data a RFile has with the provided raw data.
+    pub fn set_cached(&mut self, data: &[u8]) {
+        self.data = RFileInnerData::Cached(data.to_vec());
+    }
+
     /// This function allows to replace the inner decoded data of a RFile with another. It'll fail if the decoded data is not valid for the file's type.
     pub fn set_decoded(&mut self, decoded: RFileDecoded) -> Result<()> {
         match (self.file_type(), &decoded) {
