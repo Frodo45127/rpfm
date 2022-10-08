@@ -209,7 +209,7 @@ impl GlobalSearch {
 
                 if self.search_on_dbs {
                     let files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths(&[FileType::DB], &update_paths)
+                        pack.files_by_type_and_paths(&[FileType::DB], &update_paths, false)
                     } else {
                         pack.files_by_type(&[FileType::DB])
                     };
@@ -232,7 +232,7 @@ impl GlobalSearch {
 
                 if self.search_on_locs {
                     let files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths(&[FileType::Loc], &update_paths)
+                        pack.files_by_type_and_paths(&[FileType::Loc], &update_paths, false)
                     } else {
                         pack.files_by_type(&[FileType::Loc])
                     };

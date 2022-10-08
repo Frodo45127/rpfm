@@ -788,12 +788,19 @@ pub trait Container {
     ///
     /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
     /// meaning passing this will return all RFiles within the container.
-    fn files_by_path(&self, path: &ContainerPath) -> Vec<&RFile> {
+    fn files_by_path(&self, path: &ContainerPath, case_insensitive: bool) -> Vec<&RFile> {
         match path {
             ContainerPath::File(path) => {
-                match self.files().get(path) {
-                    Some(file) => vec![file],
-                    None => vec![],
+                if case_insensitive {
+                    match self.files().par_iter().find_map_first(|(path_file, file)| if caseless::canonical_caseless_match_str(path, path_file) { Some(file) } else { None }) {
+                        Some(file) => vec![file],
+                        None => vec![],
+                    }
+                } else {
+                    match self.files().get(path) {
+                        Some(file) => vec![file],
+                        None => vec![],
+                    }
                 }
             },
             ContainerPath::Folder(path) => {
@@ -807,7 +814,11 @@ pub trait Container {
                 else {
                     self.files().par_iter()
                         .filter_map(|(key, file)|
-                            if key.starts_with(path) { Some(file) } else { None }
+                            if case_insensitive {
+                                if starts_with_case_insensitive(key, path) { Some(file) } else { None }
+                            } else {
+                                if key.starts_with(path) { Some(file) } else { None }
+                            }
                         ).collect::<Vec<&RFile>>()
                 }
             },
@@ -845,9 +856,9 @@ pub trait Container {
     }
 
     /// This method returns a reference to the RFiles inside the provided Container that match one of the provided [ContainerPath].
-    fn files_by_paths(&self, paths: &[ContainerPath]) -> Vec<&RFile> {
+    fn files_by_paths(&self, paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
-            .map(|path| self.files_by_path(path))
+            .map(|path| self.files_by_path(path, case_insensitive))
             .flatten()
             .collect()
     }
@@ -872,9 +883,9 @@ pub trait Container {
 
     /// This method returns a reference to the RFiles inside the provided Container that match the provided [ContainerPath]
     /// and are of one of the provided [FileType].
-    fn files_by_type_and_paths(&self, file_types: &[FileType], paths: &[ContainerPath]) -> Vec<&RFile> {
+    fn files_by_type_and_paths(&self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
-            .map(|path| self.files_by_path(path)
+            .map(|path| self.files_by_path(path, case_insensitive)
                 .into_iter()
                 .filter(|file| file_types.contains(&file.file_type()))
                 .collect::<Vec<_>>()

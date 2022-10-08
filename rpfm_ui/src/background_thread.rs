@@ -244,7 +244,7 @@ pub fn background_loop() {
             Command::GetPackedFilesInfo(paths) => {
                 let paths = paths.iter().map(|path| ContainerPath::File(path.to_owned())).collect::<Vec<_>>();
                 CentralCommand::send_back(&sender, Response::VecRFileInfo(
-                    pack_file_decoded.files_by_paths(&paths).into_iter().map(From::from).collect()
+                    pack_file_decoded.files_by_paths(&paths, false).into_iter().map(From::from).collect()
                 ));
             }
 
@@ -536,7 +536,7 @@ pub fn background_loop() {
 
                     // Try to add the PackedFile to the main PackFile.
                     Some(pack) => {
-                        let files = pack.files_by_paths(&paths);
+                        let files = pack.files_by_paths(&paths, false);
                         for file in files {
                             let _ = pack_file_decoded.insert(file.clone());
                         }
@@ -561,7 +561,7 @@ pub fn background_loop() {
 
             // In case we want to move stuff from our PackFile to an Animpack...
             Command::AddPackedFilesFromPackFileToAnimpack(anim_pack_path, paths) => {
-                let files = pack_file_decoded.files_by_paths(&paths).into_iter().cloned().collect::<Vec<RFile>>();
+                let files = pack_file_decoded.files_by_paths(&paths, false).into_iter().cloned().collect::<Vec<RFile>>();
                 match pack_file_decoded.files_mut().get_mut(&anim_pack_path) {
                     Some(file) => {
 
@@ -600,7 +600,7 @@ pub fn background_loop() {
 
                         match file.decoded_mut() {
                             Ok(decoded) => match decoded {
-                                RFileDecoded::AnimPack(anim_pack) => anim_pack.files_by_paths(&paths).into_iter().cloned().collect::<Vec<RFile>>(),
+                                RFileDecoded::AnimPack(anim_pack) => anim_pack.files_by_paths(&paths, false).into_iter().cloned().collect::<Vec<RFile>>(),
                                 _ => {
                                     CentralCommand::send_back(&sender, Response::Error(anyhow!("We expected {} to be of type {} but found {}. This is either a bug or you did weird things with the game selected.", anim_pack_path, FileType::AnimPack, FileType::from(&*decoded))));
                                     continue;
@@ -913,7 +913,7 @@ pub fn background_loop() {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let paths = global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies, &matches);
-                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
+                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
                 } else {
@@ -926,7 +926,7 @@ pub fn background_loop() {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies);
-                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
+                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
                 } else {
@@ -1301,7 +1301,7 @@ pub fn background_loop() {
             Command::GoToDefinition(ref_table, ref_column, ref_data) => {
                 let table_name = format!("{}_tables", ref_table);
                 let table_folder = format!("db/{}", table_name);
-                let packed_files = pack_file_decoded.files_by_path(&ContainerPath::Folder(table_folder.to_owned()));
+                let packed_files = pack_file_decoded.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
                 let mut found = false;
                 for packed_file in &packed_files {
                     if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
@@ -1358,23 +1358,23 @@ pub fn background_loop() {
                 if !found {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!(tr("source_data_for_field_not_found"))));
                 }
-            },/*
+            },
 
             Command::SearchReferences(reference_map, value) => {
                 let paths = reference_map.keys().map(|x| ContainerPath::Folder(format!("db/{}", x))).collect::<Vec<ContainerPath>>();
-                let packed_files = pack_file_decoded.get_ref_packed_files_by_path_type_unicased(&paths);
+                let files = pack_file_decoded.files_by_paths(&paths, true);
 
-                let mut references: Vec<(DataSource, Vec<String>, String, usize, usize)> = vec![];
+                let mut references: Vec<(DataSource, String, String, usize, usize)> = vec![];
 
                 // Pass for local tables.
                 for (table_name, columns) in &reference_map {
-                    for packed_file in &packed_files {
-                        if &packed_file.get_path()[1] == table_name {
-                            if let Ok(RFileDecoded::DB(data)) = packed_file.get_decoded_from_memory() {
+                    for file in &files {
+                        if file.db_table_name_from_path().unwrap() == table_name {
+                            if let Ok(RFileDecoded::DB(data)) = file.decoded() {
                                 for column_name in columns {
-                                    if let Some((column_index, row_indexes)) = data.table().get_location_of_reference_data(column_name, &value) {
+                                    if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
                                         for row_index in &row_indexes {
-                                            references.push((DataSource::PackFile, packed_file.get_path().to_vec(), column_name.to_owned(), column_index, *row_index));
+                                            references.push((DataSource::PackFile, file.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
                                         }
                                     }
                                 }
@@ -1385,17 +1385,18 @@ pub fn background_loop() {
 
                 // Pass for parent tables.
                 for (table_name, columns) in &reference_map {
-                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, false, true) {
-                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                        if let Ok(tables) = dependencies.db_data(table_name, false, true) {
+                        references.append(&mut tables.par_iter().map(|table| {
                             let mut references = vec![];
-                            for column_name in columns {
-                                if let Some((column_index, row_indexes)) = table.table().get_location_of_reference_data(column_name, &value) {
-                                    for row_index in &row_indexes {
-                                        references.push((DataSource::ParentFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                            if let Ok(RFileDecoded::DB(data)) = table.decoded() {
+                                for column_name in columns {
+                                    if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
+                                        for row_index in &row_indexes {
+                                            references.push((DataSource::ParentFiles, table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
+                                        }
                                     }
                                 }
                             }
-
 
                             references
                         }).flatten().collect());
@@ -1404,13 +1405,15 @@ pub fn background_loop() {
 
                 // Pass for vanilla tables.
                 for (table_name, columns) in &reference_map {
-                    if let Ok(tables) = dependencies.get_db_tables_with_path_from_cache(table_name, true, false) {
-                        references.append(&mut tables.par_iter().map(|(path, table)| {
+                    if let Ok(tables) = dependencies.db_data(table_name, true, false) {
+                        references.append(&mut tables.par_iter().map(|table| {
                             let mut references = vec![];
-                            for column_name in columns {
-                                if let Some((column_index, row_indexes)) = table.table().get_location_of_reference_data(column_name, &value) {
-                                    for row_index in &row_indexes {
-                                        references.push((DataSource::GameFiles, path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(), column_name.to_owned(), column_index, *row_index));
+                            if let Ok(RFileDecoded::DB(data)) = table.decoded() {
+                                for column_name in columns {
+                                    if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
+                                        for row_index in &row_indexes {
+                                            references.push((DataSource::GameFiles, table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
+                                        }
                                     }
                                 }
                             }
@@ -1420,8 +1423,8 @@ pub fn background_loop() {
                     }
                 }
 
-                CentralCommand::send_back(&sender, Response::VecDataSourceVecStringStringUsizeUsize(references));
-            },*/
+                CentralCommand::send_back(&sender, Response::VecDataSourceStringStringUsizeUsize(references));
+            },
 
             Command::GoToLoc(loc_key) => {
                 let packed_files = pack_file_decoded.files_by_type(&[FileType::Loc]);
@@ -1491,8 +1494,8 @@ pub fn background_loop() {
 
                 for (data_source, paths) in &paths_by_data_source {
                     let files = match data_source {
-                        DataSource::GameFiles => dependencies.files_by_path(paths, true, false),
-                        DataSource::ParentFiles => dependencies.files_by_path(paths, false, true),
+                        DataSource::GameFiles => dependencies.files_by_path(paths, true, false, false),
+                        DataSource::ParentFiles => dependencies.files_by_path(paths, false, true, false),
 
                         _ => {
                             CentralCommand::send_back(&sender, Response::Error(anyhow!("You can't import files from this source.")));
@@ -1510,26 +1513,20 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths));
                 CentralCommand::send_back(&sender, Response::Success);
             },
-            /*
+
             Command::GetPackedFilesFromAllSources(paths) => {
                 let mut packed_files = HashMap::new();
 
                 // Get PackedFiles requested from the Parent Files.
                 let mut packed_files_parent = HashMap::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files_unicased(&paths) {
-                    for packed_file in packed_files_decoded {
-                        packed_files_parent.insert(packed_file.get_path(), packed_file);
-                    }
-                    packed_files.insert(DataSource::ParentFiles, packed_files_parent);
+                for (path, file) in dependencies.files_by_path(&paths, false, true, true) {
+                    packed_files_parent.insert(path, file.clone());
                 }
 
                 // Get PackedFiles requested from the Game Files.
                 let mut packed_files_game = HashMap::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files_unicased(&paths) {
-                    for packed_file in packed_files_decoded {
-                        packed_files_game.insert(packed_file.get_path(), packed_file);
-                    }
-                    packed_files.insert(DataSource::GameFiles, packed_files_game);
+                for (path, file) in dependencies.files_by_path(&paths, true, false, true) {
+                    packed_files_game.insert(path, file.clone());
                 }
 
                 // Get PackedFiles requested from the AssKit Files.
@@ -1543,14 +1540,17 @@ pub fn background_loop() {
 
                 // Get PackedFiles requested from the currently open PackFile, if any.
                 let mut packed_files_packfile = HashMap::new();
-                for packed_file in pack_file_decoded.get_packed_files_by_path_type_unicased(&paths) {
-                    packed_files_packfile.insert(packed_file.get_path().to_vec(), packed_file );
+                for file in pack_file_decoded.files_by_paths(&paths, true) {
+                    packed_files_packfile.insert(file.path_in_container_raw().to_owned(), file.clone());
                 }
+
+                packed_files.insert(DataSource::ParentFiles, packed_files_parent);
+                packed_files.insert(DataSource::GameFiles, packed_files_game);
                 packed_files.insert(DataSource::PackFile, packed_files_packfile);
 
                 // Return the full list of PackedFiles requested, split by source.
-                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapContainerPathRFile(packed_files));
-            },
+                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapStringRFile(packed_files));
+            },/*
 
             Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
                 let mut packed_files = HashMap::new();

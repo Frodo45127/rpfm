@@ -40,6 +40,21 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
     }
 }
 
+/// This function checks if a String starts with another String in a case-insensitive way.
+pub fn starts_with_case_insensitive(full_str: &str, partial_str: &str) -> bool {
+    let full_str_chars = full_str.chars().count();
+    let partial_str_chars = partial_str.chars().count();
+    if full_str_chars > partial_str_chars {
+        let partial_str_len_in_bytes = partial_str.len();
+
+        let full_str_max_index = full_str.char_indices().map(|(index, _)| index).find(|index| index >= &partial_str_len_in_bytes).unwrap_or(full_str.len());
+        let full_str_base = &full_str[..full_str_max_index];
+        caseless::canonical_caseless_match_str(full_str_base, &partial_str)
+    } else {
+        false
+    }
+}
+
 //--------------------------------------------------------//
 // Path utils.
 //--------------------------------------------------------//

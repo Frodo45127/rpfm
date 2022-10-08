@@ -24,7 +24,7 @@ use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, Fil
 use rpfm_lib::games::GameInfo;
 use rpfm_lib::integrations::assembly_kit::table_data::RawTable;
 use rpfm_lib::schema::{Definition, Schema};
-use rpfm_lib::utils::{current_time, last_modified_time_from_files};
+use rpfm_lib::utils::{current_time, last_modified_time_from_files, starts_with_case_insensitive};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -427,15 +427,23 @@ impl Dependencies {
     //-----------------------------------//
 
     /// This function returns a reference to a specific file from the cache, if exists.
-    pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool) -> Result<&RFile> {
+    pub fn file(&self, file_path: &str, include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> Result<&RFile> {
         if include_parent {
-            if let Some(file) = self.parent_files.get(file_path) {
+            if case_insensitive {
+                if let Some(file) = self.parent_files.par_iter().find_map_first(|(path, file)| if caseless::canonical_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                    return Ok(file);
+                }
+            } else if let Some(file) = self.parent_files.get(file_path) {
                 return Ok(file);
             }
         }
 
         if include_vanilla {
-            if let Some(file) = self.vanilla_files.get(file_path) {
+            if case_insensitive {
+                if let Some(file) = self.vanilla_files.par_iter().find_map_first(|(path, file)| if caseless::canonical_caseless_match_str(path, file_path) { Some(file) } else { None }) {
+                    return Ok(file);
+                }
+            } else if let Some(file) = self.vanilla_files.get(file_path) {
                 return Ok(file);
             }
         }
@@ -461,7 +469,7 @@ impl Dependencies {
     }
 
     /// This function returns a reference to all files corresponding to the provided paths.
-    pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool) -> HashMap<String, &RFile> {
+    pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> HashMap<String, &RFile> {
         let mut files = HashMap::new();
 
         for file_path in file_paths {
@@ -475,7 +483,13 @@ impl Dependencies {
                                 .collect::<HashMap<_,_>>());
                         } else {
                             files.extend(self.vanilla_files.par_iter()
-                                .filter(|(path, _)| path.starts_with(folder_path))
+                                .filter(|(path, _)| {
+                                    if case_insensitive {
+                                        starts_with_case_insensitive(path, &folder_path)
+                                    } else {
+                                        path.starts_with(folder_path)
+                                    }
+                                })
                                 .map(|(path, file)| (path.to_owned(), file))
                                 .collect::<HashMap<_,_>>());
                         }
@@ -483,13 +497,19 @@ impl Dependencies {
 
                     if include_parent {
                         files = self.parent_files.par_iter()
-                            .filter(|(path, _)| path.starts_with(folder_path))
+                            .filter(|(path, _)| {
+                                if case_insensitive {
+                                    starts_with_case_insensitive(path, &folder_path)
+                                } else {
+                                    path.starts_with(folder_path)
+                                }
+                            })
                             .map(|(path, file)| (path.to_owned(), file))
                             .collect();
                     }
                 }
                 ContainerPath::File(file_path) => {
-                    if let Ok(file) = self.file(file_path, include_vanilla, include_parent) {
+                    if let Ok(file) = self.file(file_path, include_vanilla, include_parent, case_insensitive) {
                         files.insert(file_path.to_string(), file);
                     }
                 }
@@ -810,7 +830,7 @@ impl Dependencies {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
-        pack.files_by_path(&ContainerPath::Folder(format!("db/{}_tables", ref_table))).iter()
+        pack.files_by_path(&ContainerPath::Folder(format!("db/{}_tables", ref_table)), false).iter()
             .for_each(|file| {
             if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                 let fields_processed = db.definition().fields_processed();

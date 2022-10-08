@@ -189,7 +189,7 @@ impl Diagnostics {
         let files = if paths_to_check.is_empty() {
             pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc])
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], &paths_to_check)
+            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], &paths_to_check, false)
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
