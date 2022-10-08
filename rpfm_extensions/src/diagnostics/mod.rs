@@ -898,7 +898,7 @@ impl Diagnostics {
         let mut diagnostic = ConfigDiagnostic::default();
 
         // First, check if we have the game folder correctly configured. We can't do anything without it.
-        let exe_path = game_info.get_executable_path(game_path).filter(|path| path.is_file());
+        let exe_path = game_info.executable_path(game_path).filter(|path| path.is_file());
         if exe_path.is_none() {
             diagnostic.results_mut().push(ConfigDiagnosticReport::new(ConfigDiagnosticReportType::IncorrectGamePath));
         }

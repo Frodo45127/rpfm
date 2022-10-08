@@ -322,7 +322,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
@@ -335,7 +335,7 @@ impl AppUISlots {
                         game_local_mods_path.push(&mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
-                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -380,7 +380,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, "Pack to install not found on disk.", false);
                 }
 
-                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                if let Ok(mut game_local_mods_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                     if !game_local_mods_path.is_dir() {
                         return show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
                     }
@@ -392,7 +392,7 @@ impl AppUISlots {
                     if let Some(ref mod_name) = pack_path.file_name() {
                         game_local_mods_path.push(&mod_name);
 
-                        let ca_paths = match GAME_SELECTED.read().unwrap().get_all_ca_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+                        let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
                             Err(_) => return show_dialog(&app_ui.main_window, "You can't do that to a CA PackFile, you monster!", false),
                         };
@@ -824,7 +824,7 @@ impl AppUISlots {
             references_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
                 app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
-                app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.diagnostics_dock_widget.is_visible());
+                app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.diagnostics_dock_widget().is_visible());
                 app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
                 app_ui.view_toggle_references_panel.set_checked(references_ui.references_dock_widget.is_visible());
         }));
@@ -846,8 +846,8 @@ impl AppUISlots {
 
         let view_toggle_diagnostics_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             diagnostics_ui => move |state| {
-                if !state { diagnostics_ui.diagnostics_dock_widget.hide(); }
-                else { diagnostics_ui.diagnostics_dock_widget.show();}
+                if !state { diagnostics_ui.diagnostics_dock_widget().hide(); }
+                else { diagnostics_ui.diagnostics_dock_widget().show();}
         }));
 
         let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
@@ -869,7 +869,7 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            match GAME_SELECTED.read().unwrap().get_game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 Ok(command) => { let _ = open::that(&command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
@@ -878,7 +878,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Ok(path) = GAME_SELECTED.read().unwrap().get_data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 let _ = open::that(&path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);

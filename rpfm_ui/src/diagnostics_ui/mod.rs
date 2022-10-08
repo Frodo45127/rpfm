@@ -87,7 +87,7 @@ pub struct DiagnosticsUI {
     //-------------------------------------------------------------------------------//
     // `Diagnostics` Dock Widget.
     //-------------------------------------------------------------------------------//
-    pub diagnostics_dock_widget: QBox<QDockWidget>,
+    diagnostics_dock_widget: QBox<QDockWidget>,
     diagnostics_table_view: QBox<QTableView>,
     diagnostics_table_filter: QBox<QSortFilterProxyModel>,
     diagnostics_table_model: QBox<QStandardItemModel>,

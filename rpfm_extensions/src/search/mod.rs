@@ -428,15 +428,7 @@ impl GlobalSearch {
     /// This function clears the Global Search result's data, and reset the UI for it.
     pub fn clear(&mut self) {
         *self = Self::default();
-    }/*
-
-
-    /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.
-    pub fn get_update_paths_packed_file_info(&self, pack_file: &mut PackFile, paths: &[PathType]) -> Vec<PackedFileInfo> {
-        let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect();
-        let packed_files = pack_file.get_ref_packed_files_by_paths(paths);
-        packed_files.iter().map(|x| From::from(*x)).collect()
-    }*/
+    }
 
     /// This function performs a replace operation over the provided matches.
     ///

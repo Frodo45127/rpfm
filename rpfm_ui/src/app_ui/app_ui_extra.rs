@@ -512,7 +512,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -599,13 +599,13 @@ impl AppUI {
 
             // Ensure it's a file and it's not in data before proceeding.
             let enable_install = if !pack_path.is_file() { false }
-            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 game_data_path.is_dir() && !pack_path.starts_with(&game_data_path)
             } else { false };
             app_ui.packfile_install.set_enabled(enable_install);
 
             let enable_uninstall = if !pack_path.is_file() { false }
-            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().get_local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
+            else if let Ok(mut game_data_path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                 if !game_data_path.is_dir() || pack_path.starts_with(&game_data_path) { false }
                 else {
                     game_data_path.push(pack_path.file_name().unwrap().to_string_lossy().to_string());
@@ -850,7 +850,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = GAME_SELECTED.read().unwrap().get_content_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
+        let mut content_paths = GAME_SELECTED.read().unwrap().content_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -889,7 +889,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = GAME_SELECTED.read().unwrap().get_data_packfiles_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
+        let mut data_paths = GAME_SELECTED.read().unwrap().data_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name()));
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {

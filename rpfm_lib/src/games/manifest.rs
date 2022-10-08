@@ -55,7 +55,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parsable.
     pub fn read_from_game_path(game: &GameInfo, game_path: &Path) -> Result<Self> {
-        let manifest_path = game.get_data_path(game_path)?.join(MANIFEST_FILE_NAME);
+        let manifest_path = game.data_path(game_path)?.join(MANIFEST_FILE_NAME);
         Self::read(&manifest_path)
     }
 

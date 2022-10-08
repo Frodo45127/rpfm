@@ -370,7 +370,7 @@ impl Dependencies {
 
     /// This function is used to check if the game files used to generate the dependencies cache have changed, requiring an update.
     pub fn needs_updating(&self, game_info: &GameInfo, game_path: &Path) -> Result<bool> {
-        let ca_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
+        let ca_paths = game_info.ca_packs_paths(game_path)?;
         let last_date = last_modified_time_from_files(&ca_paths)?;
         Ok(last_date > self.build_date)
     }
@@ -379,8 +379,8 @@ impl Dependencies {
     /// This function loads all the parent [Packs](rpfm_lib::files::pack::Pack) provided as `parent_pack_names` as dependencies,
     /// taking care of also loading all dependencies of all of them, if they're not already loaded.
     fn load_parent_packs(&mut self, parent_pack_names: &[String], game_info: &GameInfo, game_path: &Path) -> Result<()> {
-        let data_packs_paths = game_info.get_all_ca_packfiles_paths(game_path)?;
-        let content_packs_paths = game_info.get_content_packfiles_paths(game_path);
+        let data_packs_paths = game_info.ca_packs_paths(game_path)?;
+        let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
 
         parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(&pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
