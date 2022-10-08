@@ -1216,12 +1216,12 @@ impl PackTree for QBox<QTreeView> {
 
                     // We only use this to add files and empty folders. Ignore the rest.
                     let mut parent = model.item_1a(0);
-                    //match parent.data_1a(ITEM_STATUS).to_int_0a() {
-                    //     ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
-                    //     ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                    //     ITEM_STATUS_ADDED | 3 => {},
-                    //     _ => unimplemented!(),
-                    //}
+                    match parent.data_1a(ITEM_STATUS).to_int_0a() {
+                         ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
+                         ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                         ITEM_STATUS_ADDED | 3 => {},
+                         _ => unimplemented!(),
+                    }
                     if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                         parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                     }

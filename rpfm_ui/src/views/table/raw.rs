@@ -97,7 +97,7 @@ impl TableView {
         self.context_menu_find_references.set_enabled(false);
         self.context_menu_cascade_edition.set_enabled(false);
         self.context_menu_patch_column.set_enabled(true);
-        self.smart_delete.set_enabled(false);
+        self.context_menu_smart_delete.set_enabled(false);
 
         // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
         let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
@@ -139,7 +139,7 @@ impl TableView {
                 self.context_menu_delete_rows_not_in_filter.set_enabled(true);
                 self.context_menu_paste_as_new_row.set_enabled(true);
                 self.context_menu_import_tsv.set_enabled(true);
-                self.smart_delete.set_enabled(true);
+                self.context_menu_smart_delete.set_enabled(true);
 
                 // If we have something selected, enable these actions.
                 if indexes.count_0a() > 0 {
@@ -223,7 +223,7 @@ impl TableView {
     pub unsafe fn reset_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
@@ -261,7 +261,7 @@ impl TableView {
                 history_redo.clear();
             }
             self.start_delayed_updates_timer();
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+            update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         }
     }
 
@@ -272,7 +272,7 @@ impl TableView {
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
-            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
+            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
 
             let mut real_cells = vec![];
             let mut values = vec![];
@@ -343,7 +343,7 @@ impl TableView {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
 
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
@@ -379,7 +379,7 @@ impl TableView {
     pub unsafe fn copy_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -424,7 +424,7 @@ impl TableView {
     pub unsafe fn copy_selection_as_lua_table(&self) {
 
         // Get the selection sorted visually.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         // Split the indexes in two groups: those who have a key column selected and those who haven't.
         // Keep in mind this doesn't check what key column we have selected.
@@ -435,7 +435,7 @@ impl TableView {
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
-                    .any(|z| self.get_ref_table_definition().fields_processed()[z.column() as usize].is_key())
+                    .any(|z| self.table_definition().fields_processed()[z.column() as usize].is_key())
             );
 
         let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
@@ -472,7 +472,7 @@ impl TableView {
 
         // Get the current selection and his, visually speaking, first item (top-left).
         let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -567,7 +567,7 @@ impl TableView {
             (None, self.table_model.row_count_0a())
         };
 
-        let definition = self.get_ref_table_definition();
+        let definition = self.table_definition();
         let fields_processed = definition.fields_processed();
 
         let mut real_cells = vec![];
@@ -616,7 +616,7 @@ impl TableView {
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
+                            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
                             for index in 0..row.count_0a() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
@@ -637,7 +637,7 @@ impl TableView {
         // will not trigger, and the update_undo_model will not trigger either, causing a crash if
         // immediately after that we try to paste something in a new line (which will not exist in the undo model).
         {
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+            update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         }
 
         self.set_data_on_cells(&real_cells, added_rows, &[], app_ui, pack_file_contents_ui);
@@ -711,7 +711,7 @@ impl TableView {
                     // Sort them 0->9, so we can process them.
                     rows.sort_unstable();
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    let rows_split = delete_rows(&self.get_mut_ptr_table_model(), &rows);
+                    let rows_split = delete_rows(&self.table_model_ptr(), &rows);
                     history_opposite.push(TableOperations::RemoveRows(rows_split));
                     self.undo_lock.store(false, Ordering::SeqCst);
                 }
@@ -835,7 +835,7 @@ impl TableView {
                         if current_row == row {
                             let entry = table_data.last_mut().unwrap();
                             let data = self.get_escaped_lua_string_from_index(*index);
-                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
+                            if entry.0.is_none() && self.table_definition().fields_processed()[index.column() as usize].is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             entry.1.push(data);
@@ -846,7 +846,7 @@ impl TableView {
                             let mut entry = (None, vec![]);
                             let data = self.get_escaped_lua_string_from_index(*index);
                             entry.1.push(data.to_string());
-                            if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
+                            if entry.0.is_none() && self.table_definition().fields_processed()[index.column() as usize].is_key() {
                                 entry.0 = Some(self.escape_string_from_index(*index));
                             }
                             table_data.push(entry);
@@ -856,7 +856,7 @@ impl TableView {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.get_ref_table_definition().fields_processed()[index.column() as usize].is_key() {
+                        if entry.0.is_none() && self.table_definition().fields_processed()[index.column() as usize].is_key() {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
@@ -912,13 +912,13 @@ impl TableView {
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
     unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
-        format!(" [\"{}\"] = {},", self.get_ref_table_definition().fields_processed()[index.column() as usize].name(), self.escape_string_from_index(index))
+        format!(" [\"{}\"] = {},", self.table_definition().fields_processed()[index.column() as usize].name(), self.escape_string_from_index(index))
     }
 
     /// This function escapes the value inside an index.
     unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
         let item = self.table_model.item_from_index(index);
-        let definition = &self.get_ref_table_definition().clone();
+        let definition = &self.table_definition().clone();
         match definition.fields_processed()[index.column() as usize].field_type() {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
@@ -997,7 +997,7 @@ impl TableView {
             }
             rows
         } else {
-            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1031,7 +1031,7 @@ impl TableView {
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
         self.update_line_counter();
-        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+        update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
 
@@ -1050,7 +1050,7 @@ impl TableView {
 
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1077,7 +1077,7 @@ impl TableView {
                 }
                 qlist
             } else {
-                let row = get_new_row(&self.get_ref_table_definition(), self.get_ref_table_name().as_deref(), Some(&self.patches()));
+                let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
                 for index in 0..row.count_0a() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
@@ -1100,7 +1100,7 @@ impl TableView {
         self.history_redo.write().unwrap().clear();
         self.start_delayed_updates_timer();
         self.update_line_counter();
-        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+        update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
     }
 
     /// This function returns a copy of the entire model.
@@ -1211,7 +1211,7 @@ impl TableView {
     pub unsafe fn smart_delete(&self, delete_all_rows: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         if delete_all_rows {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
@@ -1262,7 +1262,7 @@ impl TableView {
                 for column in columns {
                     let index = self.table_model.index_2a(*row, *column);
                     if index.is_valid() {
-                        match self.get_ref_table_definition().fields_processed()[*column as usize].field_type() {
+                        match self.table_definition().fields_processed()[*column as usize].field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
                             FieldType::F32 => values.push(&*default_f32),
                             FieldType::F64 => values.push(&*default_f64),
@@ -1316,7 +1316,7 @@ impl TableView {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
-                let definition = self.get_ref_table_definition();
+                let definition = self.table_definition();
                 match definition.fields_processed()[real_cell.column() as usize].field_type() {
 
                     FieldType::Boolean => {
@@ -1422,14 +1422,14 @@ impl TableView {
         blocker_undo.unblock();
 
         let deleted_rows = if !rows_to_delete.is_empty() {
-            super::utils::delete_rows(&self.get_mut_ptr_table_model(), rows_to_delete)
+            super::utils::delete_rows(&self.table_model_ptr(), rows_to_delete)
         } else { vec![] };
 
         // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
         // Sadly, the world doesn't work like that. As we can edit, delete AND add rows, we have to use a combined undo operation.
         // I'll call it... Carolina.
         if changed_cells > 0 || added_rows > 0 || !deleted_rows.is_empty() {
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+            update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
             {
                 let mut history_undo = self.history_undo.write().unwrap();
                 let mut history_redo = self.history_redo.write().unwrap();
@@ -1489,7 +1489,7 @@ impl TableView {
 
     /// Triggers stuff that should be done once after a bunch of editions.
     pub unsafe fn post_process_edition(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+        update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         self.context_menu_update();
         if let Some(ref packed_file_path) = self.packed_file_path {
             TableSearch::update_search(self);
@@ -1520,10 +1520,10 @@ impl TableView {
         self.timer_delayed_updates.stop();
 
         // We only want to do this for tables we can identify.
-        let edited_table_name = if let Some(table_name) = self.get_ref_table_name() { table_name.to_lowercase() } else { return };
+        let edited_table_name = if let Some(table_name) = self.table_name() { table_name.to_lowercase() } else { return };
 
         // Get the selected indexes.
-        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
@@ -1673,13 +1673,13 @@ impl TableView {
     pub unsafe fn patch_column(&self, definition_patches: Option<&DefinitionPatch>) -> Result<()> {
 
         // We only want to do this for tables we can identify.
-        let edited_table_name = match self.get_ref_table_name() {
+        let edited_table_name = match self.table_name() {
             Some(table_name) => table_name.to_lowercase(),
             None => return Err(anyhow!("This is either not a DB Table, or it's a DB Table but it's corrupted.")),
         };
 
         // Get the selected indexes.
-        let indexes = get_real_indexes_from_visible_selection_sorted(&self.get_mut_ptr_table_view_primary(), &self.get_mut_ptr_table_view_filter());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
 
         // Only works with a column selected.
         let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();
@@ -1688,7 +1688,7 @@ impl TableView {
         }
 
         let column_index = columns[0];
-        let field = self.get_ref_table_definition().fields_processed().get(column_index as usize).cloned().unwrap();
+        let field = self.table_definition().fields_processed().get(column_index as usize).cloned().unwrap();
 
         // Create and configure the dialog.
         let view = if cfg!(debug_assertions) { PATCH_COLUMN_VIEW_DEBUG } else { PATCH_COLUMN_VIEW_RELEASE };
@@ -1776,7 +1776,7 @@ impl TableView {
                 // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
                 FileType::DB => {
                     let index = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0));
-                    if let Some(field) = self.get_ref_table_definition().fields_processed().get(index.column() as usize) {
+                    if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
                         if let Some((ref_table, ref_column)) = field.is_reference() {
                             Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
                         } else { None }
@@ -1852,7 +1852,7 @@ impl TableView {
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
-                                let table_view = table_view.get_mut_ptr_table_view_primary();
+                                let table_view = table_view.table_view_primary_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                                 let table_selection_model = table_view.selection_model();
@@ -1912,7 +1912,7 @@ impl TableView {
                     table_name.to_owned().drain(..table_name.len() - 7).collect::<String>()
                 } else { return Some(tr("loc_key_not_found")) };
 
-                let table_definition = self.get_ref_table_definition();
+                let table_definition = self.table_definition();
                 let key_field_names = table_definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
                 let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
 
@@ -1964,7 +1964,7 @@ impl TableView {
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
-                                let table_view = table_view.get_mut_ptr_table_view_primary();
+                                let table_view = table_view.table_view_primary_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                                 let table_selection_model = table_view.selection_model();
@@ -1991,7 +1991,7 @@ impl TableView {
 
     /// This function clears the markings for added/modified cells.
     pub unsafe fn clear_markings(&self) {
-        let table_view = self.get_mut_ptr_table_view_primary();
+        let table_view = self.table_view_primary_ptr();
         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());

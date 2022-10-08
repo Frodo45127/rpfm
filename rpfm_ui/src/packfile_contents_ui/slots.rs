@@ -589,7 +589,7 @@ impl PackFileContentsSlots {
                                     else {
                                         if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
                                             app_ui.main_window.set_enabled(false);
-                                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, true);
+                                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, true);
                                             app_ui.main_window.set_enabled(true);
                                         }
                                     }
@@ -620,7 +620,7 @@ impl PackFileContentsSlots {
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
 
                                 app_ui.main_window.set_enabled(false);
-                                PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, false);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, false);
                                 app_ui.main_window.set_enabled(true);
                             }
                         }

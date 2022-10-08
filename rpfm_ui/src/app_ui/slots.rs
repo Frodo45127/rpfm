@@ -1345,16 +1345,16 @@ impl AppUISlots {
 
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
                             let table = table.get_ref_table();
-                            let table_name = if let Some(name) = table.get_ref_table_name() { name.to_owned() } else { "".to_owned() };
-                            if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.get_ref_table_definition()) {
+                            let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
+                            if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition()) {
                                 table.set_dependency_data(&data);
 
                                 setup_item_delegates(
-                                    &table.get_mut_ptr_table_view_primary(),
-                                    &table.get_mut_ptr_table_view_frozen(),
-                                    &table.get_ref_table_definition(),
+                                    &table.table_view_primary_ptr(),
+                                    &table.table_view_frozen_ptr(),
+                                    &table.table_definition(),
                                     &data,
-                                    &table.timer_delayed_updates
+                                    &table.timer_delayed_updates()
                                 );
                             }
                         }

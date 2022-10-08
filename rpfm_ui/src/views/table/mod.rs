@@ -12,6 +12,7 @@
 Module with all the code for managing the view for Tables.
 !*/
 
+use getset::Getters;
 use qt_widgets::QCheckBox;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
@@ -165,6 +166,8 @@ pub enum TableSearchUpdate {
 }
 
 /// This struct contains pointers to all the widgets in a Table View.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct TableView {
     table_view_primary: QBox<QTableView>,
     table_view_frozen: QBox<QTableView>,
@@ -172,8 +175,10 @@ pub struct TableView {
     table_model: QBox<QStandardItemModel>,
 
     filter_base_widget: QBox<QWidget>,
+    #[getset(skip)]
     filters: Arc<RwLock<Vec<Arc<FilterView>>>>,
 
+    #[getset(skip)]
     column_sort_state: Arc<RwLock<(i32, i8)>>,
 
     context_menu: QBox<QMenu>,
@@ -201,7 +206,7 @@ pub struct TableView {
     context_menu_find_references: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
     context_menu_patch_column: QPtr<QAction>,
-    smart_delete: QBox<QAction>,
+    context_menu_smart_delete: QBox<QAction>,
 
     _context_menu_go_to: QBox<QMenu>,
     context_menu_go_to_definition: QPtr<QAction>,
@@ -226,6 +231,8 @@ pub struct TableView {
     search_matches_label: QBox<QLabel>,
     search_column_selector: QBox<QComboBox>,
     search_case_sensitive_button: QBox<QPushButton>,
+
+    #[getset(skip)]
     search_data: Arc<RwLock<TableSearch>>,
 
     _table_status_bar: QBox<QWidget>,
@@ -233,23 +240,37 @@ pub struct TableView {
 
     table_name: Option<String>,
     table_uuid: Option<String>,
+
+    #[getset(skip)]
     data_source: Arc<RwLock<DataSource>>,
+    #[getset(skip)]
     packed_file_path: Option<Arc<RwLock<String>>>,
     packed_file_type: Arc<FileType>,
+
+    #[getset(skip)]
     table_definition: Arc<RwLock<Definition>>,
+    #[getset(skip)]
     patches: Arc<RwLock<DefinitionPatch>>,
+    #[getset(skip)]
     dependency_data: Arc<RwLock<HashMap<i32, TableReferences>>>,
+
     banned_table: bool,
+
+    #[getset(skip)]
     reference_map: Arc<HashMap<String, HashMap<String, Vec<String>>>>,
 
-    pub save_lock: Arc<AtomicBool>,
-    pub undo_lock: Arc<AtomicBool>,
+    save_lock: Arc<AtomicBool>,
+    undo_lock: Arc<AtomicBool>,
 
     undo_model: QBox<QStandardItemModel>,
+
+    #[getset(skip)]
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
+
+    #[getset(skip)]
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 
-    pub timer_delayed_updates: QBox<QTimer>,
+    timer_delayed_updates: QBox<QTimer>,
 }
 
 /// This struct contains the stuff needed for a filter row.
@@ -369,7 +390,7 @@ impl TableView {
         layout.add_widget_5a(&filter_base_widget, 4, 0, 1, 2);
 
         // Action to make the delete button delete contents.
-        let smart_delete = QAction::from_q_object(&table_view_primary);
+        let context_menu_smart_delete = QAction::from_q_object(&table_view_primary);
 
         // Create the Contextual Menu for the TableView.
         let context_menu = QMenu::from_q_widget(&table_view_primary);
@@ -599,7 +620,7 @@ impl TableView {
             context_menu_find_references,
             context_menu_cascade_edition,
             context_menu_patch_column,
-            smart_delete,
+            context_menu_smart_delete,
 
             _context_menu_go_to: context_menu_go_to,
             context_menu_go_to_definition,
@@ -667,8 +688,8 @@ impl TableView {
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
-            &packed_file_table_view.get_mut_ptr_table_view_primary(),
-            &packed_file_table_view.get_mut_ptr_table_view_frozen(),
+            &packed_file_table_view.table_view_primary_ptr(),
+            &packed_file_table_view.table_view_frozen_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
             &packed_file_table_view.dependency_data,
             &table_data,
@@ -677,12 +698,12 @@ impl TableView {
         );
 
         // Initialize the undo model.
-        update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
+        update_undo_model(&packed_file_table_view.table_model_ptr(), &packed_file_table_view.undo_model_ptr());
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         build_columns(
-            &packed_file_table_view.get_mut_ptr_table_view_primary(),
-            Some(&packed_file_table_view.get_mut_ptr_table_view_frozen()),
+            &packed_file_table_view.table_view_primary_ptr(),
+            Some(&packed_file_table_view.table_view_frozen_ptr()),
             &packed_file_table_view.table_definition.read().unwrap(),
             packed_file_table_view.table_name.as_deref()
         );
@@ -705,9 +726,9 @@ impl TableView {
     ///
     /// NOTE: This allows for a table to change it's definition on-the-fly, so be careful with that!
     pub unsafe fn reload_view(&self, data: TableType) {
-        let table_view_primary = &self.get_mut_ptr_table_view_primary();
-        let table_view_frozen = &self.get_mut_ptr_table_view_frozen();
-        let undo_model = &self.get_mut_ptr_undo_model();
+        let table_view_primary = &self.table_view_primary_ptr();
+        let table_view_frozen = &self.table_view_frozen_ptr();
+        let undo_model = &self.undo_model_ptr();
 
         let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
@@ -730,7 +751,7 @@ impl TableView {
         load_data(
             table_view_primary,
             table_view_frozen,
-            &self.get_ref_table_definition(),
+            &self.table_definition(),
             &self.dependency_data,
             &data,
             &self.timer_delayed_updates,
@@ -750,13 +771,13 @@ impl TableView {
         build_columns(
             table_view_primary,
             Some(table_view_frozen),
-            &self.get_ref_table_definition(),
+            &self.table_definition(),
             self.table_name.as_deref()
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
         // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
-        for filter in self.get_ref_mut_filters().iter() {
+        for filter in self.filters_mut().iter() {
             let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
             filter.filter_column_selector.clear();
             for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
@@ -779,249 +800,39 @@ impl TableView {
     }
 
     /// This function returns a reference to the StandardItemModel widget.
-    pub unsafe fn get_mut_ptr_table_model(&self) -> QPtr<QStandardItemModel> {
+    pub unsafe fn table_model_ptr(&self) -> QPtr<QStandardItemModel> {
         self.table_model.static_upcast()
     }
 
-    /// This function returns a reference to the table's model.
-    pub unsafe fn get_ref_table_model(&self) -> &QBox<QStandardItemModel> {
-        &self.table_model
-    }
-
-    // This function returns a mutable reference to the `Enable Lookups` Pushbutton.
-    //pub fn get_mut_ptr_enable_lookups_button(&self) -> QPtr<QPushButton> {
-    //    q_ptr_from_atomic(&self.table_enable_lookups_button)
-    //}
-
     /// This function returns a pointer to the Primary TableView widget.
-    pub unsafe fn get_mut_ptr_table_view_primary(&self) -> QPtr<QTableView> {
+    pub unsafe fn table_view_primary_ptr(&self) -> QPtr<QTableView> {
         self.table_view_primary.static_upcast()
     }
 
     /// This function returns a pointer to the Frozen TableView widget.
-    pub unsafe fn get_mut_ptr_table_view_frozen(&self) -> QPtr<QTableView> {
+    pub unsafe fn table_view_frozen_ptr(&self) -> QPtr<QTableView> {
         self.table_view_frozen.static_upcast()
     }
 
-    pub unsafe fn get_mut_ptr_table_view_filter(&self) -> QPtr<QSortFilterProxyModel> {
+    pub unsafe fn table_view_filter_ptr(&self) -> QPtr<QSortFilterProxyModel> {
         self.table_filter.static_upcast()
     }
 
     /// This function returns a pointer to the filter's LineEdit widget.
-    pub unsafe fn get_mut_ptr_filter_base_widget(&self) -> QPtr<QWidget> {
+    pub unsafe fn filter_base_widget_ptr(&self) -> QPtr<QWidget> {
         self.filter_base_widget.static_upcast()
     }
 
-    /// This function returns a pointer to the add rows action.
-    pub fn get_mut_ptr_context_menu_add_rows(&self) -> &QPtr<QAction> {
-        &self.context_menu_add_rows
-    }
-
-    /// This function returns a pointer to the insert rows action.
-    pub fn get_mut_ptr_context_menu_insert_rows(&self) -> &QPtr<QAction> {
-        &self.context_menu_insert_rows
-    }
-
-    /// This function returns a pointer to the delete rows action.
-    pub fn get_mut_ptr_context_menu_delete_rows(&self) -> &QPtr<QAction> {
-        &self.context_menu_delete_rows
-    }
-
-    /// This function returns a pointer to the delete rows not in filter action.
-    pub fn get_mut_ptr_context_menu_delete_rows_not_in_filter(&self) -> &QPtr<QAction> {
-        &self.context_menu_delete_rows_not_in_filter
-    }
-
-    /// This function returns a pointer to the clone_and_append action.
-    pub fn get_mut_ptr_context_menu_clone_and_append(&self) -> &QPtr<QAction> {
-        &self.context_menu_clone_and_append
-    }
-
-    /// This function returns a pointer to the clone_and_insert action.
-    pub fn get_mut_ptr_context_menu_clone_and_insert(&self) -> &QPtr<QAction> {
-        &self.context_menu_clone_and_insert
-    }
-
-    /// This function returns a pointer to the copy action.
-    pub fn get_mut_ptr_context_menu_copy(&self) -> &QPtr<QAction> {
-        &self.context_menu_copy
-    }
-
-    /// This function returns a pointer to the copy as lua table action.
-    pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> &QPtr<QAction> {
-        &self.context_menu_copy_as_lua_table
-    }
-
-    /// This function returns a pointer to the paste action.
-    pub fn get_mut_ptr_context_menu_paste(&self) -> &QPtr<QAction> {
-        &self.context_menu_paste
-    }
-
-    /// This function returns a pointer to the paste as new row action.
-    pub fn get_mut_ptr_context_menu_paste_as_new_row(&self) -> &QPtr<QAction> {
-        &self.context_menu_paste_as_new_row
-    }
-
-    /// This function returns a pointer to the invert selection action.
-    pub fn get_mut_ptr_context_menu_invert_selection(&self) -> &QPtr<QAction> {
-        &self.context_menu_invert_selection
-    }
-
-    /// This function returns a pointer to the reset selection action.
-    pub fn get_mut_ptr_context_menu_reset_selection(&self) -> &QPtr<QAction> {
-        &self.context_menu_reset_selection
-    }
-
-    /// This function returns a pointer to the rewrite selection action.
-    pub fn get_mut_ptr_context_menu_rewrite_selection(&self) -> &QPtr<QAction> {
-        &self.context_menu_rewrite_selection
-    }
-
-    /// This function returns a pointer to the fill ids action.
-    pub fn get_mut_ptr_context_menu_generate_ids(&self) -> &QPtr<QAction> {
-        &self.context_menu_generate_ids
-    }
-
-    /// This function returns a pointer to the undo action.
-    pub fn get_mut_ptr_context_menu_undo(&self) -> &QPtr<QAction> {
-        &self.context_menu_undo
-    }
-
-    /// This function returns a pointer to the redo action.
-    pub fn get_mut_ptr_context_menu_redo(&self) -> &QPtr<QAction> {
-        &self.context_menu_redo
-    }
-
-    /// This function returns a pointer to the import TSV action.
-    pub fn get_mut_ptr_context_menu_import_tsv(&self) -> &QPtr<QAction> {
-        &self.context_menu_import_tsv
-    }
-
-    /// This function returns a pointer to the export TSV action.
-    pub fn get_mut_ptr_context_menu_export_tsv(&self) -> &QPtr<QAction> {
-        &self.context_menu_export_tsv
-    }
-
-    /// This function returns a pointer to the smart delete action.
-    pub fn get_mut_ptr_smart_delete(&self) -> &QBox<QAction> {
-        &self.smart_delete
-    }
-
-    /// This function returns a pointer to the resize columns action.
-    pub fn get_mut_ptr_context_menu_resize_columns(&self) -> &QPtr<QAction> {
-        &self.context_menu_resize_columns
-    }
-
-    /// This function returns a pointer to the sidebar action.
-    pub fn get_mut_ptr_context_menu_sidebar(&self) -> &QPtr<QAction> {
-        &self.context_menu_sidebar
-    }
-
-    /// This function returns a pointer to the search action.
-    pub fn get_mut_ptr_context_menu_search(&self) -> &QPtr<QAction> {
-        &self.context_menu_search
-    }
-
-    /// This function returns a pointer to the find references action.
-    pub fn get_mut_ptr_context_menu_find_references(&self) -> &QPtr<QAction> {
-        &self.context_menu_find_references
-    }
-
-    /// This function returns a pointer to the cascade edition action.
-    pub fn get_mut_ptr_context_menu_cascade_edition(&self) -> &QPtr<QAction> {
-        &self.context_menu_cascade_edition
-    }
-
-    /// This function returns a pointer to the patch column action.
-    pub fn get_mut_ptr_context_menu_patch_column(&self) -> &QPtr<QAction> {
-        &self.context_menu_patch_column
-    }
-
-    /// This function returns a pointer to the go to definition action.
-    pub fn get_mut_ptr_context_menu_go_to_definition(&self) -> &QPtr<QAction> {
-        &self.context_menu_go_to_definition
-    }
-
-    /// This function returns a vector with the entire go to loc action list.
-    pub fn get_go_to_loc_actions(&self) -> &[QPtr<QAction>] {
-        &self.context_menu_go_to_loc
-    }
-
-    /// This function returns a vector with the entire hide/show checkbox list.
-    pub fn get_hide_show_checkboxes(&self) -> &[QBox<QCheckBox>] {
-        &self.sidebar_hide_checkboxes
-    }
-
-    /// This function returns the checkbox to hide them all.
-    pub fn get_hide_show_checkboxes_all(&self) -> &QBox<QCheckBox> {
-        &self.sidebar_hide_checkboxes_all
-    }
-
-    /// This function returns a vector with the entire freeze checkbox list.
-    pub fn get_freeze_checkboxes(&self) -> &[QBox<QCheckBox>] {
-        &self.sidebar_freeze_checkboxes
-    }
-
-    /// This function returns a the checkbox to freeze them all.
-    pub fn get_freeze_checkboxes_all(&self) -> &QBox<QCheckBox> {
-        &self.sidebar_freeze_checkboxes_all
-    }
-
-    /// This function returns a pointer to the search lineedit in the search panel.
-    pub fn get_mut_ptr_search_search_line_edit(&self) -> &QBox<QLineEdit> {
-        &self.search_search_line_edit
-    }
-
-    /// This function returns a pointer to the search button in the search panel.
-    pub fn get_mut_ptr_search_search_button(&self) -> &QBox<QPushButton> {
-        &self.search_search_button
-    }
-
-    /// This function returns a pointer to the prev match button in the search panel.
-    pub fn get_mut_ptr_search_prev_match_button(&self) -> &QBox<QPushButton> {
-        &self.search_prev_match_button
-    }
-
-    /// This function returns a pointer to the next_match button in the search panel.
-    pub fn get_mut_ptr_search_next_match_button(&self) -> &QBox<QPushButton> {
-        &self.search_next_match_button
-    }
-
-    /// This function returns a pointer to the replace current button in the search panel.
-    pub fn get_mut_ptr_search_replace_current_button(&self) -> &QBox<QPushButton> {
-        &self.search_replace_current_button
-    }
-
-    /// This function returns a pointer to the replace all button in the search panel.
-    pub fn get_mut_ptr_search_replace_all_button(&self) -> &QBox<QPushButton> {
-        &self.search_replace_all_button
-    }
-
-    /// This function returns a pointer to the close button in the search panel.
-    pub fn get_mut_ptr_search_close_button(&self) -> &QBox<QPushButton> {
-        &self.search_close_button
-    }
-
-    pub unsafe fn get_mut_ptr_undo_model(&self) -> QPtr<QStandardItemModel> {
+    pub unsafe fn undo_model_ptr(&self) -> QPtr<QStandardItemModel> {
         self.undo_model.static_upcast()
-    }
-
-    /// This function returns a reference to this table's name.
-    pub fn get_ref_table_name(&self) -> &Option<String> {
-        &self.table_name
     }
 
     pub fn get_packed_file_type(&self) -> &FileType {
         &&self.packed_file_type
     }
 
-    /// This function returns a reference to this table's uuid.
-    pub fn get_ref_table_uuid(&self) -> &Option<String> {
-        &self.table_uuid
-    }
-
     /// This function returns a reference to the definition of this table.
-    pub fn get_ref_table_definition(&self) -> RwLockReadGuard<Definition> {
+    pub fn table_definition(&self) -> RwLockReadGuard<Definition> {
         self.table_definition.read().unwrap()
     }
 
@@ -1029,11 +840,11 @@ impl TableView {
         self.patches.read().unwrap()
     }
 
-    pub fn get_ref_filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
+    pub fn filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
         self.filters.read().unwrap()
     }
 
-    pub fn get_ref_mut_filters(&self) -> RwLockWriteGuard<Vec<Arc<FilterView>>> {
+    pub fn filters_mut(&self) -> RwLockWriteGuard<Vec<Arc<FilterView>>> {
         self.filters.write().unwrap()
     }
 
@@ -1367,11 +1178,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.get_ref_table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.table_definition(), flags, *column);
             }
         }
 
@@ -1390,7 +1201,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.get_ref_table_definition().fields_processed().iter().position(|x| x.name() == column).unwrap() as i32) }
+                else { Some(parent.table_definition().fields_processed().iter().position(|x| x.name() == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -1405,11 +1216,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.get_ref_table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.table_definition(), flags, *column);
             }
         }
 
@@ -1454,7 +1265,7 @@ impl TableSearch {
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                    if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
+                    if parent.table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
                         replaced_text = text_replace;
                     }
                     else {
@@ -1463,7 +1274,7 @@ impl TableSearch {
                     }
 
                     // We need to do an extra check to ensure the new text can be in the field.
-                    match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                    match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
                         //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1475,7 +1286,7 @@ impl TableSearch {
             } else { return }
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match parent.get_ref_table_definition().fields_processed()[item.column() as usize].field_type() {
+            match parent.table_definition().fields_processed()[item.column() as usize].field_type() {
                 FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                 FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -1521,7 +1332,7 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                        let original_text = match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
                             FieldType::F32 => item.data_0a().to_float_0a().to_string(),
                             FieldType::I16 => item.data_0a().to_int_0a().to_string(),
@@ -1530,7 +1341,7 @@ impl TableSearch {
                             _ => item.text().to_std_string(),
                         };
 
-                        let replaced_text = if parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
+                        let replaced_text = if parent.table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -1544,7 +1355,7 @@ impl TableSearch {
                         }
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.get_ref_table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                        match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
                             //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1561,7 +1372,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.get_ref_table_definition().fields_processed()[item.column() as usize].field_type() {
+                match parent.table_definition().fields_processed()[item.column() as usize].field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -1592,7 +1403,7 @@ impl TableSearch {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
-                update_undo_model(&parent.get_mut_ptr_table_model(), &parent.get_mut_ptr_undo_model());
+                update_undo_model(&parent.table_model_ptr(), &parent.undo_model_ptr());
             }
         }
     }
@@ -1601,7 +1412,7 @@ impl TableSearch {
 impl FilterView {
 
     pub unsafe fn new(view: &Arc<TableView>) {
-        let parent = view.get_mut_ptr_filter_base_widget();
+        let parent = view.filter_base_widget_ptr();
 
         // Create the filter's widgets.
         let filter_widget = QWidget::new_1a(&parent);
@@ -1620,7 +1431,7 @@ impl FilterView {
         let filter_remove = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &parent);
 
         // Reuse the models from the first filterview, as that one will never get destroyed.
-        if let Some(first_filter) = view.get_ref_filters().get(0) {
+        if let Some(first_filter) = view.filters().get(0) {
             filter_column_selector.set_model(&first_filter.filter_column_selector.model());
             filter_match_group_selector.set_model(&first_filter.filter_match_group_selector.model());
         }
@@ -1632,7 +1443,7 @@ impl FilterView {
             filter_column_selector.set_model(&filter_column_list);
             filter_match_group_selector.set_model(&filter_match_group_list);
 
-            let fields = view.get_ref_table_definition().fields_processed_sorted(false);
+            let fields = view.table_definition().fields_processed_sorted(false);
             for field in &fields {
                 let name = clean_column_names(field.name());
                 filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
@@ -1648,7 +1459,7 @@ impl FilterView {
         filter_timer_delayed_updates.set_single_shot(true);
 
         // The first filter must never be deleted.
-        if view.get_ref_filters().get(0).is_none() {
+        if view.filters().get(0).is_none() {
             filter_remove.set_enabled(false);
         }
 
@@ -1662,7 +1473,7 @@ impl FilterView {
         filter_grid.add_widget_5a(&filter_remove, 0, 10, 1, 1);
 
         let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
-        parent_grid.add_widget_5a(&filter_widget, view.get_ref_filters().len() as i32 + 3, 0, 1, 2);
+        parent_grid.add_widget_5a(&filter_widget, view.filters().len() as i32 + 3, 0, 1, 2);
 
         let filter = Arc::new(Self {
             filter_widget,
@@ -1680,7 +1491,7 @@ impl FilterView {
 
         connections::set_connections_filter(&filter, &slots);
 
-        view.get_ref_mut_filters().push(filter);
+        view.filters_mut().push(filter);
     }
 
     pub unsafe fn start_delayed_updates_timer(view: &Arc<Self>) {
@@ -1689,9 +1500,9 @@ impl FilterView {
     }
 
     pub unsafe fn add_filter_group(view: &Arc<TableView>) {
-        if view.get_ref_filters()[0].filter_match_group_selector.count() < view.get_ref_filters().len() as i32 {
-            let name = QString::from_std_str(&format!("{} {}", tr("filter_group"), view.get_ref_filters()[0].filter_match_group_selector.count() + 1));
-            view.get_ref_filters()[0].filter_match_group_selector.add_item_q_string(&name);
+        if view.filters()[0].filter_match_group_selector.count() < view.filters().len() as i32 {
+            let name = QString::from_std_str(&format!("{} {}", tr("filter_group"), view.filters()[0].filter_match_group_selector.count() + 1));
+            view.filters()[0].filter_match_group_selector.add_item_q_string(&name);
         }
     }
 }

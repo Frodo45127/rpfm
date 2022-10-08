@@ -111,46 +111,6 @@ impl PackFileContentsUI {
         }
     }
 
-    /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
-    pub unsafe fn add_packed_files_from_folders(
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<Self>,
-        paths: &[PathBuf],
-        paths_packedfile: &[String],
-        paths_to_ignore: Option<Vec<PathBuf>>,
-        import_tables_from_tsv: bool
-    ) {
-        app_ui.main_window.set_enabled(false);
-        let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromFolder(paths_to_send, paths_to_ignore, import_tables_from_tsv));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::VecContainerPath(paths) => {
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
-
-                // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = paths_packedfile.iter().filter_map(|path| {
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                            Some(path.to_owned())
-                        } else { None }
-                    } else { None }
-                }).collect::<Vec<String>>();
-
-                for path in &failed_paths {
-                    let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
-                }
-            }
-
-            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        }
-
-        // Re-enable the Main Window.
-        app_ui.main_window.set_enabled(true);
-    }
-
     /// Function to filter the PackFile Contents TreeView.
     pub unsafe fn filter_files(pack_file_contents_ui: &Rc<Self>) {
 

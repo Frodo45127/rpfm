@@ -242,7 +242,7 @@ impl ReferencesUI {
         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == reference_path && x.get_data_source() == reference_data_source) {
             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                 let table_view = view.get_ref_table();
-                let table_view = table_view.get_mut_ptr_table_view_primary();
+                let table_view = table_view.table_view_primary_ptr();
                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                 let table_selection_model = table_view.selection_model();

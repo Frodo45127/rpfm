@@ -249,13 +249,13 @@ impl PackedFileAnimFragmentView {
         let i1 = DecodedData::I32(self.integer_1.text().to_std_string().parse::<i32>()?);
         let i2 = DecodedData::I32(self.integer_2.text().to_std_string().parse::<i32>()?);
 
-        let filter: QPtr<QSortFilterProxyModel> = self.table_view_1.get_mut_ptr_table_view_primary().model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = self.table_view_1.table_view_primary_ptr().model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let data_1 = get_table_from_view(&table_model, &self.table_view_1.get_ref_table_definition())?;
+        let data_1 = get_table_from_view(&table_model, &self.table_view_1.table_definition())?;
 
-        let filter: QPtr<QSortFilterProxyModel> = self.table_view_2.get_mut_ptr_table_view_primary().model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = self.table_view_2.table_view_primary_ptr().model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let data_2 = get_table_from_view(&table_model, &self.table_view_2.get_ref_table_definition())?;
+        let data_2 = get_table_from_view(&table_model, &self.table_view_2.table_definition())?;
 
         //data.push(DecodedData::SequenceU32(Box::new(data_1)));
         data.push(i1);

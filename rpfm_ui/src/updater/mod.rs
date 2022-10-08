@@ -12,7 +12,7 @@
 Module with all the code to interact with Updates and the Main Program Update Checker.
 !*/
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use self_update::{backends::github::ReleaseList, Download, get_target, cargo_crate_version, Move, update::Release};
 use tempfile::Builder;

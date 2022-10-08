@@ -173,7 +173,7 @@ impl TableViewSlots {
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view_primary, clone!(
             view => move |column, _| {
                 info!("Triggering `Sort Order` By Slot");
-                sort_column(&view.get_mut_ptr_table_view_primary(), column, view.column_sort_state.clone());
+                sort_column(&view.table_view_primary_ptr(), column, view.column_sort_state.clone());
             }
         ));
 
@@ -218,7 +218,7 @@ impl TableViewSlots {
 
                         // For pasting, or really any heavy operation, only do these tasks the last iteration of the operation.
                         if !view.save_lock.load(Ordering::SeqCst) {
-                            update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                            update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
                                 TableSearch::update_search(&view);
@@ -397,7 +397,7 @@ impl TableViewSlots {
             view => move || {
                 info!("Triggering `Undo` By Slot");
                 view.undo_redo(true, 0);
-                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
                 if view.history_undo.read().unwrap().is_empty() {
                     if let Some(ref packed_file_path) = view.packed_file_path {
@@ -416,7 +416,7 @@ impl TableViewSlots {
             view => move || {
                 info!("Triggering `Redo` By Slot");
                 view.undo_redo(false, 0);
-                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
@@ -456,9 +456,9 @@ impl TableViewSlots {
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
                                 load_data(
-                                    &view.get_mut_ptr_table_view_primary(),
-                                    &view.get_mut_ptr_table_view_frozen(),
-                                    &view.get_ref_table_definition(),
+                                    &view.table_view_primary_ptr(),
+                                    &view.table_view_frozen_ptr(),
+                                    &view.table_definition(),
                                     &view.dependency_data,
                                     &data,
                                     &view.timer_delayed_updates,
@@ -475,9 +475,9 @@ impl TableViewSlots {
                                 };
 
                                 build_columns(
-                                    &view.get_mut_ptr_table_view_primary(),
-                                    Some(&view.get_mut_ptr_table_view_frozen()),
-                                    &view.get_ref_table_definition(),
+                                    &view.table_view_primary_ptr(),
+                                    Some(&view.table_view_frozen_ptr()),
+                                    &view.table_definition(),
                                     table_name.as_deref()
                                 );
 
@@ -485,7 +485,7 @@ impl TableViewSlots {
 
                                 view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
                                 view.history_redo.write().unwrap().clear();
-                                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
 
                                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -655,7 +655,7 @@ impl TableViewSlots {
 
         let mut go_to_loc = vec![];
 
-        for field in view.get_ref_table_definition().localised_fields() {
+        for field in view.table_definition().localised_fields() {
             let field_name = field.name().to_owned();
             let slot = SlotNoArgs::new(&view.table_view_primary, clone!(
                 view,
@@ -678,9 +678,9 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.get_ref_table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
+        let fields = view.table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for field in &fields {
-            if let Some(index) = view.get_ref_table_definition().fields_processed().iter().position(|x| x == field) {
+            if let Some(index) = view.table_definition().fields_processed().iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                     mut view => move |state| {
                         let state = state == 2;
@@ -702,14 +702,14 @@ impl TableViewSlots {
         let hide_show_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
             mut view => move |state| {
                 let state = state == 2;
-                view.get_hide_show_checkboxes().iter().for_each(|x| x.set_checked(state))
+                view.sidebar_hide_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
         let freeze_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
             mut view => move |state| {
                 let state = state == 2;
-                view.get_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
+                view.sidebar_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
@@ -911,9 +911,9 @@ impl FilterViewSlots {
         let filter_remove = SlotNoArgs::new(&view.filter_widget, clone!(
             view,
             parent_view => move || {
-            if parent_view.get_ref_filters().len() > 1 {
+            if parent_view.filters().len() > 1 {
                 parent_view.filter_base_widget.layout().remove_widget(view.filter_widget.as_ptr());
-                parent_view.get_ref_mut_filters().pop();
+                parent_view.filters_mut().pop();
                 parent_view.filter_table();
             }
         }));

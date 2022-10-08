@@ -738,7 +738,7 @@ impl GlobalSearchUI {
                 if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                     let parent = gidhora.parent();
                     let table_view = view.get_ref_table();
-                    let table_view = table_view.get_mut_ptr_table_view_primary();
+                    let table_view = table_view.table_view_primary_ptr();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let table_selection_model = table_view.selection_model();

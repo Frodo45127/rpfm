@@ -1070,7 +1070,7 @@ pub unsafe fn open_subtable(
     accept_button.released().connect(dialog.slot_accept());
 
     if dialog.exec() == 1 {
-        if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.get_ref_table_definition()) {
+        if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
             Some(serde_json::to_string(&table).unwrap())
         } else {
             show_dialog(&table_view.table_view_primary, "This should never happen.", false);
