@@ -115,7 +115,7 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 26] = [
 ];
 
 /// List of shortcuts for the Table PackedFile's Contextual Menu.
-const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 32] = [
+const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 33] = [
     ("add_row", "Ctrl+Shift+A"),
     ("insert_row", "Ctrl+I"),
     ("delete_row", "Ctrl+Del"),
@@ -124,6 +124,7 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 32] = [
     ("clone_and_append_row", "Ctrl+Shift+D"),
     ("copy", "Ctrl+C"),
     ("copy_as_lua_table", "Ctrl+Shift+C"),
+    ("copy_to_filter_value", ""),
     ("paste", "Ctrl+V"),
     ("paste_as_new_row", "Ctrl+Shift+V"),
     ("rewrite_selection", "Ctrl+Y"),

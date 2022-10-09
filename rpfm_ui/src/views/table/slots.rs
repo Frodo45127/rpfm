@@ -67,6 +67,7 @@ pub struct TableViewSlots {
     pub clone_and_insert: QBox<SlotNoArgs>,
     pub copy: QBox<SlotNoArgs>,
     pub copy_as_lua_table: QBox<SlotNoArgs>,
+    pub copy_to_filter_value: QBox<SlotNoArgs>,
     pub paste: QBox<SlotNoArgs>,
     pub paste_as_new_row: QBox<SlotNoArgs>,
     pub invert_selection: QBox<SlotNoArgs>,
@@ -330,6 +331,13 @@ impl TableViewSlots {
             view => move || {
             info!("Triggering `Copy as Lua Table` By Slot");
             view.copy_selection_as_lua_table();
+        }));
+
+        // When you want to copy a table to a filter string.
+        let copy_to_filter_value = SlotNoArgs::new(&view.table_view_primary, clone!(
+            view => move || {
+            info!("Triggering `Copy selection to filter` By Slot");
+            view.copy_selection_to_filter();
         }));
 
         // When you want to copy one or more cells.
@@ -821,6 +829,7 @@ impl TableViewSlots {
             clone_and_insert,
             copy,
             copy_as_lua_table,
+            copy_to_filter_value,
             paste,
             paste_as_new_row,
             invert_selection,

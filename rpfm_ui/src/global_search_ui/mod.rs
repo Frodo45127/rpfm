@@ -56,7 +56,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
+use crate::ffi::{new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -755,6 +755,14 @@ impl GlobalSearchUI {
                         table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
+
+                // If it's a text file, scroll to the row in question.
+                else if let ViewType::Internal(View::Text(view)) = packed_file_view.get_view() {
+                    let parent = gidhora.parent();
+                    let row_number = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                    let editor = view.get_mut_editor();
+                    scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
+                }
             }
         }
     }
@@ -791,7 +799,7 @@ impl GlobalSearchUI {
                         column_name.set_text(&QString::from_std_str(&match_row.column_name()));
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
                         row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
-                        text.set_text(&QString::from_std_str(&match_row.contents()));
+                        text.set_text(&QString::from_std_str(&match_row.contents().trim()));
 
                         column_name.set_editable(false);
                         column_number.set_editable(false);
@@ -859,9 +867,9 @@ impl GlobalSearchUI {
 
                         // Long rows take forever to load. Instead, we truncate them around the match.
                         let text_value = if match_row.text().chars().count() > 100 {
-                            QString::from_std_str(&(match_row.text()[..match_row.text().char_indices().map(|(i, _)| i).nth(100).unwrap()].to_owned() + "..."))
+                            QString::from_std_str(&(match_row.text()[..match_row.text().char_indices().map(|(i, _)| i).nth(100).unwrap()].to_owned() + "...").trim())
                         } else {
-                            QString::from_std_str(&match_row.text())
+                            QString::from_std_str(&match_row.text().trim())
                         };
 
                         // Create an empty row.

@@ -190,6 +190,7 @@ pub struct TableView {
     context_menu_clone_and_insert: QPtr<QAction>,
     context_menu_copy: QPtr<QAction>,
     context_menu_copy_as_lua_table: QPtr<QAction>,
+    context_menu_copy_to_filter_value: QPtr<QAction>,
     context_menu_paste: QPtr<QAction>,
     context_menu_paste_as_new_row: QPtr<QAction>,
     context_menu_invert_selection: QPtr<QAction>,
@@ -408,6 +409,7 @@ impl TableView {
         let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view_primary);
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_copy_to_filter_value = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_to_filter_value"));
 
         let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
         let context_menu_paste_as_new_row = context_menu.add_action_q_string(&qtr("context_menu_paste_as_new_row"));
@@ -606,6 +608,7 @@ dbg!(t.elapsed().unwrap());
             context_menu_clone_and_insert,
             context_menu_copy,
             context_menu_copy_as_lua_table,
+            context_menu_copy_to_filter_value,
             context_menu_paste,
             context_menu_paste_as_new_row,
             context_menu_invert_selection,
@@ -1454,7 +1457,7 @@ impl FilterView {
             filter_match_group_selector.add_item_q_string(&QString::from_std_str(&format!("{} {}", tr("filter_group"), 1)));
         }
 
-        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_line_edit.set_placeholder_text(&qtr("table_filter"));
         filter_line_edit.set_clear_button_enabled(true);
         filter_case_sensitive_button.set_checkable(true);
         filter_show_blank_cells_button.set_checkable(true);

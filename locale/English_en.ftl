@@ -168,6 +168,7 @@ new_animpack_file = New AnimPack
 new_packedfile_name = New PackedFile's Name
 
 packedfile_filter = Type here to filter the tables of the list. Works with Regex too!
+table_filter = Type here to filter the table. Works with Regex too!
 
 merge_tables = Merge Tables
 merge_tables_new_name = Write the name of the new file here.
@@ -375,7 +376,7 @@ context_menu_new_packed_file_anim_pack = Create AnimPack
 context_menu_new_packed_file_db = Create DB
 context_menu_new_packed_file_loc = Create Loc
 context_menu_new_packed_file_text = Create Text
-context_menu_new_queek_packed_file = New Queek File
+context_menu_new_queek_packed_file = New Quick File
 
 context_menu_mass_import_tsv = Mass-Import TSV
 context_menu_mass_export_tsv = Mass-Export TSV
@@ -616,8 +617,9 @@ context_menu_delete_rows = &Delete Row
 context_menu_rewrite_selection = &Rewrite Selection
 context_menu_clone_and_insert = &Clone and Insert
 context_menu_clone_and_append = Clone and &Append
-context_menu_copy = &Copy
-context_menu_copy_as_lua_table = &Copy as &LUA Table
+context_menu_copy = Copy
+context_menu_copy_as_lua_table = Copy as LUA Table
+context_menu_copy_to_filter_value = Copy to filter value
 context_menu_paste = &Paste
 context_menu_search = &Search
 context_menu_sidebar = Si&debar

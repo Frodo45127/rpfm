@@ -74,3 +74,11 @@ extern "C" QLineEdit* get_text_changed_dummy_widget(QWidget* view) {
     QLineEdit* dummy = doc_view->findChild<QLineEdit*>("Dummy");
     return dummy;
 }
+
+// Function to scroll to a specific row in a text file.
+extern "C" void scroll_to_row(QWidget* view, int row_number) {
+
+    KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
+    KTextEditor::Cursor* cursor = new KTextEditor::Cursor(row_number, 0);
+    doc_view->setCursorPosition(*cursor);
+}

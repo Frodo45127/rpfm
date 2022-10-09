@@ -37,6 +37,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.context_menu_clone_and_append().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["clone_and_append_row"])));
     ui.context_menu_copy().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy"])));
     ui.context_menu_copy_as_lua_table().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_as_lua_table"])));
+    ui.context_menu_copy_to_filter_value().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_to_filter_value"])));
     ui.context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
     ui.context_menu_paste_as_new_row().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_as_new_row"])));
     ui.context_menu_generate_ids().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["generate_ids"])));
@@ -63,6 +64,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.context_menu_clone_and_append().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_copy().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_copy_as_lua_table().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.context_menu_copy_to_filter_value().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_paste().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_paste_as_new_row().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_generate_ids().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -89,6 +91,7 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.table_view_primary_ptr().add_action(ui.context_menu_clone_and_append());
     ui.table_view_primary_ptr().add_action(ui.context_menu_copy());
     ui.table_view_primary_ptr().add_action(ui.context_menu_copy_as_lua_table());
+    ui.table_view_primary_ptr().add_action(ui.context_menu_copy_to_filter_value());
     ui.table_view_primary_ptr().add_action(ui.context_menu_paste());
     ui.table_view_primary_ptr().add_action(ui.context_menu_paste_as_new_row());
     ui.table_view_primary_ptr().add_action(ui.context_menu_generate_ids());

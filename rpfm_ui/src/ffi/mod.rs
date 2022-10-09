@@ -248,6 +248,12 @@ pub fn get_text_changed_dummy_widget_safe<'a>(parent: &Ptr<QWidget>) -> Ptr<QLin
     unsafe { Ptr::from_raw(get_text_changed_dummy_widget(parent.as_mut_raw_ptr())) }
 }
 
+// This function allows to scroll to an specific row in a KTextEditor.
+extern "C" { fn scroll_to_row(parent: *mut QWidget, row_number: u64); }
+pub fn scroll_to_row_safe<'a>(parent: &Ptr<QWidget>, row_number: u64) {
+    unsafe { scroll_to_row(parent.as_mut_raw_ptr(), row_number) }
+}
+
 //---------------------------------------------------------------------------//
 // KColorCombo stuff.
 //---------------------------------------------------------------------------//
