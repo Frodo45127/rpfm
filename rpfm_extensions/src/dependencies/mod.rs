@@ -291,38 +291,47 @@ impl Dependencies {
 
                 // Only generate references for the tables you pass it, or for all if we pass the list of tables empty.
                 if table_names.is_empty() || table_names.iter().any(|x| x == db.table_name()) {
-
-                    Some((db.table_name().to_owned(), db.definition().fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
-                        if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
-                            if !ref_table.is_empty() && !ref_column.is_empty() {
-
-                                // Get his lookup data if it has it.
-                                let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
-                                let mut references = TableReferences::default();
-                                *references.field_name_mut() = field.name().to_owned();
-
-                                let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
-                                let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
-
-                                if fake_found && real_found.is_none() {
-                                    references.referenced_table_is_ak_only = true;
-                                }
-
-                                if let Some(ref_definition) = real_found {
-                                    if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
-                                        references.referenced_column_is_localised = true;
-                                    }
-                                }
-
-                                Some((column as i32, references))
-                            } else { None }
-                        } else { None }
-                    }).collect::<HashMap<_, _>>()))
+                     Some((db.table_name().to_owned(), self.generate_references(db.definition())))
                 } else { None }
             } else { None }
         }).collect::<HashMap<_, _>>();
 
         self.local_tables_references.extend(local_tables_references);
+    }
+
+    /// This function builds the local db references data for the table with the definition you pass to and stores it in the cache.
+    pub fn generate_local_definition_references(&mut self, table_name: &str, definition: &Definition) {
+        self.local_tables_references.insert(table_name.to_owned(), self.generate_references(definition));
+    }
+
+    /// This function builds the local db references data for the table with the definition you pass to, and returns it.
+    pub fn generate_references(&self, definition: &Definition) -> HashMap<i32, TableReferences> {
+        definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
+            if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
+                if !ref_table.is_empty() && !ref_column.is_empty() {
+
+                    // Get his lookup data if it has it.
+                    let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                    let mut references = TableReferences::default();
+                    *references.field_name_mut() = field.name().to_owned();
+
+                    let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+                    let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+
+                    if fake_found && real_found.is_none() {
+                        references.referenced_table_is_ak_only = true;
+                    }
+
+                    if let Some(ref_definition) = real_found {
+                        if ref_definition.localised_fields().iter().any(|x| x.name() == ref_column) {
+                            references.referenced_column_is_localised = true;
+                        }
+                    }
+
+                    Some((column as i32, references))
+                } else { None }
+            } else { None }
+        }).collect::<HashMap<_, _>>()
     }
 
     /// This function tries to load a dependencies file from the path provided.
@@ -695,7 +704,7 @@ impl Dependencies {
     /// This function returns the reference/lookup data of all relevant columns of a DB Table.
     ///
     /// NOTE: This assumes you've populated the runtime references before this. If not, it'll fail.
-    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, table_definition: &Definition) -> HashMap<i32, TableReferences> {
+    pub fn db_reference_data(&self, pack: &Pack, table_name: &str, definition: &Definition) -> HashMap<i32, TableReferences> {
 
         // First check if the data is already cached, to speed up things.
         let mut vanilla_references = match self.local_tables_references.get(table_name) {
@@ -703,7 +712,7 @@ impl Dependencies {
             None => panic!("To be fixed: If you see this, you forgot to call generate_local_db_references before this."),
         };
 
-        let local_references = table_definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
+        let local_references = definition.fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 

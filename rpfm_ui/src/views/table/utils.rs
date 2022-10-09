@@ -611,7 +611,6 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 
     if keys.contains(&(column as i32)) {
         item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_KEY);
-
     }
 
     item
@@ -630,9 +629,11 @@ pub unsafe fn build_columns(
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut keys = vec![];
-    let tooltips = get_column_tooltips(&schema, &definition.fields_processed(), table_name);
 
-    for (index, field) in definition.fields_processed().iter().enumerate() {
+    let fields_processed = definition.fields_processed();
+    let tooltips = get_column_tooltips(&schema, &fields_processed, table_name);
+
+    for (index, field) in fields_processed.iter().enumerate() {
 
         let name = clean_column_names(field.name());
         let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
@@ -670,7 +671,7 @@ pub unsafe fn build_columns(
     // Now the order. If we have a sort order from the schema, we use that one.
     if !setting_bool("tables_use_old_column_order") && do_we_have_ca_order {
         let header_primary = table_view_primary.horizontal_header();
-        let mut fields = definition.fields_processed().iter()
+        let mut fields = fields_processed.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order()))
             .collect::<Vec<(usize, i16)>>();

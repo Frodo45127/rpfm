@@ -21,6 +21,8 @@ use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
 
+use qt_ui_tools::QUiLoader;
+
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QPtr;
@@ -28,12 +30,14 @@ use qt_core::QString;
 use qt_core::QObject;
 use qt_core::SlotNoArgs;
 
+use cpp_core::CastInto;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
 use cpp_core::DynamicCast;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::StaticUpcast;
+
 
 use anyhow::{anyhow, Result};
 use regex::Regex;
@@ -42,6 +46,8 @@ use rpfm_lib::integrations::log::*;
 
 use std::convert::AsRef;
 use std::fmt::Display;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::{ASSETS_PATH, GAME_SELECTED, SENTRY_GUARD};
@@ -492,4 +498,17 @@ pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<
             anyhow!("One of the widgets of this view has not been found in the UI Template. This means either the code is wrong, or the template is incomplete/outdated.
 
             The missing widgets are: {}", widget_name))
+}
+
+/// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
+pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
+    let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
+    let mut data = vec!();
+    let mut file = BufReader::new(File::open(&path)?);
+    file.read_to_end(&mut data)?;
+
+    let ui_loader = QUiLoader::new_0a();
+    let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
+
+    Ok(main_widget)
 }

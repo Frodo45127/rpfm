@@ -938,7 +938,7 @@ pub fn background_loop() {
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
 
                 // TODO: move this to pack opening.
-                dependencies.generate_local_db_references(&pack_file_decoded, &[table_name.to_owned()]);
+                dependencies.generate_local_definition_references(&table_name, &definition);
                 let reference_data = dependencies.db_reference_data(&pack_file_decoded, &table_name, &definition);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
