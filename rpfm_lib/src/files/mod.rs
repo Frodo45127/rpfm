@@ -541,7 +541,7 @@ pub trait Container {
     /// This method allow us to insert a file from disk into an specific path within a Container,
     /// replacing any old [RFile] with the same path, in case it already existed one.
     ///
-    /// If a [Schema](rpfm_lib::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If a [Schema](crate::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
@@ -602,7 +602,7 @@ pub trait Container {
     /// This method allow us to insert an entire folder from disk, including subfolders and files,
     /// into an specific path within a Container, replacing any old [RFile] in a path collision.
     ///
-    /// If a [Schema](rpfm_lib::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
+    /// If a [Schema](crate::schema::Schema) is provided, this function will attempt to import any tsv files it finds into binary files.
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// If ignored paths are provided, paths that match them (as in relative path with the Container as root) will not be included in the Container.
@@ -865,7 +865,7 @@ pub trait Container {
 
     /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
     ///
-    /// Use this instead of [files_by_path_mut] if you need to get mutable references to multiple files on different [ContainerPath].
+    /// Use this instead of [files_by_path_mut](Self::files_by_path_mut) if you need to get mutable references to multiple files on different [ContainerPath].
     fn files_by_paths_mut(&mut self, paths: &[ContainerPath]) -> Vec<&mut RFile> {
         self.files_mut()
             .iter_mut()
