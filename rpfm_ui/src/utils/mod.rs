@@ -32,6 +32,7 @@ use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QObject;
 use qt_core::SlotNoArgs;
+use qt_core::WidgetAttribute;
 
 use cpp_core::CastInto;
 use cpp_core::CppBox;
@@ -40,7 +41,6 @@ use cpp_core::DynamicCast;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::StaticUpcast;
-
 
 use anyhow::{anyhow, Result};
 use regex::Regex;
@@ -183,13 +183,16 @@ pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidge
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create and run the dialog.
-    QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+    let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
         icon,
         &title,
         &QString::from_std_str(&text.to_string()),
         QFlags::from(StandardButton::Ok),
         parent,
-    ).exec();
+    );
+
+    message_box.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
+    message_box.exec();
 }
 
 /// This function creates a non-modal dialog, for debugging purpouses.
