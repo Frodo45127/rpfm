@@ -23,6 +23,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_menu_actions, "Load All CA Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+G"));
     new_action(pack_menu_actions, "Settings", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+P"));
     new_action(pack_menu_actions, "Quit", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    pack_menu_actions->readSettings();
 
     // MyMod Menu actions.
     KActionCollection* mymod_menu_actions = new KActionCollection(parent, "mymod_menu");
@@ -32,6 +33,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(mymod_menu_actions, "Delete Open MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(mymod_menu_actions, "Import MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(mymod_menu_actions, "Export MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    mymod_menu_actions->readSettings();
 
     // View Menu actions.
     KActionCollection* view_menu_actions = new KActionCollection(parent, "view_menu");
@@ -41,6 +43,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(view_menu_actions, "Diagnostics Panel", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(view_menu_actions, "Dependencies Panel", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(view_menu_actions, "References Panel", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    view_menu_actions->readSettings();
 
     // Game Selected Menu actions.
     KActionCollection* game_selected_menu_actions = new KActionCollection(parent, "game_selected_menu");
@@ -49,6 +52,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(game_selected_menu_actions, "Open Game Data Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(game_selected_menu_actions, "Open Game Assembly Kit Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(game_selected_menu_actions, "Open RPFM Config Folder", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    game_selected_menu_actions->readSettings();
 
     // Special Stuff Menu actions.
     KActionCollection* special_stuff_menu_actions = new KActionCollection(parent, "special_stuff_menu");
@@ -56,6 +60,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(special_stuff_menu_actions, "Generate Dependencies Cache", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(special_stuff_menu_actions, "Optimize Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(special_stuff_menu_actions, "Patch SiegeAI", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    special_stuff_menu_actions->readSettings();
 
     // About Menu actions.
     KActionCollection* about_menu_actions = new KActionCollection(parent, "about_menu");
@@ -68,6 +73,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(about_menu_actions, "Check Schema Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+U"));
     new_action(about_menu_actions, "Check Message Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(about_menu_actions, "Check TW Autogen Updates", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    about_menu_actions->readSettings();
 
     // File Tab actions.
     KActionCollection* file_tab_actions = new KActionCollection(parent, "file_tab");
@@ -80,6 +86,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(file_tab_actions, "Next Tab", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Tab"));
     new_action(file_tab_actions, "Import From Dependencies", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
     new_action(file_tab_actions, "Toggle Tips", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""));
+    file_tab_actions->readSettings();
 
     // Pack Tree Context actions.
     KActionCollection* pack_tree_actions = new KActionCollection(parent, "pack_tree_context_menu");
@@ -109,6 +116,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_tree_actions, "Open Pack Notes", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Y"));
     new_action(pack_tree_actions, "Expand All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl++"));
     new_action(pack_tree_actions, "Collapse All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+-"));
+    pack_tree_actions->readSettings();
 
     // Dependencies Tree Context actions.
     KActionCollection* dependencies_tree_actions = new KActionCollection(parent, "dependencies_context_menu");
@@ -117,6 +125,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(dependencies_tree_actions, "Expand All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl++"));
     new_action(dependencies_tree_actions, "Collapse All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+-"));
     new_action(dependencies_tree_actions, "Import From Dependencies", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""));
+    dependencies_tree_actions->readSettings();
 
     // Table Editor actions.
     KActionCollection* table_editor_actions = new KActionCollection(parent, "table_editor");
@@ -146,6 +155,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(table_editor_actions, "Resize Columns", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""));
     new_action(table_editor_actions, "Rename References", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""));
     new_action(table_editor_actions, "Go To Definition", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""));
+    table_editor_actions->readSettings();
 
     // Decoder actions.
     KActionCollection* decoder_actions = new KActionCollection(parent, "decoder");
@@ -157,12 +167,14 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(decoder_actions, "Delete Field", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"));
     new_action(decoder_actions, "Delete Definition", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"));
     new_action(decoder_actions, "Load Definition", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+L"));
+    decoder_actions->readSettings();
 
     // Text Editor actions.
     KTextEditor::Editor *editor = KTextEditor::Editor::instance();
     KTextEditor::Document *doc = editor->createDocument(nullptr);
     KTextEditor::View *view = doc->createView(nullptr);
     KActionCollection* text_editor_actions = view->actionCollection();
+    text_editor_actions->readSettings();
 
     // Add all the actions to our list.
     shortcuts->append(dynamic_cast<QObject*>(pack_menu_actions));
@@ -206,8 +218,6 @@ extern "C" void shortcut_associate_action_group_to_widget(QList<QObject*>* short
 
 
 extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*>* shortcuts) {
-    // Create the dialog; alternatively you can use the other constructor if e.g.
-    // you need to only show certain action types, or disallow single letter shortcuts
     KShortcutsDialog* dialog = new KShortcutsDialog(widget);
 
     QList<QObject *>::iterator i;
@@ -216,14 +226,6 @@ extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*>* shortcut
         dialog->addCollection(actions);
     }
 
-    // Set the Qt::WA_DeleteOnClose attribute, so that the dialog is automatically
-    // deleted after it's closed
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-
-    // Run some extra code after the settings are saved
-    //connect(dialog, &KShortcutsDialog::saved, this, &ClassFoo::doExtraStuff);
-
-    // Called with "true" so that the changes are saved if the dialog is accepted,
-    // see the configure(bool) method for more details
     dialog->configure(true);
 }
