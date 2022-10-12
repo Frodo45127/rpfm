@@ -260,6 +260,18 @@ pub enum RLibError {
     #[error("This TSV file has an invalid or missing file path value at line 1.")]
     ImportTSVInvalidOrMissingPath,
 
+    #[error("You need to pass more than one file to merge.")]
+    RFileMergeOnlyOneFileProvided,
+
+    #[error("Merging files of different types is not supported.")]
+    RFileMergeDifferentTypes,
+
+    #[error("Merging tables with different table names is not supported.")]
+    RFileMergeTablesDifferentNames,
+
+    #[error("Merging files of type {0} is not supported.")]
+    RFileMergeNotSupportedForType(String),
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),

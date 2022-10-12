@@ -40,11 +40,12 @@ use csv::{StringRecordsIter, Writer};
 use getset::Getters;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::SeekFrom;
 
@@ -510,11 +511,43 @@ impl DB {
         edited_paths
     }
 */
+
+    /// This function merges the data of a few DB tables into a new DB table.
+    ///
+    /// The metadata used (definition, patches) is taken from the first table on the list.
+    ///
+    /// May fail if the tables do not have the same table name.
+    pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
+
+        let mut table_names = sources.iter().map(|file| file.table_name()).collect::<HashSet<_>>();
+        if table_names.len() > 1 {
+            return Err(RLibError::RFileMergeTablesDifferentNames);
+        }
+
+        let mut new_table = Self::new(sources[0].definition(), Some(sources[0].patches()), sources[0].table_name(), false);
+        let sources = sources.par_iter()
+            .map(|table| {
+                let mut table = table.table().clone();
+                table.set_definition(new_table.definition());
+                table
+            })
+            .collect::<Vec<_>>();
+
+        let new_data = sources.par_iter()
+            .filter_map(|table| table.data(&None).ok())
+            .map(|data| data.to_vec())
+            .flatten()
+            .collect::<Vec<_>>();
+        new_table.set_data(None, &new_data)?;
+
+        Ok(new_table)
+    }
+
     /// This function imports a TSV file into a decoded table.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>, schema: &Schema, table_name: &str, table_version: i32) -> Result<Self> {
         let definition = schema.definition_by_name_and_version(table_name, table_version).ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
         let definition_patch = schema.patches_for_table(table_name);
-        let table = Table::tsv_import(records, &definition, field_order, table_name, definition_patch)?;
+        let table = Table::tsv_import(records, definition, field_order, table_name, definition_patch)?;
         let db = DB::from(table);
         Ok(db)
     }

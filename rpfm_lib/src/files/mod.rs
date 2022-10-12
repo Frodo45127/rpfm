@@ -221,7 +221,7 @@ pub enum RFileDecoded {
 /// This list is not exhaustive and it may get bigger in the future as more files are added.
 ///
 /// For each file info, please check their dedicated submodule if exists.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum FileType {
     Anim,
     AnimFragment,
@@ -1789,6 +1789,32 @@ impl RFile {
         }
 
         file
+    }
+
+    /// This function tries to merge multiple files into one.
+    ///
+    /// All files must be of the same type and said type must support merging.
+    pub fn merge(sources: &[&Self], path: &str) -> Result<Self> {
+        if sources.len() == 1 {
+            return Err(RLibError::RFileMergeOnlyOneFileProvided);
+        }
+
+        let mut file_types = sources.iter().map(|file| file.file_type()).collect::<Vec<_>>();
+        file_types.sort();
+        file_types.dedup();
+
+        if file_types.len() > 1 {
+            return Err(RLibError::RFileMergeDifferentTypes);
+        }
+
+        match file_types[0] {
+            FileType::DB => {
+                let files = sources.iter().filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some(table) } else { None }).collect::<Vec<_>>();
+                let data = RFileDecoded::DB(DB::merge(&files)?);
+                Ok(Self::new_from_decoded(&data, current_time()?, path))
+            },
+            _ => Err(RLibError::RFileMergeNotSupportedForType(file_types[0].to_string())),
+        }
     }
 }
 
