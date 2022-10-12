@@ -167,7 +167,7 @@ impl Decodeable for AnimFragment {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let file_name = extra_data.file_name.ok_or(RLibError::DecodingMissingExtraDataField("file_name".to_string()))?;
+        let file_name = extra_data.file_name.ok_or_else(|| RLibError::DecodingMissingExtraDataField("file_name".to_string()))?;
 
         let (skeleton_1, skeleton_2, min_id, max_id, unknown_bool, entry_count) = Self::read_header(data)?;
         let definition = Self::new_definition(0);

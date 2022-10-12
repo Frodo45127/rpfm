@@ -387,9 +387,8 @@ pub trait Container {
     /// If a schema is provided, this function will try to extract any DB/Loc file as a TSV. If it fails to decode them, it'll extract them as binary files.
     fn extract(&mut self, container_path: ContainerPath, destination_path: &Path, keep_container_path_structure: bool, schema: &Option<Schema>) -> Result<()> {
         match container_path {
-            ContainerPath::File(container_path) => {
-                let mut container_path = container_path.to_owned();
-                if container_path.starts_with("/") {
+            ContainerPath::File(mut container_path) => {
+                if container_path.starts_with('/') {
                     container_path.remove(0);
                 }
 
@@ -403,7 +402,7 @@ pub trait Container {
                 destination_folder.pop();
                 DirBuilder::new().recursive(true).create(&destination_folder)?;
 
-                let rfile = self.files_mut().get_mut(&container_path).ok_or(RLibError::FileNotFound(container_path.to_string()))?;
+                let rfile = self.files_mut().get_mut(&container_path).ok_or_else(|| RLibError::FileNotFound(container_path.to_string()))?;
 
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
                 if let Some(schema) = schema {
@@ -448,9 +447,8 @@ pub trait Container {
                     file.write_all(&data).map_err(From::from)
                 }
             }
-            ContainerPath::Folder(container_path) => {
-                let mut container_path = container_path.to_owned();
-                if container_path.starts_with("/") {
+            ContainerPath::Folder(mut container_path) => {
+                if container_path.starts_with('/') {
                     container_path.remove(0);
                 }
 
@@ -512,7 +510,7 @@ pub trait Container {
 
                 // If we're extracting the whole container, also extract any relevant metadata file associated with it.
                 if container_path.is_empty() {
-                    self.extract_metadata(&destination_path)?;
+                    self.extract_metadata(destination_path)?;
                 }
 
                 Ok(())
@@ -547,13 +545,13 @@ pub trait Container {
     /// Returns the [ContainerPath] of the inserted [RFile].
     fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<ContainerPath> {
         let mut container_path_folder = container_path_folder.to_owned();
-        if container_path_folder.starts_with("/") {
+        if container_path_folder.starts_with('/') {
             container_path_folder.remove(0);
         }
 
         if container_path_folder.ends_with('/') || container_path_folder.is_empty() {
             let trimmed_path = source_path.file_name()
-                .ok_or(RLibError::PathMissingFileName(source_path.to_string_lossy().to_string()))?
+                .ok_or_else(|| RLibError::PathMissingFileName(source_path.to_string_lossy().to_string()))?
                 .to_string_lossy().to_string();
             container_path_folder = container_path_folder.to_owned() + &trimmed_path;
         }
@@ -566,7 +564,7 @@ pub trait Container {
                     Some(extension) => {
                         if extension.to_string_lossy() == "tsv" {
                             tsv_imported = true;
-                            let rfile = RFile::tsv_import_from_path(&source_path, &schema);
+                            let rfile = RFile::tsv_import_from_path(source_path, schema);
                             if rfile.is_err() {
 
                                 #[cfg(feature = "integration_log")] {
@@ -574,21 +572,21 @@ pub trait Container {
                                 }
 
                                 tsv_imported = false;
-                                RFile::new_from_file_path(&source_path)
+                                RFile::new_from_file_path(source_path)
                             } else {
                                 rfile
                             }
                         } else {
-                            RFile::new_from_file_path(&source_path)
+                            RFile::new_from_file_path(source_path)
                         }
                     }
                     None => {
-                        RFile::new_from_file_path(&source_path)
+                        RFile::new_from_file_path(source_path)
                     }
                 }
             }
             None => {
-                RFile::new_from_file_path(&source_path)
+                RFile::new_from_file_path(source_path)
             }
         }?;
 
@@ -610,11 +608,11 @@ pub trait Container {
     /// Returns the list of [ContainerPath] inserted.
     fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
         let mut container_path_folder = container_path_folder.to_owned();
-        if !container_path_folder.is_empty() && !container_path_folder.ends_with("/") {
+        if !container_path_folder.is_empty() && !container_path_folder.ends_with('/') {
             container_path_folder.push('/');
         }
 
-        if container_path_folder.starts_with("/") {
+        if container_path_folder.starts_with('/') {
             container_path_folder.remove(0);
         }
 
@@ -638,7 +636,7 @@ pub trait Container {
                         Some(extension) => {
                             if extension.to_string_lossy() == "tsv" {
                                 tsv_imported = true;
-                                let rfile = RFile::tsv_import_from_path(&file_path, &schema);
+                                let rfile = RFile::tsv_import_from_path(&file_path, schema);
                                 if rfile.is_err() {
 
                                     #[cfg(feature = "integration_log")] {
@@ -684,16 +682,16 @@ pub trait Container {
         match path {
             ContainerPath::File(path) => {
                 let mut path = path.to_owned();
-                if path.starts_with("/") {
+                if path.starts_with('/') {
                     path.remove(0);
                 }
 
                 self.files_mut().remove(&path);
-                return vec![ContainerPath::File(path.to_owned())];
+                vec![ContainerPath::File(path.to_owned())]
             },
             ContainerPath::Folder(path) => {
                 let mut path = path.to_owned();
-                if path.starts_with("/") {
+                if path.starts_with('/') {
                     path.remove(0);
                 }
 
@@ -701,7 +699,7 @@ pub trait Container {
                 if path.is_empty() {
                     let paths = self.files().keys().map(|x| ContainerPath::File(x.to_string())).collect();
                     self.files_mut().clear();
-                    return paths;
+                    paths
                 }
 
                 // Otherwise, it's a normal folder.
@@ -816,8 +814,10 @@ pub trait Container {
                         .filter_map(|(key, file)|
                             if case_insensitive {
                                 if starts_with_case_insensitive(key, path) { Some(file) } else { None }
+                            } else if key.starts_with(path) {
+                                Some(file)
                             } else {
-                                if key.starts_with(path) { Some(file) } else { None }
+                                None
                             }
                         ).collect::<Vec<&RFile>>()
                 }
@@ -858,8 +858,7 @@ pub trait Container {
     /// This method returns a reference to the RFiles inside the provided Container that match one of the provided [ContainerPath].
     fn files_by_paths(&self, paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
-            .map(|path| self.files_by_path(path, case_insensitive))
-            .flatten()
+            .flat_map(|path| self.files_by_path(path, case_insensitive))
             .collect()
     }
 
@@ -885,11 +884,11 @@ pub trait Container {
     /// and are of one of the provided [FileType].
     fn files_by_type_and_paths(&self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&RFile> {
         paths.iter()
-            .map(|path| self.files_by_path(path, case_insensitive)
+            .flat_map(|path| self.files_by_path(path, case_insensitive)
                 .into_iter()
                 .filter(|file| file_types.contains(&file.file_type()))
                 .collect::<Vec<_>>()
-            ).flatten().collect()
+            ).collect()
     }
 
     /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath]
@@ -1019,7 +1018,7 @@ pub trait Container {
                         return Err(RLibError::EmptyDestiny);
                     }
 
-                    let mut moved = self.files_mut().remove(&source_path).ok_or(RLibError::FileNotFound(source_path.to_string()))?;
+                    let mut moved = self.files_mut().remove(&source_path).ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
                     moved.set_path_in_container_raw(&destination_path);
                     self.insert(moved).map(|x| vec![x; 1])
                 },
@@ -1537,12 +1536,12 @@ impl RFile {
 
     /// This function returns a copy of the `Last modified date` of this RFile, if any.
     pub fn timestamp(&self) -> Option<u64> {
-        self.timestamp.clone()
+        self.timestamp
     }
 
     /// This function returns a copy of the FileType of this RFile.
     pub fn file_type(&self) -> FileType {
-        self.file_type.clone()
+        self.file_type
     }
 
     /// This function returns the file name if this RFile, if it has one.
@@ -1584,11 +1583,7 @@ impl RFile {
 
     /// This function returns if the RFile can be compressed or not.
     pub fn is_compressible(&self) -> bool {
-        match self.file_type {
-            FileType::DB |
-            FileType::Loc => false,
-            _ => true
-        }
+        !matches!(self.file_type, FileType::DB | FileType::Loc)
     }
 
     /// This function guesses the [`FileType`] of the provided RFile and stores it on it for later queries.
@@ -1704,28 +1699,28 @@ impl RFile {
             Some(Ok(record)) => {
                 let metadata = match record.get(0) {
                     Some(metadata) => metadata.split(';').map(|x| x.to_owned()).collect::<Vec<String>>(),
-                    None => return Err(RLibError::ImportTSVWrongTypeTable.into()),
+                    None => return Err(RLibError::ImportTSVWrongTypeTable),
                 };
 
                 let table_type = match metadata.get(0) {
                     Some(table_type) => {
                         let mut table_type = table_type.to_owned();
-                        if table_type.starts_with("#") {
+                        if table_type.starts_with('#') {
                             table_type.remove(0);
                         }
                         table_type
                     },
-                    None => return Err(RLibError::ImportTSVWrongTypeTable.into()),
+                    None => return Err(RLibError::ImportTSVWrongTypeTable),
                 };
 
                 let table_version = match metadata.get(1) {
                     Some(table_version) => table_version.parse::<i32>().map_err(|_| RLibError::ImportTSVInvalidVersion)?,
-                    None => return Err(RLibError::ImportTSVInvalidVersion.into()),
+                    None => return Err(RLibError::ImportTSVInvalidVersion),
                 };
 
                 let file_path = match metadata.get(2) {
                     Some(file_path) => file_path.to_owned(),
-                    None => return Err(RLibError::ImportTSVInvalidOrMissingPath.into()),
+                    None => return Err(RLibError::ImportTSVInvalidOrMissingPath),
                 };
 
                 (table_type, table_version, file_path)
@@ -1808,7 +1803,7 @@ impl OnDisk {
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
         if timestamp != self.timestamp {
-            return Err(RLibError::FileSourceChanged.into());
+            return Err(RLibError::FileSourceChanged);
         }
 
         // Read the data from disk.
@@ -1838,7 +1833,7 @@ impl OnDisk {
         let mut file = BufReader::new(File::open(&self.path)?);
         let timestamp = last_modified_time_from_file(file.get_ref())?;
         if timestamp != self.timestamp {
-            return Err(RLibError::FileSourceChanged.into());
+            return Err(RLibError::FileSourceChanged);
         }
 
         file.seek(SeekFrom::Start(self.start))?;
@@ -1850,18 +1845,12 @@ impl ContainerPath {
 
     /// This function returns true if the provided [ContainerPath] corresponds to a file.
     pub fn is_file(&self) -> bool {
-        match self {
-            ContainerPath::File(_) => true,
-            _ => false,
-        }
+        matches!(self, ContainerPath::File(_))
     }
 
     /// This function returns true if the provided [ContainerPath] corresponds to a folder.
     pub fn is_folder(&self) -> bool {
-        match self {
-            ContainerPath::Folder(_) => true,
-            _ => false,
-        }
+        matches!(self, ContainerPath::Folder(_))
     }
 
     /// This function returns true if the provided [ContainerPath] corresponds to a root Pack.
@@ -1879,7 +1868,7 @@ impl ContainerPath {
         match self {
             ContainerPath::File(path) |
             ContainerPath::Folder(path) => {
-                if path.is_empty() || (path.chars().count() == 1 && path.starts_with("/")) {
+                if path.is_empty() || (path.chars().count() == 1 && path.starts_with('/')) {
                     path.to_owned()
                 } else {
                     let mut path_split = path.split('/').collect::<Vec<_>>();
@@ -1955,24 +1944,12 @@ impl Ord for ContainerPath {
     fn cmp(&self, other: &Self) -> Ordering {
         match self {
             ContainerPath::File(a) => match other {
-                ContainerPath::File(b) => if a == b {
-                    Ordering::Equal
-                } else if a > b {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                },
+                ContainerPath::File(b) => a.cmp(b),
                 ContainerPath::Folder(_) => Ordering::Less,
             }
             ContainerPath::Folder(a) => match other {
                 ContainerPath::File(_) => Ordering::Greater,
-                ContainerPath::Folder(b) => if a == b {
-                    Ordering::Equal
-                } else if a > b {
-                    Ordering::Greater
-                } else {
-                    Ordering::Less
-                },
+                ContainerPath::Folder(b) => a.cmp(b),
             }
         }
     }

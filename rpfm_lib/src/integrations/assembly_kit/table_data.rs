@@ -86,7 +86,7 @@ impl RawTable {
 
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
             // So... these are kinda unique. The schemas are xsd files, and the data format is kinda different and it's not yet supported.
-            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
 
@@ -98,7 +98,7 @@ impl RawTable {
 
                 // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.
                 if raw_definition.name.as_ref().unwrap() == "translated_texts.xml" {
-                    return Err(RLibError::AssemblyKitTableTableIgnored.into())
+                    return Err(RLibError::AssemblyKitTableTableIgnored)
                 }
 
                 let raw_table_data_path = raw_table_data_folder.join(&raw_definition.name.as_ref().unwrap());
@@ -136,7 +136,7 @@ impl RawTable {
                 raw_table.definition = Some(raw_definition.clone());
                 Ok(raw_table)
             }
-            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
 }

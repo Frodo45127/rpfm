@@ -109,15 +109,15 @@ impl Decodeable for DB {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let schema = extra_data.schema.ok_or(RLibError::DecodingMissingExtraDataField("schema".to_owned()))?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraDataField("table_name".to_owned()))?;
+        let schema = extra_data.schema.ok_or_else(|| RLibError::DecodingMissingExtraDataField("schema".to_owned()))?;
+        let table_name = extra_data.table_name.ok_or_else(|| RLibError::DecodingMissingExtraDataField("table_name".to_owned()))?;
         let return_incomplete = extra_data.return_incomplete;
         let pool = extra_data.pool;
 
         let (version, mysterious_byte, guid, entry_count) = Self::read_header(data)?;
 
         // Try to get the table_definition for this table, if exists.
-        let definitions = schema.definitions_by_table_name(table_name).ok_or_else(|| {
+        let definitions = schema.definitions_by_table_name(table_name).ok_or({
             if entry_count == 0 {
                 RLibError::DecodingDBNoDefinitionsFoundAndEmptyFile
             } else {
@@ -138,21 +138,18 @@ impl Decodeable for DB {
                 // Then, check if the definition works.
                 data.seek(SeekFrom::Start(index_reset))?;
                 let db = Table::decode_table(data, definition, Some(entry_count), return_incomplete);
-                if db.is_ok() {
-                    if data.stream_position()? == len {
-                        working_definition = Ok(definition);
-                        break;
-                    }
+                if db.is_ok() && data.stream_position()? == len {
+                    working_definition = Ok(definition);
+                    break;
                 }
             }
 
             let definition = working_definition?;
-            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or(HashMap::new());
+            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or_default();
 
             // Reset the index before the table, and now decode the table with proper backend support.
             data.seek(SeekFrom::Start(index_reset))?;
-            let table = Table::decode(&pool, data, &definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?;
-            table
+            Table::decode(&pool, data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
         }
 
         // For +0 versions, we expect unique definitions.
@@ -160,13 +157,10 @@ impl Decodeable for DB {
 
             let definition = definitions.iter()
                 .find(|definition| *definition.version() == version)
-                .ok_or_else(|| {
-                    RLibError::DecodingDBNoDefinitionsFound
-                })?;
+                .ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
 
-            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or(HashMap::new());
-            let table = Table::decode(&pool, data, &definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?;
-            table
+            let definition_patch = schema.patches_for_table(table_name).cloned().unwrap_or_default();
+            Table::decode(&pool, data, definition, &definition_patch, Some(entry_count), return_incomplete, table_name)?
         };
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt, or the decoding failed and we bailed early.
@@ -216,7 +210,7 @@ impl DB {
 
     /// This function creates a new empty [DB] table.
     pub fn new(definition: &Definition, definition_patch: Option<&DefinitionPatch>, table_name: &str, use_sql_backend: bool) -> Self {
-        let table = Table::new(&definition, definition_patch, table_name, use_sql_backend);
+        let table = Table::new(definition, definition_patch, table_name, use_sql_backend);
 
         Self {
             mysterious_byte: true,

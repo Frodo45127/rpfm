@@ -65,11 +65,8 @@ pub struct SupportedGames {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `SupportedGames`.
-impl SupportedGames {
-
-    /// This function builds and generates the entire SupportedGames list. For initialization.
-    pub fn new() -> Self {
+impl Default for SupportedGames {
+    fn default() -> Self {
         let mut game_list = HashMap::new();
 
         // Warhammer 3
@@ -1566,25 +1563,30 @@ impl SupportedGames {
             lua_autogen_folder: None,
         });
 
-        let mut order_list = vec![];
-        order_list.push(KEY_WARHAMMER_3);
-        order_list.push(KEY_TROY);
-        order_list.push(KEY_THREE_KINGDOMS);
-        order_list.push(KEY_WARHAMMER_2);
-        order_list.push(KEY_WARHAMMER);
-        order_list.push(KEY_THRONES_OF_BRITANNIA);
-        order_list.push(KEY_ATTILA);
-        order_list.push(KEY_ROME_2);
-        order_list.push(KEY_SHOGUN_2);
-        order_list.push(KEY_NAPOLEON);
-        order_list.push(KEY_EMPIRE);
-        order_list.push(KEY_ARENA);
+        let order_list = vec![
+            KEY_WARHAMMER_3,
+            KEY_TROY,
+            KEY_THREE_KINGDOMS,
+            KEY_WARHAMMER_2,
+            KEY_WARHAMMER,
+            KEY_THRONES_OF_BRITANNIA,
+            KEY_ATTILA,
+            KEY_ROME_2,
+            KEY_SHOGUN_2,
+            KEY_NAPOLEON,
+            KEY_EMPIRE,
+            KEY_ARENA,
+        ];
 
         Self {
             games: game_list,
             order: order_list,
         }
     }
+}
+
+/// Implementation for `SupportedGames`.
+impl SupportedGames {
 
     /// This function returns a GameInfo from a game name.
     pub fn game(&self, key: &str) -> Option<&GameInfo> {

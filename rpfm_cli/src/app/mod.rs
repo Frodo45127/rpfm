@@ -414,6 +414,6 @@ fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
 
 /// Function to get the supported game keys.
 fn game_keys() -> Vec<&'static str> {
-    let supported_games = SupportedGames::new();
+    let supported_games = SupportedGames::default();
     supported_games.game_keys_sorted().to_vec()
 }

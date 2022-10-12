@@ -310,7 +310,7 @@ impl From<&SchemaV4> for SchemaV5 {
             .filter_map(|versioned| if let VersionedFileV4::DB(name, definitions) = versioned { Some((name, definitions)) } else { None })
             .for_each(|(name, definitions)| {
                 definitions.iter().for_each(|definition| {
-                    schema.add_definition(&name, &From::from(definition));
+                    schema.add_definition(name, &From::from(definition));
                 })
             });
         schema

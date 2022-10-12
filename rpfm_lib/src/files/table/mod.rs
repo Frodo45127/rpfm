@@ -69,7 +69,7 @@ pub enum TableData {
     Sql(SQLData)
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SQLData {
     table_unique_id: u64,
 }
@@ -512,7 +512,7 @@ impl Table {
                     // First, we need to make sure all rows we have are exactly what we expect.
                     let fields_processed = self.definition.fields_processed();
                     if row.len() != fields_processed.len() {
-                        return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()).into())
+                        return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
                     }
 
                     for (index, cell) in row.iter().enumerate() {
@@ -598,7 +598,7 @@ impl Table {
         match field.field_type() {
             FieldType::Boolean => {
                 data.read_bool()
-                    .map(|data| DecodedData::Boolean(data))
+                    .map(DecodedData::Boolean)
                     .map_err(|_| RLibError::DecodingTableFieldError(row + 1, column + 1, "Boolean".to_string()))
             }
             FieldType::F32 => {
@@ -769,7 +769,7 @@ impl Table {
                 };
 
                 // This can be r, g, b, red, green, blue.
-                let colour_split = field.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
                 let colour_channel = colour_split[0].to_lowercase();
                 match split_colours.get_mut(&colour_index) {
                     Some(colour_pack) => {
@@ -799,7 +799,7 @@ impl Table {
         // Get the colour positions of the tables, if any.
         let combined_colour_positions = fields.iter().filter_map(|field| {
             if field.is_part_of_colour().is_some() {
-                let colour_split = field.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                let colour_split = field.name().rsplitn(2, '_').collect::<Vec<&str>>();
                 let colour_field_name: String = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                 self.definition.column_position_by_name(&colour_field_name).map(|x| (colour_field_name, x))
@@ -821,7 +821,7 @@ impl Table {
                 // First special situation: join back split colour columns, if the field is a split colour.
                 if field.is_part_of_colour().is_some() {
                     let field_name = field.name().to_lowercase();
-                    let colour_split = field_name.rsplitn(2, "_").collect::<Vec<&str>>();
+                    let colour_split = field_name.rsplitn(2, '_').collect::<Vec<&str>>();
                     let colour_channel = colour_split[0];
                     let colour_field_name = if colour_split.len() == 2 {
                         format!("{}{}", colour_split[1], MERGE_COLOUR_POST)
@@ -835,7 +835,7 @@ impl Table {
 
                                 // Encode the full colour, then grab the byte of our field.
                                 let mut encoded = vec![];
-                                encoded.write_string_colour_rgb(&field_data)?;
+                                encoded.write_string_colour_rgb(field_data)?;
 
                                 let field_data =
                                     if colour_channel == "r" || colour_channel == "red" { encoded[2] }
@@ -898,7 +898,7 @@ impl Table {
                         DecodedData::I16(field_data) => data.write_i16(*field_data)?,
                         DecodedData::I32(field_data) => data.write_i32(*field_data)?,
                         DecodedData::I64(field_data) => data.write_i64(*field_data)?,
-                        DecodedData::ColourRGB(field_data) => data.write_string_colour_rgb(&field_data)?,
+                        DecodedData::ColourRGB(field_data) => data.write_string_colour_rgb(field_data)?,
                         DecodedData::OptionalI16(field_data) => {
                             data.write_bool(true)?;
                             data.write_i16(*field_data)?
@@ -954,10 +954,10 @@ impl Table {
 
                                 // If there are no problems, encode the data.
                                 match field.field_type() {
-                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(&field_data))?,
-                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(&field_data))?,
+                                    FieldType::StringU8 => data.write_sized_string_u8(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::StringU16 => data.write_sized_string_u16(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::OptionalStringU8 => data.write_optional_string_u8(&Self::unescape_special_chars(field_data))?,
+                                    FieldType::OptionalStringU16 => data.write_optional_string_u16(&Self::unescape_special_chars(field_data))?,
                                     _ => return Err(RLibError::EncodingTableWrongFieldType(field_data.to_string(), field.field_type().to_string()))
                                 }
                             }
@@ -966,16 +966,16 @@ impl Table {
                         // Make sure we at least have the counter before writing. We need at least that.
                         DecodedData::SequenceU16(field_data) => {
                             if field_data.len() < 2 {
-                                data.write_all(&vec![0, 0])?
+                                data.write_all(&[0, 0])?
                             } else {
-                                data.write_all(&field_data)?
+                                data.write_all(field_data)?
                             }
                         },
                         DecodedData::SequenceU32(field_data) => {
                             if field_data.len() < 4 {
-                                data.write_all(&vec![0, 0, 0, 0])?
+                                data.write_all(&[0, 0, 0, 0])?
                             } else {
-                                data.write_all(&field_data)?
+                                data.write_all(field_data)?
                             }
                         }
                     }
@@ -1091,14 +1091,14 @@ impl Table {
                     },
                     FieldType::StringU8 => {
                         if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::StringU8(default_value.to_owned())
+                            DecodedData::StringU8(default_value)
                         } else {
                             DecodedData::StringU8(String::new())
                         }
                     }
                     FieldType::StringU16 => {
                         if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::StringU16(default_value.to_owned())
+                            DecodedData::StringU16(default_value)
                         } else {
                             DecodedData::StringU16(String::new())
                         }
@@ -1140,14 +1140,14 @@ impl Table {
 
                     FieldType::OptionalStringU8 => {
                         if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::OptionalStringU8(default_value.to_owned())
+                            DecodedData::OptionalStringU8(default_value)
                         } else {
                             DecodedData::OptionalStringU8(String::new())
                         }
                     }
                     FieldType::OptionalStringU16 => {
                         if let Some(default_value) = field.default_value(schema_patches) {
-                            DecodedData::OptionalStringU16(default_value.to_owned())
+                            DecodedData::OptionalStringU16(default_value)
                         } else {
                             DecodedData::OptionalStringU16(String::new())
                         }
@@ -1460,7 +1460,7 @@ impl Table {
 
     /// This function tries to imports a TSV file on the path provided into a binary db table.
     pub(crate) fn tsv_import(records: StringRecordsIter<File>, definition: &Definition, field_order: &HashMap<u32, String>, table_name: &str, schema_patches: Option<&DefinitionPatch>) -> Result<Self> {
-        let mut table = Table::new(&definition, None, table_name, false);
+        let mut table = Table::new(definition, None, table_name, false);
         let mut entries = vec![];
 
         let fields_processed = definition.fields_processed();
@@ -1468,7 +1468,7 @@ impl Table {
         for (row, record) in records.enumerate() {
             match record {
                 Ok(record) => {
-                    let mut entry = Self::new_row(&definition, schema_patches);
+                    let mut entry = Self::new_row(definition, schema_patches);
                     for (column, field) in record.iter().enumerate() {
 
                         // Get the column name from the header, and try to map it to a column in the table's.
@@ -1476,7 +1476,7 @@ impl Table {
                             if let Some(column_number) = fields_processed.iter().position(|x| x.name() == column_name) {
 
                                 entry[column_number] = match fields_processed[column_number].field_type() {
-                                    FieldType::Boolean => parse_str_as_bool(field).map(|x| DecodedData::Boolean(x)).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?,
+                                    FieldType::Boolean => parse_str_as_bool(field).map(DecodedData::Boolean).map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?,
                                     FieldType::F32 => DecodedData::F32(field.parse::<f32>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                     FieldType::F64 => DecodedData::F64(field.parse::<f64>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
                                     FieldType::I16 => DecodedData::I16(field.parse::<i16>().map_err(|_| RLibError::ImportTSVIncorrectRow(row, column))?),
@@ -1493,15 +1493,15 @@ impl Table {
 
                                     // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
                                     // TODO: Export sequences as json strings or base64 strings.
-                                    FieldType::SequenceU16(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column).into()),
-                                    FieldType::SequenceU32(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column).into())
+                                    FieldType::SequenceU16(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column)),
+                                    FieldType::SequenceU32(_) => return Err(RLibError::ImportTSVIncorrectRow(row, column))
                                 }
                             }
                         }
                     }
                     entries.push(entry);
                 }
-                Err(_) => return Err(RLibError::ImportTSVIncorrectRow(row, 0).into()),
+                Err(_) => return Err(RLibError::ImportTSVIncorrectRow(row, 0)),
             }
         }
 

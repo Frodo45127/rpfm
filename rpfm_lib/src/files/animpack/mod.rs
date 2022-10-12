@@ -234,7 +234,7 @@ impl Encodeable for AnimPack {
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
         for (path, file) in sorted_files {
-            buffer.write_sized_string_u8(&path)?;
+            buffer.write_sized_string_u8(path)?;
 
             let data = file.encode(extra_data, false, false, true)?.unwrap();
 

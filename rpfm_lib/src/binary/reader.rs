@@ -49,6 +49,23 @@ pub trait ReadBytes: Read + Seek {
         Ok(len)
     }
 
+    /// This function returns if the data is empty.
+    ///
+    /// It's slightly faster than checking for len == 0.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![];
+    /// let mut cursor = Cursor::new(data);
+    /// assert!(cursor.is_empty().unwrap());
+    /// ```
+    fn is_empty(&mut self) -> Result<bool> {
+        Ok(self.seek(SeekFrom::End(0))? == 0)
+    }
+
     /// This function returns the amount of bytes specified in the `size` argument as a [`Vec<u8>`].
     ///
     /// If `rewind` is true, the cursor will be reset to its original position once the data is returned.
@@ -78,7 +95,7 @@ pub trait ReadBytes: Read + Seek {
         self.read_exact(&mut data)?;
 
         if rewind {
-            self.seek(SeekFrom::Current(size as i64 * -1))?;
+            self.seek(SeekFrom::Current(-(size as i64)))?;
         }
 
         Ok(data)
@@ -110,7 +127,7 @@ pub trait ReadBytes: Read + Seek {
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(RLibError::DecodingBoolError(value).into()),
+            _ => Err(RLibError::DecodingBoolError(value)),
         }
     }
 
@@ -605,7 +622,7 @@ pub trait ReadBytes: Read + Seek {
         // Move the cursor to the end of the value, so we can continue reading.
         // -1 because we need to end after the 00 byte.
         let new_pos = (end_pos - curr_pos - 1) as i64;
-        self.seek(SeekFrom::Current(new_pos * -1))?;
+        self.seek(SeekFrom::Current(-new_pos))?;
 
         // Get a String from it.
         String::from_utf8(data).map_err(From::from)
@@ -637,7 +654,7 @@ pub trait ReadBytes: Read + Seek {
             self.read_string_u8(size as usize)
         }
         else {
-            return Err(RLibError::DecodingStringSizeError("UTF-8 String".to_owned()))
+            Err(RLibError::DecodingStringSizeError("UTF-8 String".to_owned()))
         }
     }
 
@@ -751,7 +768,7 @@ pub trait ReadBytes: Read + Seek {
             self.read_string_u16(size.wrapping_mul(2) as usize)
         }
         else {
-            return Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned()))
+            Err(RLibError::DecodingStringSizeError("UTF-16 String".to_owned()))
         }
     }
 

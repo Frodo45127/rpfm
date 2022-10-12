@@ -97,7 +97,7 @@ pub const EXTENSIONS: [(&str, TextFormat); 23] = [
 //---------------------------------------------------------------------------//
 
 /// This holds an entire `Text` file decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Eq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Text {
 
@@ -112,7 +112,7 @@ pub struct Text {
 }
 
 /// This enum represents the multiple encodings we can read/write to.
-#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Encoding {
     Iso8859_1,
     Utf8,
@@ -243,13 +243,13 @@ impl Encodeable for Text {
             Encoding::Iso8859_1 => buffer.write_string_u8_iso_8859_1(&self.contents),
             Encoding::Utf8 => buffer.write_string_u8(&self.contents),
             Encoding::Utf8Bom => {
-                buffer.write_all(&mut BOM_UTF_8.to_vec())?;
+                buffer.write_all(&BOM_UTF_8)?;
                 buffer.write_string_u8(&self.contents)
             },
 
             // For UTF-16 we always have to add the BOM. Otherwise we have no way to easily tell what this file is.
             Encoding::Utf16Le => {
-                buffer.write_all(&mut BOM_UTF_16_LE.to_vec())?;
+                buffer.write_all(&BOM_UTF_16_LE)?;
                 buffer.write_string_u16(&self.contents)
             },
         }

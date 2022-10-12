@@ -113,7 +113,7 @@ pub fn update_schema_from_raw_files(
             });
             schema.save(schema_path)
         }
-        _ => Err(RLibError::AssemblyKitUnsupportedVersion(raw_db_version).into()),
+        _ => Err(RLibError::AssemblyKitUnsupportedVersion(raw_db_version)),
     }
 }
 
@@ -149,11 +149,11 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
                 }
             }
         }
-        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
     }
 
     // Sort the files alphabetically.
@@ -187,11 +187,11 @@ pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathB
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
                 }
             }
         }
-        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
     }
 
     // Sort the files alphabetically.
@@ -215,13 +215,13 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
                             return Ok(file_path)
                         }
                     }
-                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+                    Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
                 }
             }
         }
-        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string()).into()),
+        Err(_) => return Err(RLibError::ReadFileFolderError(current_path.to_string_lossy().to_string())),
     }
 
     // If we didn't find the file, return an error.
-    Err(RLibError::AssemblyKitLocalisableFieldsNotFound.into())
+    Err(RLibError::AssemblyKitLocalisableFieldsNotFound)
 }

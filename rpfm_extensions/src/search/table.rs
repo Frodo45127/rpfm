@@ -176,7 +176,7 @@ impl TableMatches {
                     let text_lower = text.to_lowercase();
                     if text_lower.contains(&pattern) {
                         let column_name = fields_processed[column_number as usize].name();
-                        self.matches.push(TableMatch::new(column_name, column_number, row_number, &text));
+                        self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
                 }
             }
@@ -198,7 +198,7 @@ impl TableMatch {
     }
 
     /// This function replaces all the matches in the provided text.
-    fn replace(&self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, data: &mut Vec<Vec<DecodedData>>) -> bool {
+    fn replace(&self, pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, data: &mut [Vec<DecodedData>]) -> bool {
         let mut edited = false;
 
         if let Some(row) = data.get_mut(self.row_number as usize) {
@@ -220,7 +220,7 @@ impl TableMatch {
                                 // Advance the index so we don't get trapped in an infinite loop... again.
                                 if start >= index {
                                     let end = start + pattern.len();
-                                    text.replace_range(start..end, &replace_pattern);
+                                    text.replace_range(start..end, replace_pattern);
                                     index = end;
                                 } else {
                                     break;
@@ -229,13 +229,13 @@ impl TableMatch {
                         }
                         else {
 
-                            let regex = Regex::new(&format!("(?i){}", regex::escape(&pattern))).unwrap();
+                            let regex = Regex::new(&format!("(?i){}", regex::escape(pattern))).unwrap();
                             let mut index = 0;
                             while let Some(match_data) = regex.find(&text.to_owned()) {
 
                                  // Advance the index so we don't get trapped in an infinite loop... again.
                                 if match_data.start() >= index {
-                                    text.replace_range(match_data.start()..match_data.end(), &replace_pattern);
+                                    text.replace_range(match_data.start()..match_data.end(), replace_pattern);
                                     index = match_data.end();
                                 } else {
                                     break;

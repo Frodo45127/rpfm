@@ -172,7 +172,7 @@ impl GlobalSearch {
 
         // If we're updating, make sure to dedup and get the raw paths of each file to update.
         let update_paths = if !update_paths.is_empty() && self.source == SearchSource::Pack {
-            let container_paths = ContainerPath::dedup(&update_paths);
+            let container_paths = ContainerPath::dedup(update_paths);
             let raw_paths = container_paths.par_iter()
                 .map(|container_path| pack.paths_raw_from_container_path(container_path))
                 .flatten()

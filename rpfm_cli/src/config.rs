@@ -24,7 +24,7 @@ impl Config {
 
 	/// This function creates a new Config struct configured for the provided game.
 	pub fn new(game: &str, verbose: bool) -> Self {
-        let supported_games = SupportedGames::new();
+        let supported_games = SupportedGames::default();
 		Self {
             game: supported_games.game(game).cloned(),
 			verbose,

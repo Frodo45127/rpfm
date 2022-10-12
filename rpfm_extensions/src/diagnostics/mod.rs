@@ -189,7 +189,7 @@ impl Diagnostics {
         let files = if paths_to_check.is_empty() {
             pack.files_by_type(&[FileType::AnimFragment, FileType::DB, FileType::Loc])
         } else {
-            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], &paths_to_check, false)
+            pack.files_by_type_and_paths(&[FileType::AnimFragment, FileType::DB, FileType::Loc], paths_to_check, false)
         };
 
         let mut files_split: HashMap<&str, Vec<&RFile>> = HashMap::new();
@@ -631,7 +631,7 @@ impl Diagnostics {
                     // If this returns something, it means there is a duplicate.
                     let combined_keys = row_keys.values().join("| |");
                     if let Some(old_position) = keys.insert(combined_keys.to_owned(), row_keys.keys().map(|x| (row as i32, *x)).collect()) {
-                        if let Some(old_pos) = old_position.get(0) {
+                        if let Some(old_pos) = old_position.first() {
 
                             // Mark previous row, if not yet marked.
                             if !duplicated_combined_keys_already_marked.contains(&old_pos.0) {
@@ -791,7 +791,7 @@ impl Diagnostics {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
-                if !Self::ignore_diagnostic(Some(&field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)]);
                         diagnostic.results_mut().push(result);
@@ -808,7 +808,7 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(Some(&field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(Some(field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if key.is_empty() && !data.is_empty() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)]);
                         diagnostic.results_mut().push(result);
@@ -816,14 +816,14 @@ impl Diagnostics {
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !Self::ignore_diagnostic(Some(&field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)]);
                         diagnostic.results_mut().push(result);
                     }
                 }
 
-                if !Self::ignore_diagnostic(Some(&field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(Some(field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                     row_keys.insert(0, key.to_owned());
                     row_keys.insert(1, data.to_owned());
@@ -831,7 +831,7 @@ impl Diagnostics {
                     // If this returns something, it means there is a duplicate.
                     let combined_keys = row_keys.values().join("| |");
                     if let Some(old_position) = keys.insert(combined_keys.to_owned(), row_keys.keys().map(|x| (row as i32, *x)).collect()) {
-                        if let Some(old_pos) = old_position.get(0) {
+                        if let Some(old_pos) = old_position.first() {
 
                             // Mark previous row, if not yet marked.
                             if !duplicated_rows_already_marked.contains(&old_pos.0) {
@@ -867,7 +867,7 @@ impl Diagnostics {
 
         let name = pack.disk_file_name();
         if name.contains(' ') {
-            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name.to_string()));
+            let result = PackDiagnosticReport::new(PackDiagnosticReportType::InvalidPackName(name));
             diagnostic.results_mut().push(result);
         }
 
@@ -1014,7 +1014,7 @@ impl Diagnostics {
                     } else {
                         None
                     }
-                }).max_by(|x, y| x.cmp(&y)) {
+                }).max_by(|x, y| x.cmp(y)) {
                 if *max_version != table_version {
                     return true
                 }

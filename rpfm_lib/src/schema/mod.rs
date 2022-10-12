@@ -335,7 +335,7 @@ impl Schema {
 
         // Make sure all definitions are properly sorted by version number.
         self.definitions.iter_mut().for_each(|(_, definitions)| {
-            definitions.sort_by(|a, b| b.version().cmp(&a.version()));
+            definitions.sort_by(|a, b| b.version().cmp(a.version()));
         });
 
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
@@ -356,7 +356,7 @@ impl Schema {
 
         // Make sure all definitions are properly sorted by version number.
         self.definitions.iter_mut().for_each(|(_, definitions)| {
-            definitions.sort_by(|a, b| b.version().cmp(&a.version()));
+            definitions.sort_by(|a, b| b.version().cmp(a.version()));
         });
 
         file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
@@ -450,12 +450,12 @@ impl Schema {
 
     /// This function tries to load multiple patches from a str.
     pub fn load_patches_from_str(patch: &str) -> Result<HashMap<String, DefinitionPatch>> {
-        from_str(&patch).map_err(From::from)
+        from_str(patch).map_err(From::from)
     }
 
     /// This function tries to load multiple definitions from a str.
     pub fn load_definitions_from_str(definition: &str) -> Result<HashMap<String, Definition>> {
-        from_str(&definition).map_err(From::from)
+        from_str(definition).map_err(From::from)
     }
 
     /// This function tries to export a list of patches to a ron string.
@@ -482,7 +482,7 @@ impl Schema {
         ron::ser::to_writer_pretty(&mut data, &patches, config)?;
         let file_name = "patch.txt";
 
-        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
+        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data))).map_err(From::from)
     }
 
     /// This function tries to upload a bunch of [Definition] to Sentry's service.
@@ -497,7 +497,7 @@ impl Schema {
         ron::ser::to_writer_pretty(&mut data, &definitions, config)?;
         let file_name = "definition.txt";
 
-        Logger::send_event(sentry_guard, level, &message, Some((&file_name, &data))).map_err(From::from)
+        Logger::send_event(sentry_guard, level, &message, Some((file_name, &data))).map_err(From::from)
     }
 }
 
@@ -557,7 +557,7 @@ impl Definition {
                         // TODO: fix the combined default value of colour columns.
                         Some(field) => {}
                         None => {
-                            let colour_split = x.name().rsplitn(2, "_").collect::<Vec<&str>>();
+                            let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
                             let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
                             let mut field = x.clone();
@@ -642,13 +642,13 @@ impl Definition {
         if foreign_keys.is_empty() {
             if local_keys_join.is_empty() {
                 format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {})",
-                    table_name.replace("\"", "'"),
+                    table_name.replace('\"', "'"),
                     self.version(),
                     fields_query
                 )
             } else {
                 format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
-                    table_name.replace("\"", "'"),
+                    table_name.replace('\"', "'"),
                     self.version(),
                     fields_query,
                     local_keys
@@ -656,14 +656,14 @@ impl Definition {
             }
         } else if local_keys_join.is_empty() {
             format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {})",
-                table_name.replace("\"", "'"),
+                table_name.replace('\"', "'"),
                 self.version(),
                 fields_query,
                 foreign_keys
             )
         } else {
             format!("CREATE TABLE \"{}_v{}\" (\"table_unique_id\" INTEGER DEFAULT 0, {}, {}, {})",
-                table_name.replace("\"", "'"),
+                table_name.replace('\"', "'"),
                 self.version(),
                 fields_query,
                 local_keys,

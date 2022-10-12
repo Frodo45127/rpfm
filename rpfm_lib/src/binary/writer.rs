@@ -396,7 +396,7 @@ pub trait WriteBytes: Write {
                 self.write_string_u8(&string)?;
                 self.write_all(&vec![0; size - string.len()]).map_err(From::from)
             } else {
-               return Err(RLibError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), string.len(), size));
+               Err(RLibError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), string.len(), size))
             }
         }
 
@@ -505,7 +505,7 @@ pub trait WriteBytes: Write {
                 self.write_string_u16(&string)?;
                 self.write_all(&vec![0; size - (string.len() * 2)]).map_err(From::from)
             } else {
-                return Err(RLibError::EncodingPaddedStringError("UTF-16 0-Padded String".to_owned(), string.to_string(), string.len(), size));
+                Err(RLibError::EncodingPaddedStringError("UTF-16 0-Padded String".to_owned(), string.to_string(), string.len(), size))
             }
         }
 

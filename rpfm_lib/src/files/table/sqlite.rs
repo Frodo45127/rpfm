@@ -49,7 +49,7 @@ impl Table {
 
                 // Load the data to the database.
                 let table_unique_id = rand::random::<u64>();
-                Self::insert(&pool, &table_data, definition, table_name, table_unique_id, true)?;
+                Self::insert(pool, &table_data, definition, table_name, table_unique_id, true)?;
                 TableData::Sql(SQLData {
                     table_unique_id,
                 })
@@ -86,14 +86,14 @@ impl Table {
                     DecodedData::I16(data) => format!("\"{}\"", data),
                     DecodedData::I32(data) => format!("\"{}\"", data),
                     DecodedData::I64(data) => format!("\"{}\"", data),
-                    DecodedData::ColourRGB(data) => format!("\"{}\"", data.replace("\"", "\\\"")),
-                    DecodedData::StringU8(data) => format!("\"{}\"", data.replace("\"", "\\\"")),
-                    DecodedData::StringU16(data) => format!("\"{}\"", data.replace("\"", "\\\"")),
+                    DecodedData::ColourRGB(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::StringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::StringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
                     DecodedData::OptionalI16(data) => format!("\"{}\"", data),
                     DecodedData::OptionalI32(data) => format!("\"{}\"", data),
                     DecodedData::OptionalI64(data) => format!("\"{}\"", data),
-                    DecodedData::OptionalStringU8(data) => format!("\"{}\"", data.replace("\"", "\\\"")),
-                    DecodedData::OptionalStringU16(data) => format!("\"{}\"", data.replace("\"", "\\\"")),
+                    DecodedData::OptionalStringU8(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
+                    DecodedData::OptionalStringU16(data) => format!("\"{}\"", data.replace('\"', "\\\"")),
                     DecodedData::SequenceU16(data) => {
                         params.push(data.to_vec());
                         "?".to_owned()
@@ -107,7 +107,7 @@ impl Table {
         }).collect::<Vec<_>>().join(",");
 
         let query = format!("INSERT OR REPLACE INTO \"{}_v{}\" {} VALUES {}",
-            table_name.replace("\"", "'"),
+            table_name.replace('\"', "'"),
             definition.version(),
             definition.map_to_sql_insert_into_string(key_first),
             values

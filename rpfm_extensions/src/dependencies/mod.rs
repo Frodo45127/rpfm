@@ -116,7 +116,7 @@ pub struct Dependencies {
 }
 
 /// This holds the reference data for a table's column.
-#[derive(PartialEq, Clone, Default, Debug, Getters, MutGetters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Default, Debug, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TableReferences {
 
@@ -191,7 +191,7 @@ impl Dependencies {
 
         // Pre-decode all parent tables/locs to memory.
         let mut decode_extra_data = DecodeableExtraData::default();
-        decode_extra_data.set_schema(Some(&schema));
+        decode_extra_data.set_schema(Some(schema));
         let extra_data = Some(decode_extra_data);
 
         // Ignore any errors related with decoded tables.
@@ -345,7 +345,7 @@ impl Dependencies {
 
         // Pre-decode all tables/locs to memory.
         let mut decode_extra_data = DecodeableExtraData::default();
-        decode_extra_data.set_schema(Some(&schema));
+        decode_extra_data.set_schema(Some(schema));
         let extra_data = Some(decode_extra_data);
 
         // Ignore any errors related with decoded tables.
@@ -392,7 +392,7 @@ impl Dependencies {
         let content_packs_paths = game_info.content_packs_paths(game_path);
         let mut loaded_packfiles = vec![];
 
-        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(&pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
+        parent_pack_names.iter().for_each(|pack_name| self.load_parent_pack(pack_name, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
 
         Ok(())
     }
@@ -414,7 +414,7 @@ impl Dependencies {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
                     if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
                         already_loaded.push(pack_name.to_owned());
-                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(&pack_name, already_loaded, data_paths, external_path));
+                        pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
                         self.parent_files.extend(pack.files().clone());
                     }
                 }
@@ -424,7 +424,7 @@ impl Dependencies {
             if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
                 if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], true, false) {
                     already_loaded.push(pack_name.to_owned());
-                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(&pack_name, already_loaded, data_paths, external_path));
+                    pack.dependencies().iter().for_each(|pack_name| self.load_parent_pack(pack_name, already_loaded, data_paths, external_path));
                     self.parent_files.extend(pack.files().clone());
                 }
             }
@@ -494,7 +494,7 @@ impl Dependencies {
                             files.extend(self.vanilla_files.par_iter()
                                 .filter(|(path, _)| {
                                     if case_insensitive {
-                                        starts_with_case_insensitive(path, &folder_path)
+                                        starts_with_case_insensitive(path, folder_path)
                                     } else {
                                         path.starts_with(folder_path)
                                     }
@@ -508,7 +508,7 @@ impl Dependencies {
                         files = self.parent_files.par_iter()
                             .filter(|(path, _)| {
                                 if case_insensitive {
-                                    starts_with_case_insensitive(path, &folder_path)
+                                    starts_with_case_insensitive(path, folder_path)
                                 } else {
                                     path.starts_with(folder_path)
                                 }
@@ -617,7 +617,7 @@ impl Dependencies {
                 vanilla_tables.sort();
 
                 for path in &vanilla_tables {
-                    if let Some(file) = self.vanilla_files.get(&*path) {
+                    if let Some(file) = self.vanilla_files.get(path) {
                         cache.push(file);
                     }
                 }
@@ -630,7 +630,7 @@ impl Dependencies {
                 parent_tables.sort();
 
                 for path in &parent_tables {
-                    if let Some(file) = self.parent_files.get(&*path) {
+                    if let Some(file) = self.parent_files.get(path) {
                         cache.push(file);
                     }
                 }
@@ -971,7 +971,7 @@ impl Dependencies {
                 let dep_db_undecoded = if let Ok(undecoded) = self.db_data(data.table_name(), true, false) { undecoded } else { return false };
                 let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
 
-                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(&y.definition().version())) {
+                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(y.definition().version())) {
                     if vanilla_db.definition().version() > data.definition().version() {
                         return true;
                     }
@@ -992,21 +992,21 @@ impl Dependencies {
                 let dep_db_undecoded = self.db_data(data.table_name(), true, false)?;
                 let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
 
-                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(&y.definition().version())) {
+                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(y.definition().version())) {
 
                     let definition_new = vanilla_db.definition();
                     let definition_old = data.definition().clone();
                     if definition_old != *definition_new {
-                        data.set_definition(&definition_new);
+                        data.set_definition(definition_new);
                         Ok((*definition_old.version(), *definition_new.version()))
                     }
                     else {
-                        Err(RLibError::NoDefinitionUpdateAvailable.into())
+                        Err(RLibError::NoDefinitionUpdateAvailable)
                     }
                 }
-                else { Err(RLibError::NoTableInGameFilesToCompare.into()) }
+                else { Err(RLibError::NoTableInGameFilesToCompare) }
             }
-            _ => Err(RLibError::DecodingDBNotADBTable.into()),
+            _ => Err(RLibError::DecodingDBNotADBTable),
         }
     }
 

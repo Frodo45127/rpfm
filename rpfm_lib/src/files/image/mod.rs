@@ -41,7 +41,7 @@ pub const EXTENSIONS: [&str; 5] = [
 //---------------------------------------------------------------------------//
 
 /// This represents an entire Image File decoded in memory.
-#[derive(Default, PartialEq, Clone, Debug, Getters, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Eq, Clone, Debug, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct Image {
     data: Vec<u8>,

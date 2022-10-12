@@ -68,7 +68,7 @@ impl OptimizableContainer for Pack {
 
         // We can only optimize if we have vanilla data available.
         if !dependencies.is_vanilla_data_loaded(true) {
-            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate.into());
+            return Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate);
         }
 
         // List of files to delete.
@@ -105,7 +105,7 @@ impl OptimizableContainer for Pack {
 
                         // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
                         // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
+                        if optimize_datacored_tables || dependencies.file_exists(path, true, true).ok().unwrap_or(false) {
                             if let Ok(Some(RFileDecoded::DB(mut db))) = rfile.decode(&extra_data, false, true) {
                                 if db.optimize(dependencies) {
                                     return Some(path.to_owned());
@@ -117,7 +117,7 @@ impl OptimizableContainer for Pack {
                     FileType::Loc => {
 
                         // Same as with tables, don't optimize them if they're overwriting.
-                        if optimize_datacored_tables || (!optimize_datacored_tables && dependencies.file_exists(path, true, true).ok().unwrap_or(false)) {
+                        if optimize_datacored_tables || dependencies.file_exists(path, true, true).ok().unwrap_or(false) {
                             if let Ok(Some(RFileDecoded::Loc(mut loc))) = rfile.decode(&extra_data, false, true) {
                                 if loc.optimize(dependencies) {
                                     return Some(path.to_owned());
@@ -275,10 +275,9 @@ impl Optimizable for Loc {
                                     table.data(&None).ok().map(|x| x.to_vec())
                                 } else { None }
                             })
-                            .map(|data| data.iter()
+                            .flat_map(|data| data.iter()
                                 .map(|data| (data[0].data_to_string().to_string(), data[1].data_to_string().to_string()))
                                 .collect::<Vec<(String, String)>>())
-                            .flatten()
                             .collect::<HashMap<String, String>>();
 
                         // Remove ITM and ITNR entries.

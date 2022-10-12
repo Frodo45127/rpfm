@@ -119,7 +119,7 @@ impl Decompressible for &[u8] {
         }
 
         if self.len() < 9 {
-            return Err(RLibError::DataCannotBeDecompressed.into());
+            return Err(RLibError::DataCannotBeDecompressed);
         }
 
         // CA Tweaks their headers to remove 4 bytes per file, while losing +4GB File Compression Support.

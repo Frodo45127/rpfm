@@ -123,7 +123,7 @@ impl RawDefinition {
                     .map(|x| Self::read(x, version))
                     .collect::<Result<Vec<Self>>>()
             }
-            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
 
@@ -136,7 +136,7 @@ impl RawDefinition {
                 definition.name = Some(raw_definition_path.file_name().unwrap().to_str().unwrap().split_at(5).1.to_string());
                 Ok(definition)
             }
-            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
 
@@ -159,8 +159,7 @@ impl RawDefinition {
 impl From<&RawDefinition> for Definition {
     fn from(raw_definition: &RawDefinition) -> Self {
         let fields = raw_definition.fields.iter().map(From::from).collect::<Vec<_>>();
-        let definition = Self::new_with_fields(-100, &fields, &[]);
-        definition
+        Self::new_with_fields(-100, &fields, &[])
     }
 }
 

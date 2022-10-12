@@ -141,8 +141,8 @@ impl ESF {
 
         // And finally, merge everything.
         buffer.write_u32((12 + nodes_data.len() + 4) as u32)?;
-        buffer.write_all(&mut nodes_data)?;
-        buffer.write_all(&mut strings_data)?;
+        buffer.write_all(&nodes_data)?;
+        buffer.write_all(&strings_data)?;
 
         Ok(())
     }
@@ -970,7 +970,7 @@ impl ESF {
             NodeType::U8Array(value) => {
                 buffer.write_u8(U8_ARRAY)?;
                 buffer.write_cauleb128(value.len() as u32)?;
-                buffer.write_all(&value)?;
+                buffer.write_all(value)?;
             },
             NodeType::U16Array(value) => {
                 buffer.write_u8(U16_ARRAY)?;

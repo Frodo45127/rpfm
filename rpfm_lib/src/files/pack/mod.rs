@@ -103,7 +103,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug, Clone, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Getters, MutGetters, Setters, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Pack {
 
@@ -132,7 +132,7 @@ pub struct Pack {
     settings: PackSettings,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct PackHeader {
 
@@ -162,7 +162,7 @@ pub struct PackHeader {
 }
 
 /// This struct hold PackFile-specific settings.
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PackSettings {
 
     /// For multi-line text.
@@ -275,7 +275,7 @@ impl Container for Pack {
                         return Err(RLibError::EmptyDestiny);
                     }
 
-                    let mut moved = self.files_mut().remove(&source_path).ok_or(RLibError::FileNotFound(source_path.to_string()))?;
+                    let mut moved = self.files_mut().remove(&source_path).ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
                     moved.set_path_in_container_raw(&destination_path);
                     self.insert(moved).map(|x| vec![x; 1])
                 },
@@ -318,23 +318,6 @@ impl Encodeable for Pack {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         self.write(buffer, extra_data)
-    }
-}
-
-impl Default for Pack {
-    fn default() -> Self {
-        Self {
-            /// The path of the PackFile on disk, if exists. If not, then this should be empty.
-            disk_file_path: String::new(),
-            disk_file_offset: 0,
-            local_timestamp: 0,
-            compress: false,
-            header: PackHeader::default(),
-            dependencies: vec![],
-            files: HashMap::new(),
-            notes: String::new(),
-            settings: PackSettings::default(),
-        }
     }
 }
 
@@ -398,7 +381,7 @@ impl Pack {
 
         // Create the default Pack and start populating it.
         let mut pack = Self::default();
-        pack.disk_file_path = disk_file_path.to_owned();
+        pack.disk_file_path = disk_file_path;
         pack.disk_file_offset = disk_file_offset;
         pack.local_timestamp = timestamp;
         pack.header.pfh_version = PFHVersion::version(&data.read_string_u8(4)?)?;
@@ -553,9 +536,7 @@ impl Pack {
         packs.iter_mut()
             .filter(|pack| {
                 if let PFHFileType::Mod = pack.header.pfh_file_type {
-                    if ignore_mods {
-                        false
-                    } else { true }
+                    !ignore_mods
                 } else { true }
             })
             .for_each(|pack| {
@@ -565,12 +546,11 @@ impl Pack {
         // Fix the dependencies of the merged pack.
         let pack_names = packs.iter().map(|pack| pack.disk_file_name()).collect::<Vec<_>>();
         let mut dependencies = packs.iter()
-            .map(|pack| pack.dependencies()
+            .flat_map(|pack| pack.dependencies()
                 .iter()
                 .filter(|dependency| !pack_names.contains(dependency))
                 .cloned()
                 .collect::<Vec<_>>())
-            .flatten()
             .collect::<Vec<_>>();
         dependencies.sort();
         dependencies.dedup();
@@ -631,12 +611,12 @@ impl Pack {
 
     /// This function returns the tool that created the Pack. Max 8 characters, 00-padded.
     pub fn authoring_tool(&self) -> &str {
-        &self.header.authoring_tool()
+        self.header.authoring_tool()
     }
 
     /// This function returns the Extra Subheader Data, if any.
     pub fn extra_subheader_data(&self) -> &[u8] {
-        &self.header.extra_subheader_data()
+        self.header.extra_subheader_data()
     }
 /*
     /// This function changes the path of the PackFile.
@@ -698,11 +678,7 @@ impl Pack {
 
     /// This function returns if the Pack is compressible or not.
     pub fn is_compressible(&self) -> bool {
-        match self.header.pfh_version {
-            PFHVersion::PFH6 |
-            PFHVersion::PFH5 => true,
-            _ => false
-        }
+        matches!(self.header.pfh_version, PFHVersion::PFH6 | PFHVersion::PFH5)
     }
 
     /// This function is used to generate all loc entries missing from a PackFile into a missing.loc file.

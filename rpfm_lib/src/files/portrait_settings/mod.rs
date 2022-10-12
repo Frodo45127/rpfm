@@ -79,7 +79,7 @@ pub struct CameraSetting {
 }
 
 /// This represents a Variant of a Portrait.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Variant {
 
     /// No idea what this corresponds to.

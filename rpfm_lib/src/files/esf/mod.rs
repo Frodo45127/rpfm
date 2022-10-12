@@ -162,7 +162,7 @@ pub struct ESF {
 }
 
 /// This enum represents the different signatures of ESF files.
-#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum ESFSignature {
 
     // Signature found on 3K files.
@@ -228,7 +228,7 @@ pub enum NodeType {
 }
 
 /// Node containing a bool value, and if the node should be optimized or not.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BoolNode {
     value: bool,
@@ -236,7 +236,7 @@ pub struct BoolNode {
 }
 
 /// Node containing an i32 value, and if the node should be optimized or not.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct I32Node {
     value: i32,
@@ -244,7 +244,7 @@ pub struct I32Node {
 }
 
 /// Node containing an u32 value, and if the node should be optimized or not.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct U32Node {
     value: u32,
@@ -260,7 +260,7 @@ pub struct F32Node {
 }
 
 /// Node containing a Vec<i32>, and if the node should be optimized or not.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecI32Node {
     value: Vec<i32>,
@@ -268,7 +268,7 @@ pub struct VecI32Node {
 }
 
 /// Node containing a Vec<u32>, and if the node should be optimized or not.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecU32Node {
     value: Vec<u32>,

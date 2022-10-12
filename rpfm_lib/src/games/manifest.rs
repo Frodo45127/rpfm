@@ -77,7 +77,7 @@ impl Manifest {
 
             // We only know these manifest formats.
             if record.len() != 2 && record.len() != 3 {
-                return Err(RLibError::ManifestFileParseError("Mismatch column count".to_owned()).into());
+                return Err(RLibError::ManifestFileParseError("Mismatch column count".to_owned()));
             } else {
                 let mut manifest_entry = ManifestEntry {
                     relative_path: record.get(0).ok_or_else(|| RLibError::ManifestFileParseError("Error reading relative path".to_owned()))?.to_owned(),
@@ -102,7 +102,7 @@ impl Manifest {
     }
 
     pub fn is_path_in_manifest(&self, path: &Path) -> bool {
-        let insensitivized_path = path.to_str().unwrap().to_lowercase().replace("\\", "/");
+        let insensitivized_path = path.to_str().unwrap().to_lowercase().replace('\\', "/");
         self.0.iter().any(|x| insensitivized_path.ends_with(&x.relative_path.to_lowercase()))
     }
 }

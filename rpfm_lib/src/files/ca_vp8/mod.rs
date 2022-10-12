@@ -144,7 +144,7 @@ pub struct CaVp8 {
 }
 
 /// This struct contains the information needed to locate an specific frame from a video within the raw frame data.
-#[derive(PartialEq, Clone, Copy, Debug, Getters, Setters, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
 pub struct Frame {
 
@@ -159,7 +159,7 @@ pub struct Frame {
 }
 
 /// This enum contains the list of formats this lib supports.
-#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum SupportedFormats {
 
     /// Used by CA in CaVp8 files.

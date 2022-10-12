@@ -271,7 +271,7 @@ impl GameInfo {
     pub fn install_type(&self, game_path: &Path) -> Result<InstallType> {
 
         // Checks to guess what kind of installation we have.
-        let base_path_files = files_from_subdir(&game_path, false)?;
+        let base_path_files = files_from_subdir(game_path, false)?;
         let install_type_by_exe = self.install_data.iter().filter_map(|(install_type, install_data)|
             if base_path_files.iter().filter_map(|path| if path.is_file() { path.file_name() } else { None }).any(|filename| filename == &**install_data.executable()) {
                 Some(install_type)
@@ -393,7 +393,7 @@ impl GameInfo {
     /// This function returns if we should use the manifest of the game (if found) to get the vanilla PackFiles, or if we should get them from out hardcoded list.
     pub fn use_manifest(&self, game_path: &Path) -> Result<bool> {
         let install_type = self.install_type(game_path)?;
-        let install_data = self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
+        let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
 
         // If the install_type is linux, or we actually have a hardcoded list, ignore all Manifests.
         Ok(*install_data.use_manifest())
@@ -459,7 +459,7 @@ impl GameInfo {
     fn ca_packs_paths_no_manifest(&self, game_path: &Path, language: &Option<String>) -> Result<Vec<PathBuf>> {
         let data_path = self.data_path(game_path)?;
         let install_type = self.install_type(game_path)?;
-        let vanilla_packs = &self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
+        let vanilla_packs = &self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.vanilla_packs;
         let language_pack = language.clone().map(|lang| format!("local_{}", lang));
         if !vanilla_packs.is_empty() {
             Ok(vanilla_packs.iter().filter_map(|pack_name| {
@@ -510,10 +510,10 @@ impl GameInfo {
         match install_type {
             InstallType::LnxSteam |
             InstallType::WinSteam => {
-                let store_id = self.install_data.get(&install_type).ok_or(RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
+                let store_id = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?.store_id();
                 Ok(format!("steam://rungameid/{}", store_id))
             },
-            _ => return Err(RLibError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
+            _ => Err(RLibError::GameInstallLaunchNotSupported(self.display_name.to_string(), install_type.to_string())),
         }
     }
 
@@ -542,7 +542,7 @@ impl GameInfo {
         match self.locale_file_name() {
             Some(locale_file) => {
                 let data_path = self.data_path(game_path)?;
-                let locale_path = data_path.to_path_buf().join(locale_file);
+                let locale_path = data_path.join(locale_file);
                 let mut language = String::new();
                 if let Ok(mut file) = File::open(&locale_path) {
                     file.read_to_string(&mut language)?;

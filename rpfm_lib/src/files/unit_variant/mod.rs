@@ -92,7 +92,7 @@ pub const EXTENSION: &str = ".unit_variant";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UnitVariant decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct UnitVariant {
 
     /// Version of the UnitVariant.
@@ -106,7 +106,7 @@ pub struct UnitVariant {
 }
 
 /// This holds a variant category.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Category {
 
     /// Name of the category.
@@ -120,7 +120,7 @@ pub struct Category {
 }
 
 /// This holds a `Variant` of a Category.
-#[derive(PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Getters, Setters, Serialize, Deserialize)]
 pub struct Variant {
 
     /// The file path (case insensitive) of the mesh file of this variant.
@@ -250,8 +250,8 @@ impl Encodeable for UnitVariant {
             buffer.write_u32(self.unknown_1)?;
         }
 
-        buffer.write_all(&mut encoded_categories)?;
-        buffer.write_all(&mut encoded_variants)?;
+        buffer.write_all(&encoded_categories)?;
+        buffer.write_all(&encoded_variants)?;
 
         Ok(())
     }

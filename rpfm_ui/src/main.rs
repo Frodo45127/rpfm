@@ -117,7 +117,7 @@ lazy_static! {
     ///
     /// TODO: Remove this?
     #[derive(Debug)]
-    static ref SUPPORTED_GAMES: SupportedGames = SupportedGames::new();
+    static ref SUPPORTED_GAMES: SupportedGames = SupportedGames::default();
 
     /// The current GameSelected. If invalid, it uses WH3 as default.
     static ref GAME_SELECTED: Arc<RwLock<&'static GameInfo>> = Arc::new(RwLock::new(
