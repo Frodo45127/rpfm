@@ -969,53 +969,47 @@ pub fn background_loop() {
             Command::CleanCache(paths) => {
                 let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect::<Vec<&[String]>>());
                 packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-            }
+            }*/
 
             // In case we want to export a PackedFile as a TSV file...
-            Command::ExportTSV((internal_path, external_path)) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
-                    Some(packed_file) => match packed_file.get_decoded() {
-                        RFileDecoded::DB(data) => match data.export_tsv(&external_path, &internal_path[1], &packed_file.get_path()) {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                        },
-                        RFileDecoded::Loc(data) => match data.export_tsv(&external_path, TSV_NAME_LOC, &packed_file.get_path()) {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                        },
-                        /*
-                        RFileDecoded::DependencyPackFileList(data) => match data.export_tsv(&[external_path]) {
-                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                            Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                        },*/
-                        _ => unimplemented!()
-                    }
-                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
+            Command::ExportTSV(internal_path, external_path) => {
+                let schema = SCHEMA.read().unwrap();
+                match &*schema {
+                    Some(ref schema) => {
+                        match pack_file_decoded.file_mut(&internal_path) {
+                            Some(file) => match file.tsv_export_to_path(&external_path, schema) {
+                                Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                                Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                            }
+                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
+                        }
+                    },
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
             }
 
             // In case we want to import a TSV as a PackedFile...
-            Command::ImportTSV((internal_path, external_path)) => {
-                match *SCHEMA.read().unwrap() {
+            // TODO: This is... unreliable at best, can break stuff at worst. Replace the set_decoded with proper type checking.
+            Command::ImportTSV(internal_path, external_path) => {
+                let schema = SCHEMA.read().unwrap();
+                match &*schema {
                     Some(ref schema) => {
-                        match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
-                            Some(packed_file) => match packed_file.get_packed_file_type(false) {
-                                PackedFileType::DB => match DB::import_tsv(&schema, &external_path) {
-                                    Ok((data, _)) => CentralCommand::send_back(&sender, Response::TableType(TableType::DB(data))),
-                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                },
-                                PackedFileType::Loc => match Loc::import_tsv(&schema, &external_path) {
-                                    Ok((data, _)) => CentralCommand::send_back(&sender, Response::TableType(TableType::Loc(data))),
-                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error)),
-                                },
-                                _ => unimplemented!()
+                        match pack_file_decoded.file_mut(&internal_path) {
+                            Some(file) => {
+                                match RFile::tsv_import_from_path(&external_path, schema) {
+                                    Ok(imported) => {
+                                        file.set_decoded(imported.decoded().unwrap().clone()).unwrap();
+                                        CentralCommand::send_back(&sender, Response::Success)
+                                    },
+                                    Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                }
                             }
-                            None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())),
+                            None => CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path not found in the Pack: {}", internal_path))),
                         }
-                    }
-                    None => CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())),
+                    },
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
-            }*/
+            }
 
             // In case we want to open a PackFile's location in the file manager...
             Command::OpenContainingFolder => {
