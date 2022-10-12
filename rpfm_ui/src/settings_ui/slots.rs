@@ -13,7 +13,6 @@ Module with all the code related to `SettingsUISlots`.
 !*/
 
 use qt_widgets::QColorDialog;
-use qt_widgets::QDialog;
 use qt_widgets::QFontDialog;
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
@@ -37,14 +36,9 @@ use std::process::Command as SystemCommand;
 use crate::settings_ui::backend::*;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;
-use crate::locale::{qtr, tr};
-use crate::QT_PROGRAM;
-use crate::QT_ORG;
+use crate::locale::tr;
 use crate::settings_ui::SettingsUI;
-use crate::UI_STATE;
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -107,7 +101,7 @@ impl SettingsUISlots {
                 }
 
                 // Restore layout settings. TODO: move this to initialization of settings.
-                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+                let q_settings = settings();
                 app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
                 app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
@@ -225,7 +219,7 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
-                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+                let q_settings = settings();
                 app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
                 app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();

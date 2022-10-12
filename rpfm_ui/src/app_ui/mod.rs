@@ -47,6 +47,7 @@ use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
 use qt_core::QSettings;
 use qt_core::QSortFilterProxyModel;
+use qt_core::QString;
 use qt_core::QVariant;
 
 use cpp_core::CppBox;
@@ -83,9 +84,6 @@ use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTr
 //use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::QString;
-use crate::QT_PROGRAM;
-use crate::QT_ORG;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
 use crate::SCHEMA;
@@ -1093,7 +1091,7 @@ impl AppUI {
 
         // If it's only one packfile, store it in the recent file list.
         if pack_file_paths.len() == 1 {
-            let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+            let q_settings = settings();
 
             let paths = if q_settings.contains(&QString::from_std_str("recentFileList")) {
                 q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list()
@@ -1620,7 +1618,7 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Recent PackFiles.
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = settings();
         if q_settings.contains(&QString::from_std_str("recentFileList")) {
             let paths = q_settings.value_1a(&QString::from_std_str("recentFileList")).to_string_list();
 
@@ -3063,7 +3061,7 @@ impl AppUI {
             let item = &selected_items[0];
 
             let path = match item {
-                ContainerPath::File(ref path) => item.parent_path(),
+                ContainerPath::File(_) => item.parent_path(),
                 ContainerPath::Folder(path) => path.to_owned(),
             };
             let path_split = path.split('/').collect::<Vec<_>>();

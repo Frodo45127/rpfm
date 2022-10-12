@@ -14,50 +14,27 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
-use std::io::BufReader;
-use open::that;
-use std::io::Cursor;
-use rpfm_extensions::diagnostics::Diagnostics;
-use rpfm_lib::error::RLibError;
-use rpfm_lib::files::RFile;
-use rpfm_lib::files::animpack::AnimPack;
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use crossbeam::channel::Sender;
-use rpfm_lib::files::{Container, ContainerPath, db::DB, loc::Loc, RFileDecoded, text::*};
-use rpfm_lib::integrations::log::*;
+use open::that;
 use rayon::prelude::*;
-use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type};
-//use uuid::Uuid;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Cursor, Read, Write};
 use std::path::PathBuf;
 use std::thread;
 
 use rpfm_extensions::dependencies::Dependencies;
+use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 
-use rpfm_lib::files::{DecodeableExtraData, EncodeableExtraData, FileType, pack::*};
-use rpfm_lib::games::pfh_file_type::PFHFileType;
-use rpfm_lib::integrations::{assembly_kit::*, git::*};
+use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, RFile, RFileDecoded, text::*};
+use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
+use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
-
-
-//use rpfm_lib::assembly_kit::*;
-//use rpfm_lib::diagnostics::Diagnostics;
-//use rpfm_lib::dependencies::{Dependencies, DependenciesInfo};
-//use rpfm_lib::packedfile::*;
-//use rpfm_lib::packedfile::animpack::AnimPack;
-//use rpfm_lib::packedfile::table::db::DB;
-//use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
-//use rpfm_lib::packfile::{PackFile, ContainerInfo, packedfile::{PackedFile, RFileInfo, RawPackedFile}, ContainerPath, PFHFlags, RESERVED_NAME_NOTES};
-//use rpfm_lib::schema::{*, patch::SchemaPatches};
-//use rpfm_lib::settings::*;
-
-//use rpfm_lib::tips::Tips;
 
 use crate::app_ui::NewPackedFile;
 use crate::backend::*;
@@ -70,7 +47,6 @@ use crate::RPFM_PATH;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::SUPPORTED_GAMES;
-//use crate::views::table::TableType;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///

@@ -159,7 +159,7 @@ impl UI {
 
         // Apply last ui state.
         // TODO: Move all this to settings.
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = settings();
         let mut sync_needed = false;
 
         // TODO: this may be wrong.

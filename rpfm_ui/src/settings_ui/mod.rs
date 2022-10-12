@@ -34,7 +34,6 @@ use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QPtr;
-use qt_core::QSettings;
 use qt_core::QVariant;
 
 use cpp_core::CastInto;
@@ -44,7 +43,7 @@ use anyhow::Result;
 use getset::Getters;
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 
 use rpfm_lib::games::supported_games::*;
@@ -52,10 +51,8 @@ use rpfm_lib::games::supported_games::*;
 use crate::app_ui::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
 use crate::ffi::*;
-use crate::QT_PROGRAM;
-use crate::QT_ORG;
 use crate::SUPPORTED_GAMES;
-use crate::utils::{create_grid_layout, show_dialog};
+use crate::utils::create_grid_layout;
 use crate::updater::{BETA, STABLE, update_channel, UpdateChannel};
 
 use self::backend::*;
@@ -943,7 +940,7 @@ impl SettingsUI {
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
     pub unsafe fn load(&self) -> Result<()> {
         // TODO: Pass this everywhere so we don't call it again on every request.
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = settings();
 
         // Load the MyMod and 7Zip paths, if exists.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(setting_string(MYMOD_BASE_PATH)));
@@ -1089,7 +1086,7 @@ impl SettingsUI {
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
     pub unsafe fn save(&self) {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = settings();
 
         set_setting_string_to_q_setting(&q_settings, MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
         set_setting_string_to_q_setting(&q_settings, ZIP_PATH, &self.paths_zip_line_edit.text().to_std_string());

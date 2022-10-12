@@ -35,30 +35,14 @@ use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 use crate::updater::STABLE;
 
-//use crate::dependencies::DEPENDENCIES_FOLDER;
-//use crate::games::LUA_AUTOGEN_FOLDER;
-//use crate::games::supported_games::*;
-//use crate::SETTINGS;
-//use crate::schema::*;
-//use crate::SUPPORTED_GAMES;
-//use crate::tips::*;
-//use crate::updater::STABLE;
-
-pub const QT_ORG: &str = "FrodoWazEre";
-
-pub const QT_PROGRAM: &str = "rpfm";
-
 /// Qualifier for the config folder. Only affects MacOS.
-const QUALIFIER: &str = "";
+const QUALIFIER: &str = "com";
 
 /// Organisation for the config folder. Only affects Windows and MacOS.
-const ORGANISATION: &str = "";
+const ORGANISATION: &str = "FrodoWazEre";
 
 /// Name of the config folder.
 const PROGRAM_NAME: &str = "rpfm";
-
-/// Name of the settings file.
-const SETTINGS_FILE: &str = "settings.ron";
 
 /// Key of the 7Zip path in the settings";
 pub const ZIP_PATH: &str = "7zip_path";
@@ -69,148 +53,11 @@ pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 const DEPENDENCIES_FOLDER: &str = "dependencies";
 
 //-------------------------------------------------------------------------------//
-//                              Enums & Structs
+//                         Setting-related functions
 //-------------------------------------------------------------------------------//
-/*
-/// This struct hold every setting of the lib and of RPFM_UI/CLI.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Settings {
-    pub paths: BTreeMap<String, Option<PathBuf>>,
-    pub settings_string: BTreeMap<String, String>,
-    pub settings_bool: BTreeMap<String, bool>,
-}
-
-//-------------------------------------------------------------------------------//
-//                             Implementations
-//-------------------------------------------------------------------------------//
-
-/// Implementation of `Settings`.
-impl Settings {
-
-    /// This function creates a new default `Settings`.
-    ///
-    /// Should be run if no settings file has been found at the start of any program using this lib.
-    pub fn new() -> Self {
-        let mut paths = BTreeMap::new();
-        let mut settings_string = BTreeMap::new();
-        let mut settings_bool = BTreeMap::new();
-        paths.insert(MYMOD_BASE_PATH.to_owned(), None);
-        paths.insert(ZIP_PATH.to_owned(), None);
-        for game in &SUPPORTED_GAMES.get_games() {
-            let game_key = game.get_game_key_name();
-            paths.insert(game_key.to_owned(), None);
-
-            if game_key != KEY_EMPIRE &&
-                game_key != KEY_NAPOLEON &&
-                game_key != KEY_ARENA {
-
-                paths.insert(game.get_game_key_name() + "_assembly_kit", None);
-            }
-        }
-
-        // General Settings.
-        settings_string.insert("default_game".to_owned(), KEY_WARHAMMER_3.to_owned());
-        settings_string.insert("language".to_owned(), "English_en".to_owned());
-        settings_string.insert("update_channel".to_owned(), STABLE.to_owned());
-        settings_string.insert("autosave_amount".to_owned(), "10".to_owned());
-        settings_string.insert("autosave_interval".to_owned(), "5".to_owned());
-        settings_string.insert("font_name".to_owned(), "".to_owned());
-        settings_string.insert("font_size".to_owned(), "".to_owned());
-
-        // UI Settings.
-        settings_bool.insert("start_maximized".to_owned(), false);
-        settings_bool.insert("use_dark_theme".to_owned(), false);
-        settings_bool.insert("hide_background_icon".to_owned(), true);
-        settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
-        settings_bool.insert("check_updates_on_start".to_owned(), true);
-        settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
-        settings_bool.insert("check_message_updates_on_start".to_owned(), false);
-        settings_bool.insert("check_lua_autogen_updates_on_start".to_owned(), true);
-        settings_bool.insert("use_lazy_loading".to_owned(), true);
-        settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
-        settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), true);
-        settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), false);
-        settings_bool.insert("expand_treeview_when_adding_items".to_owned(), true);
-        settings_bool.insert("use_right_size_markers".to_owned(), false);
-        settings_bool.insert("disable_file_previews".to_owned(), false);
-        settings_bool.insert("disable_mymod_automatic_git_repo".to_owned(), false);
-        settings_bool.insert("disable_mymod_automatic_configs".to_owned(), false);
-
-        // Table Settings.
-        settings_bool.insert("adjust_columns_to_content".to_owned(), true);
-        settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
-        settings_bool.insert("disable_combos_on_tables".to_owned(), false);
-        settings_bool.insert("tight_table_mode".to_owned(), false);
-        settings_bool.insert("table_resize_on_edit".to_owned(), false);
-        settings_bool.insert("tables_use_old_column_order".to_owned(), true);
-
-        // Debug Settings.
-        settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
-        settings_bool.insert("enable_debug_menu".to_owned(), false);
-        settings_bool.insert("spoof_ca_authoring_tool".to_owned(), false);
-        settings_bool.insert("enable_rigidmodel_editor".to_owned(), true);
-        settings_bool.insert("enable_esf_editor".to_owned(), false);
-        settings_bool.insert("enable_unit_editor".to_owned(), false);
-
-        // Diagnostics Settings
-        settings_bool.insert("diagnostics_trigger_on_open".to_owned(), true);
-        settings_bool.insert("diagnostics_trigger_on_table_edit".to_owned(), true);
-
-        Self {
-            paths,
-            settings_string,
-            settings_bool,
-        }
-    }
-
-    /// This function tries to load the `settings.ron` from disk, if exist, and return it.
-    pub fn load(file_path: Option<&str>) -> Result<Self> {
-        let file_path = if let Some(file_path) = file_path { PathBuf::from(file_path) } else { config_path()?.join(SETTINGS_FILE) };
-        let file = BufReader::new(File::open(file_path)?);
-        let mut settings: Self = from_reader(file)?;
-
-        // Add/Remove settings missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
-        let defaults = Self::new();
-        {
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.paths.clone() { if defaults.paths.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.paths.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_string.clone() { if defaults.settings_string.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_string.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in settings.settings_bool.clone() { if defaults.settings_bool.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { settings.settings_bool.remove(key); }
-        }
-
-        {
-            for (key, value) in defaults.paths { if settings.paths.get(&*key).is_none() { settings.paths.insert(key, value);  } }
-            for (key, value) in defaults.settings_string { if settings.settings_string.get(&*key).is_none() { settings.settings_string.insert(key, value);  } }
-            for (key, value) in defaults.settings_bool { if settings.settings_bool.get(&*key).is_none() { settings.settings_bool.insert(key, value);  } }
-        }
-
-        Ok(settings)
-    }
-
-    /// This function tries to save the provided `Settings` to disk.
-    pub fn save(&self) -> Result<()> {
-        let file_path = config_path()?.join(SETTINGS_FILE);
-        let mut file = BufWriter::new(File::create(file_path)?);
-        let config = PrettyConfig::default();
-        // Append a newline `\n` to the file
-        let mut data = to_string_pretty(&self, config)?;
-        data.push_str("\n");
-        file.write_all(data.as_bytes())?;
-        Ok(())
-    }
-
-}
-    */
 
 pub unsafe fn init_settings() {
-    let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+    let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
 
     set_setting_if_new_string(&q_settings, MYMOD_BASE_PATH, "");
     set_setting_if_new_string(&q_settings, ZIP_PATH, "");
@@ -295,30 +142,34 @@ pub unsafe fn init_settings() {
     q_settings.sync();
 }
 
+pub fn settings() -> QBox<QSettings> {
+    unsafe { QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME)) }
+}
+
 pub fn setting_path(setting: &str) -> PathBuf {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         PathBuf::from(q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string())
     }
 }
 
 pub fn setting_string(setting: &str) -> String {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.value_1a(&QString::from_std_str(setting)).to_string().to_std_string()
     }
 }
 
 pub fn setting_int(setting: &str) -> i32 {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.value_1a(&QString::from_std_str(setting)).to_int_0a()
     }
 }
 
 pub fn setting_bool(setting: &str) -> bool {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.value_1a(&QString::from_std_str(setting)).to_bool()
     }
 }
@@ -329,7 +180,7 @@ pub fn set_setting_path(setting: &str, value: &Path) {
 
 pub fn set_setting_string(setting: &str, value: &str) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
         q_settings.sync();
     }
@@ -337,7 +188,7 @@ pub fn set_setting_string(setting: &str, value: &str) {
 
 pub fn set_setting_int(setting: &str, value: i32) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
         q_settings.sync();
     }
@@ -345,7 +196,7 @@ pub fn set_setting_int(setting: &str, value: i32) {
 
 pub fn set_setting_bool(setting: &str, value: bool) {
     unsafe {
-        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
+        let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
         q_settings.sync();
     }

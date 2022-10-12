@@ -12,15 +12,10 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
-use rpfm_lib::files::ContainerPath;
-use crate::pack_tree::new_pack_file_tooltip;
 use qt_widgets::QAction;
-use qt_widgets::QDialog;
-use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
+use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::QGridLayout;
-use qt_widgets::{q_message_box, QMessageBox};
-use qt_widgets::QPushButton;
-use qt_widgets::QTextEdit;
+use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
@@ -41,14 +36,8 @@ use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-//use rpfm_lib::DOCS_BASE_URL;
-use crate::GAME_SELECTED;
+use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
-//use rpfm_lib::packfile::{ContainerInfo, ContainerPath, PFHFileType, CompressionState};
-//use rpfm_lib::PATREON_URL;
-//use rpfm_lib::schema::patch::SchemaPatch;
-//use rpfm_lib::settings::get_config_path;
-
 
 use crate::app_ui::AppUI;
 use crate::backend::*;
@@ -57,18 +46,16 @@ use crate::communications::{CentralCommand, THREADS_COMMUNICATION_ERROR, Command
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DOCS_BASE_URL;
+use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
-use crate::pack_tree::{BuildData, PackTree, TreeViewOperation};
+use crate::pack_tree::*;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
-//use crate::pack_tree::ContainerPath;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::{backend::*, SettingsUI};
-//use crate::tools::faction_painter::ToolFactionPainter;
-//use crate::tools::unit_editor::ToolUnitEditor;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
@@ -457,11 +444,7 @@ impl AppUISlots {
                         app_ui.change_packfile_type_header_is_extended.set_checked(false);
 
                         // Set the compression level correctly, because otherwise we may fuckup some files.
-                        //let compression_state = match ui_data.compression_state {
-                        //    CompressionState::Enabled => true,
-                        //    CompressionState::Partial | CompressionState::Disabled => false,
-                        //};
-                        //app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
+                        app_ui.change_packfile_type_data_is_compressed.set_checked(*ui_data.compress());
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();

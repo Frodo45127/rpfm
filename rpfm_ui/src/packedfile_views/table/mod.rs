@@ -20,7 +20,6 @@ use std::rc::Rc;
 use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
