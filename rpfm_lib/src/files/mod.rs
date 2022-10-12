@@ -1813,6 +1813,11 @@ impl RFile {
                 let data = RFileDecoded::DB(DB::merge(&files)?);
                 Ok(Self::new_from_decoded(&data, current_time()?, path))
             },
+            FileType::Loc => {
+                let files = sources.iter().filter_map(|file| if let Ok(RFileDecoded::Loc(table)) = file.decoded() { Some(table) } else { None }).collect::<Vec<_>>();
+                let data = RFileDecoded::Loc(Loc::merge(&files)?);
+                Ok(Self::new_from_decoded(&data, current_time()?, path))
+            },
             _ => Err(RLibError::RFileMergeNotSupportedForType(file_types[0].to_string())),
         }
     }
@@ -1884,6 +1889,14 @@ impl ContainerPath {
         match self {
             ContainerPath::Folder(path) => path.is_empty(),
             _ => false,
+        }
+    }
+
+    /// This function returns a reference to the path stored within the provided [ContainerPath].
+    pub fn path_raw(&self) -> &str {
+        match self {
+            Self::File(ref path) => path,
+            Self::Folder(ref path) => path,
         }
     }
 

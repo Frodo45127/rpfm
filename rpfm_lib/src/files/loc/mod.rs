@@ -38,6 +38,7 @@ use csv::{StringRecordsIter, Writer};
 use getset::{Getters, Setters};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
@@ -174,6 +175,27 @@ impl Loc {
         let entry_count = data.read_u32()?;
 
         Ok((version, entry_count))
+    }
+
+    /// This function merges the data of a few Loc tables into a new Loc table.
+    pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
+        let mut new_table = Self::new(false);
+        let sources = sources.par_iter()
+            .map(|table| {
+                let mut table = table.table().clone();
+                table.set_definition(new_table.definition());
+                table
+            })
+            .collect::<Vec<_>>();
+
+        let new_data = sources.par_iter()
+            .filter_map(|table| table.data(&None).ok())
+            .map(|data| data.to_vec())
+            .flatten()
+            .collect::<Vec<_>>();
+        new_table.set_data(&new_data)?;
+
+        Ok(new_table)
     }
 
     /// This function imports a TSV file into a decoded Loc file.

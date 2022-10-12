@@ -1047,18 +1047,18 @@ impl PackFileContentsSlots {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
                         for path in open_packedfiles.iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path())  {
                             if selected_paths.contains(&path) {
-                                paths_to_close.push(path.to_owned());
+                                paths_to_close.push(ContainerPath::File(path.to_owned()));
                             }
                         }
                     }
 
-                    for path in paths_to_close {
-                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, true) {
+                    for path in &paths_to_close {
+                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, true) {
                             return show_dialog(app_ui.main_window(), error, false);
                         }
                     }
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(paths_to_close.to_vec(), name, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {

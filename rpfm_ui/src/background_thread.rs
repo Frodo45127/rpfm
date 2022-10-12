@@ -839,15 +839,24 @@ pub fn background_loop() {
                         }
                     } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
                 } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
-            }
+            }*/
 
             // In case we want to merge DB or Loc Tables from a PackFile...
-            Command::MergeTables(paths, name, delete_source_files) => {
-                match pack_file_decoded.merge_tables(&paths, &name, delete_source_files) {
-                    Ok(data) => CentralCommand::send_back(&sender, Response::VecString(data)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+            Command::MergeFiles(paths, merged_path, delete_source_files) => {
+                let files_to_merge = pack_file_decoded.files_by_paths(&paths, false);
+                match RFile::merge(&files_to_merge, &merged_path) {
+                    Ok(file) => {
+                        pack_file_decoded.insert(file);
+
+                        if delete_source_files {
+                            paths.iter().for_each(|path| { pack_file_decoded.remove(path); });
+                        }
+
+                        CentralCommand::send_back(&sender, Response::String(merged_path.to_string()));
+                    },
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
-            }*/
+            }
             /*
             // In case we want to update a table...
             Command::UpdateTable(path_type) => {

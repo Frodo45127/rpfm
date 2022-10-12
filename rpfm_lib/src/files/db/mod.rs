@@ -519,7 +519,7 @@ impl DB {
     /// May fail if the tables do not have the same table name.
     pub(crate) fn merge(sources: &[&Self]) -> Result<Self> {
 
-        let mut table_names = sources.iter().map(|file| file.table_name()).collect::<HashSet<_>>();
+        let table_names = sources.iter().map(|file| file.table_name()).collect::<HashSet<_>>();
         if table_names.len() > 1 {
             return Err(RLibError::RFileMergeTablesDifferentNames);
         }

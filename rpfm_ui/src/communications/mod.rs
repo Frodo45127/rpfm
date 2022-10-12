@@ -229,9 +229,9 @@ pub enum Command {
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
-    /// - String: Name of the new merged table.
+    /// - String: Path of the merged file.
     /// - Bool: Should we delete the source files after merging them?
-    MergeTables(Vec<String>, String, bool),
+    MergeFiles(Vec<ContainerPath>, String, bool),
 
     // This command is used when we want to update a table to a newer version.
     UpdateTable(ContainerPath),
