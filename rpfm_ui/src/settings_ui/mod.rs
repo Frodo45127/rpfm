@@ -29,7 +29,7 @@ use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::{QPalette, q_palette::ColorRole};
 use qt_gui::QStandardItemModel;
 
-use qt_core::AlignmentFlag;
+use qt_core::{AlignmentFlag, WidgetAttribute};
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QString;
@@ -266,6 +266,7 @@ impl SettingsUI {
         dialog.set_window_title(&qtr("settings_title"));
         dialog.set_modal(true);
         dialog.resize_2a(750, 0);
+        dialog.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
 
         let main_grid = create_grid_layout(dialog.static_upcast());
         main_grid.set_contents_margins_4a(4, 0, 4, 4);
