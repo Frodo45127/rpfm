@@ -430,7 +430,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the file/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    &app_ui.main_window,
+                    app_ui.main_window(),
                     &qtr("context_menu_add_files"),
                 );
                 file_dialog.set_file_mode(FileMode::ExistingFiles);
@@ -452,7 +452,7 @@ impl PackFileContentsSlots {
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
                                 if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                    return show_dialog(&app_ui.main_window, format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {}", error), false);
                                 }
                             }
 
@@ -486,15 +486,15 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                app_ui.main_window.set_enabled(false);
+                                app_ui.main_window().set_enabled(false);
                                 PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, true);
-                                app_ui.main_window.set_enabled(true);
+                                app_ui.main_window().set_enabled(true);
                             }
                         }
 
                         // If there is no "MyMod" path configured, report it.
                         else {
-                            show_dialog(&app_ui.main_window, "MyMod path is not configured. Configure it in the settings and try again.", false)
+                            show_dialog(app_ui.main_window(), "MyMod path is not configured. Configure it in the settings and try again.", false)
                         }
                     }
 
@@ -517,9 +517,9 @@ impl PackFileContentsSlots {
                                 paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true));
                             }
 
-                            app_ui.main_window.set_enabled(false);
+                            app_ui.main_window().set_enabled(false);
                             PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, false);
-                            app_ui.main_window.set_enabled(true);
+                            app_ui.main_window().set_enabled(true);
                         }
                     }
                 }
@@ -534,7 +534,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    &app_ui.main_window,
+                    app_ui.main_window(),
                     &qtr("context_menu_add_folders"),
                 );
                 file_dialog.set_file_mode(FileMode::Directory);
@@ -556,7 +556,7 @@ impl PackFileContentsSlots {
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
                                 if let Err(error) = DirBuilder::new().recursive(true).create(&assets_folder) {
-                                    return show_dialog(&app_ui.main_window, format!("Error while creating the MyMod's Assets folder: {}", error), false);
+                                    return show_dialog(app_ui.main_window(), format!("Error while creating the MyMod's Assets folder: {}", error), false);
                                 }
                             }
 
@@ -588,9 +588,9 @@ impl PackFileContentsSlots {
                                     // Otherwise, they are added like normal files.
                                     else {
                                         if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
-                                            app_ui.main_window.set_enabled(false);
+                                            app_ui.main_window().set_enabled(false);
                                             PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, true);
-                                            app_ui.main_window.set_enabled(true);
+                                            app_ui.main_window().set_enabled(true);
                                         }
                                     }
                                 }
@@ -599,7 +599,7 @@ impl PackFileContentsSlots {
 
                         // If there is no "MyMod" path configured, report it.
                         else {
-                            show_dialog(&app_ui.main_window, "MyMod path is not configured. Configure it in the settings and try again.", false)
+                            show_dialog(app_ui.main_window(), "MyMod path is not configured. Configure it in the settings and try again.", false)
                         }
                     }
 
@@ -619,9 +619,9 @@ impl PackFileContentsSlots {
                             // Get the Paths of the files inside the folders we want to add.
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
 
-                                app_ui.main_window.set_enabled(false);
+                                app_ui.main_window().set_enabled(false);
                                 PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, false);
-                                app_ui.main_window.set_enabled(true);
+                                app_ui.main_window().set_enabled(true);
                             }
                         }
                     }
@@ -641,7 +641,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    &app_ui.main_window,
+                    app_ui.main_window(),
                     &qtr("context_menu_select_packfile"),
                 );
 
@@ -656,18 +656,18 @@ impl PackFileContentsSlots {
                     match response {
                         Response::ContainerInfoVecRFileInfo((pack_file_info, _)) => {
                             if pack_file_info.file_path() == &path_str {
-                                 return show_dialog(&app_ui.main_window, "You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.", false);
+                                 return show_dialog(app_ui.main_window(), "You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.", false);
                             }
                         },
-                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => return show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.main_window().set_enabled(false);
                     let fake_path = RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + &path_str;
                     AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
 
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                 }
             }
         ));
@@ -794,13 +794,13 @@ impl PackFileContentsSlots {
                                 let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
                                 let data = open_packedfiles.remove(position);
                                 let widget = data.get_mut_widget();
-                                let index = app_ui.tab_bar_packed_file.index_of(widget);
+                                let index = app_ui.tab_bar_packed_file().index_of(widget);
                                 let path_split_before = path_before.split("/").collect::<Vec<_>>();
                                 let path_split_after = path_after.split("/").collect::<Vec<_>>();
                                 let old_name = path_split_before.last().unwrap();
                                 let new_name = path_split_after.last().unwrap();
                                 if old_name != new_name {
-                                    app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(new_name));
+                                    app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
                                 }
 
                                 data.set_path(path_after);
@@ -830,7 +830,7 @@ impl PackFileContentsSlots {
                             blocker.unblock();
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
@@ -904,7 +904,7 @@ impl PackFileContentsSlots {
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                         // If the folder already exists, return an error.
-                        if folder_exists { return show_dialog(&app_ui.main_window, "That folder already exists in the current path.", false)}
+                        if folder_exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
@@ -947,7 +947,7 @@ impl PackFileContentsSlots {
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
-                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }));
@@ -1054,7 +1054,7 @@ impl PackFileContentsSlots {
 
                     for path in paths_to_close {
                         if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, true) {
-                            return show_dialog(&app_ui.main_window, error, false);
+                            return show_dialog(app_ui.main_window(), error, false);
                         }
                     }
 
@@ -1075,14 +1075,14 @@ impl PackFileContentsSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
 
             else {
-                show_dialog(&app_ui.main_window, "The files you selected are not all LOCs, neither DB Tables of the same type and version.", false);
+                show_dialog(app_ui.main_window(), "The files you selected are not all LOCs, neither DB Tables of the same type and version.", false);
             }
         }));
 
@@ -1104,7 +1104,7 @@ impl PackFileContentsSlots {
 
                     if close_path {
                         if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, true) {
-                            return show_dialog(&app_ui.main_window, error, false);
+                            return show_dialog(app_ui.main_window(), error, false);
                         }
                     }
 
@@ -1113,14 +1113,14 @@ impl PackFileContentsSlots {
                     match response {
                         Response::I32I32((old_version, new_version)) => {
                             let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
-                            show_dialog(&app_ui.main_window, message, true);
+                            show_dialog(app_ui.main_window(), message, true);
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
@@ -1142,7 +1142,7 @@ impl PackFileContentsSlots {
                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                 }
 
-                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }));

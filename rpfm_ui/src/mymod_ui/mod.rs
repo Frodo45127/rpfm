@@ -26,6 +26,8 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QPtr;
 
+use getset::Getters;
+
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -46,14 +48,15 @@ mod slots;
 //-------------------------------------------------------------------------------//
 
 /// `This struct holds all the relevant stuff for "MyMod"'s New Mod Window.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct MyModUI {
-    pub mymod_dialog: QBox<QDialog>,
-    pub mymod_game_combobox: QBox<QComboBox>,
-    pub mymod_name_line_edit: QBox<QLineEdit>,
-    pub mymod_cancel_button: QPtr<QPushButton>,
-    pub mymod_accept_button: QPtr<QPushButton>,
+    mymod_dialog: QBox<QDialog>,
+    mymod_game_combobox: QBox<QComboBox>,
+    mymod_name_line_edit: QBox<QLineEdit>,
+    mymod_cancel_button: QPtr<QPushButton>,
+    mymod_accept_button: QPtr<QPushButton>,
 }
-
 
 //-------------------------------------------------------------------------------//
 //                              Implementations
@@ -67,7 +70,7 @@ impl MyModUI {
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<(String, String)> {
 
         // Create the "New MyMod" Dialog and configure it.
-        let dialog = QDialog::new_1a(&app_ui.main_window);
+        let dialog = QDialog::new_1a(app_ui.main_window());
         let main_grid = create_grid_layout(dialog.static_upcast());
         dialog.set_window_title(&qtr("mymod_new"));
         dialog.set_modal(true);

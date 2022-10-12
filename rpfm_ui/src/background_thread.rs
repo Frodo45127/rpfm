@@ -198,16 +198,6 @@ pub fn background_loop() {
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while trying to save the currently open PackFile: {}", error))),
                 }
             }
-            /*
-
-            // In case we want to change the current shortcuts...
-            // TODO: Migrate the entire shortcut system to the Qt one.
-            Command::SetShortcuts(shortcuts) => {
-                match shortcuts.save() {
-                    Ok(()) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }*/
 
             // In case we want to get the data of a PackFile needed to form the TreeView...
             Command::GetPackFileDataForTreeView => {

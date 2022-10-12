@@ -466,7 +466,7 @@ impl AppUISlots {
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
                         match &*GAME_SELECTED.read().unwrap().game_key_name() {
                             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
@@ -674,8 +674,8 @@ impl AppUISlots {
 
                                     let mut build_data = BuildData::new();
                                     build_data.editable = true;
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                                     packfile_item.set_text(&QString::from_std_str(&full_mod_name));
 
@@ -787,7 +787,7 @@ impl AppUISlots {
                         UI_STATE.set_operational_mode(&app_ui, None);
                         let _ = CENTRAL_COMMAND.send_background(Command::ResetPackFile);
                         AppUI::enable_packfile_actions(&app_ui, &PathBuf::new(), false);
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                         show_dialog(&app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
@@ -822,25 +822,25 @@ impl AppUISlots {
             global_search_ui,
             dependencies_ui,
             references_ui => move || {
-                app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget.is_visible());
-                app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget.is_visible());
+                app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget().is_visible());
+                app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget().is_visible());
                 app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.diagnostics_dock_widget().is_visible());
-                app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget.is_visible());
-                app_ui.view_toggle_references_panel.set_checked(references_ui.references_dock_widget.is_visible());
+                app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget().is_visible());
+                app_ui.view_toggle_references_panel.set_checked(references_ui.references_dock_widget().is_visible());
         }));
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
             pack_file_contents_ui => move |state| {
-            if !state { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
-            else { pack_file_contents_ui.packfile_contents_dock_widget.show();}
+            if !state { pack_file_contents_ui.packfile_contents_dock_widget().hide(); }
+            else { pack_file_contents_ui.packfile_contents_dock_widget().show();}
         }));
 
         let view_toggle_global_search_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             global_search_ui => move |state| {
-            if !state { global_search_ui.global_search_dock_widget.hide(); }
+            if !state { global_search_ui.global_search_dock_widget().hide(); }
             else {
-                global_search_ui.global_search_dock_widget.show();
-                global_search_ui.global_search_search_combobox.set_focus_0a()
+                global_search_ui.global_search_dock_widget().show();
+                global_search_ui.global_search_search_combobox().set_focus_0a()
             }
         }));
 
@@ -852,14 +852,14 @@ impl AppUISlots {
 
         let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             dependencies_ui => move |state| {
-                if !state { dependencies_ui.dependencies_dock_widget.hide(); }
-                else { dependencies_ui.dependencies_dock_widget.show();}
+                if !state { dependencies_ui.dependencies_dock_widget().hide(); }
+                else { dependencies_ui.dependencies_dock_widget().show();}
         }));
 
         let view_toggle_references_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             references_ui => move |state| {
-                if !state { references_ui.references_dock_widget.hide(); }
-                else { references_ui.references_dock_widget.show();}
+                if !state { references_ui.references_dock_widget().hide(); }
+                else { references_ui.references_dock_widget().show();}
         }));
 
         //-----------------------------------------------//
@@ -962,9 +962,9 @@ impl AppUISlots {
                             let mut asskit_build_data = BuildData::new();
                             asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
 
-                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
-                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-                            dependencies_ui.dependencies_tree_view.update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+                            dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
 
                             wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
@@ -1005,7 +1005,7 @@ impl AppUISlots {
                         Response::HashSetString(response) => {
                             let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response), DataSource::PackFile);
                             show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
                         }
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1040,7 +1040,7 @@ impl AppUISlots {
                     Response::StringHashSetString(message, paths) => {
                         let paths = paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
 
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
                         show_dialog(&app_ui.main_window, &message, true);
                     }
 
@@ -1088,10 +1088,10 @@ impl AppUISlots {
                             Response::ContainerInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
-                                let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                                let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                 packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                                 packfile_item.set_text(&QString::from_std_str(&file_name));
 
@@ -1494,7 +1494,7 @@ impl AppUISlots {
                 info!("Triggering `Import from Dependencies` By Slot");
 
                 // Only allow importing if we currently have a PackFile open.
-                if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
 
                     // What this does:
                     // - Get the data source and path of the open file.

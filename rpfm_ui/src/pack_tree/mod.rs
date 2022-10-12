@@ -460,7 +460,7 @@ impl PackTree for QBox<QTreeView> {
     }
 
     unsafe fn get_items_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<Ptr<QStandardItem>> {
-        let tree_view = &pack_file_contents_ui.packfile_contents_tree_view;
+        let tree_view = &pack_file_contents_ui.packfile_contents_tree_view();
         let filter: QPtr<QSortFilterProxyModel> = tree_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
@@ -488,7 +488,7 @@ impl PackTree for QBox<QTreeView> {
 
     unsafe fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<ContainerPath> {
         let items = Self::get_items_from_main_treeview_selection(pack_file_contents_ui);
-        items.iter().map(|x| Self::get_type_from_item(*x, &pack_file_contents_ui.packfile_contents_tree_model.static_upcast())).collect()
+        items.iter().map(|x| Self::get_type_from_item(*x, &pack_file_contents_ui.packfile_contents_tree_model().static_upcast())).collect()
     }
 
     unsafe fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<ContainerPath> {
@@ -767,7 +767,7 @@ impl PackTree for QBox<QTreeView> {
         for path in &mut paths {
 
             // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
-            let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
+            let selected_paths = pack_file_contents_ui.packfile_contents_tree_view().get_path_from_selection();
             let mut base_path = selected_paths[0].to_owned();
 
             if base_path.ends_with('/') {

@@ -12,6 +12,7 @@
 Module containing the ffi functions used for custom widgets.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
 use qt_widgets::QLineEdit;
@@ -32,6 +33,7 @@ use qt_core::QByteArray;
 
 use qt_core::QAbstractItemModel;
 use qt_core::QBox;
+use qt_core::QListOfQObject;
 use qt_core::QObject;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -302,6 +304,30 @@ extern "C" { fn kmessage_widget_set_info(widget: *mut QWidget, text: *const QStr
 #[allow(dead_code)]
 pub fn kmessage_widget_set_info_safe(widget: &Ptr<QWidget>, text: Ptr<QString>) {
     unsafe { kmessage_widget_set_info(widget.as_mut_raw_ptr(), text.as_raw_ptr()) }
+}
+
+//---------------------------------------------------------------------------//
+// KShortcutsDialog stuff.
+//---------------------------------------------------------------------------//
+
+extern "C" { fn shortcut_collection_init(widget: *mut QWidget, shortcuts: *const QListOfQObject); }
+pub fn shortcut_collection_init_safe(widget: &Ptr<QWidget>, shortcuts: Ptr<QListOfQObject>) {
+    unsafe { shortcut_collection_init(widget.as_mut_raw_ptr(), shortcuts.as_raw_ptr()) }
+}
+
+extern "C" { fn shortcut_action(shortcuts: *const QListOfQObject, action_group: *const QString, action_name: *const QString) -> *const QAction; }
+pub fn shortcut_action_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QString>, action_name: Ptr<QString>) -> QPtr<QAction> {
+    unsafe { QPtr::from_raw(shortcut_action(shortcuts.as_raw_ptr(), action_group.as_raw_ptr(), action_name.as_raw_ptr())) }
+}
+
+extern "C" { fn shortcut_associate_action_group_to_widget(shortcuts: *const QListOfQObject, action_group: *const QString, widget: *const QWidget); }
+pub fn shortcut_associate_action_group_to_widget_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QString>, widget: Ptr<QWidget>) {
+    unsafe { shortcut_associate_action_group_to_widget(shortcuts.as_raw_ptr(), action_group.as_raw_ptr(), widget.as_raw_ptr()) }
+}
+
+extern "C" { fn kshortcut_dialog_init(widget: *mut QWidget, shortcuts: *const QListOfQObject); }
+pub fn kshortcut_dialog_init_safe(widget: &Ptr<QWidget>, shortcuts: cpp_core::Ref<QListOfQObject>) {
+    unsafe { kshortcut_dialog_init(widget.as_mut_raw_ptr(), shortcuts.as_ptr().as_raw_ptr()) }
 }
 
 //---------------------------------------------------------------------------//

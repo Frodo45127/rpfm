@@ -33,6 +33,7 @@ SOURCES += \
     src/extended_q_styled_item_delegate.cpp \
     src/kcolor_combo.cpp \
     src/kmessage_widget.cpp \
+    src/kshortcuts_dialog.cpp \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
@@ -56,6 +57,7 @@ HEADERS += \
     include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
     include/kmessage_widget.h \
+    include/kshortcuts_dialog.h \
     include/qt_subclasses_global.h \
     include/tableview_command_palette.h \
     include/tableview_filter.h \

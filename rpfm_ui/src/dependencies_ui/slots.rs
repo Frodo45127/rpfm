@@ -150,14 +150,14 @@ impl DependenciesUISlots {
                             dependencies_ui.context_menu_import.set_enabled(false);
                         },
                         DataSource::ParentFiles => {
-                            if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                            if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
                                 dependencies_ui.context_menu_import.set_enabled(true);
                             } else {
                                 dependencies_ui.context_menu_import.set_enabled(false);
                             }
                         },
                         DataSource::GameFiles => {
-                            if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                            if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
                                 dependencies_ui.context_menu_import.set_enabled(true);
                             } else {
                                 dependencies_ui.context_menu_import.set_enabled(false);

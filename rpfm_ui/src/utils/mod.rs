@@ -12,10 +12,12 @@
 Module with all the utility functions, to make our programming lives easier.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::QApplication;
 use qt_widgets::QDialog;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
+use qt_widgets::QMenu;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
@@ -25,6 +27,7 @@ use qt_ui_tools::QUiLoader;
 
 use qt_core::QBox;
 use qt_core::QFlags;
+use qt_core::QListOfQObject;
 use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QObject;
@@ -284,6 +287,13 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
     accept_button.released().connect(dialog.slot_accept());
     cancel_button.released().connect(dialog.slot_close());
     dialog.exec();
+}
+
+pub unsafe fn add_action_to_menu(menu: &QPtr<QMenu>, shortcuts: Ref<QListOfQObject>, action_group: &str, action_name: &str, action_translation_key: &str) -> QPtr<QAction> {
+    let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).as_ptr(), QString::from_std_str(action_name).as_ptr());
+    action.set_text(&qtr(action_translation_key));
+    menu.add_action(action.as_ptr());
+    action
 }
 
 /// This function deletes all widgets from a widget's layout.

@@ -58,7 +58,7 @@ impl PackedFileExternalViewSlots {
             pack_file_contents_ui,
             packed_file_path => move || {
                 if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, true) {
-                    show_dialog(&app_ui.main_window, error, false);
+                    show_dialog(app_ui.main_window(), error, false);
                 }
             }
         ));

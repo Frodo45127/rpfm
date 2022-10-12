@@ -472,7 +472,7 @@ impl PackedFileView {
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
                             Response::Success => {},
-                            Response::Error(error) => show_dialog(&pack_file_contents_ui.packfile_contents_tree_view, error, false),
+                            Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
 
@@ -509,7 +509,7 @@ impl PackedFileView {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
                                 }
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -520,7 +520,7 @@ impl PackedFileView {
                         Response::AnimPackRFileInfo(anim_pack, files_info, file_info) => {
                             if let View::AnimPack(old_anim_pack) = view {
                                 old_anim_pack.reload_view((anim_pack, files_info));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -532,7 +532,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::AnimsTable(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -543,7 +543,7 @@ impl PackedFileView {
                         Response::CaVp8RFileInfo(ca_vp8, packed_file_info) => {
                             if let View::CaVp8(old_ca_vp8) = view {
                                 old_ca_vp8.reload_view(&ca_vp8);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -554,7 +554,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::DB(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -565,7 +565,7 @@ impl PackedFileView {
                         Response::ImageRFileInfo(image, packed_file_info) => {
                             if let View::Image(old_image) = view {
                                 old_image.reload_view(&image);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {
                                 return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -576,7 +576,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Loc(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -588,7 +588,7 @@ impl PackedFileView {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::MatchedCombat(table));
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -611,7 +611,7 @@ impl PackedFileView {
                         Response::TextRFileInfo(text, packed_file_info) => {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                             }
                             else {
@@ -625,7 +625,7 @@ impl PackedFileView {
                                 RFileDecoded::UnitVariant(variant) => {
                                     if let View::UnitVariant(old_variant) = view {
                                         old_variant.reload_view(&variant);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                                     }
                                     else {
@@ -635,7 +635,7 @@ impl PackedFileView {
                                 RFileDecoded::ESF(esf) => {
                                     if let View::ESF(old_esf) = view {
                                         old_esf.reload_view(&esf);
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
 
                                     }
                                     else {

@@ -55,7 +55,6 @@ use rpfm_lib::updater::APIResponse;
 use crate::app_ui::NewPackedFile;
 use crate::backend::*;
 //use crate::packedfile_views::DataSource;
-use crate::ui_state::shortcuts::Shortcuts;
 use crate::updater::APIResponse;
 use crate::views::table::TableType;
 
@@ -108,9 +107,6 @@ pub enum Command {
 
     /// This command is used when we want to save our settings to disk. It requires the settings to save.
     //SetSettings(Settings),
-
-    /// This command is used when we want to save our shortcuts to disk. It requires the shortcuts to save.
-    SetShortcuts(Shortcuts),
 
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,

@@ -26,6 +26,7 @@ use crate::UI_STATE;
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
 pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
+    /*
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     // Set the shortcuts for these actions.
@@ -107,5 +108,5 @@ pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     ui.table_view_primary_ptr().add_action(ui.context_menu_undo());
     ui.table_view_primary_ptr().add_action(ui.context_menu_redo());
     ui.table_view_primary_ptr().add_action(ui.context_menu_cascade_edition());
-    ui.table_view_primary_ptr().add_action(ui.context_menu_go_to_definition());
+    ui.table_view_primary_ptr().add_action(ui.context_menu_go_to_definition());*/
 }

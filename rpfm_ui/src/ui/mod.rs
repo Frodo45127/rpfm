@@ -124,11 +124,11 @@ impl UI {
     /// This function initialize the entire `UI`.
     pub unsafe fn new(app: Ptr<QApplication>) -> Self {
         let app_ui = Rc::new(AppUI::new());
-        let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window));
-        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
-        let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
-        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui.main_window));
-        let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window));
+        let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window()));
+        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui));
+        let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window()));
+        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui));
+        let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window()));
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
@@ -141,19 +141,15 @@ impl UI {
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);
-        app_ui::shortcuts::set_shortcuts(&app_ui);
 
         global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
         global_search_ui::tips::set_tips(&global_search_ui);
-        global_search_ui::shortcuts::set_shortcuts(&global_search_ui);
 
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
-        packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
 
         dependencies_ui::connections::set_connections(&dependencies_ui, &dependencies_slots);
         dependencies_ui::tips::set_tips(&dependencies_ui);
-        dependencies_ui::shortcuts::set_shortcuts(&dependencies_ui);
 
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
         references_ui::connections::set_connections(&references_ui, &references_slots);
@@ -168,13 +164,13 @@ impl UI {
 
         // TODO: this may be wrong.
         if !q_settings.contains(&QString::from_std_str("originalGeometry")) {
-            q_settings.set_value(&QString::from_std_str("originalGeometry"), &QVariant::from_q_byte_array(&app_ui.main_window.save_geometry()));
-            q_settings.set_value(&QString::from_std_str("originalWindowState"), &QVariant::from_q_byte_array(&app_ui.main_window.save_state_0a()));
+            q_settings.set_value(&QString::from_std_str("originalGeometry"), &QVariant::from_q_byte_array(&app_ui.main_window().save_geometry()));
+            q_settings.set_value(&QString::from_std_str("originalWindowState"), &QVariant::from_q_byte_array(&app_ui.main_window().save_state_0a()));
             sync_needed = true;
         }
 
-        app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
-        app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
+        app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("geometry")).to_byte_array());
+        app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("windowState")).to_byte_array());
 
         if sync_needed {
             q_settings.sync();
@@ -186,22 +182,22 @@ impl UI {
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
         match &*setting_string("default_game") {
-            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
-            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
-            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
-            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
-            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
-            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
-            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
-            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
-            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
-            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
-            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
-            KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
+            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3().set_checked(true),
+            KEY_TROY => app_ui.game_selected_troy().set_checked(true),
+            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms().set_checked(true),
+            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2().set_checked(true),
+            KEY_WARHAMMER => app_ui.game_selected_warhammer().set_checked(true),
+            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia().set_checked(true),
+            KEY_ATTILA => app_ui.game_selected_attila().set_checked(true),
+            KEY_ROME_2 => app_ui.game_selected_rome_2().set_checked(true),
+            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2().set_checked(true),
+            KEY_NAPOLEON => app_ui.game_selected_napoleon().set_checked(true),
+            KEY_EMPIRE => app_ui.game_selected_empire().set_checked(true),
+            KEY_ARENA  => app_ui.game_selected_arena().set_checked(true),
 
             // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
             // So just in case, by default we use WH3.
-            _ => app_ui.game_selected_warhammer_3.set_checked(true),
+            _ => app_ui.game_selected_warhammer_3().set_checked(true),
         }
 
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
@@ -211,7 +207,7 @@ impl UI {
 
         // If we want the window to start maximized...
         if setting_bool("start_maximized") {
-            app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
+            app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
         if !setting_string("font_name").is_empty() && !setting_string("font_size").is_empty() {
@@ -253,7 +249,7 @@ impl UI {
         }
 
         // Show the Main Window...
-        app_ui.main_window.show();
+        app_ui.main_window().show();
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
@@ -263,7 +259,7 @@ impl UI {
             if path.is_file() {
                 info!("Directly opening PackFile {}.", path.to_string_lossy().to_string());
                 if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
-                    show_dialog(&app_ui.main_window, error, false);
+                    show_dialog(app_ui.main_window(), error, false);
                 } else if setting_bool("diagnostics_trigger_on_open") {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
@@ -271,7 +267,7 @@ impl UI {
         }
 
         if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
-            show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
+            show_dialog(app_ui.main_window(), &tr("error_not_booted_from_launcher"), false);
         }
 
         // If we have it enabled in the prefs, check if there are updates.
@@ -320,6 +316,7 @@ impl UI {
                 q_settings.set_value(&first_boot_setting, &QVariant::from_bool(true));
             }
         }
+
         info!("Initialization complete.");
         Self {
             app_ui,
@@ -369,17 +366,17 @@ impl GameSelectedIcons {
             KEY_ARENA => &GAME_SELECTED_ICONS.arena,
             _ => unimplemented!(),
         };
-        app_ui.main_window.set_window_icon(ref_from_atomic(&*icon));
+        app_ui.main_window().set_window_icon(ref_from_atomic(&*icon));
 
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
 
         if !setting_bool("hide_background_icon") {
-            if app_ui.tab_bar_packed_file.count() == 0 {
+            if app_ui.tab_bar_packed_file().count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
                 let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
-                app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str(&format!("
+                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str(&format!("
                     QTabWidget::pane {{
                         background-image: url('{}');
                         background-repeat: no-repeat;
@@ -391,7 +388,7 @@ impl GameSelectedIcons {
             else {
 
                 // This is laggy after a while.
-                app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
+                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
             }
         }
     }

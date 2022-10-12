@@ -623,9 +623,9 @@ impl TableViewSlots {
                         if let Some(reference_data) = view.reference_map.get(field.name()) {
 
                             // Stop if we have another find already running.
-                            if references_ui.references_table_view.is_enabled() {
-                                references_ui.references_dock_widget.show();
-                                references_ui.references_table_view.set_enabled(false);
+                            if references_ui.references_table_view().is_enabled() {
+                                references_ui.references_dock_widget().show();
+                                references_ui.references_table_view().set_enabled(false);
 
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
@@ -635,7 +635,7 @@ impl TableViewSlots {
                                         references_ui.load_references_to_ui(data);
 
                                         // Reenable the table.
-                                        references_ui.references_table_view.set_enabled(true);
+                                        references_ui.references_table_view().set_enabled(true);
                                     }
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                 }

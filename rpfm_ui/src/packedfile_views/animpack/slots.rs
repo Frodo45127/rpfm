@@ -85,7 +85,7 @@ impl PackedFileAnimPackViewSlots {
                     }
 
                     // Ask the Background Thread to copy the files, and send him the path.
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.main_window().set_enabled(false);
                     let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFileToAnimpack(view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
@@ -99,12 +99,12 @@ impl PackedFileAnimPackViewSlots {
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable and re-focus the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                     view.pack_tree_view.clear_focus();
                     view.pack_tree_view.set_focus_0a();
                 }
@@ -123,7 +123,7 @@ impl PackedFileAnimPackViewSlots {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the Background Thread to copy the files, and send him the path.
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.main_window().set_enabled(false);
                     let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
@@ -145,12 +145,12 @@ impl PackedFileAnimPackViewSlots {
                                 }
                             }
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable and re-focus the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                     view.pack_tree_view.clear_focus();
                     view.pack_tree_view.set_focus_0a();
                 }
@@ -182,7 +182,7 @@ impl PackedFileAnimPackViewSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }

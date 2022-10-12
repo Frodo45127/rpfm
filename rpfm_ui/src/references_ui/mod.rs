@@ -63,15 +63,16 @@ pub mod slots;
 
 /// This struct contains all the pointers we need to access the widgets in the References panel.
 #[derive(Getters)]
+#[getset(get = "pub")]
 pub struct ReferencesUI {
 
     //-------------------------------------------------------------------------------//
     // `References` Dock Widget.
     //-------------------------------------------------------------------------------//
-    pub references_dock_widget: QBox<QDockWidget>,
-    pub references_table_view: QBox<QTableView>,
-    pub references_table_filter: QBox<QSortFilterProxyModel>,
-    pub references_table_model: QBox<QStandardItemModel>,
+    references_dock_widget: QBox<QDockWidget>,
+    references_table_view: QBox<QTableView>,
+    references_table_filter: QBox<QSortFilterProxyModel>,
+    references_table_model: QBox<QStandardItemModel>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -213,24 +214,24 @@ impl ReferencesUI {
 
         match reference_data_source {
             DataSource::PackFile => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.static_upcast::<QObject>());
-                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
+                        pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
             },
             DataSource::ParentFiles |
             DataSource::AssKitFiles |
             DataSource::GameFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
-                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
             },

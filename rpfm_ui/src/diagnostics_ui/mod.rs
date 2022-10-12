@@ -471,7 +471,7 @@ impl DiagnosticsUI {
             return;
         }
 
-        app_ui.menu_bar_packfile.set_enabled(false);
+        app_ui.menu_bar_packfile().set_enabled(false);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
         let response = CentralCommand::recv_try(&receiver);
@@ -487,7 +487,7 @@ impl DiagnosticsUI {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
-        app_ui.menu_bar_packfile.set_enabled(true);
+        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
@@ -498,7 +498,7 @@ impl DiagnosticsUI {
             return;
         }
 
-        app_ui.menu_bar_packfile.set_enabled(false);
+        app_ui.menu_bar_packfile().set_enabled(false);
 
         let diagnostics = UI_STATE.get_diagnostics();
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
@@ -515,7 +515,7 @@ impl DiagnosticsUI {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
-        app_ui.menu_bar_packfile.set_enabled(true);
+        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
@@ -812,7 +812,7 @@ impl DiagnosticsUI {
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
         let item_path = model.item_2a(model_index.row(), 3);
         let path = item_path.text().to_std_string();
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
@@ -824,8 +824,8 @@ impl DiagnosticsUI {
 
             if let Some(ref tree_index) = tree_index {
                 if tree_index.is_valid() {
-                    pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                    pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                    pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                 }
             }
 
@@ -922,21 +922,21 @@ impl DiagnosticsUI {
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
                         match &*GAME_SELECTED.read().unwrap().game_key_name() {
-                            KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache.trigger(),
-                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache.trigger(),
-                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache.trigger(),
-                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache.trigger(),
-                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache.trigger(),
-                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache.trigger(),
-                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache.trigger(),
-                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache.trigger(),
-                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache.trigger(),
-                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache.trigger(),
+                            KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache().trigger(),
+                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache().trigger(),
+                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache().trigger(),
+                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache().trigger(),
+                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache().trigger(),
+                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache().trigger(),
+                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache().trigger(),
+                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache().trigger(),
+                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache().trigger(),
+                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache().trigger(),
+                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache().trigger(),
                             _ => {}
                         }
                     }
-                    "IncorrectGamePath" => app_ui.packfile_preferences.trigger(),
+                    "IncorrectGamePath" => app_ui.packfile_preferences().trigger(),
                     _ => {}
                 }
             }
@@ -959,7 +959,7 @@ impl DiagnosticsUI {
         };
 
         if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| &view.get_path() == path) {
-            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
@@ -1137,7 +1137,7 @@ impl DiagnosticsUI {
         for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
 
             // Only update the visible tables.
-            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.get_view() {
@@ -1243,7 +1243,7 @@ impl DiagnosticsUI {
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
             let open_packedfiles_ref = open_packedfiles.iter()
-                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1)
+                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file().index_of(x.get_mut_widget()) != -1)
                 .collect::<Vec<&PackedFileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {

@@ -47,6 +47,8 @@ use qt_core::QVariant;
 
 use cpp_core::Ptr;
 
+use getset::Getters;
+
 use std::rc::Rc;
 
 use rpfm_extensions::search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
@@ -66,7 +68,6 @@ use crate::utils::{create_grid_layout, show_dialog};
 use crate::UI_STATE;
 
 pub mod connections;
-pub mod shortcuts;
 pub mod slots;
 pub mod tips;
 
@@ -75,61 +76,63 @@ pub mod tips;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the Global Search panel.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct GlobalSearchUI {
-    pub global_search_dock_widget: QBox<QDockWidget>,
-    pub global_search_search_combobox: QBox<QComboBox>,
-    pub global_search_search_button: QBox<QPushButton>,
+    global_search_dock_widget: QBox<QDockWidget>,
+    global_search_search_combobox: QBox<QComboBox>,
+    global_search_search_button: QBox<QPushButton>,
 
-    pub global_search_replace_line_edit: QBox<QLineEdit>,
-    pub global_search_replace_button: QBox<QPushButton>,
-    pub global_search_replace_all_button: QBox<QPushButton>,
+    global_search_replace_line_edit: QBox<QLineEdit>,
+    global_search_replace_button: QBox<QPushButton>,
+    global_search_replace_all_button: QBox<QPushButton>,
 
-    pub global_search_clear_button: QBox<QPushButton>,
-    pub global_search_case_sensitive_checkbox: QBox<QCheckBox>,
-    pub global_search_use_regex_checkbox: QBox<QCheckBox>,
+    global_search_clear_button: QBox<QPushButton>,
+    global_search_case_sensitive_checkbox: QBox<QCheckBox>,
+    global_search_use_regex_checkbox: QBox<QCheckBox>,
 
-    pub global_search_search_source_packfile: QBox<QRadioButton>,
-    pub global_search_search_source_parent: QBox<QRadioButton>,
-    pub global_search_search_source_game: QBox<QRadioButton>,
-    pub global_search_search_source_asskit: QBox<QRadioButton>,
+    global_search_search_source_packfile: QBox<QRadioButton>,
+    global_search_search_source_parent: QBox<QRadioButton>,
+    global_search_search_source_game: QBox<QRadioButton>,
+    global_search_search_source_asskit: QBox<QRadioButton>,
 
-    pub global_search_search_on_all_checkbox: QBox<QCheckBox>,
-    pub global_search_search_on_dbs_checkbox: QBox<QCheckBox>,
-    pub global_search_search_on_locs_checkbox: QBox<QCheckBox>,
-    pub global_search_search_on_texts_checkbox: QBox<QCheckBox>,
-    pub global_search_search_on_schemas_checkbox: QBox<QCheckBox>,
+    global_search_search_on_all_checkbox: QBox<QCheckBox>,
+    global_search_search_on_dbs_checkbox: QBox<QCheckBox>,
+    global_search_search_on_locs_checkbox: QBox<QCheckBox>,
+    global_search_search_on_texts_checkbox: QBox<QCheckBox>,
+    global_search_search_on_schemas_checkbox: QBox<QCheckBox>,
 
-    pub global_search_matches_tab_widget: QBox<QTabWidget>,
+    global_search_matches_tab_widget: QBox<QTabWidget>,
 
-    pub global_search_matches_db_tree_view: QBox<QTreeView>,
-    pub global_search_matches_loc_tree_view: QBox<QTreeView>,
-    pub global_search_matches_text_tree_view: QBox<QTreeView>,
-    pub global_search_matches_schema_tree_view: QBox<QTreeView>,
+    global_search_matches_db_tree_view: QBox<QTreeView>,
+    global_search_matches_loc_tree_view: QBox<QTreeView>,
+    global_search_matches_text_tree_view: QBox<QTreeView>,
+    global_search_matches_schema_tree_view: QBox<QTreeView>,
 
-    pub global_search_matches_db_tree_filter: QBox<QSortFilterProxyModel>,
-    pub global_search_matches_loc_tree_filter: QBox<QSortFilterProxyModel>,
-    pub global_search_matches_text_tree_filter: QBox<QSortFilterProxyModel>,
-    pub global_search_matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
+    global_search_matches_db_tree_filter: QBox<QSortFilterProxyModel>,
+    global_search_matches_loc_tree_filter: QBox<QSortFilterProxyModel>,
+    global_search_matches_text_tree_filter: QBox<QSortFilterProxyModel>,
+    global_search_matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
 
-    pub global_search_matches_db_tree_model: QBox<QStandardItemModel>,
-    pub global_search_matches_loc_tree_model: QBox<QStandardItemModel>,
-    pub global_search_matches_text_tree_model: QBox<QStandardItemModel>,
-    pub global_search_matches_schema_tree_model: QBox<QStandardItemModel>,
+    global_search_matches_db_tree_model: QBox<QStandardItemModel>,
+    global_search_matches_loc_tree_model: QBox<QStandardItemModel>,
+    global_search_matches_text_tree_model: QBox<QStandardItemModel>,
+    global_search_matches_schema_tree_model: QBox<QStandardItemModel>,
 
-    pub global_search_matches_filter_db_line_edit: QBox<QLineEdit>,
-    pub global_search_matches_filter_loc_line_edit: QBox<QLineEdit>,
-    pub global_search_matches_filter_text_line_edit: QBox<QLineEdit>,
-    pub global_search_matches_filter_schema_line_edit: QBox<QLineEdit>,
+    global_search_matches_filter_db_line_edit: QBox<QLineEdit>,
+    global_search_matches_filter_loc_line_edit: QBox<QLineEdit>,
+    global_search_matches_filter_text_line_edit: QBox<QLineEdit>,
+    global_search_matches_filter_schema_line_edit: QBox<QLineEdit>,
 
-    pub global_search_matches_case_sensitive_db_button: QBox<QPushButton>,
-    pub global_search_matches_case_sensitive_loc_button: QBox<QPushButton>,
-    pub global_search_matches_case_sensitive_text_button: QBox<QPushButton>,
-    pub global_search_matches_case_sensitive_schema_button: QBox<QPushButton>,
+    global_search_matches_case_sensitive_db_button: QBox<QPushButton>,
+    global_search_matches_case_sensitive_loc_button: QBox<QPushButton>,
+    global_search_matches_case_sensitive_text_button: QBox<QPushButton>,
+    global_search_matches_case_sensitive_schema_button: QBox<QPushButton>,
 
-    pub global_search_matches_column_selector_db_combobox: QBox<QComboBox>,
-    pub global_search_matches_column_selector_loc_combobox: QBox<QComboBox>,
-    pub global_search_matches_column_selector_text_combobox: QBox<QComboBox>,
-    pub global_search_matches_column_selector_schema_combobox: QBox<QComboBox>,
+    global_search_matches_column_selector_db_combobox: QBox<QComboBox>,
+    global_search_matches_column_selector_loc_combobox: QBox<QComboBox>,
+    global_search_matches_column_selector_text_combobox: QBox<QComboBox>,
+    global_search_matches_column_selector_schema_combobox: QBox<QComboBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -489,7 +492,7 @@ impl GlobalSearchUI {
                 Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
 
                 UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
             _ => unimplemented!()
         }
@@ -513,7 +516,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::Pack {
-            return show_dialog(&app_ui.main_window, "The dependencies are read-only. You cannot do a Global Replace over them.", false);
+            return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
@@ -546,7 +549,7 @@ impl GlobalSearchUI {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
                 Self::search(pack_file_contents_ui, global_search_ui);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
                 // Update the views of the updated PackedFiles.
                 for replace_match in matches {
@@ -558,7 +561,7 @@ impl GlobalSearchUI {
 
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
-                            show_dialog(&app_ui.main_window, error, false);
+                            show_dialog(app_ui.main_window(), error, false);
                         }
                     }
 
@@ -578,7 +581,7 @@ impl GlobalSearchUI {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
         if let Err(error) = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui) {
-            return show_dialog(&app_ui.main_window, error, false);
+            return show_dialog(app_ui.main_window(), error, false);
         }
 
         Self::search(pack_file_contents_ui, global_search_ui);
@@ -586,7 +589,7 @@ impl GlobalSearchUI {
         let mut global_search = UI_STATE.get_global_search();
 
         if global_search.source != SearchSource::Pack {
-            return show_dialog(&app_ui.main_window, "The dependencies are read-only. You cannot do a Global Replace over them.", false);
+            return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
         global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
@@ -626,12 +629,12 @@ impl GlobalSearchUI {
                 for path in packed_files_info.iter().map(|x| x.path()) {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
-                            show_dialog(&app_ui.main_window, error, false);
+                            show_dialog(app_ui.main_window(), error, false);
                         }
                     }
                 }
 
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
             _ => unimplemented!()
         }
@@ -677,15 +680,15 @@ impl GlobalSearchUI {
         let global_search = UI_STATE.get_global_search();
         let data_source = match global_search.source {
             SearchSource::Pack => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
 
                 // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
                 UI_STATE.set_packfile_contents_read_only(true);
 
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
 
@@ -694,34 +697,34 @@ impl GlobalSearchUI {
             },
 
             SearchSource::ParentFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::ParentFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::ParentFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
-                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
                 DataSource::ParentFiles
             },
             SearchSource::GameFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::GameFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::GameFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
-                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
                 DataSource::GameFiles
             },
             SearchSource::AssKitFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&path, DataSource::AssKitFiles);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&path, DataSource::AssKitFiles);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
-                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
                 DataSource::AssKitFiles

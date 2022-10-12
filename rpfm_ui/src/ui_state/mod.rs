@@ -28,10 +28,6 @@ use crate::app_ui::AppUI;
 use crate::packedfile_views::PackedFileView;
 use crate::packfile_contents_ui::PackFileContentsUI;
 
-use self::shortcuts::Shortcuts;
-
-pub mod shortcuts;
-
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -41,9 +37,6 @@ pub struct UIState {
 
     /// This stores the current state of the PackFile.
     is_modified: AtomicBool,
-
-    /// This stores the current shortcuts in memory, so they can be re-applied when needed.
-    shortcuts: Arc<RwLock<Shortcuts>>,
 
     /// This stores if we have put the `PackFile Contents` view in read-only mode.
     packfile_contents_read_only: AtomicBool,
@@ -83,7 +76,6 @@ impl Default for UIState {
     fn default() -> Self {
         Self {
             is_modified: AtomicBool::new(false),
-            shortcuts: Arc::new(RwLock::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new()))),
             packfile_contents_read_only: AtomicBool::new(false),
             open_packedfiles: Arc::new(RwLock::new(vec![])),
             operational_mode: Arc::new(RwLock::new(OperationalMode::Normal)),
@@ -105,21 +97,6 @@ impl UIState {
     pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         self.is_modified.store(is_modified, Ordering::SeqCst);
         AppUI::update_window_title(app_ui, pack_file_contents_ui);
-    }
-
-    /// This function returns the current Shortcuts.
-    pub fn get_shortcuts(&self) -> Shortcuts{
-        self.shortcuts.read().unwrap().clone()
-    }
-
-    /// This function returns a read-only non-locking guard to the Shortcuts.
-    pub fn get_shortcuts_no_lock(&self) -> RwLockReadGuard<Shortcuts> {
-        self.shortcuts.read().unwrap()
-    }
-
-    /// This function replaces the current Shortcuts with the provided one.
-    pub fn set_shortcuts(&self, shortcuts: &Shortcuts) {
-        *self.shortcuts.write().unwrap() = shortcuts.clone();
     }
 
     /// This function gets if the `PackFile Contents` TreeView is in read-only mode or not.
@@ -180,18 +157,18 @@ impl UIState {
                 *self.operational_mode.write().unwrap() = OperationalMode::MyMod(game_folder_name, mod_name);
 
                 // Enable all the "MyMod" related actions.
-                unsafe { app_ui.mymod_delete_selected.set_enabled(true); }
-                unsafe { app_ui.mymod_import.set_enabled(true); }
-                unsafe { app_ui.mymod_export.set_enabled(true); }
+                unsafe { app_ui.mymod_delete_selected().set_enabled(true); }
+                unsafe { app_ui.mymod_import().set_enabled(true); }
+                unsafe { app_ui.mymod_export().set_enabled(true); }
             }
 
             // If `None` has been provided, we disable the MyMod mode.
             None => {
                 *self.operational_mode.write().unwrap() = OperationalMode::Normal;
 
-                unsafe { app_ui.mymod_delete_selected.set_enabled(false); }
-                unsafe { app_ui.mymod_import.set_enabled(false); }
-                unsafe { app_ui.mymod_export.set_enabled(false); }
+                unsafe { app_ui.mymod_delete_selected().set_enabled(false); }
+                unsafe { app_ui.mymod_import().set_enabled(false); }
+                unsafe { app_ui.mymod_export().set_enabled(false); }
             }
         }
     }

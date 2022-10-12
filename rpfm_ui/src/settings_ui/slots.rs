@@ -13,6 +13,7 @@ Module with all the code related to `SettingsUISlots`.
 !*/
 
 use qt_widgets::QColorDialog;
+use qt_widgets::QDialog;
 use qt_widgets::QFontDialog;
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
@@ -39,11 +40,10 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;
-use crate::locale::tr;
+use crate::locale::{qtr, tr};
 use crate::QT_PROGRAM;
 use crate::QT_ORG;
 use crate::settings_ui::SettingsUI;
-use crate::shortcuts_ui::ShortcutsUI;
 use crate::UI_STATE;
 use crate::utils::show_dialog;
 
@@ -108,8 +108,8 @@ impl SettingsUISlots {
 
                 // Restore layout settings. TODO: move this to initialization of settings.
                 let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
 
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
@@ -156,18 +156,10 @@ impl SettingsUISlots {
         }
 
         // What happens when we hit the "Shortcuts" button.
-        let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(ui => move || {
-
-            // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
-            if let Some(shortcuts) = ShortcutsUI::new(&ui.dialog) {
-                let receiver = CENTRAL_COMMAND.send_background(Command::SetShortcuts(shortcuts.clone()));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => UI_STATE.set_shortcuts(&shortcuts),
-                    Response::Error(error) => show_dialog(&ui.dialog, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
-            }
+        let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(
+            app_ui,
+            ui => move || {
+                crate::ffi::kshortcut_dialog_init_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr(), app_ui.shortcuts().as_ref());
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.
@@ -234,8 +226,8 @@ impl SettingsUISlots {
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
                 let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
         }));
 

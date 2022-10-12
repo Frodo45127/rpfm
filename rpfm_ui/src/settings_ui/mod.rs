@@ -41,6 +41,7 @@ use cpp_core::CastInto;
 use cpp_core::Ptr;
 
 use anyhow::Result;
+use getset::Getters;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -70,166 +71,168 @@ mod tips;
 //-------------------------------------------------------------------------------//
 
 /// This struct holds all the widgets used in the Settings Window.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct SettingsUI {
 
     //-------------------------------------------------------------------------------//
     // `Dialog` window.
     //-------------------------------------------------------------------------------//
-    pub dialog: QBox<QDialog>,
-    pub tab_widget: QBox<QTabWidget>,
-    pub paths_tab: QBox<QWidget>,
-    pub settings_tab: QBox<QWidget>,
+    dialog: QBox<QDialog>,
+    tab_widget: QBox<QTabWidget>,
+    paths_tab: QBox<QWidget>,
+    settings_tab: QBox<QWidget>,
 
     //-------------------------------------------------------------------------------//
     // `Path` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub paths_zip_label: QBox<QLabel>,
-    pub paths_zip_line_edit: QBox<QLineEdit>,
-    pub paths_zip_button: QBox<QPushButton>,
-    pub paths_mymod_label: QBox<QLabel>,
-    pub paths_mymod_line_edit: QBox<QLineEdit>,
-    pub paths_mymod_button: QBox<QPushButton>,
+    paths_zip_label: QBox<QLabel>,
+    paths_zip_line_edit: QBox<QLineEdit>,
+    paths_zip_button: QBox<QPushButton>,
+    paths_mymod_label: QBox<QLabel>,
+    paths_mymod_line_edit: QBox<QLineEdit>,
+    paths_mymod_button: QBox<QPushButton>,
 
-    pub paths_spoilers: BTreeMap<String, QBox<QWidget>>,
+    paths_spoilers: BTreeMap<String, QBox<QWidget>>,
 
-    pub paths_games_line_edits: BTreeMap<String, QBox<QLineEdit>>,
-    pub paths_games_buttons: BTreeMap<String, QBox<QPushButton>>,
+    paths_games_line_edits: BTreeMap<String, QBox<QLineEdit>>,
+    paths_games_buttons: BTreeMap<String, QBox<QPushButton>>,
 
-    pub paths_asskit_line_edits: BTreeMap<String, QBox<QLineEdit>>,
-    pub paths_asskit_buttons: BTreeMap<String, QBox<QPushButton>>,
+    paths_asskit_line_edits: BTreeMap<String, QBox<QLineEdit>>,
+    paths_asskit_buttons: BTreeMap<String, QBox<QPushButton>>,
 
     //-------------------------------------------------------------------------------//
     // `General` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub general_language_label: QBox<QLabel>,
-    pub extra_global_default_game_label: QBox<QLabel>,
-    pub extra_network_update_channel_label: QBox<QLabel>,
-    pub extra_packfile_autosave_interval_label: QBox<QLabel>,
-    pub extra_packfile_autosave_amount_label: QBox<QLabel>,
-    pub extra_network_check_updates_on_start_label: QBox<QLabel>,
-    pub extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
-    pub extra_network_check_message_updates_on_start_label: QBox<QLabel>,
-    pub extra_network_check_lua_autogen_updates_on_start_label: QBox<QLabel>,
-    pub extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
-    pub extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
-    pub extra_packfile_use_lazy_loading_label: QBox<QLabel>,
-    pub extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
-    pub extra_packfile_disable_file_previews_label: QBox<QLabel>,
-    pub extra_packfile_disable_mymod_automatic_git_repo_label: QBox<QLabel>,
-    pub extra_packfile_disable_mymod_automatic_configs_label: QBox<QLabel>,
-    pub ui_global_use_dark_theme_label: QBox<QLabel>,
-    pub ui_window_start_maximized_label: QBox<QLabel>,
-    pub ui_window_hide_background_icon_label: QBox<QLabel>,
-    pub general_packfile_treeview_resize_to_fit_label: QBox<QLabel>,
-    pub general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
+    general_language_label: QBox<QLabel>,
+    extra_global_default_game_label: QBox<QLabel>,
+    extra_network_update_channel_label: QBox<QLabel>,
+    extra_packfile_autosave_interval_label: QBox<QLabel>,
+    extra_packfile_autosave_amount_label: QBox<QLabel>,
+    extra_network_check_updates_on_start_label: QBox<QLabel>,
+    extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
+    extra_network_check_message_updates_on_start_label: QBox<QLabel>,
+    extra_network_check_lua_autogen_updates_on_start_label: QBox<QLabel>,
+    extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
+    extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
+    extra_packfile_use_lazy_loading_label: QBox<QLabel>,
+    extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
+    extra_packfile_disable_file_previews_label: QBox<QLabel>,
+    extra_packfile_disable_mymod_automatic_git_repo_label: QBox<QLabel>,
+    extra_packfile_disable_mymod_automatic_configs_label: QBox<QLabel>,
+    ui_global_use_dark_theme_label: QBox<QLabel>,
+    ui_window_start_maximized_label: QBox<QLabel>,
+    ui_window_hide_background_icon_label: QBox<QLabel>,
+    general_packfile_treeview_resize_to_fit_label: QBox<QLabel>,
+    general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
 
-    pub general_language_combobox: QBox<QComboBox>,
-    pub extra_global_default_game_combobox: QBox<QComboBox>,
-    pub extra_network_update_channel_combobox: QBox<QComboBox>,
-    pub extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
-    pub extra_packfile_autosave_amount_spinbox: QBox<QSpinBox>,
-    pub extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
-    pub extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
-    pub extra_network_check_message_updates_on_start_checkbox: QBox<QCheckBox>,
-    pub extra_network_check_lua_autogen_updates_on_start_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_disable_mymod_automatic_git_repo_checkbox: QBox<QCheckBox>,
-    pub extra_packfile_disable_mymod_automatic_configs_checkbox: QBox<QCheckBox>,
-    pub ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
-    pub ui_window_start_maximized_checkbox: QBox<QCheckBox>,
-    pub ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
-    pub general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
-    pub general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
+    general_language_combobox: QBox<QComboBox>,
+    extra_global_default_game_combobox: QBox<QComboBox>,
+    extra_network_update_channel_combobox: QBox<QComboBox>,
+    extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
+    extra_packfile_autosave_amount_spinbox: QBox<QSpinBox>,
+    extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
+    extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
+    extra_network_check_message_updates_on_start_checkbox: QBox<QCheckBox>,
+    extra_network_check_lua_autogen_updates_on_start_checkbox: QBox<QCheckBox>,
+    extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
+    extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
+    extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
+    extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
+    extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
+    extra_packfile_disable_mymod_automatic_git_repo_checkbox: QBox<QCheckBox>,
+    extra_packfile_disable_mymod_automatic_configs_checkbox: QBox<QCheckBox>,
+    ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
+    ui_window_start_maximized_checkbox: QBox<QCheckBox>,
+    ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
+    general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
+    general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Table` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub ui_table_adjust_columns_to_content_label: QBox<QLabel>,
-    pub ui_table_disable_combos_label: QBox<QLabel>,
-    pub ui_table_extend_last_column_label: QBox<QLabel>,
-    pub ui_table_tight_table_mode_label: QBox<QLabel>,
-    pub ui_table_resize_on_edit_label: QBox<QLabel>,
-    pub ui_table_use_old_column_order_label: QBox<QLabel>,
-    pub ui_table_use_right_size_markers_label: QBox<QLabel>,
+    ui_table_adjust_columns_to_content_label: QBox<QLabel>,
+    ui_table_disable_combos_label: QBox<QLabel>,
+    ui_table_extend_last_column_label: QBox<QLabel>,
+    ui_table_tight_table_mode_label: QBox<QLabel>,
+    ui_table_resize_on_edit_label: QBox<QLabel>,
+    ui_table_use_old_column_order_label: QBox<QLabel>,
+    ui_table_use_right_size_markers_label: QBox<QLabel>,
 
-    pub ui_table_adjust_columns_to_content_checkbox: QBox<QCheckBox>,
-    pub ui_table_disable_combos_checkbox: QBox<QCheckBox>,
-    pub ui_table_extend_last_column_checkbox: QBox<QCheckBox>,
-    pub ui_table_tight_table_mode_checkbox: QBox<QCheckBox>,
-    pub ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
-    pub ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
-    pub ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
+    ui_table_adjust_columns_to_content_checkbox: QBox<QCheckBox>,
+    ui_table_disable_combos_checkbox: QBox<QCheckBox>,
+    ui_table_extend_last_column_checkbox: QBox<QCheckBox>,
+    ui_table_tight_table_mode_checkbox: QBox<QCheckBox>,
+    ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
+    ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
+    ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
 
-    pub ui_table_colour_table_added_label: QBox<QLabel>,
-    pub ui_table_colour_table_modified_label: QBox<QLabel>,
-    pub ui_table_colour_diagnostic_error_label: QBox<QLabel>,
-    pub ui_table_colour_diagnostic_warning_label: QBox<QLabel>,
-    pub ui_table_colour_diagnostic_info_label: QBox<QLabel>,
+    ui_table_colour_table_added_label: QBox<QLabel>,
+    ui_table_colour_table_modified_label: QBox<QLabel>,
+    ui_table_colour_diagnostic_error_label: QBox<QLabel>,
+    ui_table_colour_diagnostic_warning_label: QBox<QLabel>,
+    ui_table_colour_diagnostic_info_label: QBox<QLabel>,
 
-    pub ui_table_colour_light_table_added_button: QBox<QPushButton>,
-    pub ui_table_colour_light_table_modified_button: QBox<QPushButton>,
-    pub ui_table_colour_light_diagnostic_error_button: QBox<QPushButton>,
-    pub ui_table_colour_light_diagnostic_warning_button: QBox<QPushButton>,
-    pub ui_table_colour_light_diagnostic_info_button: QBox<QPushButton>,
-    pub ui_table_colour_dark_table_added_button: QBox<QPushButton>,
-    pub ui_table_colour_dark_table_modified_button: QBox<QPushButton>,
-    pub ui_table_colour_dark_diagnostic_error_button: QBox<QPushButton>,
-    pub ui_table_colour_dark_diagnostic_warning_button: QBox<QPushButton>,
-    pub ui_table_colour_dark_diagnostic_info_button: QBox<QPushButton>,
+    ui_table_colour_light_table_added_button: QBox<QPushButton>,
+    ui_table_colour_light_table_modified_button: QBox<QPushButton>,
+    ui_table_colour_light_diagnostic_error_button: QBox<QPushButton>,
+    ui_table_colour_light_diagnostic_warning_button: QBox<QPushButton>,
+    ui_table_colour_light_diagnostic_info_button: QBox<QPushButton>,
+    ui_table_colour_dark_table_added_button: QBox<QPushButton>,
+    ui_table_colour_dark_table_modified_button: QBox<QPushButton>,
+    ui_table_colour_dark_diagnostic_error_button: QBox<QPushButton>,
+    ui_table_colour_dark_diagnostic_warning_button: QBox<QPushButton>,
+    ui_table_colour_dark_diagnostic_info_button: QBox<QPushButton>,
 
     //-------------------------------------------------------------------------------//
     // `Debug` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub debug_check_for_missing_table_definitions_label: QBox<QLabel>,
-    pub debug_check_for_missing_table_definitions_checkbox: QBox<QCheckBox>,
-    pub debug_enable_debug_menu_label: QBox<QLabel>,
-    pub debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
-    pub debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
-    pub debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
-    pub debug_enable_rigidmodel_editor_label: QBox<QLabel>,
-    pub debug_enable_rigidmodel_editor_checkbox: QBox<QCheckBox>,
-    pub debug_enable_esf_editor_label: QBox<QLabel>,
-    pub debug_enable_esf_editor_checkbox: QBox<QCheckBox>,
-    pub debug_enable_unit_editor_label: QBox<QLabel>,
-    pub debug_enable_unit_editor_checkbox: QBox<QCheckBox>,
+    debug_check_for_missing_table_definitions_label: QBox<QLabel>,
+    debug_check_for_missing_table_definitions_checkbox: QBox<QCheckBox>,
+    debug_enable_debug_menu_label: QBox<QLabel>,
+    debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
+    debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
+    debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
+    debug_enable_rigidmodel_editor_label: QBox<QLabel>,
+    debug_enable_rigidmodel_editor_checkbox: QBox<QCheckBox>,
+    debug_enable_esf_editor_label: QBox<QLabel>,
+    debug_enable_esf_editor_checkbox: QBox<QCheckBox>,
+    debug_enable_unit_editor_label: QBox<QLabel>,
+    debug_enable_unit_editor_checkbox: QBox<QCheckBox>,
 
-    pub debug_colour_light_local_tip_button: QBox<QPushButton>,
-    pub debug_colour_light_remote_tip_button: QBox<QPushButton>,
-    pub debug_colour_dark_local_tip_button: QBox<QPushButton>,
-    pub debug_colour_dark_remote_tip_button: QBox<QPushButton>,
+    debug_colour_light_local_tip_button: QBox<QPushButton>,
+    debug_colour_light_remote_tip_button: QBox<QPushButton>,
+    debug_colour_dark_local_tip_button: QBox<QPushButton>,
+    debug_colour_dark_remote_tip_button: QBox<QPushButton>,
 
-    pub debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
-    pub debug_clear_autosave_folder_button: QBox<QPushButton>,
-    pub debug_clear_schema_folder_button: QBox<QPushButton>,
-    pub debug_clear_layout_settings_button: QBox<QPushButton>,
+    debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
+    debug_clear_autosave_folder_button: QBox<QPushButton>,
+    debug_clear_schema_folder_button: QBox<QPushButton>,
+    debug_clear_layout_settings_button: QBox<QPushButton>,
 
     //-------------------------------------------------------------------------------//
     // `Diagnostics` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub diagnostics_diagnostics_trigger_on_open_label: QBox<QLabel>,
-    pub diagnostics_diagnostics_trigger_on_table_edit_label: QBox<QLabel>,
+    diagnostics_diagnostics_trigger_on_open_label: QBox<QLabel>,
+    diagnostics_diagnostics_trigger_on_table_edit_label: QBox<QLabel>,
 
-    pub diagnostics_diagnostics_trigger_on_open_checkbox: QBox<QCheckBox>,
-    pub diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
+    diagnostics_diagnostics_trigger_on_open_checkbox: QBox<QCheckBox>,
+    diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Warning` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub warning_message: QBox<QLabel>,
+    warning_message: QBox<QLabel>,
 
     //-------------------------------------------------------------------------------//
     // `ButtonBox` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    pub button_box_restore_default_button: QPtr<QPushButton>,
-    pub button_box_text_editor_settings_button: QBox<QPushButton>,
-    pub button_box_shortcuts_button: QBox<QPushButton>,
-    pub button_box_font_settings_button: QBox<QPushButton>,
-    pub button_box_cancel_button: QPtr<QPushButton>,
-    pub button_box_accept_button: QPtr<QPushButton>,
+    button_box_restore_default_button: QPtr<QPushButton>,
+    button_box_text_editor_settings_button: QBox<QPushButton>,
+    button_box_shortcuts_button: QBox<QPushButton>,
+    button_box_font_settings_button: QBox<QPushButton>,
+    button_box_cancel_button: QPtr<QPushButton>,
+    button_box_accept_button: QPtr<QPushButton>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -241,7 +244,7 @@ impl SettingsUI {
 
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> bool {
-        let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
+        let settings_ui = Rc::new(Self::new_with_parent(app_ui.main_window()));
         let slots = SettingsUISlots::new(&settings_ui, app_ui);
 
         connections::set_connections(&settings_ui, &slots);

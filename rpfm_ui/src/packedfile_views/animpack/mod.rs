@@ -105,7 +105,7 @@ impl PackedFileAnimPackView {
         // Create and configure the left `TreeView`, AKA the open PackFile.
         let instructions = QLabel::from_q_string_q_widget(&qtr("animpack_view_instructions"), packed_file_view.get_mut_widget());
         let pack_tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
-        let tree_model = &pack_file_contents_ui.packfile_contents_tree_model;
+        let tree_model = pack_file_contents_ui.packfile_contents_tree_model();
         let pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.get_mut_widget().static_upcast());
         pack_tree_model_filter.set_source_model(tree_model);
         pack_tree_view.set_model(&pack_tree_model_filter);
