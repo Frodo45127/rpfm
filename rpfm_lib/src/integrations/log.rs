@@ -23,7 +23,7 @@ use backtrace::Backtrace;
 pub use log::{error, info, warn};
 pub use sentry::{ClientInitGuard, Envelope, integrations::log::SentryLogger, protocol::*};
 use serde_derive::Serialize;
-use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode, WriteLogger};
+use simplelog::{ColorChoice, CombinedLogger, LevelFilter, SharedLogger, TermLogger, TerminalMode};
 
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
@@ -32,12 +32,6 @@ use std::path::Path;
 
 use crate::error::Result;
 use crate::utils::current_time;
-
-/// Log files to log execution steps and other messages.
-const LOG_FILE_CURRENT: &str = "rpfm.log";
-const LOG_FILE_1: &str = "rpfm_1.log";
-const LOG_FILE_2: &str = "rpfm_2.log";
-const LOG_FILE_3: &str = "rpfm_3.log";
 
 /// Current version of the crate.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -92,9 +86,6 @@ impl Logger {
             DirBuilder::new().recursive(true).create(&parent_folder)?;
         }
 
-        // Rotate the logs so we can keep a few old logs.
-        Self::rotate_logs(&logging_path)?;
-
         let log_level = if verbose {
             LevelFilter::Info
         } else {
@@ -104,14 +95,7 @@ impl Logger {
         // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
         //
         // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
-        let mut file_logger_failed = true;
-        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(log_level, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
-        if let Ok(write_logger_file) = File::create(logging_path.join(LOG_FILE_CURRENT)) {
-            let write_logger = WriteLogger::new(log_level, simplelog::Config::default(), write_logger_file);
-            loggers.push(write_logger);
-            file_logger_failed = false;
-        }
-
+        let loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(log_level, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
         let combined_logger = CombinedLogger::new(loggers);
 
         // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
@@ -138,10 +122,6 @@ impl Logger {
             orig_hook(info);
             std::process::exit(1);
         }));
-
-        if file_logger_failed {
-            warn!("File Logger failed.");
-        }
 
         // Return Sentry's guard, so we can keep it alive until everything explodes, or the user closes the program.
         info!("Logger initialized.");
@@ -181,32 +161,6 @@ impl Logger {
         let file_path = path.join(format!("error/error-report-{}.toml", current_time()?));
         let mut file = BufWriter::new(File::create(&file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
-        Ok(())
-    }
-
-    /// This function takes care of rotating the logs used by RPFM, so we can keep a few old logs when starting a new instance.
-    fn rotate_logs(config_path: &Path) -> Result<()> {
-        let log_path_current = config_path.join(LOG_FILE_CURRENT);
-        let log_path_1 = config_path.join(LOG_FILE_1);
-        let log_path_2 = config_path.join(LOG_FILE_2);
-        let log_path_3 = config_path.join(LOG_FILE_3);
-
-        if log_path_3.is_file() {
-            std::fs::remove_file(&log_path_3)?;
-        }
-
-        if log_path_2.is_file() {
-            std::fs::rename(&log_path_2, log_path_3)?;
-        }
-
-        if log_path_1.is_file() {
-            std::fs::rename(&log_path_1, log_path_2)?;
-        }
-
-        if log_path_current.is_file() {
-            std::fs::rename(log_path_current, log_path_1)?;
-        }
-
         Ok(())
     }
 
