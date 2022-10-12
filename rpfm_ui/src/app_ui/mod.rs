@@ -394,7 +394,7 @@ impl AppUI {
         tab_bar_packed_file_import_from_dependencies.set_enabled(true);
         tab_bar_packed_file_toggle_tips.set_enabled(true);
 
-        shortcut_associate_action_group_to_widget_safe(shortcuts.as_ptr(), QString::from_std_str("file_tab").as_ptr(), tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>().as_ptr());
+        shortcut_associate_action_group_to_widget_safe(shortcuts.as_ptr(), QString::from_std_str("file_tab").into_ptr(), tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>().as_ptr());
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);

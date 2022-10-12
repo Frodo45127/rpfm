@@ -2,14 +2,14 @@
 
 #include "kactioncollection.h"
 
-QAction* new_action(KActionCollection* actions, QString action_name, Qt::ShortcutContext context, QList<QKeySequence> shortcut) {
+void new_action(KActionCollection* actions, QString const action_name, Qt::ShortcutContext context, QList<QKeySequence> shortcut) {
     QAction* action = actions->addAction(action_name);
+    action->setText(action_name);
     action->setShortcutContext(context);
     actions->setDefaultShortcuts(action, shortcut);
-    return action;
 }
 
-extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*> shortcuts) {
+extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* shortcuts) {
 
     // Pack Menu actions.
     KActionCollection* pack_menu_actions = new KActionCollection(parent, "pack_menu");
@@ -165,23 +165,24 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*> shortc
     KActionCollection* text_editor_actions = view->actionCollection();
 
     // Add all the actions to our list.
-    shortcuts.append(dynamic_cast<QObject*>(pack_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(mymod_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(view_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(game_selected_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(special_stuff_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(about_menu_actions));
-    shortcuts.append(dynamic_cast<QObject*>(file_tab_actions));
-    shortcuts.append(dynamic_cast<QObject*>(pack_tree_actions));
-    shortcuts.append(dynamic_cast<QObject*>(dependencies_tree_actions));
-    shortcuts.append(dynamic_cast<QObject*>(table_editor_actions));
-    shortcuts.append(dynamic_cast<QObject*>(decoder_actions));
-    shortcuts.append(dynamic_cast<QObject*>(text_editor_actions));
+    shortcuts->append(dynamic_cast<QObject*>(pack_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(mymod_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(view_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(game_selected_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(special_stuff_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(about_menu_actions));
+    shortcuts->append(dynamic_cast<QObject*>(file_tab_actions));
+    shortcuts->append(dynamic_cast<QObject*>(pack_tree_actions));
+    shortcuts->append(dynamic_cast<QObject*>(dependencies_tree_actions));
+    shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));
+    shortcuts->append(dynamic_cast<QObject*>(decoder_actions));
+    shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
 }
 
-extern "C" QAction* shortcut_action(QList<QObject*> shortcuts, QString action_group, QString action_name) {
+extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString const action_group, QString const action_name) {
     foreach (QObject* collection, shortcuts) {
         KActionCollection* actions = dynamic_cast<KActionCollection*>(collection);
+
         if (actions->componentName() == action_group) {
             QAction* action = actions->action(action_name);
             if (action != nullptr) {
@@ -189,27 +190,29 @@ extern "C" QAction* shortcut_action(QList<QObject*> shortcuts, QString action_gr
             }
         }
     }
-
     return nullptr;
 }
 
-extern "C" void shortcut_associate_action_group_to_widget(QList<QObject*> shortcuts, QString action_group, QWidget* widget) {
-    foreach (QObject* collection, shortcuts) {
-        KActionCollection* actions = dynamic_cast<KActionCollection*>(collection);
+extern "C" void shortcut_associate_action_group_to_widget(QList<QObject*>* shortcuts, QString const action_group, QWidget* widget) {
+    QList<QObject *>::iterator i;
+    for (i = shortcuts->begin(); i != shortcuts->end(); ++i) {
+        KActionCollection* actions = dynamic_cast<KActionCollection*>(*i);
         if (actions->componentName() == action_group) {
             actions->associateWidget(widget);
+            break;
         }
     }
 }
 
 
-extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*> shortcuts) {
+extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*>* shortcuts) {
     // Create the dialog; alternatively you can use the other constructor if e.g.
     // you need to only show certain action types, or disallow single letter shortcuts
     KShortcutsDialog* dialog = new KShortcutsDialog(widget);
 
-    foreach (QObject* collection, shortcuts) {
-        KActionCollection* actions = dynamic_cast<KActionCollection*>(collection);
+    QList<QObject *>::iterator i;
+    for (i = shortcuts->begin(); i != shortcuts->end(); ++i) {
+        KActionCollection* actions = dynamic_cast<KActionCollection*>(*i);
         dialog->addCollection(actions);
     }
 

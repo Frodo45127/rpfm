@@ -162,7 +162,7 @@ impl DependenciesUI {
         let dependencies_tree_view_expand_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Expand All", "treeview_expand_all");
         let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Collapse All", "treeview_collapse_all");
 
-        shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("dependencies_context_menu").as_ptr(), dependencies_tree_view.static_upcast::<qt_widgets::QWidget>().as_ptr());
+        shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("dependencies_context_menu").into_ptr(), dependencies_tree_view.static_upcast::<qt_widgets::QWidget>().as_ptr());
 
         // Create ***Da monsta***.
         Self {

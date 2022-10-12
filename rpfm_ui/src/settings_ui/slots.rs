@@ -159,7 +159,7 @@ impl SettingsUISlots {
         let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
-                crate::ffi::kshortcut_dialog_init_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr(), app_ui.shortcuts().as_ref());
+                crate::ffi::kshortcut_dialog_init_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr(), app_ui.shortcuts().as_ptr());
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.

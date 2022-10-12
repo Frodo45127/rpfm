@@ -226,7 +226,7 @@ impl PackFileContentsUI {
         let packfile_contents_tree_view_expand_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "Expand All", "treeview_expand_all");
         let packfile_contents_tree_view_collapse_all = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "Collapse All", "treeview_collapse_all");
 
-        shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("pack_tree_context_menu").as_ptr(), packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>().as_ptr());
+        shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("pack_tree_context_menu").into_ptr(), packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>().as_ptr());
 
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
         packfile_contents_tree_view_context_menu.insert_separator(&menu_open.menu_action());

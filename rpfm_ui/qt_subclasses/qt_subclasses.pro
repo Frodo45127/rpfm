@@ -51,7 +51,6 @@ SOURCES += \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
-INCLUDEPATH += C:\CraftRoot\include
 
 HEADERS += \
     include/colour_item_delegate.h \
@@ -87,6 +86,13 @@ debug:OBJECTS_DIR = debug/.obj
 debug:MOC_DIR = debug/.moc
 debug:RCC_DIR = debug/.rcc
 debug:UI_DIR = debug/.ui
+
+windows {
+    INCLUDEPATH += C:/CraftRoot/include
+
+    # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
+    INCLUDEPATH += C:/CraftRoot/include/KF5/KSyntaxHighlighting
+}
 
 unix {
 

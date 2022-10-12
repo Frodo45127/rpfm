@@ -15,7 +15,6 @@
 #endif
 #include <QWidget>
 #include <QString>
-
-extern "C" void kshortcut_dialog_init(QWidget* widget, QList<QObject*> shortcuts);
+#include <QAction>
 
 #endif // KSHORTCUTS_DIALOG_H

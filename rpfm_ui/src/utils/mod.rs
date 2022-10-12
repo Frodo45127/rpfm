@@ -290,7 +290,7 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
 }
 
 pub unsafe fn add_action_to_menu(menu: &QPtr<QMenu>, shortcuts: Ref<QListOfQObject>, action_group: &str, action_name: &str, action_translation_key: &str) -> QPtr<QAction> {
-    let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).as_ptr(), QString::from_std_str(action_name).as_ptr());
+    let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).into_ptr(), QString::from_std_str(action_name).into_ptr());
     action.set_text(&qtr(action_translation_key));
     menu.add_action(action.as_ptr());
     action
