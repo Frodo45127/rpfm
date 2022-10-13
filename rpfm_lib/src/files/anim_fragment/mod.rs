@@ -97,21 +97,39 @@ impl AnimFragment {
 
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition(version: i32) -> Definition {
+        dbg!(version);
         let mut definition = Definition::new(version);
-        let fields = vec![
-            Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("slot".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("file_name".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("metadata".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("metadata_sound".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("skeleton_type".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("blend_in_time".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("selection_weight".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unknown_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("weapon_bone".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unknown_5".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-        ];
+        let fields = match version {
+            2 => vec![
+                Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("slot".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("file_name".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("metadata".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("metadata_sound".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("skeleton_type".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("blend_in_time".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("selection_weight".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("weapon_bone".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_5".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            ],
+            0 => vec![
+                Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("slot".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("file_name".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("metadata".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("metadata_sound".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("skeleton_type".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("blend_in_time".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("selection_weight".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("weapon_bone".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                Field::new("unknown_5".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            ],
+            _ => todo!(),
+        };
 
         definition.set_fields(fields);
         definition
@@ -172,7 +190,7 @@ impl Decodeable for AnimFragment {
         let (skeleton_1, skeleton_2, min_id, max_id, unknown_bool, entry_count) = Self::read_header(data)?;
         let definition = Self::new_definition(0);
         let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), false, file_name)?;
-
+        dbg!(&table);
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;
 
