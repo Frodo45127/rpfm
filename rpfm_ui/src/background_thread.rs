@@ -650,7 +650,6 @@ pub fn background_loop() {
                                         Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
                                         Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
-                                        Ok(RFileDecoded::CaVp8(data)) => CentralCommand::send_back(&sender, Response::CaVp8RFileInfo(data.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image.clone(), From::from(&*file))),
@@ -660,6 +659,7 @@ pub fn background_loop() {
                                         Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
+                                        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
                                         Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                     }
@@ -684,7 +684,6 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::CaVp8(data)) => CentralCommand::send_back(&sender, Response::CaVp8RFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image.clone(), From::from(&*file))),
@@ -694,6 +693,7 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
+                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
@@ -717,7 +717,6 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::CaVp8(data)) => CentralCommand::send_back(&sender, Response::CaVp8RFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::Image(image)) => CentralCommand::send_back(&sender, Response::ImageRFileInfo(image.clone(), From::from(&*file))),
@@ -727,6 +726,7 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
+                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
@@ -860,14 +860,12 @@ pub fn background_loop() {
 
             // In case we want to update a table...
             Command::UpdateTable(path) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let path = path.path_raw();
-                    if let Some(rfile) = pack_file_decoded.file_mut(&path) {
-                        if let Ok(decoded) = rfile.decoded_mut() {
-                            dependencies.update_db(decoded);
-                        } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
-                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
-                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?"))); }
+                let path = path.path_raw();
+                if let Some(rfile) = pack_file_decoded.file_mut(&path) {
+                    if let Ok(decoded) = rfile.decoded_mut() {
+                        dependencies.update_db(decoded);
+                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
             }
 
             // In case we want to replace all matches in a Global Search...
@@ -909,12 +907,12 @@ pub fn background_loop() {
             Command::FileFromLocalPack(path) => CentralCommand::send_back(&sender, Response::OptionRFile(pack_file_decoded.files().get(&path).cloned())),
 
             // In case we want to change the format of a ca_vp8 video...
-            Command::SetCaVp8Format(path, format) => {
+            Command::SetVideoFormat(path, format) => {
                 match pack_file_decoded.files_mut().get_mut(&path) {
                     Some(ref mut rfile) => {
                         match rfile.decoded_mut() {
                             Ok(data) => {
-                                if let RFileDecoded::CaVp8(ref mut data) = data {
+                                if let RFileDecoded::Video(ref mut data) = data {
                                     data.set_format(format);
                                 }
                                 // TODO: Put an error here.

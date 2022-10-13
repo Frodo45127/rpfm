@@ -730,36 +730,32 @@ impl Definition {
                     field.ca_order = index as i16;
 
                     // Detect and group colour fiels.
-                    let is_numeric = if let FieldType::I16 = field.field_type { true }
-                    else if let FieldType::I32 = field.field_type { true }
-                    else if let FieldType::I64 = field.field_type { true }
-                    else { false };
+                    let is_numeric = matches!(field.field_type, FieldType::I16 | FieldType::I32 | FieldType::I64);
 
-                    if is_numeric && raw_table_name != "factions" {
-                        if field.name.ends_with("_r") ||
-                            field.name.ends_with("_g") ||
-                            field.name.ends_with("_b") ||
-                            field.name.ends_with("_red") ||
-                            field.name.ends_with("_green") ||
-                            field.name.ends_with("_blue") ||
-                            field.name == "r" ||
-                            field.name == "g" ||
-                            field.name == "b" ||
-                            field.name == "red" ||
-                            field.name == "green" ||
-                            field.name == "blue" {
-                            let colour_split = field.name.rsplitn(2, "_").collect::<Vec<&str>>();
-                            let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
+                    if is_numeric && raw_table_name != "factions" && (
+                        field.name.ends_with("_r") ||
+                        field.name.ends_with("_g") ||
+                        field.name.ends_with("_b") ||
+                        field.name.ends_with("_red") ||
+                        field.name.ends_with("_green") ||
+                        field.name.ends_with("_blue") ||
+                        field.name == "r" ||
+                        field.name == "g" ||
+                        field.name == "b" ||
+                        field.name == "red" ||
+                        field.name == "green" ||
+                        field.name == "blue"
+                    ) {
+                        let colour_split = field.name.rsplitn(2, '_').collect::<Vec<&str>>();
+                        let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
 
-                            match combined_fields.get(&colour_field_name) {
-                                Some(group_key) => field.is_part_of_colour = Some(*group_key),
-                                None => {
-                                    let group_key = combined_fields.keys().len() as u8 + 1;
-                                    combined_fields.insert(colour_field_name.to_owned(), group_key);
-                                    field.is_part_of_colour = Some(group_key);
-                                }
+                        match combined_fields.get(&colour_field_name) {
+                            Some(group_key) => field.is_part_of_colour = Some(*group_key),
+                            None => {
+                                let group_key = combined_fields.keys().len() as u8 + 1;
+                                combined_fields.insert(colour_field_name.to_owned(), group_key);
+                                field.is_part_of_colour = Some(group_key);
                             }
-
                         }
                     }
                     break;

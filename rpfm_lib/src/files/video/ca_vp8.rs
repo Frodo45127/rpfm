@@ -25,7 +25,7 @@ const HEADER_LENGTH_CAVP8_V1: u16 = 41;
 //                              Implementation
 //---------------------------------------------------------------------------//
 
-impl CaVp8 {
+impl Video {
 
     /// This function creates a `CaVp8` from a readable source of data containing a video of CaVp8 format.
     ///

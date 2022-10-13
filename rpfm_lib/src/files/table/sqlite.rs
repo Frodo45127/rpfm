@@ -129,7 +129,7 @@ impl Table {
         let field_names = fields.iter().map(|field| field.name()).collect::<Vec<&str>>().join(",");
         let query = format!("SELECT {} FROM \"{}_v{}\" WHERE table_unique_id = {} order by ROWID",
             field_names,
-            table_name.replace("\"", "'"),
+            table_name.replace('\"', "'"),
             table_version,
             table_unique_id
         );
@@ -138,8 +138,8 @@ impl Table {
         let mut stmt = conn.prepare(&query)?;
         let rows = stmt.query_map([], |row| {
             let mut data = Vec::with_capacity(fields.len());
-            for i in 0..fields.len() {
-                data.push(match fields[i].field_type() {
+            for (i, field) in fields.iter().enumerate() {
+                data.push(match field.field_type() {
                     FieldType::Boolean => DecodedData::Boolean(row.get(i)?),
                     FieldType::F32 => DecodedData::F32(row.get(i)?),
                     FieldType::F64 => DecodedData::F64(row.get(i)?),

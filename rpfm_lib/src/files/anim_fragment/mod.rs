@@ -98,20 +98,20 @@ impl AnimFragment {
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition(version: i32) -> Definition {
         let mut definition = Definition::new(version);
-        let mut fields = Vec::with_capacity(12);
-        fields.push(Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("slot".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-
-        fields.push(Field::new("file_name".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("metadata".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("metadata_sound".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("skeleton_type".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("blend_in_time".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("selection_weight".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unknown_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("weapon_bone".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unknown_5".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        let fields = vec![
+            Field::new("id".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("slot".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("file_name".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("metadata".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("metadata_sound".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("skeleton_type".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("blend_in_time".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("selection_weight".to_owned(), FieldType::F32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unknown_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("weapon_bone".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unknown_5".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+        ];
 
         definition.set_fields(fields);
         definition

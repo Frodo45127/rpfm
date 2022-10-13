@@ -42,7 +42,6 @@ use crate::views::table::TableType;
 
 use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
 use self::animpack::PackedFileAnimPackView;
-use self::ca_vp8::PackedFileCaVp8View;
 use self::esf::PackedFileESFView;
 //use self::decoder::PackedFileDecoderView;
 //use self::dependencies_manager::DependenciesManagerView;
@@ -53,6 +52,7 @@ use self::text::PackedFileTextView;
 //use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 //use self::tips::TipsView;
+use self::video::PackedFileVideoView;
 
 #[cfg(feature = "support_rigidmodel")]
 use self::rigidmodel::PackedFileRigidModelView;
@@ -63,7 +63,6 @@ use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
 pub mod animpack;
-pub mod ca_vp8;
 //pub mod decoder;
 //pub mod dependencies_manager;
 pub mod esf;
@@ -81,8 +80,8 @@ pub mod text;
 #[cfg(feature = "support_uic")]
 pub mod uic;
 pub mod unit_variant;
-
 pub mod utils;
+pub mod video;
 
 const RFILE_SAVED_ERROR: &str = "The following PackedFile failed to be saved: ";
 const RFILE_RELOAD_ERROR: &str = "The PackedFile you added is not the same type as the one you had before. So… the view showing it will get closed.";
@@ -139,7 +138,6 @@ pub enum View {
     AnimFragment(Arc<PackedFileAnimFragmentView>),
     AnimFragmentDebug(Arc<PackedFileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
-    CaVp8(Arc<PackedFileCaVp8View>),
     /*
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
@@ -157,6 +155,7 @@ pub enum View {
     #[cfg(feature = "support_uic")]
     UIC(Arc<PackedFileUICView>),*/
     UnitVariant(Arc<PackedFileUnitVariantView>),
+    Video(Arc<PackedFileVideoView>),
     None,
 }
 
@@ -348,9 +347,9 @@ impl PackedFileView {
                             },
 
                             // These ones are a bit special. We just need to send back the current format of the video.
-                            FileType::CaVp8 => {
-                                if let View::CaVp8(view) = view {
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetCaVp8Format(self.get_path(), view.get_current_format()));
+                            FileType::Video => {
+                                if let View::Video(view) = view {
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.get_path(), view.get_current_format()));
                                     return Ok(())
                                 } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
                             },
@@ -540,8 +539,8 @@ impl PackedFileView {
                             }
                         },
 
-                        Response::CaVp8RFileInfo(ca_vp8, packed_file_info) => {
-                            if let View::CaVp8(old_ca_vp8) = view {
+                        Response::VideoRFileInfo(ca_vp8, packed_file_info) => {
+                            if let View::Video(old_ca_vp8) = view {
                                 old_ca_vp8.reload_view(&ca_vp8);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }

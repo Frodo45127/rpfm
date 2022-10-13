@@ -12,9 +12,6 @@
 This module defines the code used for thread communication.
 !*/
 
-use crate::packedfile_views::DataSource;
-use rpfm_extensions::dependencies::TableReferences;
-use rpfm_lib::files::pack::PackSettings;
 use qt_core::QEventLoop;
 
 use anyhow::Error;
@@ -24,37 +21,18 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-
-//use rpfm_extensions::dependencies::DependenciesInfo;
+use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, ca_vp8::{CaVp8, SupportedFormats}, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::{Video, SupportedFormats}, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::git::GitResponse;
 use rpfm_lib::schema::{Definition, Schema};
 
-/*
-
-use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
-use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::esf::ESF;
-use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
-use rpfm_lib::packedfile::text::Text;
-use rpfm_lib::packedfile::rigidmodel::RigidModel;
-use rpfm_lib::packedfile::uic::UIC;
-use rpfm_lib::packfile::{ContainerInfo, PackFileSettings, ContainerPath, PFHFileType};
-use rpfm_lib::packfile::packedfile::{PackedFile, RFileInfo};
-use rpfm_lib::schema::{APIResponseSchema, Definition, Schema, patch::SchemaPatch};
-use rpfm_lib::settings::*;
-use rpfm_lib::tips::{APIResponseTips, Tip};
-use rpfm_lib::updater::APIResponse;
-
-*/
 use crate::app_ui::NewPackedFile;
 use crate::backend::*;
-//use crate::packedfile_views::DataSource;
+use crate::packedfile_views::DataSource;
 use crate::updater::APIResponse;
 use crate::views::table::TableType;
 
@@ -263,7 +241,7 @@ pub enum Command {
     GetPackedFilesFromAllSources(Vec<ContainerPath>),
 
     // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
-    SetCaVp8Format(String, SupportedFormats),
+    SetVideoFormat(String, SupportedFormats),
 
     // This command is used to save the provided schema to disk.
     SaveSchema(Schema),
@@ -448,7 +426,7 @@ pub enum Response {
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
 
     /// Response to return `(CaVp8, RFileInfo)`.
-    CaVp8RFileInfo(CaVp8, RFileInfo),
+    VideoRFileInfo(Video, RFileInfo),
 
     /// Response to return `(ESF, RFileInfo)`.
     ESFRFileInfo(ESF, RFileInfo),

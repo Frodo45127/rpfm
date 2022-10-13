@@ -24,24 +24,24 @@ use qt_core::QPtr;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 
-use rpfm_lib::files::{ca_vp8::*, FileType};
+use rpfm_lib::files::{video::*, FileType};
 
 use crate::app_ui::AppUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 
-use self::slots::PackedFileCaVp8ViewSlots;
+use self::slots::PackedFileVideoViewSlots;
 
 mod connections;
-pub mod slots;
+mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of an CA_VP8 PackedFile.
-pub struct PackedFileCaVp8View {
+pub struct PackedFileVideoView {
     format_data_label: QBox<QLabel>,
     version_data_label: QBox<QLabel>,
     codec_four_cc_data_label: QBox<QLabel>,
@@ -60,15 +60,15 @@ pub struct PackedFileCaVp8View {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileCaVp8View`.
-impl PackedFileCaVp8View {
+/// Implementation for `PackedFileVideoView`.
+impl PackedFileVideoView {
 
     /// This function creates a new CaVp8 View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        data: &CaVp8, // TODO: Remove this and use an info struct instead.
+        data: &Video, // TODO: Remove this and use an info struct instead.
     ) {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
@@ -126,7 +126,7 @@ impl PackedFileCaVp8View {
         layout.set_row_stretch(99, 99);
         layout.set_column_stretch(2, 99);
 
-        let packed_file_ca_vp8_view = Arc::new(PackedFileCaVp8View {
+        let packed_file_ca_vp8_view = Arc::new(PackedFileVideoView {
             format_data_label,
             version_data_label,
             codec_four_cc_data_label,
@@ -140,19 +140,19 @@ impl PackedFileCaVp8View {
             path: packed_file_view.get_path_raw()
         });
 
-        let packed_file_ca_vp8_view_slots = PackedFileCaVp8ViewSlots::new(
+        let packed_file_ca_vp8_view_slots = PackedFileVideoViewSlots::new(
             &packed_file_ca_vp8_view,
             app_ui,
             pack_file_contents_ui
         );
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
-        packed_file_view.view = ViewType::Internal(View::CaVp8(packed_file_ca_vp8_view));
-        packed_file_view.packed_file_type = FileType::CaVp8;
+        packed_file_view.view = ViewType::Internal(View::Video(packed_file_ca_vp8_view));
+        packed_file_view.packed_file_type = FileType::Video;
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: &CaVp8) {
+    pub unsafe fn reload_view(&self, data: &Video) {
         self.get_mut_ptr_format_data_label().set_text(&QString::from_std_str(format!("{:?}", data.format())));
         self.get_mut_ptr_version_data_label().set_text(&QString::from_std_str(format!("{:?}", data.version())));
         self.get_mut_ptr_codec_four_cc_data_label().set_text(&QString::from_std_str(format!("{:?}", data.codec_four_cc())));

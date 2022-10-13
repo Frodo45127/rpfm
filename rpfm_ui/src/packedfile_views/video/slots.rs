@@ -19,11 +19,11 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::ca_vp8::SupportedFormats;
+use rpfm_lib::files::video::SupportedFormats;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::DataSource;
-use crate::packedfile_views::ca_vp8::PackedFileCaVp8View;
+use crate::packedfile_views::video::PackedFileVideoView;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 
@@ -32,7 +32,7 @@ use crate::UI_STATE;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the slots of the view of a CA_VP8 PackedFile.
-pub struct PackedFileCaVp8ViewSlots {
+pub struct PackedFileVideoViewSlots {
     pub convert_to_camv: QBox<SlotNoArgs>,
     pub convert_to_ivf: QBox<SlotNoArgs>,
 }
@@ -41,12 +41,12 @@ pub struct PackedFileCaVp8ViewSlots {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileCaVp8ViewSlots`.
-impl PackedFileCaVp8ViewSlots {
+/// Implementation for `PackedFileVideoViewSlots`.
+impl PackedFileVideoViewSlots {
 
     /// This function creates the entire slot pack for CaVp8 PackedFile Views.
     pub unsafe fn new(
-        view: &Arc<PackedFileCaVp8View>,
+        view: &Arc<PackedFileVideoView>,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     )  -> Self {

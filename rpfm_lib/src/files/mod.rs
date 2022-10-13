@@ -17,7 +17,6 @@
 //! | [`AnimFragment`]  | Yes                | Yes                |
 //! | [`AnimPack`]      | Yes                | Yes                |
 //! | [`AnimsTable`]    | Yes                | Yes                |
-//! | [`CAVP8`]         | Yes                | Yes                |
 //! | [`DB`]            | Yes                | Yes                |
 //! | [`ESF`]           | Limited            | Limited            |
 //! | [`Image`]         | Yes                | Yes                |
@@ -28,6 +27,7 @@
 //! | [`Text`]          | Yes                | Yes                |
 //! | [`UIC`]           | No                 | No                 |
 //! | [`UnitVariant`]   | Yes                | Yes                |
+//! | [`Video`]         | Yes                | Yes                |
 //!
 //! There is an additional type: [`Unknown`]. This type is used as a wildcard,
 //! so you can get the raw data of any non-supported file type and manipulate it yourself in a safe way.
@@ -38,7 +38,6 @@
 //! [`AnimFragment`]: crate::files::anim_fragment::AnimFragment
 //! [`AnimPack`]: crate::files::animpack::AnimPack
 //! [`AnimsTable`]: crate::files::anims_table::AnimsTable
-//! [`CAVP8`]: crate::files::ca_vp8::CaVp8
 //! [`DB`]: crate::files::db::DB
 //! [`ESF`]: crate::files::esf::ESF
 //! [`Image`]: crate::files::image::Image
@@ -50,6 +49,7 @@
 //! [`UIC`]: crate::files::uic::UIC
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 //! [`Unknown`]: crate::files::unknown::Unknown
+//! [`Video`]: crate::files::video::Video
 
 #[cfg(feature = "integration_log")] use log::warn;
 #[cfg(feature = "integration_sqlite")] use r2d2::Pool;
@@ -79,7 +79,6 @@ use crate::utils::*;
 use self::anim_fragment::AnimFragment;
 use self::animpack::AnimPack;
 use self::anims_table::AnimsTable;
-use self::ca_vp8::CaVp8;
 use self::db::DB;
 use self::esf::ESF;
 use self::image::Image;
@@ -91,11 +90,11 @@ use self::text::Text;
 use self::uic::UIC;
 use self::unit_variant::UnitVariant;
 use self::unknown::Unknown;
+use self::video::Video;
 
 pub mod anim_fragment;
 pub mod animpack;
 pub mod anims_table;
-pub mod ca_vp8;
 pub mod db;
 pub mod esf;
 pub mod image;
@@ -109,6 +108,7 @@ pub mod text;
 pub mod uic;
 pub mod unit_variant;
 pub mod unknown;
+pub mod video;
 
 #[cfg(test)] mod rfile_test;
 
@@ -199,7 +199,6 @@ pub enum RFileDecoded {
     AnimFragment(AnimFragment),
     AnimPack(AnimPack),
     AnimsTable(AnimsTable),
-    CaVp8(CaVp8),
     CEO(ESF),
     DB(DB),
     ESF(ESF),
@@ -214,6 +213,7 @@ pub enum RFileDecoded {
     UIC(UIC),
     UnitVariant(UnitVariant),
     Unknown(Unknown),
+    Video(Video),
 }
 
 /// This enum specifies the known types of files we can find in a Total War game.
@@ -227,7 +227,6 @@ pub enum FileType {
     AnimFragment,
     AnimPack,
     AnimsTable,
-    CaVp8,
     CEO,
     DB,
     ESF,
@@ -241,6 +240,7 @@ pub enum FileType {
     Text,
     UIC,
     UnitVariant,
+    Video,
 
     #[default]
     Unknown,
@@ -1213,7 +1213,6 @@ impl RFile {
             (FileType::AnimFragment, &RFileDecoded::AnimFragment(_)) |
             (FileType::AnimPack, &RFileDecoded::AnimPack(_)) |
             (FileType::AnimsTable, &RFileDecoded::AnimsTable(_)) |
-            (FileType::CaVp8, &RFileDecoded::CaVp8(_)) |
             (FileType::CEO, &RFileDecoded::CEO(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
@@ -1227,7 +1226,8 @@ impl RFile {
             (FileType::Text, &RFileDecoded::Text(_)) |
             (FileType::UIC, &RFileDecoded::UIC(_)) |
             (FileType::UnitVariant, &RFileDecoded::UnitVariant(_)) |
-            (FileType::Unknown, &RFileDecoded::Unknown(_)) => self.data = RFileInnerData::Decoded(Box::new(decoded)),
+            (FileType::Unknown, &RFileDecoded::Unknown(_)) |
+            (FileType::Video, &RFileDecoded::Video(_)) => self.data = RFileInnerData::Decoded(Box::new(decoded)),
             _ => return Err(RLibError::DecodedDataDoesNotMatchFileType(self.file_type(), From::from(&decoded)))
         }
 
@@ -1278,7 +1278,6 @@ impl RFile {
                     FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimPack => RFileDecoded::AnimPack(AnimPack::decode(&mut data, &Some(extra_data))?),
                     FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
-                    FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, &Some(extra_data))?),
                     FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::DB => {
 
@@ -1299,6 +1298,7 @@ impl RFile {
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                     FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
+                    FileType::Video => RFileDecoded::Video(Video::decode(&mut data, &Some(extra_data))?),
                 }
             },
 
@@ -1310,7 +1310,7 @@ impl RFile {
                     FileType::Anim |
                     FileType::AnimFragment |
                     FileType::AnimsTable |
-                    FileType::CaVp8 |
+                    FileType::Video |
                     FileType::CEO |
                     FileType::DB |
                     FileType::ESF |
@@ -1340,7 +1340,6 @@ impl RFile {
                             FileType::Anim => RFileDecoded::Anim(Unknown::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimFragment => RFileDecoded::AnimFragment(AnimFragment::decode(&mut data, &Some(extra_data))?),
                             FileType::AnimsTable => RFileDecoded::AnimsTable(AnimsTable::decode(&mut data, &Some(extra_data))?),
-                            FileType::CaVp8 => RFileDecoded::CaVp8(CaVp8::decode(&mut data, &Some(extra_data))?),
                             FileType::CEO => RFileDecoded::CEO(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::DB => {
 
@@ -1360,6 +1359,7 @@ impl RFile {
                             FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                             FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                             FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
+                            FileType::Video => RFileDecoded::Video(Video::decode(&mut data, &Some(extra_data))?),
 
                             FileType::AnimPack |
                             FileType::Pack => unreachable!()
@@ -1445,7 +1445,6 @@ impl RFile {
                     RFileDecoded::AnimFragment(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimPack(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::AnimsTable(data) => data.encode(&mut buffer, extra_data)?,
-                    RFileDecoded::CaVp8(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::CEO(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
@@ -1460,6 +1459,7 @@ impl RFile {
                     RFileDecoded::UIC(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UnitVariant(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Unknown(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::Video(data) => data.encode(&mut buffer, extra_data)?,
                 }
 
                 buffer
@@ -1617,8 +1617,8 @@ impl RFile {
             self.file_type =  FileType::AnimPack
         }
 
-        else if path.ends_with(ca_vp8::EXTENSION) {
-            self.file_type =  FileType::CaVp8;
+        else if path.ends_with(video::EXTENSION) {
+            self.file_type =  FileType::Video;
         }
 
         else if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
@@ -2022,7 +2022,7 @@ impl Display for FileType {
             FileType::AnimFragment => write!(f, "AnimFragment"),
             FileType::AnimPack => write!(f, "AnimPack"),
             FileType::AnimsTable => write!(f, "AnimsTable"),
-            FileType::CaVp8 => write!(f, "CA_VP8"),
+            FileType::Video => write!(f, "Video"),
             FileType::CEO => write!(f, "CEO"),
             FileType::DB => write!(f, "DB Table"),
             FileType::ESF => write!(f, "ESF"),
@@ -2048,7 +2048,6 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::AnimFragment(_) => Self::AnimFragment,
             RFileDecoded::AnimPack(_) => Self::AnimPack,
             RFileDecoded::AnimsTable(_) => Self::AnimsTable,
-            RFileDecoded::CaVp8(_) => Self::CaVp8,
             RFileDecoded::CEO(_) => Self::CEO,
             RFileDecoded::DB(_) => Self::DB,
             RFileDecoded::ESF(_) => Self::ESF,
@@ -2063,6 +2062,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::UIC(_) => Self::UIC,
             RFileDecoded::UnitVariant(_) => Self::UnitVariant,
             RFileDecoded::Unknown(_) => Self::Unknown,
+            RFileDecoded::Video(_) => Self::Video,
         }
     }
 }

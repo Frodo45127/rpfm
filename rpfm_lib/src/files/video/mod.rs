@@ -113,7 +113,7 @@ mod ivf;
 /// This represents an entire CaVp8 File decoded in memory.
 #[derive(PartialEq, Clone, Debug, Getters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", set = "pub")]
-pub struct CaVp8 {
+pub struct Video {
 
     /// Format of the video file
     format: SupportedFormats,
@@ -173,7 +173,7 @@ pub enum SupportedFormats {
 //                              Implementation
 //---------------------------------------------------------------------------//
 
-impl Decodeable for CaVp8 {
+impl Decodeable for Video {
 
     fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         match &*data.read_string_u8(4)? {
@@ -184,7 +184,7 @@ impl Decodeable for CaVp8 {
     }
 }
 
-impl Encodeable for CaVp8 {
+impl Encodeable for Video {
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, _extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         match self.format {
             SupportedFormats::CaVp8 => self.save_cavp8(buffer),

@@ -45,7 +45,6 @@ use qt_core::QPtr;
 use qt_core::QStringList;
 use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
-use qt_core::QSettings;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
@@ -82,7 +81,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
 //use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2418,8 +2417,8 @@ impl AppUI {
                         }
 
                         // If the file is a CA_VP8 PackedFile...
-                        Response::CaVp8RFileInfo(data, file_info) => {
-                            PackedFileCaVp8View::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
+                        Response::VideoRFileInfo(data, file_info) => {
+                            PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));

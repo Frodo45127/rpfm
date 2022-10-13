@@ -16,7 +16,7 @@ use std::fs::File;
 use crate::binary::ReadBytes;
 use crate::files::*;
 
-use super::CaVp8;
+use super::Video;
 
 #[test]
 fn test_decode_ca_vp8_v1() {
@@ -27,7 +27,7 @@ fn test_decode_ca_vp8_v1() {
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
-    let data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data));
+    let data = Video::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(data.is_ok());
 }
 
@@ -40,7 +40,7 @@ fn test_decode_ca_vp8_v0() {
     decodeable_extra_data.disk_file_path = Some(path);
     decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
 
-    let data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data));
+    let data = Video::decode(&mut reader, &Some(decodeable_extra_data));
     assert!(data.is_ok());
 }
 
@@ -56,7 +56,7 @@ fn test_encode_ca_vp8_v1() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut data = Video::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();
@@ -79,7 +79,7 @@ fn test_encode_ca_vp8_v0() {
 
     let data_len = reader.len().unwrap();
     let before = reader.read_slice(data_len as usize, true).unwrap();
-    let mut data = CaVp8::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let mut data = Video::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
 
     let mut after = vec![];
     data.encode(&mut after, &None).unwrap();

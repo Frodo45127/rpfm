@@ -29,7 +29,7 @@ const KEY_FRAME_MARKER: &[u8; 3] = &[0x9D, 0x01, 0x2A];
 //                              Implementation
 //---------------------------------------------------------------------------//
 
-impl CaVp8 {
+impl Video {
 
     /// This function creates a `CaVp8` from a readable source of data containing a video of Ivf format.
     ///

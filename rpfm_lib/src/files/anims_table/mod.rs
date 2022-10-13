@@ -86,19 +86,21 @@ impl AnimsTable {
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition(version: i32) -> Definition {
         let mut subdefinition = Definition::new(-1);
-        let mut subfields = Vec::with_capacity(2);
-        subfields.push(Field::new("uk_1".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        subfields.push(Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        let subfields = vec![
+            Field::new("uk_1".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+        ];
         subdefinition.set_fields(subfields);
 
         let mut definition = Definition::new(version);
-        let mut fields = Vec::with_capacity(6);
-        fields.push(Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("unit_1_uk_2".to_owned(), FieldType::I16, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        let fields = vec![
+            Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field::new("unit_1_uk_2".to_owned(), FieldType::I16, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+        ];
 
         definition.set_fields(fields);
         definition
