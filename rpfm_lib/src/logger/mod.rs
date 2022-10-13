@@ -102,18 +102,18 @@ impl Logger {
         let config_path = get_config_path()?;
 
         // Rotate the logs so we can keep a few old logs.
-        Self::rotate_logs(&config_path)?;
+        //Self::rotate_logs(&config_path)?;
 
         // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
         //
         // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
-        let mut file_logger_failed = true;
-        let mut loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
-        if let Ok(write_logger_file) = File::create(config_path.join(LOG_FILE_CURRENT)) {
-            let write_logger = WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), write_logger_file);
-            loggers.push(write_logger);
-            file_logger_failed = false;
-        }
+        let file_logger_failed = true;
+        let loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
+        //if let Ok(write_logger_file) = File::create(config_path.join(LOG_FILE_CURRENT)) {
+        //    let write_logger = WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), write_logger_file);
+        //    loggers.push(write_logger);
+        //    file_logger_failed = false;
+        //}
 
         let combined_logger = CombinedLogger::new(loggers);
 
