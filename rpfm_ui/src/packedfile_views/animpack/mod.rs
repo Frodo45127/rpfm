@@ -214,7 +214,6 @@ impl PackedFileAnimPackView {
         );
 
         connections::set_connections(&packed_file_animpack_view, &packed_file_animpack_view_slots);
-        shortcuts::set_shortcuts(&packed_file_animpack_view);
         packed_file_view.view = ViewType::Internal(View::AnimPack(packed_file_animpack_view));
         packed_file_view.packed_file_type = FileType::AnimPack;
     }

@@ -362,37 +362,13 @@ impl DB {
         self.table.set_definition(new_definition);
     }
 
+    /// This function updates the current table to a new definition.
+    pub fn update(&mut self, new_definition: &Definition) {
+        self.set_definition(new_definition)
+    }
+
     /*
 
-    /// This function creates a `DB` from a `Vec<u8>` using only a field list instead of a full definition.
-    pub fn read_with_fields(
-        packed_file_data: &[u8],
-        name: &str,
-        fields: &[Field],
-        return_incomplete: bool
-    ) -> Result<Self> {
-
-        // Get the header of the `DB`.
-        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(packed_file_data)?;
-
-        // Then try to decode all the entries.
-        let mut definition = Definition::new(version);
-        *definition.get_ref_mut_fields() = fields.to_vec();
-
-        let mut table = Table::new(&definition);
-        table.decode(packed_file_data, entry_count, &mut index, return_incomplete)?;
-
-        // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
-
-        // If we've reached this, we've successfully decoded the table.
-        Ok(Self {
-            name: name.to_owned(),
-            mysterious_byte,
-            uuid,
-            table,
-        })
-    }
 
 
     /// This mess of a function performs a recursive/cascade editing over the related files on a PackFile.

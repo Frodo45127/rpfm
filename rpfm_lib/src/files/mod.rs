@@ -73,7 +73,7 @@ use crate::compression::Decompressible;
 use crate::encryption::Decryptable;
 use crate::error::{Result, RLibError};
 use crate::games::pfh_version::PFHVersion;
-use crate::schema::Schema;
+use crate::schema::{Schema, Definition};
 use crate::utils::*;
 
 use self::anim_fragment::AnimFragment;
@@ -1821,6 +1821,21 @@ impl RFile {
             _ => Err(RLibError::RFileMergeNotSupportedForType(file_types[0].to_string())),
         }
     }
+
+    /// This function tries to update a file to a new version of the same file's format.
+    ///
+    /// Files used by this function are expected to be pre-decoded.
+    pub fn update(&mut self, definition: &Option<Definition>) -> Result<()> {
+        match self.decoded_mut() {
+            Ok(RFileDecoded::DB(file)) => match definition {
+                Some(definition) => file.update(definition),
+                None => return Err(RLibError::RawTableMissingDefinition),
+            }
+            _ => return Err(RLibError::FileNotDecoded(self.path_in_container_raw().to_string())),
+        }
+
+        Ok(())
+    }
 }
 
 impl OnDisk {
@@ -1999,290 +2014,6 @@ impl PartialOrd for ContainerPath {
         Some(self.cmp(other))
     }
 }
-
-/*
-//----------------------------------------------------------------//
-// Implementations for `DecodedPackedFile`.
-//----------------------------------------------------------------//
-
-    /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the data.pack or equivalent of the game.
-    ///
-    /// It returns both, old and new versions, or an error.
-    pub fn update_table(&mut self, dependencies: &Dependencies) -> Result<(i32, i32)> {
-        match self {
-            DecodedPackedFile::DB(data) => {
-                let dep_db = dependencies.get_db_tables_from_cache(data.get_ref_table_name(), true, false)?;
-                if let Some(vanilla_db) = dep_db.iter()
-                    .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
-
-                    let definition_new = vanilla_db.get_definition();
-                    let definition_old = data.get_definition();
-                    if definition_old != definition_new {
-                        data.set_definition(&definition_new);
-                        Ok((definition_old.get_version(), definition_new.get_version()))
-                    }
-                    else {
-                        Err(ErrorKind::NoDefinitionUpdateAvailable.into())
-                    }
-                }
-                else { Err(ErrorKind::NoTableInGameFilesToCompare.into()) }
-            }
-            _ => Err(ErrorKind::DBTableIsNotADBTable.into()),
-        }
-    }
-}
-
-//----------------------------------------------------------------//
-// Implementations for `PackedFileType`.
-//----------------------------------------------------------------//
-
-
-}
-
-/// Implementation of `PackedFileType`.
-impl PackedFileType {
-
-    /// This function returns the type of the provided `PackedFile` based on the info about them (path, name, extension,...).
-    ///
-    /// Strict mode also performs a search by checking the data directly if no type was found, but that's very slow. Think twice before using it.
-    pub fn get_packed_file_type(packed_file: &RawPackedFile, strict_mode: bool) -> Self {
-
-        // First, try with extensions.
-        let path = packed_file.get_path();
-
-        // Reserved PackedFiles.
-        if path == [RESERVED_NAME_NOTES] {
-            return Self::Text(TextType::Markdown);
-        }
-
-        if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-            return Self::PackFile;
-        }
-
-        if let Some(packedfile_name) = path.last() {
-            let packedfile_name = packedfile_name.to_lowercase();
-
-            if packedfile_name.ends_with(table::loc::EXTENSION) {
-                return Self::Loc;
-            }
-
-            if packedfile_name.ends_with(rigidmodel::EXTENSION) {
-                return Self::RigidModel
-            }
-
-            if packedfile_name.ends_with(animpack::EXTENSION) {
-                return Self::AnimPack
-            }
-
-            if packedfile_name.ends_with(ca_vp8::EXTENSION) {
-                return Self::CaVp8;
-            }
-
-            if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
-                return Self::Image;
-            }
-
-            if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
-                return Self::Text(*text_type);
-            }
-
-            if packedfile_name.ends_with(unit_variant::EXTENSION) {
-                return Self::UnitVariant
-            }
-
-            if esf::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(*x)) && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
-                return Self::ESF;
-            }
-
-            // If that failed, try types that need to be in a specific path.
-            let path_str = path.iter().map(String::as_str).collect::<Vec<&str>>();
-            if path_str.starts_with(&table::matched_combat::BASE_PATH) && packedfile_name.ends_with(table::matched_combat::EXTENSION) {
-                return Self::MatchedCombat;
-            }
-
-            if path_str.starts_with(&table::animtable::BASE_PATH) && packedfile_name.ends_with(table::animtable::EXTENSION) {
-                return Self::AnimTable;
-            }
-
-            if path_str.starts_with(&table::anim_fragment::BASE_PATH) && table::anim_fragment::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(*x)) {
-                return Self::AnimFragment;
-            }
-
-            // If that failed, check if it's in a folder which is known to only have specific files.
-            if let Some(folder) = path.get(0) {
-                let base_folder = folder.to_lowercase();
-                if &base_folder == "db" {
-                    return Self::DB;
-                }
-
-                if &base_folder == "ui" && (!packedfile_name.contains('.') || packedfile_name.ends_with(uic::EXTENSION)) {
-                    return Self::UIC;
-                }
-            }
-
-            // If nothing worked, then it's simple: if we enabled strict mode, check the data. If not, we don't know.
-            // This is very slow when done over a lot of files, so be careful with it.
-            if strict_mode {
-                let data = packed_file.get_data().unwrap();
-
-                if Text::read(&data).is_ok() {
-                    return Self::Text(TextType::Plain);
-                }
-
-                if Loc::is_loc(&data) {
-                    return Self::Loc;
-                }
-
-                if DB::read_header(&data).is_ok() {
-                    return Self::DB;
-                }
-
-                if CaVp8::is_video(&data) {
-                    return Self::CaVp8;
-                }
-
-                if UIC::is_ui_component(&data) {
-                    return Self::UIC;
-                }
-            }
-        }
-
-        // If we reach this... we're clueless.
-        Self::Unknown
-    }
-
-    /// This function returns the type of the provided `CachedPackedFile` based on the info about them (path, name, extension,...).
-    ///
-    /// Strict mode also performs a search by checking the data directly if no type was found, but that's very slow. Think twice before using it.
-    pub fn get_cached_packed_file_type(packed_file: &CachedPackedFile, strict_mode: bool) -> Self {
-
-        // First, try with extensions.
-        let path = packed_file.get_ref_packed_file_path().to_lowercase();
-        if path.ends_with(table::loc::EXTENSION) {
-            return Self::Loc;
-        }
-
-        if path.ends_with(rigidmodel::EXTENSION) {
-            return Self::RigidModel
-        }
-
-        if path.ends_with(animpack::EXTENSION) {
-            return Self::AnimPack
-        }
-
-        if path.ends_with(ca_vp8::EXTENSION) {
-            return Self::CaVp8;
-        }
-
-        if image::EXTENSIONS.iter().any(|x| path.ends_with(x)) {
-            return Self::Image;
-        }
-
-        if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| path.ends_with(x)) {
-            return Self::Text(*text_type);
-        }
-
-        if path.ends_with(unit_variant::EXTENSION) {
-            return Self::UnitVariant
-        }
-
-        if esf::EXTENSIONS.iter().any(|x| path.ends_with(*x)) && SETTINGS.read().unwrap().settings_bool["enable_esf_editor"] {
-            return Self::ESF;
-        }
-
-        // If that failed, try types that need to be in a specific path.
-        let path_str = path.split('/').collect::<Vec<&str>>();
-        if path.ends_with(table::matched_combat::EXTENSION) && path_str.starts_with(&table::matched_combat::BASE_PATH) {
-            return Self::MatchedCombat;
-        }
-
-        if path.ends_with(table::animtable::EXTENSION) && path_str.starts_with(&table::animtable::BASE_PATH) {
-            return Self::AnimTable;
-        }
-
-        if path_str.starts_with(&table::anim_fragment::BASE_PATH) && table::anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
-            return Self::AnimFragment;
-        }
-
-        // If that failed, check if it's in a folder which is known to only have specific files.
-        if let Some(folder) = path_str.get(0) {
-            if *folder == "db" {
-                return Self::DB;
-            }
-
-            if *folder == "ui" && (!path.contains('.') || path.ends_with(uic::EXTENSION)) {
-                return Self::UIC;
-            }
-        }
-
-        // If nothing worked, turn it into a proper PackedFile and try to get the type that way.
-        // NOTE: EXTREMELY SLOW!!!!!!
-        if strict_mode {
-            Self::get_packed_file_type(PackedFile::try_from(packed_file).unwrap().get_ref_raw(), strict_mode);
-        }
-
-        // If we reach this... we're clueless.
-        Self::Unknown
-    }
-
-    /// This function is a less strict version of the one implemented with the `Eq` trait.
-    ///
-    /// It performs an equality check between both provided types, ignoring the subtypes. This means,
-    /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
-    pub fn eq_non_strict(self, other: Self) -> bool {
-        match self {
-            Self::Anim |
-            Self::AnimFragment |
-            Self::AnimPack |
-            Self::AnimTable |
-            Self::CaVp8 |
-            Self::CEO |
-            Self::DB |
-            Self::DependencyPackFilesList |
-            Self::ESF |
-            Self::Image |
-            Self::GroupFormations |
-            Self::Loc |
-            Self::MatchedCombat |
-            Self::PackFile |
-            Self::RigidModel |
-            Self::PackFileSettings |
-            Self::UIC |
-            Self::UnitVariant |
-            Self::Unknown => self == other,
-            Self::Text(_) => matches!(other, Self::Text(_)),
-        }
-    }
-
-    /// This function is a less strict version of the one implemented with the `Eq` trait, adapted to work with slices of types instead of singular types.
-    ///
-    /// It performs an equality check between both provided types, ignoring the subtypes. This means,
-    /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
-    pub fn eq_non_strict_slice(self, others: &[Self]) -> bool {
-        match self {
-            Self::Anim |
-            Self::AnimFragment |
-            Self::AnimPack |
-            Self::AnimTable |
-            Self::CaVp8 |
-            Self::CEO |
-            Self::DB |
-            Self::DependencyPackFilesList |
-            Self::ESF |
-            Self::Image |
-            Self::GroupFormations |
-            Self::Loc |
-            Self::MatchedCombat |
-            Self::PackFile |
-            Self::RigidModel |
-            Self::PackFileSettings |
-            Self::UIC |
-            Self::UnitVariant |
-            Self::Unknown => others.contains(&self),
-            Self::Text(_) => others.iter().any(|x| matches!(x, Self::Text(_))),
-        }
-    }
-}*/
 
 impl Display for FileType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

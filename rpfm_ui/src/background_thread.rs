@@ -857,31 +857,18 @@ pub fn background_loop() {
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
-            /*
-            // In case we want to update a table...
-            Command::UpdateTable(path_type) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    if let ContainerPath::File(path) = path_type {
-                        if let Some(rfile) = pack_file_decoded.file_mut(&path) {
-                            if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
-                                table.update
-                            }
-                            match packed_file.decode_return_ref_mut_no_locks(schema) {
-                                Ok(packed_file_decoded) => match packed_file_decoded.update_table(&dependencies) {
-                                    Ok(data) => {
 
-                                        // Save it to binary, so the decoder will load the proper data if we open it with it.
-                                        let _ = packed_file.encode_no_load();
-                                        CentralCommand::send_back(&sender, Response::I32I32(data))
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                                }
-                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                            }
-                        } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())); }
-                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::PackedFileNotFound.into())); }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
-            }*/
+            // In case we want to update a table...
+            Command::UpdateTable(path) => {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let path = path.path_raw();
+                    if let Some(rfile) = pack_file_decoded.file_mut(&path) {
+                        if let Ok(decoded) = rfile.decoded_mut() {
+                            dependencies.update_db(decoded);
+                        } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
+                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?"))); }
+            }
 
             // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceMatches(mut global_search, matches) => {
@@ -948,13 +935,15 @@ pub fn background_loop() {
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
-            }/*
+            }
 
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
-                let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect::<Vec<&[String]>>());
-                packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-            }*/
+                let mut files = pack_file_decoded.files_by_paths_mut(&paths);
+                files.iter_mut().for_each(|file| {
+                    let _ = file.encode(&None, true, true, false);
+                });
+            }
 
             // In case we want to export a PackedFile as a TSV file...
             Command::ExportTSV(internal_path, external_path) => {

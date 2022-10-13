@@ -269,7 +269,7 @@ pub enum Command {
     SaveSchema(Schema),
 
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
-    CleanCache(Vec<Vec<String>>),
+    CleanCache(Vec<ContainerPath>),
 
     /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
     ExportTSV(String, PathBuf),

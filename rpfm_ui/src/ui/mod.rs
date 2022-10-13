@@ -29,7 +29,6 @@ use qt_gui::QFont;
 use qt_gui::QIcon;
 
 use qt_core::QFlags;
-use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::QVariant;
 use qt_core::WindowState;
