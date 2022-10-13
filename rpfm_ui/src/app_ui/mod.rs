@@ -2417,7 +2417,7 @@ impl AppUI {
                         }
 
                         // If the file is a CA_VP8 PackedFile...
-                        Response::VideoRFileInfo(data, file_info) => {
+                        Response::VideoInfoRFileInfo(data, file_info) => {
                             PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.

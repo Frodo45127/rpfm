@@ -159,10 +159,11 @@ pub struct Frame {
 }
 
 /// This enum contains the list of formats this lib supports.
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum SupportedFormats {
 
     /// Used by CA in CaVp8 files.
+    #[default]
     CaVp8,
 
     /// VP8 IVF standard format.

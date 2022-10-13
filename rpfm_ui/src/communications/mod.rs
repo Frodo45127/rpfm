@@ -426,7 +426,7 @@ pub enum Response {
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
 
     /// Response to return `(CaVp8, RFileInfo)`.
-    VideoRFileInfo(Video, RFileInfo),
+    VideoInfoRFileInfo(VideoInfo, RFileInfo),
 
     /// Response to return `(ESF, RFileInfo)`.
     ESFRFileInfo(ESF, RFileInfo),

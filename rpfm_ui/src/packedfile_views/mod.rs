@@ -539,9 +539,9 @@ impl PackedFileView {
                             }
                         },
 
-                        Response::VideoRFileInfo(ca_vp8, packed_file_info) => {
-                            if let View::Video(old_ca_vp8) = view {
-                                old_ca_vp8.reload_view(&ca_vp8);
+                        Response::VideoInfoRFileInfo(video, packed_file_info) => {
+                            if let View::Video(old_video) = view {
+                                old_video.reload_view(&video);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile);
                             }
                             else {

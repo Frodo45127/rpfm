@@ -24,7 +24,7 @@ use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
-use rpfm_lib::files::{*, Container, FileType, RFile, animpack::*, pack::*};
+use rpfm_lib::files::{*, Container, FileType, RFile, animpack::*, pack::*, video::*};
 
 use crate::GAME_SELECTED;
 use crate::packedfile_views::DataSource;
@@ -87,6 +87,33 @@ pub struct RFileInfo {
     //cached_type: String,
 }
 
+/// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
+#[derive(Clone, Debug, Default, Getters)]
+#[getset(get = "pub")]
+pub struct VideoInfo {
+
+    /// Format of the video file
+    format: SupportedFormats,
+
+    /// Version number.
+    version: u16,
+
+    /// Codec FourCC (usually 'VP80').
+    codec_four_cc: String,
+
+    /// Width of the video in pixels.
+    width: u16,
+
+    /// Height of the video in pixels.
+    height: u16,
+
+    /// Number of frames on the video.
+    num_frames: u32,
+
+    /// Framerate of the video.
+    framerate: f32,
+}
+
 /// This struct contains the minimal data needed (mainly paths), to know what we have loaded in out dependencies.
 #[derive(Debug, Clone, Default, Getters)]
 #[getset(get = "pub")]
@@ -146,6 +173,20 @@ impl From<&RFile> for RFileInfo {
             //is_encrypted: rfile.get_ref_raw().get_encryption_state(),
             //is_cached,
             //cached_type,
+        }
+    }
+}
+
+impl From<&Video> for VideoInfo {
+    fn from(video: &Video) -> Self {
+        Self {
+            format: *video.format(),
+            version: *video.version(),
+            codec_four_cc: video.codec_four_cc().to_string(),
+            width: *video.width(),
+            height: *video.height(),
+            num_frames: *video.num_frames(),
+            framerate: *video.framerate(),
         }
     }
 }

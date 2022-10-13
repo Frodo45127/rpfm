@@ -345,7 +345,7 @@ pub fn background_loop() {
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match pack_file_decoded.optimize(&mut dependencies, &schema, setting_bool("optimize_not_renamed_packedfiles")) {
+                    match pack_file_decoded.optimize(&mut dependencies, schema, setting_bool("optimize_not_renamed_packedfiles")) {
                         Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::HashSetString(paths_to_delete)),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
@@ -487,7 +487,7 @@ pub fn background_loop() {
                 // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let mut decode_extra_data = DecodeableExtraData::default();
-                    decode_extra_data.set_schema(Some(&schema));
+                    decode_extra_data.set_schema(Some(schema));
                     let extra_data = Some(decode_extra_data);
 
                     pack_file_decoded.files_by_paths_mut(&added_paths).par_iter_mut().for_each(|x| {
@@ -512,7 +512,7 @@ pub fn background_loop() {
                         // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             let mut decode_extra_data = DecodeableExtraData::default();
-                            decode_extra_data.set_schema(Some(&schema));
+                            decode_extra_data.set_schema(Some(schema));
                             let extra_data = Some(decode_extra_data);
 
                             let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
@@ -626,7 +626,7 @@ pub fn background_loop() {
                 dbg!(&data_source);
                 match data_source {
                     DataSource::PackFile => {
-                        if &path == RESERVED_NAME_NOTES {
+                        if path == RESERVED_NAME_NOTES {
                             let mut note = Text::default();
                             note.set_format(TextFormat::Markdown);
                             note.set_contents(pack_file_decoded.notes().to_owned());
@@ -648,7 +648,7 @@ pub fn background_loop() {
 
                                     match result {
                                         Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
-                                        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
+                                        Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
                                         Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
@@ -659,7 +659,7 @@ pub fn background_loop() {
                                         Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                         Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
-                                        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
+                                        Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
                                         Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                     }
@@ -682,7 +682,7 @@ pub fn background_loop() {
 
                                 match result {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
+                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
@@ -693,7 +693,7 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
+                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
                                     Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
@@ -715,7 +715,7 @@ pub fn background_loop() {
 
                                 match result {
                                     Ok(RFileDecoded::AnimFragment(data)) => CentralCommand::send_back(&sender, Response::AnimFragmentRFileInfo(data.clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(|file| From::from(file)).collect(), From::from(&*file))),
+                                    Ok(RFileDecoded::AnimPack(data)) => CentralCommand::send_back(&sender, Response::AnimPackRFileInfo(From::from(&data), data.files().values().map(From::from).collect(), From::from(&*file))),
                                     Ok(RFileDecoded::AnimsTable(data)) => CentralCommand::send_back(&sender, Response::AnimsTableRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(&sender, Response::ESFRFileInfo(data.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(&sender, Response::DBRFileInfo(table.clone(), From::from(&*file))),
@@ -726,7 +726,7 @@ pub fn background_loop() {
                                     Ok(RFileDecoded::Text(text)) => CentralCommand::send_back(&sender, Response::TextRFileInfo(text.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UIC(uic)) => CentralCommand::send_back(&sender, Response::UICRFileInfo(uic.clone(), From::from(&*file))),
                                     Ok(RFileDecoded::UnitVariant(_)) => CentralCommand::send_back(&sender, Response::RFileDecodedRFileInfo(result.unwrap().clone(), From::from(&*file))),
-                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoRFileInfo(data.clone(), From::from(&*file))),
+                                    Ok(RFileDecoded::Video(data)) => CentralCommand::send_back(&sender, Response::VideoInfoRFileInfo(From::from(&data), From::from(&*file))),
                                     Ok(_) => CentralCommand::send_back(&sender, Response::Unknown),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }
@@ -753,7 +753,7 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the view....
             Command::SavePackedFileFromView(path, file_decoded) => {
-                if &path == RESERVED_NAME_NOTES {
+                if path == RESERVED_NAME_NOTES {
                     if let RFileDecoded::Text(data) = file_decoded {
                         pack_file_decoded.set_notes(data.contents().to_owned());
                     }
@@ -767,7 +767,7 @@ pub fn background_loop() {
             }
 
             // In case we want to delete PackedFiles from a PackFile...
-            Command::DeletePackedFiles(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths.iter().map(|path| pack_file_decoded.remove(&path)).flatten().collect())),
+            Command::DeletePackedFiles(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths.iter().flat_map(|path| pack_file_decoded.remove(path)).collect())),
 
             // In case we want to extract PackedFiles from a PackFile...
             Command::ExtractPackedFiles(container_paths, path, extract_tables_to_tsv) => {
@@ -776,7 +776,7 @@ pub fn background_loop() {
                 let mut errors = 0;
                 let mut success = 0;
                 for container_path in container_paths {
-                    if pack_file_decoded.extract(container_path, &path, true, &schema).is_err() {
+                    if pack_file_decoded.extract(container_path, &path, true, schema).is_err() {
                         errors += 1;
                     }else {
                         success += 1;
@@ -861,7 +861,7 @@ pub fn background_loop() {
             // In case we want to update a table...
             Command::UpdateTable(path) => {
                 let path = path.path_raw();
-                if let Some(rfile) = pack_file_decoded.file_mut(&path) {
+                if let Some(rfile) = pack_file_decoded.file_mut(path) {
                     if let Ok(decoded) = rfile.decoded_mut() {
                         dependencies.update_db(decoded);
                     } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
@@ -873,7 +873,7 @@ pub fn background_loop() {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let paths = global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies, &matches);
-                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
+                    let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
                 } else {
@@ -886,7 +886,7 @@ pub fn background_loop() {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies);
-                    let files_info = paths.iter().map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).flatten().collect();
+                    let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
                 } else {
@@ -1205,15 +1205,13 @@ pub fn background_loop() {
                         let extra_data = Some(extra_data);
 
                         for packed_file in pack_file_decoded.files_by_type_mut(&[FileType::DB]) {
-                            if packed_file.decode(&extra_data, false, false).is_err() {
-                                if packed_file.load().is_ok() {
-                                    if let Ok(raw_data) = packed_file.cached() {
-                                        let mut reader = Cursor::new(raw_data);
-                                        if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
-                                            if entry_count > 0 {
-                                                counter += 1;
-                                                table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.path_in_container_raw()))
-                                            }
+                            if packed_file.decode(&extra_data, false, false).is_err() && packed_file.load().is_ok() {
+                                if let Ok(raw_data) = packed_file.cached() {
+                                    let mut reader = Cursor::new(raw_data);
+                                    if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
+                                        if entry_count > 0 {
+                                            counter += 1;
+                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.path_in_container_raw()))
                                         }
                                     }
                                 }
@@ -1460,9 +1458,8 @@ pub fn background_loop() {
                         },
                     };
 
-                    for (_, file) in &files {
+                    for file in files.values() {
                         added_paths.push(pack_file_decoded.insert((*file).clone()).unwrap());
-
                     }
                 }
 
@@ -1657,7 +1654,7 @@ pub fn background_loop() {
                 // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
                 if !setting_bool("disable_mymod_automatic_configs") {
                     if let Ok(lua_autogen_folder) = lua_autogen_game_path(&GAME_SELECTED.read().unwrap()) {
-                        let lua_autogen_folder = lua_autogen_folder.to_string_lossy().to_string().replace("\\", "/");
+                        let lua_autogen_folder = lua_autogen_folder.to_string_lossy().to_string().replace('\\', "/");
 
                         let mut vscode_config_path = mymod_path.to_owned();
                         vscode_config_path.push(".vscode");

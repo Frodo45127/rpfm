@@ -27,6 +27,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use rpfm_lib::files::{video::*, FileType};
 
 use crate::app_ui::AppUI;
+use crate::backend::VideoInfo;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -68,7 +69,7 @@ impl PackedFileVideoView {
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        data: &Video, // TODO: Remove this and use an info struct instead.
+        data: &VideoInfo,
     ) {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
@@ -152,7 +153,7 @@ impl PackedFileVideoView {
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: &Video) {
+    pub unsafe fn reload_view(&self, data: &VideoInfo) {
         self.get_mut_ptr_format_data_label().set_text(&QString::from_std_str(format!("{:?}", data.format())));
         self.get_mut_ptr_version_data_label().set_text(&QString::from_std_str(format!("{:?}", data.version())));
         self.get_mut_ptr_codec_four_cc_data_label().set_text(&QString::from_std_str(format!("{:?}", data.codec_four_cc())));
