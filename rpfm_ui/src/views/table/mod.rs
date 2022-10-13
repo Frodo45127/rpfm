@@ -105,8 +105,6 @@ use self::utils::*;
 
 mod connections;
 pub mod slots;
-mod shortcuts;
-mod tips;
 pub mod utils;
 
 // Column default sizes.
@@ -419,44 +417,44 @@ impl TableView {
 
         // Create the Contextual Menu for the TableView.
         let context_menu = QMenu::from_q_widget(&table_view_primary);
-        let context_menu_add_rows = context_menu.add_action_q_string(&qtr("context_menu_add_rows"));
-        let context_menu_insert_rows = context_menu.add_action_q_string(&qtr("context_menu_insert_rows"));
-        let context_menu_delete_rows = context_menu.add_action_q_string(&qtr("context_menu_delete_rows"));
-        let context_menu_delete_rows_not_in_filter = context_menu.add_action_q_string(&qtr("context_menu_delete_filtered_out_rows"));
+        let context_menu_add_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "add_row", "context_menu_add_rows");
+        let context_menu_insert_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "insert_row", "context_menu_insert_rows");
+        let context_menu_delete_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_row", "context_menu_delete_rows");
+        let context_menu_delete_rows_not_in_filter = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_filtered_out_row", "context_menu_delete_filtered_out_rows");
 
         let context_menu_clone_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_clone_submenu"), &table_view_primary);
-        let context_menu_clone_and_insert = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_insert"));
-        let context_menu_clone_and_append = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_append"));
+        let context_menu_clone_and_insert = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_insert_row", "context_menu_clone_and_insert");
+        let context_menu_clone_and_append = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_append_row", "context_menu_clone_and_append");
 
         let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view_primary);
-        let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
-        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
-        let context_menu_copy_to_filter_value = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_to_filter_value"));
+        let context_menu_copy = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy", "context_menu_copy");
+        let context_menu_copy_as_lua_table = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_lua_table", "context_menu_copy_as_lua_table");
+        let context_menu_copy_to_filter_value = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_filter_value", "context_menu_copy_to_filter_value");
 
-        let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
-        let context_menu_paste_as_new_row = context_menu.add_action_q_string(&qtr("context_menu_paste_as_new_row"));
+        let context_menu_paste = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste", "context_menu_paste");
+        let context_menu_paste_as_new_row = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste_as_new_row", "context_menu_paste_as_new_row");
 
-        let context_menu_generate_ids = context_menu.add_action_q_string(&qtr("context_menu_generate_ids"));
-        let context_menu_rewrite_selection = context_menu.add_action_q_string(&qtr("context_menu_rewrite_selection"));
-        let context_menu_invert_selection = context_menu.add_action_q_string(&qtr("context_menu_invert_selection"));
-        let context_menu_reset_selection = context_menu.add_action_q_string(&qtr("context_menu_reset_selection"));
-        let context_menu_resize_columns = context_menu.add_action_q_string(&qtr("context_menu_resize_columns"));
+        let context_menu_generate_ids = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "generate_ids", "context_menu_generate_ids");
+        let context_menu_rewrite_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rewrite_selection", "context_menu_rewrite_selection");
+        let context_menu_invert_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "invert_selection", "context_menu_invert_selection");
+        let context_menu_reset_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "reset_selected_values", "context_menu_reset_selection");
+        let context_menu_resize_columns = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "resize_columns", "context_menu_resize_columns");
 
-        let context_menu_import_tsv = context_menu.add_action_q_string(&qtr("context_menu_import_tsv"));
-        let context_menu_export_tsv = context_menu.add_action_q_string(&qtr("context_menu_export_tsv"));
+        let context_menu_import_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "import_tsv", "context_menu_import_tsv");
+        let context_menu_export_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "export_tsv", "context_menu_export_tsv");
 
-        let context_menu_search = context_menu.add_action_q_string(&qtr("context_menu_search"));
-        let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
+        let context_menu_search = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "search", "context_menu_search");
+        let context_menu_sidebar = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "sidebar", "context_menu_sidebar");
 
-        let context_menu_find_references = context_menu.add_action_q_string(&qtr("context_menu_find_references"));
-        let context_menu_cascade_edition = context_menu.add_action_q_string(&qtr("context_menu_cascade_edition"));
-        let context_menu_patch_column = context_menu.add_action_q_string(&qtr("context_menu_patch_column"));
+        let context_menu_find_references = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "find_references", "context_menu_find_references");
+        let context_menu_cascade_edition = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rename_references", "context_menu_cascade_edition");
+        let context_menu_patch_column = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "patch_columns", "context_menu_patch_column");
 
-        let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
-        let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
+        let context_menu_undo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "undo", "context_menu_undo");
+        let context_menu_redo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "redo", "context_menu_redo");
 
         let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view_primary);
-        let context_menu_go_to_definition = context_menu_go_to.add_action_q_string(&qtr("context_menu_go_to_definition"));
+        let context_menu_go_to_definition = add_action_to_menu(&context_menu_go_to.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "go_to_definition", "context_menu_go_to_definition");
         let mut context_menu_go_to_loc = vec![];
 
         for (index, loc_column) in table_definition.localised_fields().iter().enumerate() {
@@ -473,6 +471,8 @@ impl TableView {
         context_menu.insert_separator(&context_menu_import_tsv);
         context_menu.insert_separator(&context_menu_search);
         context_menu.insert_separator(&context_menu_undo);
+
+        shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("table_editor").into_ptr(), table_view_primary.static_upcast::<qt_widgets::QWidget>().as_ptr());
 
         //--------------------------------------------------//
         // Search Section.
@@ -737,8 +737,7 @@ dbg!(t.elapsed().unwrap());
 dbg!(t.elapsed().unwrap());
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
-        shortcuts::set_shortcuts(&packed_file_table_view);
-        tips::set_tips(&packed_file_table_view);
+
 dbg!(t.elapsed().unwrap());
         // Update the line counter.
         packed_file_table_view.update_line_counter();

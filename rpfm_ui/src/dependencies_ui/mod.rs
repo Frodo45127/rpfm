@@ -16,7 +16,6 @@ use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
 use qt_widgets::QLineEdit;
-use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
@@ -157,10 +156,10 @@ impl DependenciesUI {
         // Populate the `Contextual Menu` for the `Dependencies` TreeView.
         let dependencies_tree_view_context_menu = QMenu::from_q_widget(&dependencies_dock_inner_widget);
 
-        let context_menu_import = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Import From Dependencies", "context_menu_import");
-        let context_menu_copy_path = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Copy Path", "context_menu_copy_path");
-        let dependencies_tree_view_expand_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Expand All", "treeview_expand_all");
-        let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "Collapse All", "treeview_collapse_all");
+        let context_menu_import = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "import_from_dependencies", "context_menu_import");
+        let context_menu_copy_path = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "copy_path", "context_menu_copy_path");
+        let dependencies_tree_view_expand_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "expand_all", "treeview_expand_all");
+        let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "collapsse_all", "treeview_collapse_all");
 
         shortcut_associate_action_group_to_widget_safe(app_ui.shortcuts().as_ptr(), QString::from_std_str("dependencies_context_menu").into_ptr(), dependencies_tree_view.static_upcast::<qt_widgets::QWidget>().as_ptr());
 

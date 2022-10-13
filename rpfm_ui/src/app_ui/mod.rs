@@ -374,14 +374,14 @@ impl AppUI {
         shortcut_collection_init_safe(&main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), shortcuts.as_ptr());
 
         // Create the Contextual Menu Actions.
-        let tab_bar_packed_file_close = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Close Tab", "close_tab");
-        let tab_bar_packed_file_close_all = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Close All Tabs", "close_all_other_tabs");
-        let tab_bar_packed_file_close_all_left = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Close All Tabs to the Left", "close_tabs_to_left");
-        let tab_bar_packed_file_close_all_right = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Close All Tabs to the Right", "close_tabs_to_right");
-        let tab_bar_packed_file_prev = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Previous Tab", "prev_tab");
-        let tab_bar_packed_file_next = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Next Tab", "next_tab");
-        let tab_bar_packed_file_import_from_dependencies = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Import From Dependencies", "import_from_dependencies");
-        let tab_bar_packed_file_toggle_tips = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "Toggle Tips", "toggle_tips");
+        let tab_bar_packed_file_close = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_tab", "close_tab");
+        let tab_bar_packed_file_close_all = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs", "close_all_other_tabs");
+        let tab_bar_packed_file_close_all_left = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs_left", "close_tabs_to_left");
+        let tab_bar_packed_file_close_all_right = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "close_other_tabs_right", "close_tabs_to_right");
+        let tab_bar_packed_file_prev = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "previus_tab", "prev_tab");
+        let tab_bar_packed_file_next = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "next_tab", "next_tab");
+        let tab_bar_packed_file_import_from_dependencies = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "import_from_dependencies", "import_from_dependencies");
+        let tab_bar_packed_file_toggle_tips = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "toggle_tips", "toggle_tips");
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -421,12 +421,12 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `PackFile` menu.
-        let packfile_new_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "New Pack", "new_packfile");
-        let packfile_open_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Open Pack", "open_packfile");
-        let packfile_save_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Save Pack", "save_packfile");
-        let packfile_save_packfile_as = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Save Pack As", "save_packfile_as");
-        let packfile_install = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Install Pack", "packfile_install");
-        let packfile_uninstall = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Uninstall Pack", "packfile_uninstall");
+        let packfile_new_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "new_pack", "new_packfile");
+        let packfile_open_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_pack", "open_packfile");
+        let packfile_save_packfile = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack", "save_packfile");
+        let packfile_save_packfile_as = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_pack_as", "save_packfile_as");
+        let packfile_install = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "install_pack", "packfile_install");
+        let packfile_uninstall = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "uninstall_pack", "packfile_uninstall");
 
         let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
@@ -434,9 +434,9 @@ impl AppUI {
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
         let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
 
-        let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Load All CA Packs", "load_all_ca_packfiles");
-        let packfile_preferences = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Settings", "preferences");
-        let packfile_quit = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "Quit", "quit");
+        let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles");
+        let packfile_preferences = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "preferences");
+        let packfile_quit = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "quit", "quit");
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_recent);
@@ -498,11 +498,11 @@ impl AppUI {
         //-----------------------------------------------//
         // `MyMod` Menu.
         //-----------------------------------------------//
-        let mymod_open_mymod_folder = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "Open MyMod Folder", "mymod_open_mymod_folder");
-        let mymod_new = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "New MyMod", "mymod_new");
-        let mymod_delete_selected = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "Delete Open MyMod", "mymod_delete_selected");
-        let mymod_import = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "Import MyMod", "mymod_import");
-        let mymod_export = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "Export MyMod", "mymod_export");
+        let mymod_open_mymod_folder = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "open_mymod_folder", "mymod_open_mymod_folder");
+        let mymod_new = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "new_mymod", "mymod_new");
+        let mymod_delete_selected = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "delete_mymod", "mymod_delete_selected");
+        let mymod_import = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "import_mymod", "mymod_import");
+        let mymod_export = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "export_mymod", "mymod_export");
 
         menu_bar_mymod.add_separator();
 
@@ -540,11 +540,11 @@ impl AppUI {
         //-----------------------------------------------//
         // `View` Menu.
         //-----------------------------------------------//
-        let view_toggle_packfile_contents = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "Pack Contents Panel", "view_toggle_packfile_contents");
-        let view_toggle_global_search_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "Global Search Panel", "view_toggle_global_search_panel");
-        let view_toggle_diagnostics_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "Diagnostics Panel", "view_toggle_diagnostics_panel");
-        let view_toggle_dependencies_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "Dependencies Panel", "view_toggle_dependencies_panel");
-        let view_toggle_references_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "References Panel", "view_toggle_references_panel");
+        let view_toggle_packfile_contents = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "pack_contents_panel", "view_toggle_packfile_contents");
+        let view_toggle_global_search_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "global_search_panel", "view_toggle_global_search_panel");
+        let view_toggle_diagnostics_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "diagnostics_panel", "view_toggle_diagnostics_panel");
+        let view_toggle_dependencies_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "dependencies_panel", "view_toggle_dependencies_panel");
+        let view_toggle_references_panel = add_action_to_menu(&menu_bar_view, shortcuts.as_ref(), "view_menu", "references_panel", "view_toggle_references_panel");
 
         view_toggle_packfile_contents.set_checkable(true);
         view_toggle_global_search_panel.set_checkable(true);
@@ -555,10 +555,10 @@ impl AppUI {
         //-----------------------------------------------//
         // `Game Selected` Menu.
         //-----------------------------------------------//
-        let game_selected_launch_game = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "Launch Game", "game_selected_launch_game");
-        let game_selected_open_game_data_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "Open Game Data Folder", "game_selected_open_game_data_folder");
-        let game_selected_open_game_assembly_kit_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "Open Game Assembly Kit Folder", "game_selected_open_game_assembly_kit_folder");
-        let game_selected_open_config_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "Open RPFM Config Folder", "game_selected_open_config_folder");
+        let game_selected_launch_game = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "launch_game", "game_selected_launch_game");
+        let game_selected_open_game_data_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_game_data_folder", "game_selected_open_game_data_folder");
+        let game_selected_open_game_assembly_kit_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_game_ak_folder", "game_selected_open_game_assembly_kit_folder");
+        let game_selected_open_config_folder = add_action_to_menu(&menu_bar_game_selected, shortcuts.as_ref(), "game_selected_menu", "open_rpfm_config_folder", "game_selected_open_config_folder");
 
         let game_selected_warhammer_3 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_WARHAMMER_3));
         let game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_TROY));
@@ -635,30 +635,30 @@ impl AppUI {
         let special_stuff_rescue_packfile = menu_bar_special_stuff.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
 
         // Populate the `Special Stuff` submenus.
-        let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_three_k_optimize_packfile = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_wh2_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_wh2_optimize_packfile = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_wh2_patch_siege_ai = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "Patch SiegeAI", "special_stuff_patch_siege_ai");
-        let special_stuff_wh_generate_dependencies_cache = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_wh_optimize_packfile = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_wh_patch_siege_ai = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "Patch SiegeAI", "special_stuff_patch_siege_ai");
-        let special_stuff_tob_generate_dependencies_cache = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_tob_optimize_packfile = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_att_generate_dependencies_cache = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_att_optimize_packfile = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_rom2_generate_dependencies_cache = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_rom2_optimize_packfile = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_sho2_generate_dependencies_cache = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_sho2_optimize_packfile = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_nap_generate_dependencies_cache = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_nap_optimize_packfile = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
-        let special_stuff_emp_generate_dependencies_cache = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "Generate Dependencies Cache", "special_stuff_generate_dependencies_cache");
-        let special_stuff_emp_optimize_packfile = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "Optimize Pack", "special_stuff_optimize_packfile");
+        let special_stuff_wh3_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_wh3_optimize_packfile = add_action_to_menu(&menu_warhammer_3, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_troy_generate_dependencies_cache = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_troy_optimize_packfile = add_action_to_menu(&menu_troy, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_three_k_generate_dependencies_cache = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_three_k_optimize_packfile = add_action_to_menu(&menu_three_kingdoms, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_wh2_generate_dependencies_cache = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_wh2_optimize_packfile = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_wh2_patch_siege_ai = add_action_to_menu(&menu_warhammer_2, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai");
+        let special_stuff_wh_generate_dependencies_cache = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_wh_optimize_packfile = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_wh_patch_siege_ai = add_action_to_menu(&menu_warhammer, shortcuts.as_ref(), "special_stuff_menu", "patch_siege_ai", "special_stuff_patch_siege_ai");
+        let special_stuff_tob_generate_dependencies_cache = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_tob_optimize_packfile = add_action_to_menu(&menu_thrones_of_britannia, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_att_generate_dependencies_cache = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_att_optimize_packfile = add_action_to_menu(&menu_attila, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_rom2_generate_dependencies_cache = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_rom2_optimize_packfile = add_action_to_menu(&menu_rome_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_sho2_generate_dependencies_cache = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_sho2_optimize_packfile = add_action_to_menu(&menu_shogun_2, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_nap_generate_dependencies_cache = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_nap_optimize_packfile = add_action_to_menu(&menu_napoleon, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
+        let special_stuff_emp_generate_dependencies_cache = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "generate_dependencies_cache", "special_stuff_generate_dependencies_cache");
+        let special_stuff_emp_optimize_packfile = add_action_to_menu(&menu_empire, shortcuts.as_ref(), "special_stuff_menu", "optimize_pack", "special_stuff_optimize_packfile");
 
         menu_bar_special_stuff.insert_separator(&special_stuff_rescue_packfile);
 
@@ -676,14 +676,14 @@ impl AppUI {
         //-----------------------------------------------//
         // `About` Menu.
         //-----------------------------------------------//
-        let about_about_qt = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "About Qt", "about_about_qt");
-        let about_about_rpfm = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "About RPFM", "about_about_rpfm");
-        let about_open_manual = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Open Manual", "about_open_manual");
-        let about_patreon_link = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Support Me On Patreon", "about_patreon_link");
-        let about_check_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Check Updates", "about_check_updates");
-        let about_check_schema_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Check Schema Updates", "about_check_schema_updates");
-        let about_check_message_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Check Message Updates", "about_check_message_updates");
-        let about_check_lua_autogen_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "Check TW Autogen Updates", "about_check_lua_autogen_updates");
+        let about_about_qt = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_qt", "about_about_qt");
+        let about_about_rpfm = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "about_rpfm", "about_about_rpfm");
+        let about_open_manual = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "open_manual", "about_open_manual");
+        let about_patreon_link = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "support_me_on_patreon", "about_patreon_link");
+        let about_check_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_updates", "about_check_updates");
+        let about_check_schema_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_schema_updates", "about_check_schema_updates");
+        let about_check_message_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_message_updates", "about_check_message_updates");
+        let about_check_lua_autogen_updates = add_action_to_menu(&menu_bar_about, shortcuts.as_ref(), "about_menu", "check_tw_autogen_updates", "about_check_lua_autogen_updates");
 
         //-----------------------------------------------//
         // `Debug` Menu.

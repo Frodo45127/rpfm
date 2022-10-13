@@ -48,8 +48,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use self::slots::PackedFileAnimPackViewSlots;
 
 mod connections;
-pub mod slots;
-mod shortcuts;
+mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
