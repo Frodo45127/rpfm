@@ -24,7 +24,7 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 //---------------------------------------------------------------------------//
 
 /// This struct contains an unknown file in memory.
-#[derive(Clone, Debug, PartialEq, Getters, Setters, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Getters, Setters, Serialize, Deserialize)]
 pub struct Unknown {
     data: Vec<u8>,
 }

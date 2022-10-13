@@ -380,10 +380,13 @@ impl Pack {
         data.seek(SeekFrom::Current(start))?;
 
         // Create the default Pack and start populating it.
-        let mut pack = Self::default();
-        pack.disk_file_path = disk_file_path;
-        pack.disk_file_offset = disk_file_offset;
-        pack.local_timestamp = timestamp;
+        let mut pack = Self {
+            disk_file_path,
+            disk_file_offset,
+            local_timestamp: timestamp,
+            ..Default::default()
+        };
+
         pack.header.pfh_version = PFHVersion::version(&data.read_string_u8(4)?)?;
 
         let pack_type = data.read_u32()?;
@@ -501,8 +504,10 @@ impl Pack {
             return Err(RLibError::NoPacksProvided);
         }
 
-        let mut extra_data = DecodeableExtraData::default();
-        extra_data.lazy_load = lazy_load;
+        let mut extra_data = DecodeableExtraData {
+            lazy_load,
+            ..Default::default()
+        };
 
         // If we only got one path, just decode the Pack on it.
         if pack_paths.len() == 1 {
@@ -826,156 +831,6 @@ impl PackFile {
         folder_paths.into_iter().collect::<HashSet<_>>()
     }
 
-    /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
-    pub fn get_packed_files_all_info(&self) -> Vec<PackedFileInfo> {
-        self.packed_files.par_iter().map(From::from).collect()
-    }
-
-    /// This function returns a copy of the `PackedFileInfo` of the `Packedfile` in the provided path.
-    pub fn get_packed_file_info_by_path(&self, path: &[String]) -> Option<PackedFileInfo> {
-        self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(From::from)
-    }
-
-    /// This function returns a copy of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
-    pub fn get_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<PackedFile> {
-
-        // Keep the PathTypes added so we can return them to the UI easily.
-        let path_types = PathType::dedup(path_types);
-
-        // As this can get very slow very quickly, we do here some... optimizations.
-        // First, we get if there are PackFiles or folders in our list of PathTypes.
-        let we_have_packfile = path_types.par_iter().any(|item| {
-            matches!(item, PathType::PackFile)
-        });
-
-        let we_have_folder = path_types.par_iter().any(|item| {
-            matches!(item, PathType::Folder(_))
-        });
-
-        // Then, if we have a PackFile,... just import all PackedFiles.
-        if we_have_packfile {
-            self.get_packed_files_all()
-        }
-
-        // If we only have files, get all the files we have at once, then add them all together.
-        else if !we_have_folder {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
-            }).collect::<Vec<UniCase<String>>>();
-            self.get_packed_files_by_paths_unicased(paths_files)
-        }
-
-        // Otherwise, we have a mix of Files and Folders (or folders only).
-        // In this case, we get all the individual files, then the ones inside folders.
-        // Then we merge them, and add all of them together.
-        else {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(UniCase::new(path.join("/")))  } else { None }
-            }).collect::<Vec<UniCase<String>>>();
-            let mut packed_files = self.get_packed_files_by_paths_unicased(paths_files);
-
-            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
-                if let PathType::Folder(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
-            }).map(|path| self.get_packed_files_by_path_start_unicased(path))
-            .flatten()
-            .collect::<Vec<PackedFile>>());
-            packed_files
-        }
-    }
-
-    /// This function returns a reference of all the PackedFiles in the provided PathTypes, in a case insensitive manner.
-    pub fn get_ref_packed_files_by_path_type_unicased(&self, path_types: &[PathType]) -> Vec<&PackedFile> {
-
-        // Keep the PathTypes added so we can return them to the UI easily.
-        let path_types = PathType::dedup(path_types);
-
-        // As this can get very slow very quickly, we do here some... optimizations.
-        // First, we get if there are PackFiles or folders in our list of PathTypes.
-        let we_have_packfile = path_types.par_iter().any(|item| {
-            matches!(item, PathType::PackFile)
-        });
-
-        let we_have_folder = path_types.par_iter().any(|item| {
-            matches!(item, PathType::Folder(_))
-        });
-
-        // Then, if we have a PackFile,... just import all PackedFiles.
-        if we_have_packfile {
-            self.get_ref_packed_files_all()
-        }
-
-        // If we only have files, get all the files we have at once, then add them all together.
-        else if !we_have_folder {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
-            }).collect::<Vec<UniCase<String>>>();
-            self.get_ref_packed_files_by_paths_unicased(paths_files)
-        }
-
-        // Otherwise, we have a mix of Files and Folders (or folders only).
-        // In this case, we get all the individual files, then the ones inside folders.
-        // Then we merge them, and add all of them together.
-        else {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(UniCase::new(path.join("/")))  } else { None }
-            }).collect::<Vec<UniCase<String>>>();
-            let mut packed_files = self.get_ref_packed_files_by_paths_unicased(paths_files);
-
-            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
-                if let PathType::Folder(path) = x { Some(UniCase::new(path.join("/"))) } else { None }
-            }).map(|path| self.get_ref_packed_files_by_path_start_unicased(path))
-            .flatten()
-            .collect::<Vec<&PackedFile>>());
-            packed_files
-        }
-    }
-
-    /// This function returns a copy of all the PackedFiles in the provided PathTypes.
-    pub fn get_packed_files_by_path_type(&mut self, path_types: &[PathType]) -> Vec<PackedFile> {
-
-        // Keep the PathTypes added so we can return them to the UI easily.
-        let path_types = PathType::dedup(path_types);
-
-        // As this can get very slow very quickly, we do here some... optimizations.
-        // First, we get if there are PackFiles or folders in our list of PathTypes.
-        let we_have_packfile = path_types.par_iter().any(|item| {
-            matches!(item, PathType::PackFile)
-        });
-
-        let we_have_folder = path_types.par_iter().any(|item| {
-            matches!(item, PathType::Folder(_))
-        });
-
-        // Then, if we have a PackFile,... just import all PackedFiles.
-        if we_have_packfile {
-            self.get_packed_files_all()
-        }
-
-        // If we only have files, get all the files we have at once, then add them all together.
-        else if !we_have_folder {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(&**path) } else { None }
-            }).collect::<Vec<&[String]>>();
-            self.get_packed_files_by_paths(paths_files)
-        }
-
-        // Otherwise, we have a mix of Files and Folders (or folders only).
-        // In this case, we get all the individual files, then the ones inside folders.
-        // Then we merge them, and add all of them together.
-        else {
-            let paths_files = path_types.par_iter().filter_map(|x| {
-                if let PathType::File(path) = x { Some(&**path) } else { None }
-            }).collect::<Vec<&[String]>>();
-            let mut packed_files = self.get_packed_files_by_paths(paths_files);
-
-            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
-                if let PathType::Folder(path) = x { Some(&**path) } else { None }
-            }).map(|path| self.get_packed_files_by_path_start(path))
-            .flatten()
-            .collect::<Vec<PackedFile>>());
-            packed_files
-        }
-    }
 
     /// This function removes, if exists, all `PackedFile` ending with the provided path from the `PackFile`.
     pub fn remove_packed_files_by_path_end(&mut self, path: &[String]) {
@@ -1143,137 +998,6 @@ impl PackFile {
         // If we reach this, return the amount of extracted files.
         Ok(files_extracted)
     }
-
-    /// This function sets the `PFHFileType` of the provided `PackFile`.
-    ///
-    /// NOTE: This may change the PFHVersion of this PackFile too.
-    pub fn set_pfh_file_type(&mut self, pfh_file_type: PFHFileType) {
-        self.pfh_file_type = pfh_file_type;
-
-        // Make sure the current PFHVersion of this PackFile is compatible with the new PFHFileType.
-        let pfh_version = GAME_SELECTED.read().unwrap().get_pfh_version_by_file_type(self.get_pfh_file_type());
-        if pfh_version != self.get_pfh_version() {
-            self.set_pfh_version(pfh_version);
-        }
-    }
-
-
-
-    /// This function takes an slice of PathTypes and turns it into a vector of individual PackedFile's paths.
-    ///
-    /// This is intended to be done after a dedup. Otherwise, you'll probably get duplicated paths at the end.
-    pub fn get_paths_from_path_types(&self, path_types: &[PathType]) -> Vec<Vec<String>> {
-
-        // If we have a PackFile, just get the paths of all PackedFiles in the PackFile.
-        let we_have_packfile = path_types.par_iter().any(|item| {
-            matches!(item, PathType::PackFile)
-        });
-
-        if we_have_packfile {
-            return self.get_packed_files_all_paths();
-        }
-
-        // If we don't have folders, the rest are files, so we just get the path stored in each PathType.
-        let we_have_folder = path_types.par_iter().any(|item| {
-            matches!(item, PathType::Folder(_))
-        });
-
-        if !we_have_folder {
-            return path_types.par_iter().filter_map(|x| if let PathType::File(path) = x { Some(path.to_vec()) } else { None }).collect();
-        }
-
-        // If we have a mix of files and folders... then we get the paths according to the type.
-        let mut paths: Vec<Vec<String>> = path_types.par_iter()
-            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(path)) } else { None })
-            .flatten()
-            .collect::<Vec<Vec<String>>>();
-
-        paths.append(&mut path_types.par_iter()
-            .filter_map(|x| if let PathType::File(path) = x { Some(path.to_vec()) } else { None })
-            .collect::<Vec<Vec<String>>>());
-
-        paths
-    }
-
-
-    /// This function merges (if possible) the provided DB and LOC tables into one with the provided name.
-    ///
-    /// NOTE: The merged table will be created in the folder of the first provided file.
-    pub fn merge_tables(
-        &mut self,
-        paths: &[Vec<String>],
-        name: &str,
-        delete_source_paths: bool,
-    ) -> Result<Vec<String>> {
-
-        // Get the schema, as we'll need it unlocked to decode all the files fast.
-        let schema = SCHEMA.read().unwrap();
-        let schema = if let Some(ref schema) = *schema { schema } else { return Err(ErrorKind::SchemaNotFound.into()) };
-
-        let mut db_files = vec![];
-        let mut loc_files = vec![];
-
-        // Decode the files and put them in their respective list.
-        for path in paths {
-            if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(path) {
-                match packed_file.decode_return_ref_no_locks(schema)? {
-                    DecodedPackedFile::DB(table) => db_files.push(table.clone()),
-                    DecodedPackedFile::Loc(table) => loc_files.push(table.clone()),
-                    _ => return Err(ErrorKind::InvalidFilesForMerging.into())
-                }
-            }
-        }
-
-        // If we have no tables, or we have both, db and loc, return an error. If we have only tables, but different tables, we also return an error.
-        if (!db_files.is_empty() && !loc_files.is_empty()) || (db_files.is_empty() && loc_files.is_empty()) ||
-        (!db_files.is_empty() && !db_files.iter().all(|x| x.name == db_files[0].name)) { return Err(ErrorKind::InvalidFilesForMerging.into()) }
-
-        // If we have db tables, get their newest definition, update all the tables to that definition if needed,
-        // and then merge all their data in one table.
-        let merged_table = if !db_files.is_empty() {
-            let db_files = if db_files.iter().all(|x| x.get_definition().get_version() == db_files[0].get_definition().get_version()) { db_files }
-            else {
-                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
-                for table in &mut db_files { table.set_definition(&definition); }
-                db_files
-            };
-            let mut new_table = DB::new(&db_files[0].name, None, &db_files[0].get_definition());
-            let mut entries = vec![];
-            db_files.iter().for_each(|x| entries.extend_from_slice(x.get_ref_table_data()));
-            new_table.set_table_data(&entries)?;
-            DecodedPackedFile::DB(new_table)
-        }
-
-        // Same thing for locs.
-        else if !loc_files.is_empty() {
-            let loc_files = if loc_files.iter().all(|x| x.get_definition().get_version() == loc_files[0].get_definition().get_version()) { loc_files }
-            else {
-                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
-                for table in &mut loc_files { table.set_definition(&definition); }
-                loc_files
-            };
-            let mut new_table = Loc::new(&loc_files[0].get_definition());
-            let mut entries = vec![];
-            loc_files.iter().for_each(|x| entries.extend_from_slice(x.get_ref_table_data()));
-            new_table.set_table_data(&entries)?;
-            DecodedPackedFile::Loc(new_table)
-        } else { unimplemented!() };
-
-        // And then, we save the newly created table to a `PackedFile`.
-        let mut path = paths[0].to_vec();
-        path.pop();
-        path.push(name.to_owned());
-        let packed_file = PackedFile::new_from_decoded(&merged_table, &path);
-
-        // If we want to remove the source files, this is the moment.
-        if delete_source_paths { paths.iter().for_each(|x| self.remove_packed_file_by_path(x)); }
-
-        // Prepare the paths to return.
-        self.add_packed_file(&packed_file, true)
-    }
-
-    */
-   /*
 
     /// This function is used to patch Warhammer Siege map packs so their AI actually works.
     ///

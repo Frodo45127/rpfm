@@ -33,7 +33,7 @@ pub const EXTENSION: &str = ".cml";
 //---------------------------------------------------------------------------//
 
 /// This holds an entire UI Component decoded in memory.
-#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UIC {
     version: u32,
 }

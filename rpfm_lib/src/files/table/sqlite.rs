@@ -178,7 +178,7 @@ impl Table {
         table_unique_id: u64,
     ) -> Result<u64> {
         let query = format!("SELECT COUNT(*) FROM \"{}_v{}\" WHERE table_unique_id = {}",
-            table_name.replace("\"", "'"),
+            table_name.replace('\"', "'"),
             table_version,
             table_unique_id
         );
