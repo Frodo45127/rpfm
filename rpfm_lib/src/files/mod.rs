@@ -62,7 +62,7 @@ use regex::Regex;
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::{fmt, fmt::{Debug, Display}};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, BufWriter, Write};
@@ -897,6 +897,32 @@ pub trait Container {
         self.files_by_paths_mut(paths).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
     }
 
+    /// This method returns the list of folders conntained within the Container.
+    fn paths_folders_raw(&self) -> HashSet<String> {
+        self.files()
+            .par_iter()
+            .filter_map(|(path, _)| {
+                let file_path_split = path.split('/').collect::<Vec<&str>>();
+                let folder_path_len = file_path_split.len() - 1;
+                if folder_path_len == 0 {
+                    None
+                } else {
+
+                    let mut paths = Vec::with_capacity(folder_path_len);
+
+                    for (index, folder) in file_path_split.iter().enumerate() {
+                        if index < path.len() - 1 && !folder.is_empty() {
+                            paths.push(file_path_split[0..=index].join("/"))
+                        }
+                    }
+
+                    Some(paths)
+                }
+            })
+            .flatten()
+            .collect::<HashSet<String>>()
+    }
+
     /// This method returns the list of [ContainerPath] corresponding to RFiles within the provided Container.
     fn paths(&self) -> Vec<ContainerPath> {
         self.files()
@@ -1591,7 +1617,7 @@ impl RFile {
     /// The way it works is: first it tries to guess it by extension (fast), then by full path (not as fast), then by data (slow and it may fail on lazy-loaded files).
     ///
     /// This may fail for some files, so if you doubt set the type manually.
-    fn guess_file_type(&mut self) -> Result<()> {
+    pub fn guess_file_type(&mut self) -> Result<()> {
 
         // First, try with extensions.
         let path = self.path.to_lowercase();

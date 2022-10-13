@@ -11,11 +11,12 @@
 //! Module with the structs and functions specific for `AnimFragment` diagnostics.
 
 use getset::{Getters, MutGetters};
+use itertools::Itertools;
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use super::DiagnosticLevel;
+use super::{DiagnosticLevel, DiagnosticReport};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -26,25 +27,24 @@ use super::DiagnosticLevel;
 #[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentDiagnostic {
     path: String,
-    result: Vec<AnimFragmentDiagnosticReport>
+    results: Vec<AnimFragmentDiagnosticReport>
 }
 
 /// This struct defines an individual anim fragment diagnostic result.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentDiagnosticReport {
 
     /// List of cells, in "row, column" format.
     ///
     /// If the full row or full column are affected, use -1.
-    pub cells_affected: Vec<(i32, i32)>,
-    pub message: String,
-    pub report_type: AnimFragmentDiagnosticReportType,
-    pub level: DiagnosticLevel,
+    cells_affected: Vec<(i32, i32)>,
+    report_type: AnimFragmentDiagnosticReportType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnimFragmentDiagnosticReportType {
-    FieldWithPathNotFound,
+    FieldWithPathNotFound(Vec<String>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -55,7 +55,30 @@ impl AnimFragmentDiagnostic {
     pub fn new(path: &str) -> Self {
         Self {
             path: path.to_owned(),
-            result: vec![],
+            results: vec![],
+        }
+    }
+}
+
+impl AnimFragmentDiagnosticReport {
+    pub fn new(report_type: AnimFragmentDiagnosticReportType, cells_affected: &[(i32, i32)]) -> Self {
+        Self {
+            cells_affected: cells_affected.to_vec(),
+            report_type
+        }
+    }
+}
+
+impl DiagnosticReport for AnimFragmentDiagnosticReport {
+    fn message(&self) -> String {
+        match &self.report_type {
+            AnimFragmentDiagnosticReportType::FieldWithPathNotFound(paths) => format!("Path not found: {}.", paths.iter().join(" || ")),
+        }
+    }
+
+    fn level(&self) -> DiagnosticLevel {
+        match self.report_type {
+            AnimFragmentDiagnosticReportType::FieldWithPathNotFound(_) => DiagnosticLevel::Warning,
         }
     }
 }
@@ -63,7 +86,8 @@ impl AnimFragmentDiagnostic {
 impl Display for AnimFragmentDiagnosticReportType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
-            Self::FieldWithPathNotFound => "FieldWithPathNotFound"
+            Self::FieldWithPathNotFound(_) => "FieldWithPathNotFound"
+
         }, f)
     }
 }

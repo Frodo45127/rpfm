@@ -534,7 +534,6 @@ impl DiagnosticsUI {
                 }
 
                 match diagnostic_type {
-                    /*
                     DiagnosticType::AnimFragment(ref diagnostic) => {
                         for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
@@ -546,7 +545,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -555,10 +554,10 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(&diagnostic.path()));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -568,7 +567,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], &result.report_type);
+                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -581,7 +580,7 @@ impl DiagnosticsUI {
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
                         }
-                    }*/
+                    }
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
                         for result in diagnostic.results() {
@@ -616,7 +615,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_table(&[&level, &path, &message], &result.report_type());
+                            Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -662,7 +661,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_packfile(&[&level, &fill2, &message], &result.report_type());
+                            Self::set_tooltips_packfile(&[&level, &fill2, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -709,7 +708,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], &result.report_type());
+                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -755,7 +754,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_config(&[&level, &fill2, &message], &result.report_type());
+                            Self::set_tooltips_config(&[&level, &fill2, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -769,7 +768,6 @@ impl DiagnosticsUI {
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                         }
                     }
-                    _ => unreachable!()
                 }
 
                 // After that, check if the table is open, and paint the results into it.
@@ -841,7 +839,7 @@ impl DiagnosticsUI {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::AnimFragment(view)) = packed_file_view.get_view() {
-                        let table_view = view.get_ref_table_view_2();
+                        let table_view = view.table_view();
                         let table_view = table_view.table_view_primary();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
@@ -964,7 +962,7 @@ impl DiagnosticsUI {
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
                 //else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.get_ref_table_view_2() }
+                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
                 let table_view = internal_table_view.table_view_primary();
@@ -1073,10 +1071,10 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
-                    },
+                    },*/
                     DiagnosticType::AnimFragment(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
-                            for (row, column) in &result.cells_affected {
+                        for result in diagnostic.results() {
+                            for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
@@ -1085,7 +1083,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1099,7 +1097,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1112,7 +1110,7 @@ impl DiagnosticsUI {
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
-                                            match result.level {
+                                            match result.level() {
                                                 DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                 DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                 DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1122,7 +1120,7 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
-                    },*/
+                    },
                     _ => return,
                 }
 
@@ -1163,8 +1161,8 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                } /*else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
-                    let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
+                } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
+                    let table_view = view.table_view().table_view_primary_ptr();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1187,7 +1185,7 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 }
-
+                /*
                 else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
                     let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -1362,10 +1360,10 @@ impl DiagnosticsUI {
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
         let info = diagnostics.iter().map(|x|
             match x {
-                /*DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
-                    .count(),*/
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
@@ -1383,15 +1381,14 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                _ => unimplemented!()
             }).sum::<usize>();
 
         let warning = diagnostics.iter().map(|x|
             match x {
-                /*DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
-                    .count(),*/
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
@@ -1409,16 +1406,15 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
-                _ => unimplemented!()
             }).sum::<usize>();
 
 
         let error = diagnostics.iter().map(|x|
             match x {
-                /*DiagnosticType::AnimFragment(ref diag) => diag.results()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
-                    .count(),*/
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
+                    .count(),
                 DiagnosticType::DB(ref diag) |
                 DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
@@ -1436,7 +1432,6 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
-                _ => unimplemented!()
             }).sum::<usize>();
 
         diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
@@ -1446,7 +1441,7 @@ impl DiagnosticsUI {
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {
         let tool_tip = match report_type {
-            AnimFragmentDiagnosticReportType::FieldWithPathNotFound => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
         };
 
         for item in items {

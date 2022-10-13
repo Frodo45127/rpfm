@@ -27,6 +27,7 @@ use qt_core::QFlags;
 use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QUrl;
+use qt_core::WidgetAttribute;
 
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::files::pack::PackSettings;
@@ -927,6 +928,7 @@ impl AppUISlots {
                         &app_ui.main_window,
                     );
 
+                    wait_dialog.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
                     wait_dialog.set_modal(true);
                     wait_dialog.set_standard_buttons(QFlags::from(0));
                     wait_dialog.show();

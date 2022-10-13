@@ -20,6 +20,7 @@
 //!
 //! The full list of file extension this lib supports as `Text` files is:
 //!
+//! | ------------------------ | -------- | ------------------------------------------- |
 //! | Extension                | Language | Description                                 |
 //! | ------------------------ | -------- | ------------------------------------------- |
 //! | `.battle_speech_camera`  | `Plain`  | Camera settings file for battle speeches.   |

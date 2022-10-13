@@ -674,7 +674,7 @@ impl PackedFileView {
                         FileType::MatchedCombat => if let View::Table(view) = view {
                             view.get_ref_table().clear_markings();
                         } else if let View::AnimFragment(view) = view {
-                            view.get_ref_table_view_2().clear_markings();
+                            view.table_view().clear_markings();
                         }
                         _ => {},
                     }

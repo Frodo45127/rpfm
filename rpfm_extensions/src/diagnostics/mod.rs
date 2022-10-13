@@ -29,7 +29,7 @@ use rayon::prelude::*;
 use std::path::Path;
 use std::{fmt, fmt::Display};
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, FileType, pack::Pack, RFile, RFileDecoded, table::DecodedData};
@@ -178,12 +178,6 @@ impl Diagnostics {
 
         let files_to_ignore = pack.settings().diagnostics_files_to_ignore();
 
-        // Prefetch them here, so we don't need to re-search them again.
-        //dependencies.initialize_vanilla_paths();
-        //dependencies.initialize_parent_paths();
-        //let vanilla_dependencies = if let Ok(dependencies) = dependencies.db_and_loc_data(game_info, game_path, true, false, true, true) { dependencies } else { return; };
-        //let asskit_dependencies = dependencies.asskit_only_db_tables();
-
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
         let files = if paths_to_check.is_empty() {
@@ -225,8 +219,10 @@ impl Diagnostics {
         }
 
         // Getting this here speeds up a lot path-checking later.
-        //let local_packed_file_path_list = pack_file.get_packed_files_all_paths_as_string();
-        //let local_folder_path_list = pack_file.get_folder_all_paths_as_string();
+        let local_file_path_list = pack.paths_raw().into_iter().collect::<HashSet<_>>();
+        let local_folder_path_list = pack.paths_folders_raw();
+
+        // TODO: Currently, AnimFragments are only check if they've been preloaded. Fix that
 
         // TODO: Get the table reference data here, outside the parallel loop.
         // That way we can get it fast on the first try, and skip.
@@ -237,17 +233,21 @@ impl Diagnostics {
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
 
             let mut diagnostics = Vec::with_capacity(files.len());
-            let mut data_prev: BTreeMap<String, HashMap<String, Vec<(i32, i32)>>> = BTreeMap::new();
             let mut table_references = HashMap::new();
 
             for file in files {
                 let (ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) = Self::ignore_data_for_file(file, &files_to_ignore)?;
 
-
                 let diagnostic = match file.file_type() {
-                    //FileType::AnimFragment => if let Ok(decoded) = packed_file.decode_return_ref_no_cache_no_locks(schema) {
-                    //    Self::check_anim_fragment(&decoded, packed_file.get_path(), dependencies, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &local_packed_file_path_list, &local_folder_path_list)
-                    //} else { None }
+                    FileType::AnimFragment => Self::check_anim_fragment(
+                        file,
+                        dependencies,
+                        &ignored_fields,
+                        &ignored_diagnostics,
+                        &ignored_diagnostics_for_fields,
+                        &local_file_path_list,
+                        &local_folder_path_list
+                    ),
                     FileType::DB => {
 
                         // Get the dependency data for tables once per batch.
@@ -267,11 +267,12 @@ impl Diagnostics {
                             &ignored_diagnostics_for_fields,
                             game_info,
                             schema,
-                            &mut data_prev,
+                            &local_file_path_list,
+                            &local_folder_path_list,
                             &table_references,
                         )
                     },
-                    FileType::Loc => Self::check_loc(file, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, &mut data_prev),
+                    FileType::Loc => Self::check_loc(file, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     _ => None,
                 };
 
@@ -280,80 +281,6 @@ impl Diagnostics {
                 }
             }
 
-            /*
-            // Check for key collisions between separate files.
-            let mut duplicated_keys_already_marked: HashMap<String, HashSet<String>> = HashMap::new();
-            data_prev.iter().enumerate().for_each(|(index, (path, keys))| {
-                let mut current = data_prev.len() - 1;
-                keys.iter().for_each(|(key, positions)| {
-                    for (path_other_file, keys_other_file) in &data_prev {
-                        if current > index {
-                            current -= 1;
-
-                            if let Some(positions_other_file) = keys_other_file.get(&*key) {
-
-                                // Mark current row, if not yet marked.
-                                if !duplicated_keys_already_marked.contains_key(&*path) || !duplicated_keys_already_marked.get(&*path).unwrap().contains(key) {
-                                    if let Some(diagnostic) = diagnostics.iter_mut().filter_map(|x| if let DiagnosticType::DB(diag) = x { Some(diag) } else { None }).find(|x| x.get_path().join("/") == *path) {
-                                        dbg!(key);
-                                        dbg!(path);
-                                        dbg!(path_other_file);
-                                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                            cells_affected: positions.to_vec(),
-                                            message: format!("Duplicated combined keys: {}.", key),
-                                            report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                                            level: DiagnosticLevel::Error,
-                                        });
-                                    }
-
-                                    match duplicated_keys_already_marked.get_mut(&*path) {
-                                        Some(set) => { set.insert(key.to_owned()); },
-                                        None => {
-                                            let mut set = HashSet::new();
-                                            set.insert(key.to_owned());
-                                            duplicated_keys_already_marked.insert(path.to_owned(), set);
-                                        }
-                                    }
-                                }
-
-                                // Mark the other row.
-                                if !duplicated_keys_already_marked.contains_key(&*path_other_file) || !duplicated_keys_already_marked.get(&*path_other_file).unwrap().contains(key) {
-                                    if let Some(diagnostic) = diagnostics.iter_mut().filter_map(|x| if let DiagnosticType::DB(diag) = x { Some(diag) } else { None }).find(|x| x.get_path().join("/") == *path_other_file) {
-
-                                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                            cells_affected: positions_other_file.to_vec(),
-                                            message: format!("Duplicated combined keys: {}.", key),
-                                            report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                                            level: DiagnosticLevel::Error,
-                                        });
-                                    }
-
-                                    match duplicated_keys_already_marked.get_mut(&*path_other_file) {
-                                        Some(set) => { set.insert(key.to_owned()); },
-                                        None => {
-                                            let mut set = HashSet::new();
-                                            set.insert(key.to_owned());
-                                            duplicated_keys_already_marked.insert(path_other_file.to_owned(), set);
-                                        }
-                                    }
-                                }
-
-                                //if !duplicated_keys_already_marked.contains(&old_position[0].0) {
-                                //    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
-                                //        cells_affected: old_position.to_vec(),
-                                //        message: format!("Duplicated combined keys: {}.", row_keys.values().join("| |")),
-                                //        report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
-                                //        level: DiagnosticLevel::Error,
-                                //    });
-
-                                //    duplicated_combined_keys_already_marked.push(old_position[0].0);
-                                //}
-                        }
-                        }
-                    }
-                })
-            });
-            */
             Some(diagnostics)
         }).flatten().collect());
 
@@ -387,9 +314,8 @@ impl Diagnostics {
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
         schema: &Schema,
-        previous_data: &mut BTreeMap<String, HashMap<String, Vec<(i32, i32)>>>,
-        //local_path_list: &HashSet<UniCase<String>>,
-        //local_folder_list: &HashSet<UniCase<String>>,
+        local_path_list: &HashSet<&str>,
+        local_folder_list: &HashSet<String>,
         dependency_data: &HashMap<i32, TableReferences>
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::DB(table)) = file.decoded() {
@@ -456,7 +382,6 @@ impl Diagnostics {
                 }
             }
 
-
             // Check all the columns with reference data.
             let fields_processed = table.definition().fields_processed();
             let table_data = table.data(&None).ok()?;
@@ -471,18 +396,16 @@ impl Diagnostics {
                 let mut row_keys_are_empty = true;
                 let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                 for (column, field) in fields_processed.iter().enumerate() {
-
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    /*
                     if !Self::ignore_diagnostic(Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         if !cell_data.is_empty() {
                             if fields_processed[column].is_filename() {
                                 let mut path_found = false;
                                 let paths = {
                                     let path = if let Some(relative_path) = fields_processed[column].filename_relative_path() {
-                                        relative_path.replace("%", &cell_data)
+                                        relative_path.replace('%', &cell_data)
                                     } else {
                                         cell_data.to_string()
                                     };
@@ -501,30 +424,21 @@ impl Diagnostics {
                                         }).collect::<Vec<String>>()
                                     }
                                 };
-                                /*
+
                                 for path in &paths {
-                                    let unicased = UniCase::new(path.to_owned());
-                                    if local_path_list.contains(&unicased) {
+                                    if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && local_folder_list.contains(&unicased) {
+                                    if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, path)) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.file_exists_on_parent_files(&unicased, true) {
+                                    if !path_found && dependencies.file_exists(path, true, true, true) {
                                         path_found = true;
                                     }
 
-                                    if !path_found && dependencies.folder_exists_on_parent_files(&unicased, true) {
-                                        path_found = true;
-                                    }
-
-                                    if !path_found && dependencies.file_exists_on_game_files(&unicased, true) {
-                                        path_found = true;
-                                    }
-
-                                    if !path_found && dependencies.folder_exists_on_game_files(&unicased, true) {
+                                    if !path_found && dependencies.folder_exists(path, true, true, true) {
                                         path_found = true;
                                     }
 
@@ -536,10 +450,10 @@ impl Diagnostics {
                                 if !path_found {
                                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)]);
                                     diagnostic.results_mut().push(result);
-                                }*/
+                                }
                             }
                         }
-                    }*/
+                    }
 
                     // Dependency checks.
                     if !Self::ignore_diagnostic(Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
@@ -675,87 +589,65 @@ impl Diagnostics {
                 }
             }
 
-            // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
-            previous_data.insert(file.path_in_container_raw().to_string(), keys);
-
             if !diagnostic.results().is_empty() {
                 Some(DiagnosticType::DB(diagnostic))
             } else { None }
         } else { None }
-    }/*
+    }
 
     /// This function takes care of checking the loc tables of your mod for errors.
     fn check_anim_fragment(
-        packed_file: &DecodedPackedFile,
-        path: &[String],
+        file: &RFile,
         dependencies: &Dependencies,
         ignored_fields: &[String],
         ignored_diagnostics: &[String],
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
-        local_path_list: &HashSet<UniCase<String>>,
-        local_folder_list: &HashSet<UniCase<String>>,
+        local_path_list: &HashSet<&str>,
+        local_folder_list: &HashSet<String>,
     ) ->Option<DiagnosticType> {
-        if let DecodedPackedFile::AnimFragment(table) = packed_file {
-            let mut diagnostic = AnimFragmentDiagnostic::new(path);
+        if let Ok(RFileDecoded::AnimFragment(table)) = file.decoded() {
+            let mut diagnostic = AnimFragmentDiagnostic::new(file.path_in_container_raw());
 
             // Check inside the of the table in the column [3].
-            for (row, _) in table.get_ref_table_data().iter().enumerate() {
-                if let DecodedData::SequenceU32(ref data) = table.get_ref_table_data()[row][3] {
-                    let fields_processed = data.get_ref_definition().get_fields_processed();
-                    for (row, cells) in data.get_ref_table_data().iter().enumerate() {
-                        for (column, field) in fields_processed.iter().enumerate() {
+            let fields_processed = table.definition().fields_processed();
+            for (row, cells) in table.table().data(&None).unwrap().iter().enumerate() {
+                for (column, field) in fields_processed.iter().enumerate() {
+                    let cell_data = cells[column].data_to_string();
 
-                            if !Self::ignore_diagnostic(Some(field.get_name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                                if let DecodedData::StringU8(cell_data) = &cells[column] {
-                                    if !cell_data.is_empty() {
-                                        if fields_processed[column].get_is_filename() {
-                                            let mut path_found = false;
-                                            let mut path = cell_data.replace('\\', "/");
+                    if !Self::ignore_diagnostic(Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                        if !cell_data.is_empty() {
+                            if fields_processed[column].is_filename() {
+                                let mut path_found = false;
+                                let mut path = cell_data.replace('\\', "/");
 
-                                            // If it's a folder, remove the trailing /.
-                                            if path.ends_with('/') {
-                                                path.pop();
-                                            }
+                                // If it's a folder, remove the trailing /.
+                                if path.ends_with('/') {
+                                    path.pop();
+                                }
 
-                                            let unicased = UniCase::new(path.to_owned());
-                                            if local_path_list.contains(&unicased) {
-                                                path_found = true;
-                                            }
+                                if local_path_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
+                                    path_found = true;
+                                }
 
-                                            if !path_found && local_folder_list.contains(&unicased) {
-                                                path_found = true;
-                                            }
+                                if !path_found && local_folder_list.par_iter().any(|path_2| caseless::canonical_caseless_match_str(path_2, &path)) {
+                                    path_found = true;
+                                }
 
-                                            if !path_found && dependencies.file_exists_on_parent_files(&unicased, true) {
-                                                path_found = true;
-                                            }
+                                if !path_found && dependencies.file_exists(&path, true, true, true) {
+                                    path_found = true;
+                                }
 
-                                            if !path_found && dependencies.folder_exists_on_parent_files(&unicased, true) {
-                                                path_found = true;
-                                            }
+                                if !path_found && dependencies.folder_exists(&path, true, true, true) {
+                                    path_found = true;
+                                }
 
-                                            if !path_found && dependencies.file_exists_on_game_files(&unicased, true) {
-                                                path_found = true;
-                                            }
+                                if path_found {
+                                    continue;
+                                }
 
-                                            if !path_found && dependencies.folder_exists_on_game_files(&unicased, true) {
-                                                path_found = true;
-                                            }
-
-                                            if path_found {
-                                                continue;
-                                            }
-
-                                            if !path_found {
-                                                diagnostic.get_ref_mut_result().push(AnimFragmentDiagnosticReport {
-                                                    cells_affected: vec![(row as i32, column as i32)],
-                                                    message: format!("Path not found: {}.", path),
-                                                    report_type: AnimFragmentDiagnosticReportType::FieldWithPathNotFound,
-                                                    level: DiagnosticLevel::Warning,
-                                                });
-                                            }
-                                        }
-                                    }
+                                if !path_found {
+                                    let result = AnimFragmentDiagnosticReport::new(AnimFragmentDiagnosticReportType::FieldWithPathNotFound(vec![path]), &[(row as i32, column as i32)]);
+                                    diagnostic.results_mut().push(result);
                                 }
                             }
                         }
@@ -763,11 +655,11 @@ impl Diagnostics {
                 }
             }
 
-            if !diagnostic.get_ref_result().is_empty() {
+            if !diagnostic.results().is_empty() {
                 Some(DiagnosticType::AnimFragment(diagnostic))
             } else { None }
         } else { None }
-    }*/
+    }
 
     /// This function takes care of checking the loc tables of your mod for errors.
     fn check_loc(
@@ -775,7 +667,6 @@ impl Diagnostics {
         ignored_fields: &[String],
         ignored_diagnostics: &[String],
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
-        previous_data: &mut BTreeMap<String, HashMap<String, Vec<(i32, i32)>>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
             let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
@@ -851,9 +742,6 @@ impl Diagnostics {
                     }
                 }
             }
-
-            // Add this table's keys to the previous list, so they can be queried for for duplicate checks on other tables of the same type.
-            previous_data.insert(file.path_in_container_raw().to_owned(), keys);
 
             if !diagnostic.results().is_empty() {
                 Some(DiagnosticType::Loc(diagnostic))
