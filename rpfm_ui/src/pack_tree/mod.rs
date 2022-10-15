@@ -1173,9 +1173,12 @@ impl PackTree for QBox<QTreeView> {
                                     if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                     // Get his text. If it's the same folder we are trying to add, this is our parent now.
-                                    if child.text().compare_q_string(&name) == 0 {
+                                    let compare = child.text().compare_q_string(&name);
+                                    if compare == 0 {
                                         parent = parent.child_1a(index);
                                         duplicate_found = true;
+                                        break;
+                                    } else if compare < 0 {
                                         break;
                                     }
                                 }
