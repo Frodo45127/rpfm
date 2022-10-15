@@ -604,7 +604,7 @@ impl Definition {
 
     /// This function returns the field list of a definition, properly sorted.
     pub fn fields_processed_sorted(&self, key_first: bool) -> Vec<Field> {
-        let mut fields = self.fields_processed().to_vec();
+        let mut fields = self.fields_processed();
         fields.sort_by(|a, b| {
             if key_first {
                 if a.is_key() && b.is_key() { Ordering::Equal }

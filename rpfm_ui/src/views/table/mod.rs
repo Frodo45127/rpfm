@@ -1161,7 +1161,8 @@ dbg!(t.elapsed().unwrap());
             }
             realer_cells.reverse();
 
-            self.set_data_on_cells(&realer_cells, 0, &[], app_ui, pack_file_contents_ui);
+            let fields_processed = self.table_definition().fields_processed();
+            self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
         }
     }
 
@@ -1198,7 +1199,8 @@ dbg!(t.elapsed().unwrap());
             }
             realer_cells.reverse();
 
-            self.set_data_on_cells(&realer_cells, 0, &[], app_ui, pack_file_contents_ui);
+            let fields_processed = self.table_definition().fields_processed();
+            self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
         }
     }
 
@@ -1409,7 +1411,9 @@ dbg!(t.elapsed().unwrap());
         let real_cells = indexes.iter().map(|index| {
             (self.table_filter.map_to_source(*index), text)
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
-        self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
+
+        let fields_processed = self.table_definition().fields_processed();
+        self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
@@ -1423,7 +1427,8 @@ dbg!(t.elapsed().unwrap());
             }
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
-        self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
+        let fields_processed = self.table_definition().fields_processed();
+        self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// This function pastes the provided text into the table as it fits, following a square strategy starting in the first selected index.
@@ -1515,7 +1520,7 @@ dbg!(t.elapsed().unwrap());
             update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         }
 
-        self.set_data_on_cells(&real_cells, added_rows, &[], app_ui, pack_file_contents_ui);
+        self.set_data_on_cells(&real_cells, added_rows, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// Function to undo/redo an operation in the table.
@@ -2079,7 +2084,8 @@ dbg!(t.elapsed().unwrap());
         rows_to_delete.dedup();
         rows_to_delete.reverse();
 
-        self.set_data_on_cells(&[], 0, &rows_to_delete, app_ui, pack_file_contents_ui);
+        let fields_processed = self.table_definition().fields_processed();
+        self.set_data_on_cells(&[], 0, &rows_to_delete, &fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// This function takes care of the "Smart Delete" feature for tables.
@@ -2087,6 +2093,7 @@ dbg!(t.elapsed().unwrap());
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
         let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let fields_processed = self.table_definition().fields_processed();
 
         if delete_all_rows {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
@@ -2096,7 +2103,7 @@ dbg!(t.elapsed().unwrap());
             rows_to_delete.dedup();
             rows_to_delete.reverse();
 
-            self.set_data_on_cells(&[], 0, &rows_to_delete, app_ui, pack_file_contents_ui);
+            self.set_data_on_cells(&[], 0, &rows_to_delete, &fields_processed, app_ui, pack_file_contents_ui);
         } else {
 
             let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
@@ -2137,7 +2144,7 @@ dbg!(t.elapsed().unwrap());
                 for column in columns {
                     let index = self.table_model.index_2a(*row, *column);
                     if index.is_valid() {
-                        match self.table_definition().fields_processed()[*column as usize].field_type() {
+                        match fields_processed[*column as usize].field_type() {
                             FieldType::Boolean => values.push(&*default_bool),
                             FieldType::F32 => values.push(&*default_f32),
                             FieldType::F64 => values.push(&*default_f64),
@@ -2167,7 +2174,7 @@ dbg!(t.elapsed().unwrap());
             }
             realer_cells.reverse();
 
-            self.set_data_on_cells(&realer_cells, 0, &full_rows, app_ui, pack_file_contents_ui);
+            self.set_data_on_cells(&realer_cells, 0, &full_rows, &fields_processed, app_ui, pack_file_contents_ui);
         }
     }
 
@@ -2177,6 +2184,7 @@ dbg!(t.elapsed().unwrap());
         real_cells: &[(CppBox<QModelIndex>, &str)],
         added_rows: i32,
         rows_to_delete: &[i32],
+        fields: &[Field],
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) {
@@ -2192,7 +2200,7 @@ dbg!(t.elapsed().unwrap());
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
                 let definition = self.table_definition();
-                match definition.fields_processed()[real_cell.column() as usize].field_type() {
+                match fields[real_cell.column() as usize].field_type() {
 
                     FieldType::Boolean => {
                         let current_value = self.table_model.item_from_index(real_cell).check_state();
@@ -2408,7 +2416,9 @@ dbg!(t.elapsed().unwrap());
             let real_cells = editions.iter()
                 .map(|(_, new_value, row, column)| (self.table_model.index_2a(*row, *column), &**new_value))
                 .collect::<Vec<(CppBox<QModelIndex>, &str)>>();
-            self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
+
+            let fields_processed = self.table_definition().fields_processed();
+            self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
 
             // Stop the timer again.
             self.timer_delayed_updates.stop();
@@ -2968,13 +2978,13 @@ impl TableSearch {
         &mut self,
         model: Ptr<QStandardItemModel>,
         filter: Ptr<QSortFilterProxyModel>,
-        definition: &Definition,
+        fields_processed: &[Field],
         flags: QFlags<MatchFlag>,
         column: i32
     ) {
 
         // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
-        let is_bool = definition.fields_processed()[column as usize].field_type() == &FieldType::Boolean;
+        let is_bool = fields_processed[column as usize].field_type() == &FieldType::Boolean;
         let matches_unprocessed = if is_bool {
             match parse_str_as_bool(&self.pattern.to_std_string()) {
                 Ok(boolean) => {
@@ -3177,6 +3187,7 @@ impl TableSearch {
     /// This function takes care of updating the search data whenever a change that can alter the results happens.
     pub unsafe fn update_search(parent: &TableView) {
         {
+            let fields_processed = parent.table_definition().fields_processed();
             let table_search = &mut parent.search_data.write().unwrap();
             table_search.matches.clear();
 
@@ -3192,11 +3203,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..fields_processed.len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &fields_processed, flags, *column);
             }
         }
 
@@ -3206,6 +3217,7 @@ impl TableSearch {
     /// This function takes care of searching the patter we provided in the TableView.
     pub unsafe fn search(parent: &TableView) {
         {
+            let fields_processed = parent.table_definition().fields_processed();
             let table_search = &mut parent.search_data.write().unwrap();
             table_search.matches.clear();
             table_search.current_item = None;
@@ -3215,7 +3227,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.table_definition().fields_processed().iter().position(|x| x.name() == column).unwrap() as i32) }
+                else { Some(fields_processed.iter().position(|x| x.name() == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -3230,11 +3242,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.table_definition().fields_processed().len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..fields_processed.len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &fields_processed, flags, *column);
             }
         }
 
@@ -3257,6 +3269,7 @@ impl TableSearch {
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
         if !text_source.is_empty() {
+            let fields_processed = parent.table_definition().fields_processed();
 
             // Get the replace data here, as we probably don't have it updated.
             parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
@@ -3279,7 +3292,7 @@ impl TableSearch {
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                    if parent.table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
+                    if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
                         replaced_text = text_replace;
                     }
                     else {
@@ -3288,7 +3301,7 @@ impl TableSearch {
                     }
 
                     // We need to do an extra check to ensure the new text can be in the field.
-                    match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                    match fields_processed[model_index.column() as usize].field_type() {
                         //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -3300,7 +3313,7 @@ impl TableSearch {
             } else { return }
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match parent.table_definition().fields_processed()[item.column() as usize].field_type() {
+            match fields_processed[item.column() as usize].field_type() {
                 FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                 FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -3328,6 +3341,7 @@ impl TableSearch {
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
         if !text_source.is_empty() {
+            let fields_processed = parent.table_definition().fields_processed();
 
             // Get the replace data here, as we probably don't have it updated.
             parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
@@ -3346,7 +3360,7 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                        let original_text = match fields_processed[model_index.column() as usize].field_type() {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
                             FieldType::F32 => item.data_0a().to_float_0a().to_string(),
                             FieldType::I16 => item.data_0a().to_int_0a().to_string(),
@@ -3355,7 +3369,7 @@ impl TableSearch {
                             _ => item.text().to_std_string(),
                         };
 
-                        let replaced_text = if parent.table_definition().fields_processed()[model_index.column() as usize].field_type() == &FieldType::Boolean {
+                        let replaced_text = if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -3369,7 +3383,7 @@ impl TableSearch {
                         }
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.table_definition().fields_processed()[model_index.column() as usize].field_type() {
+                        match fields_processed[model_index.column() as usize].field_type() {
                             //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -3386,7 +3400,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.table_definition().fields_processed()[item.column() as usize].field_type() {
+                match fields_processed[item.column() as usize].field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),

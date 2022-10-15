@@ -507,10 +507,10 @@ impl Table {
     pub fn set_data(&mut self, pool: Option<&Pool<SqliteConnectionManager>>, data: &[Vec<DecodedData>]) -> Result<()> {
         match self.table_data {
             TableData::Local(ref mut table_data) => {
+                let fields_processed = self.definition.fields_processed();
                 for row in data {
 
                     // First, we need to make sure all rows we have are exactly what we expect.
-                    let fields_processed = self.definition.fields_processed();
                     if row.len() != fields_processed.len() {
                         return Err(RLibError::TableRowWrongFieldCount(fields_processed.len(), row.len()))
                     }

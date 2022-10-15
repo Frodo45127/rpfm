@@ -687,8 +687,9 @@ impl TableViewSlots {
         let mut freeze_columns = vec![];
 
         let fields = view.table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
+        let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
-            if let Some(index) = view.table_definition().fields_processed().iter().position(|x| x == field) {
+            if let Some(index) = fields_processed.iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                     mut view => move |state| {
                         let state = state == 2;

@@ -1778,6 +1778,7 @@ impl PackedFileDecoderView {
                 if !table.get_ref_table_data().is_empty() {
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];
+                    let fields_processed = table.get_ref_definition().fields_processed();
 
                     // Organized in columns, not in rows, so we can match by columns.
                     for row in table.get_ref_table_data() {
@@ -1805,7 +1806,7 @@ impl PackedFileDecoderView {
                     // Filter the mapped data to see if we have a common one in every cell.
                     let fields = mapper.iter().map(|(x, y)| {
                         let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                        field.set_field_type(table.get_ref_definition().fields_processed()[*x].get_field_type());
+                        field.set_field_type(fields_processed[*x].get_field_type());
                         field
                     }).collect();
 
