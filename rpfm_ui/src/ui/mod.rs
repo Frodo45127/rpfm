@@ -83,6 +83,7 @@ use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::utils::atomic_from_cpp_box;
+use crate::utils::log_to_status_bar;
 use crate::utils::show_dialog;
 use crate::utils::ref_from_atomic;
 
@@ -283,30 +284,6 @@ impl UI {
 
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&app_ui, None);
-
-        // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
-        info!("Setting initial Game Selected…");
-        match &*SETTINGS.read().unwrap().settings_string["default_game"] {
-            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
-            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
-            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
-            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
-            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
-            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
-            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
-            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
-            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
-            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
-            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
-            KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
-
-            // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
-            // So just in case, by default we use WH3.
-            _ => app_ui.game_selected_warhammer_3.set_checked(true),
-        }
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
-        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
-
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
@@ -354,6 +331,30 @@ impl UI {
 
         // Show the Main Window...
         app_ui.main_window.show();
+        log_to_status_bar("Initializing, please wait...");
+
+        // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
+        info!("Setting initial Game Selected…");
+        match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+            KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.set_checked(true),
+            KEY_TROY => app_ui.game_selected_troy.set_checked(true),
+            KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.set_checked(true),
+            KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.set_checked(true),
+            KEY_WARHAMMER => app_ui.game_selected_warhammer.set_checked(true),
+            KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.set_checked(true),
+            KEY_ATTILA => app_ui.game_selected_attila.set_checked(true),
+            KEY_ROME_2 => app_ui.game_selected_rome_2.set_checked(true),
+            KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.set_checked(true),
+            KEY_NAPOLEON => app_ui.game_selected_napoleon.set_checked(true),
+            KEY_EMPIRE => app_ui.game_selected_empire.set_checked(true),
+            KEY_ARENA  => app_ui.game_selected_arena.set_checked(true),
+
+            // Turns out some... lets say "not very bright individual" changed the settings file manually and broke this.
+            // So just in case, by default we use WH3.
+            _ => app_ui.game_selected_warhammer_3.set_checked(true),
+        }
+        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true);
+        info!("Initial Game Selected set to {}.", SETTINGS.read().unwrap().settings_string["default_game"]);
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
