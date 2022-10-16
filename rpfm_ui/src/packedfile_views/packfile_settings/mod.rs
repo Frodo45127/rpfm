@@ -90,7 +90,7 @@ impl PackFileSettingsView {
         let mut settings_bool = BTreeMap::new();
 
         let mut row = 0;
-        for (key, setting) in &settings.settings_text {
+        for (key, setting) in settings.settings_text() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
             let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(&setting), pack_file_view.get_mut_widget());
@@ -105,7 +105,7 @@ impl PackFileSettingsView {
             row += 2;
         }
 
-        for (key, setting) in &settings.settings_string {
+        for (key, setting) in settings.settings_string() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
             let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&setting), pack_file_view.get_mut_widget());
@@ -117,7 +117,7 @@ impl PackFileSettingsView {
             row += 1;
         }
 
-        for (key, setting) in &settings.settings_bool {
+        for (key, setting) in settings.settings_bool() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
             let edit = QCheckBox::from_q_widget(pack_file_view.get_mut_widget());
@@ -130,7 +130,7 @@ impl PackFileSettingsView {
             row += 1;
         }
 
-        for (key, setting) in &settings.settings_number {
+        for (key, setting) in settings.settings_number() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
             let edit = QSpinBox::new_1a(pack_file_view.get_mut_widget());
@@ -179,10 +179,10 @@ impl PackFileSettingsView {
     /// This function saves a PackFileSettingsView into a PackFileSetting.
     pub unsafe fn save_view(&self) -> PackSettings {
         let mut settings = PackSettings::default();
-        self.settings_text_multi_line.iter().for_each(|(key, widget)| { settings.settings_text.insert(key.to_owned(), widget.to_plain_text().to_std_string()); });
-        self.settings_text_single_line.iter().for_each(|(key, widget)| { settings.settings_string.insert(key.to_owned(), widget.text().to_std_string()); });
-        self.settings_bool.iter().for_each(|(key, widget)| { settings.settings_bool.insert(key.to_owned(), widget.is_checked()); });
-        self.settings_number.iter().for_each(|(key, widget)| { settings.settings_number.insert(key.to_owned(), widget.value()); });
+        self.settings_text_multi_line.iter().for_each(|(key, widget)| { settings.settings_text_mut().insert(key.to_owned(), widget.to_plain_text().to_std_string()); });
+        self.settings_text_single_line.iter().for_each(|(key, widget)| { settings.settings_string_mut().insert(key.to_owned(), widget.text().to_std_string()); });
+        self.settings_bool.iter().for_each(|(key, widget)| { settings.settings_bool_mut().insert(key.to_owned(), widget.is_checked()); });
+        self.settings_number.iter().for_each(|(key, widget)| { settings.settings_number_mut().insert(key.to_owned(), widget.value()); });
 
         settings
     }

@@ -272,6 +272,12 @@ pub enum RLibError {
     #[error("Merging files of type {0} is not supported.")]
     RFileMergeNotSupportedForType(String),
 
+    #[error("This Pack is empty, so we can't patch it.")]
+    PatchSiegeAIEmptyPack,
+
+    #[error("There are not files in this Pack that could be patched/deleted.")]
+    PatchSiegeAINoPatchableFiles,
+
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     IOError(#[from] std::io::Error),

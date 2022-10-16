@@ -162,20 +162,21 @@ pub struct PackHeader {
 }
 
 /// This struct hold PackFile-specific settings.
-#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackSettings {
 
     /// For multi-line text.
-    pub settings_text: BTreeMap<String, String>,
+    settings_text: BTreeMap<String, String>,
 
     /// For single-line text.
-    pub settings_string: BTreeMap<String, String>,
+    settings_string: BTreeMap<String, String>,
 
     /// For bool values.
-    pub settings_bool: BTreeMap<String, bool>,
+    settings_bool: BTreeMap<String, bool>,
 
     /// For integer values.
-    pub settings_number: BTreeMap<String, i32>,
+    settings_number: BTreeMap<String, i32>,
 }
 
 //---------------------------------------------------------------------------//
@@ -760,267 +761,30 @@ impl Pack {
             Ok(None)
         }
     }
-}
 
-/*
-
-//---------------------------------------------------------------------------//
-//                           Structs Implementations
-//---------------------------------------------------------------------------//
-
-/// Implementation of `PackFile`.
-impl PackFile {
-
-    /// This function returns if the `PackFile` is editable or not.
+    /// This function is used to patch Warhammer I & II Siege map packs so their AI actually works.
     ///
-    /// By *if is editable or not* I mean *If you can save it or not*. The conditions under which a PackFile is not editable are:
-    /// - All PackFiles with extended header or encrypted parts are not editable.
-    /// - All PackFiles of type `Mod` or `Movie` are editable.
-    /// - If you say CA PackFiles are not editable:
-    ///   - All PackFiles of type `Boot`, `Release` or `Patch` are not editable.
-    /// - If you say CA PackFiles are editable:
-    ///   - All PackFiles of type `Boot`, `Release` or `Patch` are editable.
-    pub fn is_editable(&self, is_editing_of_ca_packfiles_allowed: bool) -> bool {
-
-        // If it's this very specific type, don't save under any circumstance.
-        if let PFHFileType::Other(_) = self.pfh_file_type { false }
-
-        // If ANY of these bitmask is detected in the PackFile, disable all saving.
-        else if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) ||
-            self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) ||
-            self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
-        else {
-            self.pfh_file_type == PFHFileType::Mod ||
-            self.pfh_file_type == PFHFileType::Movie ||
-            (is_editing_of_ca_packfiles_allowed && self.pfh_file_type.get_value() <= 2)
-        }
-    }
-
-    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_packed_files_all_paths(&self) -> Vec<Vec<String>> {
-        self.packed_files.par_iter().map(|x| x.get_path().to_vec()).collect()
-    }
-
-    /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_ref_packed_files_all_paths(&self) -> Vec<&[String]> {
-        self.packed_files.par_iter().map(|x| x.get_path()).collect()
-    }
-
-    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` as Strings.
-    pub fn get_packed_files_all_paths_as_string(&self) -> HashSet<UniCase<String>> {
-        self.packed_files.par_iter().map(|x| UniCase::new(x.get_path().join("/"))).collect()
-    }
-
-    /// This function returns a copy of the paths of all the folders in the provided `PackFile` as Strings.
-    pub fn get_folder_all_paths_as_string(&self) -> HashSet<UniCase<String>> {
-        let mut folder_paths = self.packed_files.par_iter().map(|x| {
-            let path = x.get_path();
-            let mut paths = Vec::with_capacity(path.len() - 1);
-
-            for (index, folder) in path.iter().enumerate() {
-                if index < path.len() - 1 && !folder.is_empty() {
-                    paths.push(UniCase::new(path[0..=index].join("/")))
-                }
-            }
-
-            paths
-        }).flatten().collect::<Vec<UniCase<String>>>();
-
-        folder_paths.sort();
-        folder_paths.dedup();
-        folder_paths.into_iter().collect::<HashSet<_>>()
-    }
-
-
-    /// This function removes, if exists, all `PackedFile` ending with the provided path from the `PackFile`.
-    pub fn remove_packed_files_by_path_end(&mut self, path: &[String]) {
-        let positions: Vec<usize> = self.packed_files.iter()
-            .enumerate()
-            .filter(|x| x.1.get_path().ends_with(path) && !path.is_empty())
-            .map(|x| x.0)
-            .collect();
-        for position in positions.iter().rev() {
-            self.packed_files.remove(*position);
-        }
-    }
-
-    /// This function removes, if exists, all `PackedFile` of the provided types from the `PackFile`.
-    pub fn remove_packed_files_by_type(&mut self, item_types: &[PathType]) -> Vec<PathType> {
-
-        // We need to "clean" the selected path list to ensure we don't pass stuff already deleted.
-        let item_types_clean = PathType::dedup(item_types);
-
-        // Now we do some bitwise magic to get what type of selection combination we have.
-        let mut contents: u8 = 0;
-        for item_type in &item_types_clean {
-            match item_type {
-                PathType::File(_) => contents |= 1,
-                PathType::Folder(_) => contents |= 2,
-                PathType::PackFile => contents |= 4,
-                PathType::None => contents |= 8,
-            }
-        }
-
-        // Then we act, depending on the combination of items.
-        match contents {
-
-            // Any combination of files and folders.
-            1 | 2 | 3 => {
-                for item_type in &item_types_clean {
-                    match item_type {
-                        PathType::File(path) => self.remove_packed_file_by_path(path),
-                        PathType::Folder(path) => self.remove_packed_files_by_path_start(path),
-                        _ => unreachable!(),
-                    }
-                }
-            },
-
-            // If the `PackFile` is selected, just delete everything.
-            4 | 5 | 6 | 7 => self.remove_all_packedfiles(),
-
-            // No paths selected, none selected, invalid path selected, or invalid value.
-            0 | 8..=255 => {},
-        }
-
-        // Return the list of deleted items so the caller can have a clean list to know what was really removed from the `PackFile`.
-        item_types_clean
-    }
-
-    /// This function extract, if exists, all `PackedFile` of the provided types from the `PackFile` to disk.
-    ///
-    /// As this can fail for some files, and work for others, we return `Ok(amount_files_extracted)` only if all files were extracted correctly.
-    /// If any of them failed, we return `Error` with a list of the paths that failed to get extracted.
-    pub fn extract_packed_files_by_type(
-        &mut self,
-        item_types: &[PathType],
-        extracted_path: &Path,
-        extract_table_as_tsv: bool
-    ) -> Result<u32> {
-
-        // These variables are here to keep track of what we have extracted and what files failed.
-        let mut files_extracted = 0;
-        let mut error_files = vec![];
-
-        // We need to "clean" the selected path list to ensure we don't pass stuff already extracted.
-        let item_types_clean = PathType::dedup(item_types);
-
-        // Now we do some bitwise magic to get what type of selection combination we have.
-        let mut contents: u8 = 0;
-        for item_type in &item_types_clean {
-            match item_type {
-                PathType::File(_) => contents |= 1,
-                PathType::Folder(_) => contents |= 2,
-                PathType::PackFile => contents |= 4,
-                PathType::None => contents |= 8,
-            }
-        }
-
-        // Then we act, depending on the combination of items.
-        match contents {
-
-            // Any combination of files and folders.
-            1 | 2 | 3 => {
-
-                // For folders we check each PackedFile to see if it starts with the folder's path (it's in the folder).
-                // There should be no duplicates here thanks to the filters from before.
-                for item_type in &item_types_clean {
-                    match item_type {
-
-                        // For individual `PackedFiles`, we extract them one by one.
-                        PathType::File(path) => {
-                            match self.extract_packed_file_by_path(path, extracted_path, extract_table_as_tsv) {
-                                Ok(_) => files_extracted += 1,
-                                Err(_) => error_files.push(format!("{:?}", path)),
-                            }
-                        },
-
-                        PathType::Folder(path) => {
-                            for packed_file in self.get_ref_mut_packed_files_by_path_start(path) {
-                                match packed_file.extract_packed_file(extracted_path, extract_table_as_tsv) {
-                                    Ok(_) => files_extracted += 1,
-                                    Err(_) => error_files.push(format!("{:?}", path)),
-                                }
-                            }
-                        },
-
-                        _ => unreachable!(),
-                    }
-                }
-            },
-
-            // If the `PackFile` is selected, just extract it and everything will get extracted with it.
-            4 | 5 | 6 | 7 => {
-
-                // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
-                let mut packed_files = self.get_ref_mut_packed_files_all();
-                files_extracted = packed_files.len() as u32;
-
-                error_files = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    if packed_file.extract_packed_file(extracted_path, extract_table_as_tsv).is_err() {
-                        Some(format!("{:?}", packed_file.get_path()))
-                    } else { None }
-                }).collect();
-                files_extracted -= error_files.len() as u32;
-
-                // If we're extracting everything as TSV, it's a mymod export. Also extract notes and settings.
-                if extract_table_as_tsv {
-
-                    if let Some(note) = &self.notes {
-                        let mut data = vec![];
-                        data.encode_string_u8(note);
-                        let path = extracted_path.join(RESERVED_NAME_NOTES.to_owned() + ".md");
-                        let mut file = BufWriter::new(File::create(path)?);
-                        file.write_all(&data)?;
-                        file.flush()?;
-                    }
-
-                    // Saving PackFile settings.
-                    let mut data = vec![];
-                    data.write_all(to_string_pretty(&self.settings)?.as_bytes())?;
-                    data.extend_from_slice(b"\n"); // Add newline to the end of the file
-                    let path = extracted_path.join(RESERVED_NAME_SETTINGS.to_owned() + ".json");
-                    let mut file = BufWriter::new(File::create(path)?);
-                    file.write_all(&data)?;
-                    file.flush()?;
-                }
-            },
-
-            // No paths selected, none selected, invalid path selected, or invalid value.
-            0 | 8..=255 => return Err(ErrorKind::NonExistentFile.into()),
-        }
-
-        // If there is any error in the list, report it.
-        if !error_files.is_empty() {
-            let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-            return Err(ErrorKind::ExtractError(error_files_string).into())
-        }
-
-        // If we reach this, return the amount of extracted files.
-        Ok(files_extracted)
-    }
-
-    /// This function is used to patch Warhammer Siege map packs so their AI actually works.
-    ///
-    /// This also removes the useless xml files left by Terry in the `PackFile`.
-    pub fn patch_siege_ai(&mut self) -> Result<(String, Vec<Vec<String>>)> {
+    /// This also removes the useless xml files left by Terry in the Pack.
+    pub fn patch_siege_ai(&mut self) -> Result<(String, Vec<ContainerPath>)> {
 
         // If there are no files, directly return an error.
-        if self.packed_files.is_empty() {
-            return Err(ErrorKind::PatchSiegeAIEmptyPackFile.into())
+        if self.files().is_empty() {
+            return Err(RLibError::PatchSiegeAIEmptyPack)
         }
 
         let mut files_patched = 0;
-        let mut files_to_delete: Vec<Vec<String>> = vec![];
+        let mut files_to_delete: Vec<ContainerPath> = vec![];
         let mut multiple_defensive_hill_hints = false;
 
         // We only need to change stuff inside the map folder, so we only check the maps in that folder.
-        for packed_file in self.get_ref_mut_packed_files_by_path_start(&Self::get_terry_map_path()) {
-            let path = packed_file.get_path();
-            let name = path.last().unwrap().clone();
+        for file in self.files_by_path_mut(&ContainerPath::Folder(TERRY_MAP_PATH.to_owned())) {
+            let path = file.path_in_container_raw();
+            let name = &path[path.rfind('/').unwrap_or(0)..];
 
             // The files we need to process are `bmd_data.bin` and all the `catchment_` files the map has.
             if name == DEFAULT_BMD_DATA || (name.starts_with("catchment_") && name.ends_with(".bin")) {
-                let data = packed_file.get_ref_mut_raw().get_ref_mut_data_and_keep_it()?;
+                file.load()?;
+                let data = file.cached_mut()?;
 
                 // The patching process it's simple. First, we check if there is SiegeAI stuff in the file by checking if there is an Area Node.
                 // If we find one, we check if there is a defensive hill hint in the same file, and patch it if there is one.
@@ -1039,15 +803,15 @@ impl PackFile {
 
             // All xml in this folder are useless, so we mark them all for deletion.
             else if name.ends_with(".xml") {
-                files_to_delete.push(packed_file.get_path().to_vec());
+                files_to_delete.push(ContainerPath::File(file.path_in_container_raw().to_string()));
             }
         }
 
         // If there are files to delete, we delete them.
-        files_to_delete.iter().for_each(|x| self.remove_packed_file_by_path(x));
+        files_to_delete.iter().for_each(|x| { self.remove(x); });
 
         // If we didn't found any file to patch or delete, return an error.
-        if files_patched == 0 && files_to_delete.is_empty() { Err(ErrorKind::PatchSiegeAINoPatchableFiles.into()) }
+        if files_patched == 0 && files_to_delete.is_empty() { Err(RLibError::PatchSiegeAINoPatchableFiles) }
 
         // TODO: make this more.... `fluent`.
         // If we found files to delete, but not to patch, return a message reporting it.
@@ -1093,14 +857,46 @@ impl PackFile {
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_to_delete.len()), files_to_delete))
         }
     }
+}
 
-*/
-/// Implementation of PackFileSettings.
+/// Implementation of PackSettings.
 impl PackSettings {
 
     /// This function tries to load the settings from the current PackFile and return them.
     pub fn load(data: &[u8]) -> Result<Self> {
         from_slice(data).map_err(From::from)
+    }
+
+    pub fn setting_string(&self, key: &str) -> Option<&String> {
+        self.settings_string.get(key)
+    }
+
+    pub fn setting_text(&self, key: &str) -> Option<&String> {
+        self.settings_text.get(key)
+    }
+
+    pub fn setting_bool(&self, key: &str) -> Option<&bool> {
+        self.settings_bool.get(key)
+    }
+
+    pub fn setting_number(&self, key: &str) -> Option<&i32> {
+        self.settings_number.get(key)
+    }
+
+    pub fn set_setting_string(&mut self, key: &str, value: &str) {
+        self.settings_string.insert(key.to_owned(), value.to_owned());
+    }
+
+    pub fn set_setting_text(&mut self, key: &str, value: &str) {
+        self.settings_text.insert(key.to_owned(), value.to_owned());
+    }
+
+    pub fn set_setting_bool(&mut self, key: &str, value: bool) {
+        self.settings_bool.insert(key.to_owned(), value);
+    }
+
+    pub fn set_setting_number(&mut self, key: &str, value: i32) {
+        self.settings_number.insert(key.to_owned(), value);
     }
 
     pub fn diagnostics_files_to_ignore(&self) -> Option<Vec<(String, Vec<String>, Vec<String>)>> {

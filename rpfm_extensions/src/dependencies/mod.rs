@@ -11,7 +11,6 @@
 //! This module contains a dependencies system implementation, used to manage dependencies between packs.
 
 use getset::{Getters, MutGetters};
-use rayon::iter::Either;
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 

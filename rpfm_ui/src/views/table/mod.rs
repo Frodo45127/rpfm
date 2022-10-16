@@ -2199,7 +2199,6 @@ dbg!(t.elapsed().unwrap());
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
-                let definition = self.table_definition();
                 match fields[real_cell.column() as usize].field_type() {
 
                     FieldType::Boolean => {

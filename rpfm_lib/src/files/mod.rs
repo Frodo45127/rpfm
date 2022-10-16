@@ -1207,6 +1207,16 @@ impl RFile {
         }
     }
 
+    /// This function returns a mutable reference to the cached data of an RFile, if said RFile has been cached. If not, it returns an error.
+    ///
+    /// Useful for accessing preloaded data.
+    pub fn cached_mut(&mut self) -> Result<&mut Vec<u8>> {
+        match self.data {
+            RFileInnerData::Cached(ref mut data) => Ok(data),
+            _ => Err(RLibError::FileNotCached(self.path_in_container_raw().to_string()))
+        }
+    }
+
     /// This function returns a reference to the decoded data of an RFile, if said RFile has been decoded. If not, it returns an error.
     ///
     /// Useful for accessing preloaded data.

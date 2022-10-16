@@ -3030,7 +3030,7 @@ impl AppUI {
                                 let response = CentralCommand::recv(&receiver);
                                 match response {
                                     Response::Success => {
-                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(complete_path.to_owned()); 1]), DataSource::PackFile);
+                                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(complete_path); 1]), DataSource::PackFile);
                                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                     }
 
@@ -3142,7 +3142,7 @@ impl AppUI {
                 let response = CentralCommand::recv(&receiver);
                 match response {
                     Response::Success => {
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(new_path.to_owned()); 1]), DataSource::PackFile);
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(new_path); 1]), DataSource::PackFile);
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -3205,7 +3205,7 @@ impl AppUI {
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
-            let mut packfile_name = packfile_name.to_owned();
+            let mut packfile_name = packfile_name;
             packfile_name.pop();
             packfile_name.pop();
             packfile_name.pop();
@@ -3308,7 +3308,7 @@ impl AppUI {
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
-            let mut packfile_name = packfile_name.to_owned();
+            let mut packfile_name = packfile_name;
             packfile_name.pop();
             packfile_name.pop();
             packfile_name.pop();
@@ -3345,7 +3345,7 @@ impl AppUI {
         let response = CentralCommand::recv(&receiver);
         let packfile_name = if let Response::String(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
-            let mut packfile_name = packfile_name.to_owned();
+            let mut packfile_name = packfile_name;
             packfile_name.pop();
             packfile_name.pop();
             packfile_name.pop();
@@ -3390,8 +3390,8 @@ impl AppUI {
 
                 // Reserved PackedFiles should have special names.
                 let path = packed_file_view.get_ref_path();
-                let path_split = path.split("/").collect::<Vec<_>>();
-                if &*path == RESERVED_NAME_NOTES {
+                let path_split = path.split('/').collect::<Vec<_>>();
+                if *path == RESERVED_NAME_NOTES {
                     names.insert("Notes".to_owned(), 1);
                 } else if let Some(name) = path_split.last() {
                     match names.get_mut(*name) {
@@ -3405,8 +3405,8 @@ impl AppUI {
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = packed_file_view.get_mut_widget();
             let path = packed_file_view.get_ref_path();
-            let path_split = path.split("/").collect::<Vec<_>>();
-            let widget_name = if &*path == RESERVED_NAME_NOTES {
+            let path_split = path.split('/').collect::<Vec<_>>();
+            let widget_name = if *path == RESERVED_NAME_NOTES {
                 "Notes".to_owned()
             } else if let Some(widget_name) = path_split.last() {
                 widget_name.to_string()
@@ -3725,7 +3725,7 @@ dbg!(t.elapsed().unwrap());
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
-                    let files_to_ignore = settings.settings_text.get("import_files_to_ignore").map(|files_to_ignore| {
+                    let files_to_ignore = settings.setting_text("import_files_to_ignore").map(|files_to_ignore| {
                         if files_to_ignore.is_empty() { vec![] } else {
                             files_to_ignore.split('\n')
                                 .map(|x| assets_folder.to_path_buf().join(x))
@@ -3733,7 +3733,7 @@ dbg!(t.elapsed().unwrap());
                         }
                     });
 
-                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore, true);
+                    PackFileContentsUI::add_packedfiles(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore, true);
                 }
 
                 // If there is no MyMod path configured, report it.

@@ -33,19 +33,14 @@ use cpp_core::Ref;
 use cpp_core::CastFrom;
 
 use chrono::naive::NaiveDateTime;
-use itertools::Itertools;
 use rayon::prelude::*;
-use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_lib::files::ContainerPath;
+use rpfm_lib::files::{ContainerPath, pack::PFHFlags};
 use rpfm_lib::utils::*;
-
-//use rpfm_lib::packfile::{CompressionState, ContainerInfo, ContainerPath, PFHFlags};
-
 
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
@@ -55,7 +50,6 @@ use crate::pack_tree::icons::IconType;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
-use crate::SUPPORTED_GAMES;
 use crate::utils::*;
 
 // This one is needed for initialization on boot, so it has to be public.
@@ -571,12 +565,16 @@ impl PackTree for QBox<QTreeView> {
                             }
 
                             let compare = QString::compare_2_q_string(child.text().as_ref(), path_2.as_ref());
-                            if compare == 0 {
-                                item = child;
-                                break;
-                            } else if compare > 0 {
-                                dbg!("Bug?");
-                                break;
+                            match compare.cmp(&0) {
+                                Ordering::Equal => {
+                                    item = child;
+                                    break;
+                                },
+                                Ordering::Less |
+                                Ordering::Greater => {
+                                    dbg!("Bug?");
+                                    break;
+                                },
                             }
                         }
                         break;
@@ -1231,7 +1229,7 @@ impl PackTree for QBox<QTreeView> {
                         parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                     }
 
-                    let path_split = path.split("/").collect::<Vec<_>>();
+                    let path_split = path.split('/').collect::<Vec<_>>();
                     for (index, name) in path_split.iter().enumerate() {
                         let name2 = QString::from_std_str(name);
 
@@ -1248,13 +1246,9 @@ impl PackTree for QBox<QTreeView> {
                                     let child = parent.child_2a(index, 0);
 
                                     // We ignore files or folders, depending on what we want to create.
-                                    if is_file {
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
-                                    }
+                                    if is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
 
-                                    if !is_file {
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-                                    }
+                                    if !is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                     // Get his text. If it's the same file/folder we are trying to add, this is the one.
                                     let compare = QString::compare_2_q_string(child.text().as_ref(), name2.as_ref());
@@ -1394,7 +1388,7 @@ impl PackTree for QBox<QTreeView> {
                             let packfile = model.item_1a(0);
                             let mut item = model.item_1a(0);
                             let mut index = 0;
-                            let path_split = path.split("/").collect::<Vec<_>>();
+                            let path_split = path.split('/').collect::<Vec<_>>();
                             let path_deep = path_split.len();
 
                             // First looping downwards.
@@ -1473,7 +1467,7 @@ impl PackTree for QBox<QTreeView> {
                             let packfile = model.item_1a(0);
                             let mut item = model.item_1a(0);
                             let mut index = 0;
-                            let path_split = path.split("/").collect::<Vec<_>>();
+                            let path_split = path.split('/').collect::<Vec<_>>();
                             let path_deep = path_split.len();
 
                             // First looping downwards.
@@ -1722,52 +1716,32 @@ impl PackTree for QBox<QTreeView> {
 
 /// This function is used to create the tooltip for the `PackFile` item in the PackFile Content's TreeView.
 pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
-    /*let is_encrypted = info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA);
-    let is_compressed = match info.compression_state {
-        CompressionState::Enabled => "true",
-        CompressionState::Disabled => "false",
-        CompressionState::Partial => "partially",
-    }.to_owned();
-
-    let compatible_games = SUPPORTED_GAMES.games().iter()
-        .filter(|x| x.pfh_versions().values().any(|x| x == &info.pfh_version))
-        .map(|x| format!("<li><i>{}</i></li>", x.display_name()))
-        .collect::<String>();
-
-    format!("PackFile Info: \
+    format!("Pack Info: \
         <ul> \
-            <li><b>Last Modified:</b> <i>{:?}</i></li> \
+            <li><b>PFH Version:</b> <i>{}</i></li> \
             <li><b>Is Encrypted:</b> <i>{}</i></li> \
-            <li><b>Is Compressed:</b> <i>{}</i></li> \
-            <li><b>Compatible with the following games:</b> <ul>{}<ul></li> \
+            <li><b>Last Modified:</b> <i>{}</i></li> \
         </ul>",
-        NaiveDateTime::from_timestamp(info.timestamp, 0),
-        is_encrypted,
-        is_compressed,
-        compatible_games
-    )*/
-    String::new()
+        info.pfh_version(),
+        info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA),
+        NaiveDateTime::from_timestamp(*info.timestamp() as i64, 0)
+    )
 }
 
 /// This function is used to create the tooltip for each `PackedFile` item in the PackFile Content's TreeView.
 fn new_packed_file_tooltip(info: &RFileInfo) -> String {
-    /*format!("PackedFile Info: \
+    let mut string = format!("File Info: \
         <ul> \
-            <li><b>Original PackFile:</b> <i>{}</i></li> \
-            <li><b>Last Modified:</b> <i>{:?}</i></li> \
-            <li><b>Is Encrypted:</b> <i>{}</i></li> \
-            <li><b>Is Compressed:</b> <i>{}</i></li> \
-            <li><b>Is Cached:</b> <i>{}</i></li> \
-            <li><b>Cached type:</b> <i>{}</i></li> \
-        </ul>",
-        info.packfile_name,
-        NaiveDateTime::from_timestamp(info.timestamp, 0),
-        info.is_encrypted,
-        info.is_compressed,
-        info.is_cached,
-        info.cached_type
-    )*/
-    String::new()
+            <li><b>Original Pack:</b> <i>{}</i></li>",
+        info.packfile_name(),
+    );
+
+    if let Some(timestamp) = info.timestamp() {
+        string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", timestamp));
+    }
+
+    string.push_str("</ul>");
+    string
 }
 
 /// This function cleans the entire TreeView from colors. To be used when saving.
