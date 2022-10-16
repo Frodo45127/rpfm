@@ -1347,7 +1347,14 @@ impl Table {
         for entry in &self.entries {
             let sorted_entry = sorted_indexes.iter()
                 .map(|index| &entry[*index])
-                .map(|data| if let DecodedData::ColourRGB(_) = data { DecodedData::StringU8(data.data_to_string()) } else { data.clone() })
+                .map(|data|
+                    if let DecodedData::ColourRGB(_) = data {
+                        DecodedData::StringU8(data.data_to_string())
+                    } else if let DecodedData::F32(_) = data {
+                        DecodedData::StringU8(data.data_to_string())
+                    } else if let DecodedData::F64(_) = data {
+                        DecodedData::StringU8(data.data_to_string())
+                    } else { data.clone() })
                 .collect::<Vec<DecodedData>>();
             writer.serialize(&sorted_entry)?;
         }
