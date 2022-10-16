@@ -1677,8 +1677,8 @@ pub fn background_loop() {
                                 let mut vscode_extensions_path_file = vscode_config_path.to_owned();
                                 vscode_extensions_path_file.push("extensions.json");
 
-                                let mut vscode_config_path_file = vscode_config_path.to_owned();
-                                vscode_config_path_file.push("settings.json");
+                                let mut luarc_config_path = mymod_path.to_owned();
+                                luarc_config_path.push(".luarc.json");
 
                                 if let Ok(file) = File::create(vscode_extensions_path_file) {
                                     let mut file = BufWriter::new(file);
@@ -1691,28 +1691,28 @@ pub fn background_loop() {
 }".as_bytes());
                                 }
 
-                                if let Ok(file) = File::create(vscode_config_path_file) {
+                                if let Ok(file) = File::create(luarc_config_path) {
                                     let mut file = BufWriter::new(file);
                                     let _ = file.write_all(format!("
 {{
-    \"Lua.workspace.library\": [
+    \"workspace.library\": [
         \"{folder}/global/\",
         \"{folder}/campaign/\",
         \"{folder}/frontend/\",
         \"{folder}/battle/\"
     ],
-    \"Lua.runtime.version\": \"Lua 5.1\",
-    \"Lua.completion.autoRequire\": false,
-    \"Lua.workspace.preloadFileSize\": 1500,
-    \"Lua.workspace.ignoreSubmodules\": false,
-    \"Lua.diagnostics.workspaceDelay\": 500,
-    \"Lua.diagnostics.workspaceRate\": 40,
-    \"Lua.diagnostics.disable\": [
+    \"runtime.version\": \"Lua 5.1\",
+    \"completion.autoRequire\": false,
+    \"workspace.preloadFileSize\": 1500,
+    \"workspace.ignoreSubmodules\": false,
+    \"diagnostics.workspaceDelay\": 500,
+    \"diagnostics.workspaceRate\": 40,
+    \"diagnostics.disable\": [
         \"lowercase-global\",
         \"trailing-space\"
     ],
-    \"Lua.hint.setType\": true,
-    \"Lua.workspace.ignoreDir\": [
+    \"hint.setType\": true,
+    \"workspace.ignoreDir\": [
         \".vscode\",
         \".git\"
     ]
@@ -1728,37 +1728,8 @@ pub fn background_loop() {
         {{
             \"path\": \".\"
         }}
-    ],
-    \"settings\": {{
-        \"LSP\": {{
-            \"LSP-lua\": {{
-                \"settings\": {{
-                    \"Lua.workspace.library\": [
-                        \"{folder}/global/\",
-                        \"{folder}/campaign/\",
-                        \"{folder}/frontend/\",
-                        \"{folder}/battle/\"
-                    ],
-                    \"Lua.runtime.version\": \"Lua 5.1\",
-                    \"Lua.completion.autoRequire\": false,
-                    \"Lua.workspace.preloadFileSize\": 1500,
-                    \"Lua.workspace.ignoreSubmodules\": false,
-                    \"Lua.diagnostics.workspaceDelay\": 500,
-                    \"Lua.diagnostics.workspaceRate\": 40,
-                    \"Lua.diagnostics.disable\": [
-                        \"lowercase-global\",
-                        \"trailing-space\"
-                    ],
-                    \"Lua.hint.setType\": true,
-                    \"Lua.workspace.ignoreDir\": [
-                        \".vscode\",
-                        \".git\"
-                    ],
-                }}
-            }}
-        }}
-    }}
-}}", folder = lua_autogen_folder).as_bytes());
+    ]
+}}").as_bytes());
                                 }
                             }
                         }
