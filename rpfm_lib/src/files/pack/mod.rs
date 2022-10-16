@@ -513,7 +513,7 @@ impl Pack {
         // If we only got one path, just decode the Pack on it.
         if pack_paths.len() == 1 {
             let mut data = BufReader::new(File::open(&pack_paths[0])?);
-            let path_str = pack_paths[0].to_string_lossy().to_string();
+            let path_str = pack_paths[0].to_string_lossy().replace("\\", "/");
 
             extra_data.set_disk_file_path(Some(&path_str));
             extra_data.set_timestamp(last_modified_time_from_file(data.get_ref())?);
@@ -526,7 +526,7 @@ impl Pack {
         let mut packs = pack_paths.par_iter()
             .map(|path| {
                 let mut data = BufReader::new(File::open(path)?);
-                let path_str = path.to_string_lossy().to_string();
+                let path_str = path.to_string_lossy().replace("\\", "/");
 
                 let mut extra_data = extra_data.to_owned();
                 extra_data.set_disk_file_path(Some(&path_str));
