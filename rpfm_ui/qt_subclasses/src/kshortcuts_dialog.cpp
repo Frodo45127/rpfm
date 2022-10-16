@@ -211,7 +211,13 @@ extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString co
         if (actions->componentName() == action_group) {
             QAction* action = actions->action(action_name);
             if (action != nullptr) {
-                return action;
+
+                // Create a new action as a copy instead of returning it to avoid issues with duplicated triggers.
+                QAction* new_action = new QAction();
+                new_action->setText(action->text());
+                new_action->setShortcut(action->shortcut());
+                new_action->setShortcutContext(action->shortcutContext());
+                return new_action;
             }
         }
     }
