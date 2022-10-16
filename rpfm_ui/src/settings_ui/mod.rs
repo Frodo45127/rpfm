@@ -251,6 +251,7 @@ impl SettingsUI {
         settings_ui.load();
         if settings_ui.dialog.exec() == 1 {
             settings_ui.save();
+            settings_ui.dialog.delete_later();
             true
         } else { false }
     }
@@ -263,7 +264,7 @@ impl SettingsUI {
         dialog.set_window_title(&qtr("settings_title"));
         dialog.set_modal(true);
         dialog.resize_2a(750, 0);
-        dialog.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
+        //dialog.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
 
         let main_grid = create_grid_layout(dialog.static_upcast());
         main_grid.set_contents_margins_4a(4, 0, 4, 4);

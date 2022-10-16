@@ -829,6 +829,9 @@ impl PackTree for QBox<QTreeView> {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
         let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
 
+        // Make sure we don't try to update the view until the model is done.
+        self.set_updates_enabled(false);
+
         // We act depending on the operation requested.
         match operation {
 
@@ -993,79 +996,79 @@ impl PackTree for QBox<QTreeView> {
                 // - FileA
                 // - FileB
                 packed_files_data.par_sort_unstable_by(|a, b| {
-                    let a = &a.path().split('/').collect::<Vec<_>>();
-                    let b = &b.path().split('/').collect::<Vec<_>>();
-                    let mut index = 0;
-                    loop {
+                    let a_path = a.path();
+                    let b_path = b.path();
 
-                        // If both options have the same name.
-                        if a[index] == b[index] {
+                    let a_len = a_path.split('/').count() - 1;
+                    let b_len = b_path.split('/').count() - 1;
 
-                            // If A doesn't have more children, but B has them, A is a file and B a folder.
-                            if index == (a.len() - 1) && index < (b.len() - 1) {
-                                return Ordering::Greater
-                            }
+                    let a_last_split = a_path.rfind('/').unwrap_or(0);
+                    let b_last_split = b_path.rfind('/').unwrap_or(0);
 
-                            // If B doesn't have more children, but A has them, B is a file and A a folder.
-                            else if index < (a.len() - 1) && index == (b.len() - 1) {
-                                return Ordering::Less
-                            }
+                    // Short-circuit cases: one or both files on root.
+                    if a_last_split == 0 && b_last_split == 0 {
+                        return a_path.cmp(&b_path);
+                    } else if a_last_split == 0 {
+                        return Ordering::Greater;
+                    } else if b_last_split == 0 {
+                        return Ordering::Less;
+                    }
 
-                            // If both options still has children, continue the loop.
-                            else if index < (a.len() - 1) && index < (b.len() - 1) {
-                                index += 1;
-                                continue;
-                            }
-
-                            // Otherwise, it means you got 2 files with the same name in the same PackFile, and I would like to know how the hell did you did it.
-                            else {
-                                return Ordering::Equal
-                            }
+                    // Short-circuit: both are files under the same amount of subfolders.
+                    if a_len == b_len {
+                        return a_path.cmp(&b_path);
+                    } else if a_len > b_len {
+                        if a_path.starts_with(&b_path[..b_last_split]) {
+                            return Ordering::Less;
+                        } else {
+                            return a_path.cmp(b_path);
                         }
-
-                        // If both are the same type (both have children, or none have them), doesn't matter if
-                        // they are files or folder. Just compare them to see what one it's first.
-                        else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
-                            (index < (a.len() - 1) && index < (b.len() - 1)) {
-                            return a.cmp(b)
-                        }
-
-                        // If A doesn't have more children, but B has them, A is a file and B a folder.
-                        else if index == (a.len() - 1) && index < (b.len() - 1) {
-                            return Ordering::Greater
-
-                        }
-                        // If B doesn't have more children, but A has them, B is a file and A a folder.
-                        else if index < (a.len() - 1) && index == (b.len() - 1) {
-                            return Ordering::Less
+                    } else {
+                        if b_path.starts_with(&a_path[..a_last_split]) {
+                            return Ordering::Greater;
+                        } else {
+                            return a_path.cmp(b_path);
                         }
                     }
                 });
 
+                let variant_type_file = QVariant::from_int(ITEM_TYPE_FILE);
+                let variant_type_folder = QVariant::from_int(ITEM_TYPE_FOLDER);
+                let variant_status_pristine = QVariant::from_int(ITEM_STATUS_PRISTINE);
+
+                let base_file_item = QStandardItem::from_q_string(&QString::new());
+                base_file_item.set_editable(false);
+                base_file_item.set_data_2a(&variant_type_file, ITEM_TYPE);
+                base_file_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
+
+                let base_folder_item = QStandardItem::from_q_string(&QString::new());
+                base_folder_item.set_editable(false);
+                base_folder_item.set_data_2a(&variant_type_folder, ITEM_TYPE);
+                base_folder_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
+                IconType::set_icon_for_file_type(&base_folder_item, None);
+
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
                 for packed_file in &packed_files_data {
-                    let path = packed_file.path().split("/").collect::<Vec<_>>();
+                    //let path = packed_file.path().split("/").collect::<Vec<_>>();
+                    let count = packed_file.path().split('/').count() - 1;
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
                     let mut parent = big_parent;
-                    for (index_in_path, name) in path.iter().enumerate() {
+                    for (index_in_path, name) in packed_file.path().split("/").enumerate() {
                         let name = QString::from_std_str(name);
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
-                        if index_in_path == path.len() - 1 {
-                            let file = QStandardItem::from_q_string(&name);
+                        if index_in_path == count {
                             let tooltip = new_packed_file_tooltip(packed_file);
+                            let file = base_file_item.clone();
+                            file.set_text(&name);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
-                            file.set_editable(false);
-                            file.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
-                            file.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
 
-                            let icon_type = IconType::File(packed_file.path().to_owned());
-                            icon_type.set_icon_to_item_safe(&file);
+                            IconType::set_icon_for_file_type(&file, Some(packed_file.file_type()));
 
-                            parent.append_row_q_standard_item(file.into_ptr());
+                            parent.append_row_q_standard_item(file);
                         }
 
                         // If it's a folder, we check first if it's already in the TreeView using the following
@@ -1081,19 +1084,28 @@ impl PackTree for QBox<QTreeView> {
 
                             // If the current parent has at least one child, check if the folder already exists.
                             let mut duplicate_found = false;
+                            let children_len = parent.row_count();
+
                             if parent.has_children() {
 
                                 // It's a folder, so we check his children. We are only interested in
                                 // folders, so ignore the files. Reverse because due to the sorting it's almost
                                 // sure the last folder is the one we want.
-                                for index in (0..parent.row_count()).rev() {
+                                for index in (0..children_len).rev() {
                                     let child = parent.child_2a(index, 0);
                                     if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                     // Get his text. If it's the same folder we are trying to add, this is our parent now.
-                                    if child.text().compare_q_string(&name) == 0 {
+                                    let compare = child.text().compare_q_string(&name);
+
+                                    if compare == 0 {
                                         parent = parent.child_1a(index);
                                         duplicate_found = true;
+                                        break;
+                                    }
+
+                                    // Optimization: We get the paths pre-sorted. If the last folder cannot be under our folder, stop iterating.
+                                    else if compare < 0 {
                                         break;
                                     }
                                 }
@@ -1101,28 +1113,21 @@ impl PackTree for QBox<QTreeView> {
 
                             // If our current parent doesn't have anything, just add it as a new folder.
                             if !duplicate_found {
-                                let folder = QStandardItem::from_q_string(&name);
-                                folder.set_editable(false);
-                                folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
+                                let folder = base_folder_item.clone();
+                                folder.set_text(&name);
 
-                                let icon_type = IconType::Folder;
-                                icon_type.set_icon_to_item_safe(&folder);
-
-                                parent.append_row_q_standard_item(folder.into_ptr());
+                                parent.append_row_q_standard_item(folder);
 
                                 // This is our parent now.
-                                let index = parent.row_count() - 1;
-                                parent = parent.child_1a(index);
+                                parent = parent.child_1a(children_len);
                             }
                         }
                     }
                 }
 
                 // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
+                self.header().set_stretch_last_section(true);
                 model.append_row_q_standard_item(big_parent);
-                self.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
-                self.header().set_minimum_section_size(4);
             },
 
             // If we want to add a file/folder to the `TreeView`...
@@ -1705,7 +1710,9 @@ impl PackTree for QBox<QTreeView> {
                 }
             },
         }
-        // *IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
+
+        // Re-enable the view.
+        self.set_updates_enabled(true);
     }
 }
 

@@ -218,30 +218,6 @@ impl Dependencies {
         let mut cache = Self::default();
         cache.build_date = current_time()?;
         cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
-        /*cache.vanilla_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
-        dbg!(t.elapsed().unwrap());
-
-        // Build the vanilla table/loc lists, for easy access.
-        cache.vanilla_files.iter()
-            .filter(|(_, file)| matches!(file.file_type(), FileType::DB) || matches!(file.file_type(), FileType::Loc))
-            .for_each(|(path, file)| {
-                match file.file_type() {
-                    FileType::DB => {
-                        if let Some(table_name) = file.db_table_name_from_path() {
-                            match cache.vanilla_tables.get_mut(table_name) {
-                                Some(table_paths) => table_paths.push(path.to_owned()),
-                                None => { cache.vanilla_tables.insert(table_name.to_owned(), vec![path.to_owned()]); },
-                            }
-                        }
-                    }
-                    FileType::Loc => {
-                        cache.vanilla_locs.insert(path.to_owned());
-                    }
-                    _ => {}
-                }
-            }
-        );
-        dbg!(t.elapsed().unwrap());*/
 
         let cacheable = cache.vanilla_files.par_iter_mut()
             .filter_map(|(_, file)| {
@@ -300,6 +276,7 @@ impl Dependencies {
         if let Some(path) = asskit_path {
             let _ = cache.generate_asskit_only_db_tables(path, game_info.raw_db_version());
         }
+        dbg!(t.elapsed().unwrap());
 
         Ok(cache)
     }

@@ -3501,6 +3501,8 @@ impl AppUI {
         dependencies_ui: &Rc<DependenciesUI>,
         rebuild_dependencies: bool
     ) {
+        let t = std::time::SystemTime::now();
+        dbg!(t.elapsed().unwrap());
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
@@ -3515,10 +3517,8 @@ impl AppUI {
 
         // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
         let was_window_disabled = !app_ui.main_window.is_enabled();
-
+dbg!(t.elapsed().unwrap());
         // If the game changed, change the game selected.
-        dbg!(new_game_selected != GAME_SELECTED.read().unwrap().game_key_name());
-        dbg!(!FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst));
         if new_game_selected != GAME_SELECTED.read().unwrap().game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
             FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
             game_changed = true;
@@ -3547,7 +3547,7 @@ impl AppUI {
             // Change the GameSelected Icon. Disabled until we find better icons.
             GameSelectedIcons::set_game_selected_icon(app_ui);
         }
-
+dbg!(t.elapsed().unwrap());
         // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
         if rebuild_dependencies {
 
@@ -3561,32 +3561,32 @@ impl AppUI {
                     show_dialog(&app_ui.main_window, error, false);
                 }
             }
-
-            // Request a rebuild. If thee game changed, do a full rebuild. If not, only rebuild the parent's data.
+dbg!(t.elapsed().unwrap());
+            // Request a rebuild. If the game changed, do a full rebuild. If not, only rebuild the parent's data.
             let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(!game_changed));
             let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::DependenciesInfo(response) => {
-                    dbg!(1111);
                     let mut parent_build_data = BuildData::new();
                     parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
                     dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
-
+dbg!(t.elapsed().unwrap());
                     if game_changed {
-                    dbg!(2222);
                         let mut game_build_data = BuildData::new();
                         game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files().to_vec()));
 
                         let mut asskit_build_data = BuildData::new();
                         asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
-
+dbg!(t.elapsed().unwrap());
                         dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
+dbg!(t.elapsed().unwrap());
                         dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
                     }
                 }
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
+dbg!(t.elapsed().unwrap());
         }
 
         // Reenable the main window once everything is reloaded.
@@ -3599,6 +3599,7 @@ impl AppUI {
         if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() != 0 {
             AppUI::enable_packfile_actions(app_ui, &pack_path, true);
         }
+dbg!(t.elapsed().unwrap());
         let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
     }
 
