@@ -353,15 +353,15 @@ pub fn background_loop() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
                 }
             }
-/*
+
             // In case we want to Patch the SiegeAI of a PackFile...
             Command::PatchSiegeAI => {
                 match pack_file_decoded.patch_siege_ai() {
-                    Ok(result) => CentralCommand::send_back(&sender, Response::StringVecVecString(result)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error))
+                    Ok(result) => CentralCommand::send_back(&sender, Response::StringVecContainerPath(result.0, result.1)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error)))
                 }
             }
-            */
+
             // In case we want to change the PackFile's Type...
             Command::SetPackFileType(new_type) => pack_file_decoded.set_pfh_file_type(new_type),
 

@@ -1022,9 +1022,7 @@ impl AppUISlots {
                 let receiver = CENTRAL_COMMAND.send_background(Command::PatchSiegeAI);
                 let response = CentralCommand::recv_try(&receiver);
                 match response {
-                    Response::StringHashSetString(message, paths) => {
-                        let paths = paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-
+                    Response::StringVecContainerPath(message, paths) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
                         show_dialog(&app_ui.main_window, &message, true);
                     }

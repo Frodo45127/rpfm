@@ -514,7 +514,8 @@ pub enum Response {
     Definition(Definition),
     //VecTipVecTip(Vec<Tip>, Vec<Tip>),
     HashSetString(HashSet<String>),
-    StringHashSetString(String, HashSet<String>)
+    StringHashSetString(String, HashSet<String>),
+    StringVecContainerPath(String, Vec<ContainerPath>),
 }
 
 //-------------------------------------------------------------------------------//
