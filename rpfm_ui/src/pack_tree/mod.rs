@@ -913,6 +913,7 @@ impl PackTree for QBox<QTreeView> {
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
+                            self.set_updates_enabled(true);
                             return
                         }
                     },
@@ -947,6 +948,7 @@ impl PackTree for QBox<QTreeView> {
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
+                            self.set_updates_enabled(true);
                             return
                         }
                     },
@@ -981,6 +983,7 @@ impl PackTree for QBox<QTreeView> {
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
+                            self.set_updates_enabled(true);
                             return
                         }
                     },
