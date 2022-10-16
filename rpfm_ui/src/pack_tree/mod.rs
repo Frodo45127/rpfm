@@ -157,7 +157,7 @@ pub trait PackTree {
 
     /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
     /// the number of selected files, and the number of selected folders.
-    unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32);
+    unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32, u32);
 
     /// This function returns the `ContainerPath` of the provided item. Unsafe version.
     unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> ContainerPath;
@@ -658,16 +658,24 @@ impl PackTree for QBox<QTreeView> {
         data_source
     }
 
-    unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32) {
+    unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32, u32) {
 
         // Get the currently selected paths, and get how many we have of each type.
         let selected_items = Self::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
-        let (mut file, mut folder) = (0, 0);
+        let (mut file, mut folder, mut pack) = (0, 0, 0);
         let mut item_types = vec![];
         for item_type in &selected_items {
             match item_type {
-                ContainerPath::File(_) => file += 1,
-                ContainerPath::Folder(_) => folder += 1,
+                ContainerPath::File(path) => if path.is_empty() {
+                    pack += 1;
+                } else {
+                    file += 1;
+                }
+                ContainerPath::Folder(path) => if path.is_empty() {
+                    pack += 1;
+                } else {
+                    folder += 1;
+                }
             }
             item_types.push(item_type);
         }
@@ -676,8 +684,9 @@ impl PackTree for QBox<QTreeView> {
         let mut contents: u8 = 0;
         if file != 0 { contents |= 1; }
         if folder != 0 { contents |= 2; }
+        if pack != 0 { contents |= 4; }
 
-        (contents, file, folder)
+        (contents, file, folder, pack)
     }
 
     unsafe fn get_type_from_item(item: Ptr<QStandardItem>, model: &QPtr<QStandardItemModel>) -> ContainerPath {

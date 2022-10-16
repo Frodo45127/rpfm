@@ -183,7 +183,7 @@ impl PackFileContentsSlots {
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
-                let (contents, files, folders) = <QBox<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
+                let (contents, files, folders, _) = <QBox<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
                 match contents {
 
                     // Only one or more files selected.
@@ -968,7 +968,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `Open PackFile Settings` By Slot");
-            //AppUI::open_packfile_settings(&app_ui, &pack_file_contents_ui);
+            AppUI::open_packfile_settings(&app_ui, &pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Open Notes" Action.

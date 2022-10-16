@@ -62,7 +62,7 @@ use std::process::exit;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::{PFHFlags, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES}, text::TextFormat};
+use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::{git::*, log::*};
 //use rpfm_lib::packfile::{ContainerPath, ContainerInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
@@ -81,7 +81,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
 //use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
-use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView, packfile_settings::*, */table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView,*/ packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2597,7 +2597,6 @@ impl AppUI {
                             }
                         }
 
-
                         // If the file is a Text PackedFile...
                         Response::TextRFileInfo(data, file_info) => {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
@@ -2616,6 +2615,22 @@ impl AppUI {
                             if data_source == DataSource::PackFile {
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
                             }
+                        }
+
+                        // If the file is the notes...
+                        Response::Text(data) => {
+                            PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                            // Fix the tips view.
+                            let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                            layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
                         }
 
                         Response::Unknown => {},
@@ -2875,19 +2890,16 @@ impl AppUI {
         }
 
         Self::update_views_names(app_ui);
-    }
+    }*/
 
     /// This function is used to open the settings embedded into a PackFile.
-    pub unsafe fn open_packfile_settings(
-        app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) {
+    pub unsafe fn open_packfile_settings(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         if !UI_STATE.get_packfile_contents_read_only() {
 
             // Close all preview views except the file we're opening. The path used for the settings is reserved.
-            let path = vec![RESERVED_NAME_SETTINGS.to_owned()];
+            let path = RESERVED_NAME_SETTINGS.to_owned();
             let name = qtr("settings");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
@@ -2925,12 +2937,12 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileSettingsDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(&app_ui.main_window, error, false),
             }
         }
 
         Self::update_views_names(app_ui);
-    }*/
+    }
 
     /// This function is the one that takes care of the creation of different PackedFiles.
     pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, file_type: FileType) {
