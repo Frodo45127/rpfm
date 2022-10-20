@@ -53,6 +53,7 @@ use cpp_core::CppBox;
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
+use self_update::cargo_crate_version;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -911,15 +912,17 @@ impl AppUI {
     pub unsafe fn update_window_title(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // First check if we have a PackFile open. If not, just leave the default title.
+        let current_version = cargo_crate_version!().split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
+        let appendix = if current_version[2] >= 99 { " - Beta - " } else { "" };
         let window_title =
             if pack_file_contents_ui.packfile_contents_tree_model().invisible_root_item().is_null() ||
             pack_file_contents_ui.packfile_contents_tree_model().invisible_root_item().row_count() == 0 {
-            "Rusted PackFile Manager[*]".to_owned()
+            "Rusted PackFile Manager[*]".to_owned() + appendix
         }
 
         // If there is a `PackFile` open, check if it has been modified, and set the title accordingly.
         else {
-            format!("{}[*]", pack_file_contents_ui.packfile_contents_tree_model().item_1a(0).text().to_std_string())
+            format!("{}[*]{}", pack_file_contents_ui.packfile_contents_tree_model().item_1a(0).text().to_std_string(), appendix)
         };
 
         app_ui.main_window.set_window_modified(UI_STATE.get_is_modified());
