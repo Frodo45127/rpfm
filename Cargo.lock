@@ -1911,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "3.99.103"
+version = "3.99.104"
 dependencies = [
  "anyhow",
  "clap",
@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "3.99.103"
+version = "3.99.104"
 dependencies = [
  "bincode",
  "caseless",
@@ -1943,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "3.99.103"
+version = "3.99.104"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1982,7 +1982,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "3.99.103"
+version = "3.99.104"
 dependencies = [
  "anyhow",
  "chrono",
