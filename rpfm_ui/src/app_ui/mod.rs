@@ -65,7 +65,6 @@ use std::sync::atomic::Ordering;
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
 use rpfm_lib::integrations::{git::*, log::*};
-//use rpfm_lib::packfile::{ContainerPath, ContainerInfo, PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS, RESERVED_NAME_DEPENDENCIES_MANAGER};
 use rpfm_lib::utils::*;
 
 use crate::ASSETS_PATH;
@@ -80,8 +79,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-//use crate::packedfile_views::dependencies_manager::DependenciesManagerView;
-use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, /*decoder::*, */esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView,*/ packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView,*/ packfile_settings::*, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2752,7 +2750,7 @@ impl AppUI {
         for diagnostic_type in UI_STATE.get_diagnostics().results() {
             DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
         }
-    }/*
+    }
 
     /// This function is used to open the PackedFile Decoder.
     pub unsafe fn open_decoder(
@@ -2762,7 +2760,7 @@ impl AppUI {
 
         // If we don't have an schema, don't even try it.
         if SCHEMA.read().unwrap().is_none() {
-            return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
+            return show_dialog(&app_ui.main_window, "No schema found. You need one to open the decoder.", false);
         }
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -2770,8 +2768,8 @@ impl AppUI {
             let mut selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &mut selected_items[0] } else { return };
             if let ContainerPath::File(ref mut path) = item_type {
-                let mut fake_path = path.to_vec();
-                *fake_path.last_mut().unwrap() = fake_path.last().unwrap().to_owned() + DECODER_EXTENSION;
+                let mut fake_path = path.to_owned();
+                fake_path.push_str(DECODER_EXTENSION);
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
@@ -2823,7 +2821,7 @@ impl AppUI {
                         let mut open_list = UI_STATE.set_open_packedfiles();
                         open_list.push(tab);
                     },
-                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
+                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
                 }
             }
         }
@@ -2845,7 +2843,7 @@ impl AppUI {
         if !UI_STATE.get_packfile_contents_read_only() {
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
-            let path = vec![RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned()];
+            let path = RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned();
             let name = qtr("table_dependency_manager_title");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
@@ -2885,12 +2883,12 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(&app_ui.main_window, error, false),
             }
         }
 
         Self::update_views_names(app_ui);
-    }*/
+    }
 
     /// This function is used to open the settings embedded into a PackFile.
     pub unsafe fn open_packfile_settings(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {

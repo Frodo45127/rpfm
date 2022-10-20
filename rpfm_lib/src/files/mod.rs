@@ -1951,6 +1951,18 @@ impl ContainerPath {
         }
     }
 
+    /// This function the *table_name* of this file (the folder that contains this file) if this file is a DB table.
+    ///
+    /// It returns None of the file provided is not a DB Table.
+    pub fn db_table_name_from_path(&self) -> Option<&str> {
+        let split_path = self.path_raw().split('/').collect::<Vec<_>>();
+        if split_path.len() == 3 && split_path[0].to_lowercase() == "db" {
+            Some(split_path[1])
+        } else {
+            None
+        }
+    }
+
     /// This function returns the path of the parent folder of the provided [ContainerPath].
     ///
     /// If the provided [ContainerPath] corresponds to a Container root, the path returned will be the current one.

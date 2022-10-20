@@ -16,11 +16,10 @@ use std::sync::Arc;
 
 use std::rc::Rc;
 
-use rpfm_error::Result;
+use anyhow::Result;
 
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::DecodedData;
-use rpfm_lib::packfile::packedfile::RFileInfo;
+use rpfm_lib::files::{FileType, table::DecodedData};
+use crate::backend::RFileInfo;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -86,7 +85,7 @@ impl DependenciesManagerView {
         };
 
         packed_file_view.view = ViewType::Internal(View::DependenciesManager(Arc::new(dependencies_manager_view)));
-        packed_file_view.packed_file_type = PackedFileType::DependencyPackFilesList;
+        //packed_file_view.packed_file_type = PackedFileType::DependencyPackFilesList;
 
         // Return success.
         Ok(None)

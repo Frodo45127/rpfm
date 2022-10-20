@@ -43,8 +43,8 @@ use crate::views::table::TableType;
 use self::anim_fragment::{PackedFileAnimFragmentView, PackedFileAnimFragmentDebugView};
 use self::animpack::PackedFileAnimPackView;
 use self::esf::PackedFileESFView;
-//use self::decoder::PackedFileDecoderView;
-//use self::dependencies_manager::DependenciesManagerView;
+use self::decoder::PackedFileDecoderView;
+use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
 use self::table::PackedFileTableView;
@@ -63,8 +63,8 @@ use self::unit_variant::PackedFileUnitVariantView;
 
 pub mod anim_fragment;
 pub mod animpack;
-//pub mod decoder;
-//pub mod dependencies_manager;
+pub mod decoder;
+pub mod dependencies_manager;
 pub mod esf;
 pub mod external;
 pub mod image;
@@ -138,10 +138,8 @@ pub enum View {
     AnimFragment(Arc<PackedFileAnimFragmentView>),
     AnimFragmentDebug(Arc<PackedFileAnimFragmentDebugView>),
     AnimPack(Arc<PackedFileAnimPackView>),
-    /*
     Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
-    */
     ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
     //PackFile(Arc<PackFileExtraView>),

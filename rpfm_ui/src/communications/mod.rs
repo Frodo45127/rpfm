@@ -96,7 +96,7 @@ pub enum Command {
     OpenPackFiles(Vec<PathBuf>),
 
     /// This command is used to open an extra `PackFile`. It requires the path of the `PackFile`.
-    OpenPackFileExtra(PathBuf),
+    OpenPackExtra(PathBuf),
 
     /// This command is used to open all the CA PackFiles for the game selected as one.
     LoadAllCAPackFiles,

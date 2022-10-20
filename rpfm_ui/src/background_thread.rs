@@ -125,7 +125,7 @@ pub fn background_loop() {
             }
 
             // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
-            Command::OpenPackFileExtra(path) => {
+            Command::OpenPackExtra(path) => {
                 match pack_files_decoded_extra.get(&path) {
                     Some(pack) => CentralCommand::send_back(&sender, Response::ContainerInfo(ContainerInfo::from(pack))),
                     None => match Pack::read_and_merge(&[path.to_path_buf()], true, false) {

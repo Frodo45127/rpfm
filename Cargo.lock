@@ -1989,6 +1989,7 @@ dependencies = [
  "cpp_core",
  "crossbeam",
  "directories",
+ "float_eq",
  "fluent",
  "fluent-bundle",
  "getset",

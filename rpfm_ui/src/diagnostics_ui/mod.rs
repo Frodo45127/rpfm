@@ -814,7 +814,7 @@ impl DiagnosticsUI {
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
-            //AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
+            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
         } else if !path.is_empty() {
 
             // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.

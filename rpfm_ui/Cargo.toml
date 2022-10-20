@@ -60,8 +60,8 @@ qt_ui_tools = "^0.5"
 # Support for formatting math operations.
 meval = "^0.2"
 
-# Float equality
-#float_eq = "^0.7"
+# Float equality support.
+float_eq = "^1"
 
 # UUID Generation support.
 #uuid = { version = "^0.8", features = ["v4"] }

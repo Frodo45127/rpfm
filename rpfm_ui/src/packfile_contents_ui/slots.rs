@@ -925,7 +925,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             info!("Triggering `Open Decoder` By Slot");
-            //AppUI::open_decoder(&app_ui, &pack_file_contents_ui);
+            AppUI::open_decoder(&app_ui, &pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Open Dependency Table" Action.
@@ -937,7 +937,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             info!("Triggering `Open Dependency Manager` By Slot");
-            //AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
