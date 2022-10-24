@@ -59,7 +59,7 @@ pub fn initialize_app<'a>() -> Command<'a> {
             .takes_value(true))
 
         // `AssKit DB Path` flag. This is required for certain operations requiring the dependencies cache.
-        .arg(Arg::new("asskit_db_path")
+        .arg(Arg::new("assdb")
             .short('a')
             .long("assdb")
             .value_name("ASSKIT DB PATH")

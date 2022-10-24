@@ -78,7 +78,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                 match matches.values_of("extract-files") {
                     Some(mut values) => {
                         let destination_path = values.next().unwrap();
-                        let packed_file_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
+                        let packed_file_paths = values.enumerate().map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::extract_files(config, packfile_path, &packed_file_paths, destination_path)
                     },
                     None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
@@ -89,7 +89,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                 match matches.values_of("extract-folders") {
                     Some(mut values) => {
                         let destination_path = values.next().unwrap();
-                        let folder_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
+                        let folder_paths = values.enumerate().map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::extract_folders(config, packfile_path, &folder_paths, destination_path)
                     },
                     None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
