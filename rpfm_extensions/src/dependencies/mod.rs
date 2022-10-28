@@ -783,10 +783,8 @@ impl Dependencies {
                             }
 
                             // Then, we get the lookup data.
-                            for column in &ref_lookup_columns_index {
-                                if let Some(index) = column {
-                                    lookup_data.push(row[*index].data_to_string());
-                                }
+                            for column in ref_lookup_columns_index.iter().flatten() {
+                                lookup_data.push(row[*column].data_to_string());
                             }
 
                             references.data.insert(reference_data, lookup_data.join(" "));
@@ -834,10 +832,8 @@ impl Dependencies {
                         }
 
                         // Then, we get the lookup data.
-                        for column in &ref_lookup_columns_index {
-                            if let Some(index) = column {
-                                lookup_data.push(row[*index].data_to_string());
-                            }
+                        for column in ref_lookup_columns_index.iter().flatten() {
+                            lookup_data.push(row[*column].data_to_string());
                         }
 
                         references.data.insert(reference_data, lookup_data.join(" "));
@@ -876,10 +872,8 @@ impl Dependencies {
                         }
 
                         // Then, we get the lookup data.
-                        for column in &ref_lookup_columns_index {
-                            if let Some(index) = column {
-                                lookup_data.push(row[*index].data_to_string());
-                            }
+                        for column in ref_lookup_columns_index.iter().flatten() {
+                            lookup_data.push(row[*column].data_to_string());
                         }
 
                         references.data.insert(reference_data, lookup_data.join(" "));
@@ -1017,18 +1011,15 @@ impl Dependencies {
 
     /// This function is used to check if a table is outdated or not.
     pub fn is_db_outdated(&self, rfile: &RFileDecoded) -> bool {
-        match rfile {
-            RFileDecoded::DB(data) => {
-                let dep_db_undecoded = if let Ok(undecoded) = self.db_data(data.table_name(), true, false) { undecoded } else { return false };
-                let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
+        if let RFileDecoded::DB(data) = rfile {
+            let dep_db_undecoded = if let Ok(undecoded) = self.db_data(data.table_name(), true, false) { undecoded } else { return false };
+            let dep_db_decoded = dep_db_undecoded.iter().filter_map(|x| if let Ok(RFileDecoded::DB(decoded)) = x.decoded() { Some(decoded) } else { None }).collect::<Vec<_>>();
 
-                if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(y.definition().version())) {
-                    if vanilla_db.definition().version() > data.definition().version() {
-                        return true;
-                    }
+            if let Some(vanilla_db) = dep_db_decoded.iter().max_by(|x, y| x.definition().version().cmp(y.definition().version())) {
+                if vanilla_db.definition().version() > data.definition().version() {
+                    return true;
                 }
             }
-            _ => {}
         }
 
         false

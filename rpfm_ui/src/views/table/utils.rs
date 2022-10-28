@@ -213,17 +213,17 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 }
 
 /// This function returns a new default row.
-pub unsafe fn get_new_row(table_definition: &Definition, table_name: Option<&str>, patches: Option<&DefinitionPatch>) -> CppBox<QListOfQStandardItem> {
+pub unsafe fn get_new_row(table_definition: &Definition, patches: Option<&DefinitionPatch>) -> CppBox<QListOfQStandardItem> {
     let qlist = QListOfQStandardItem::new();
     for field in table_definition.fields_processed() {
-        let item = get_default_item_from_field(&field, table_name, patches);
+        let item = get_default_item_from_field(&field, patches);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
     qlist
 }
 
 /// This function generates a *Default* StandardItem for the provided field.
-pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str>, patches: Option<&DefinitionPatch>) -> CppBox<QStandardItem> {
+pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&DefinitionPatch>) -> CppBox<QStandardItem> {
     let item = match field.field_type() {
         FieldType::Boolean => {
             let item = QStandardItem::new();
@@ -346,7 +346,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         FieldType::ColourRGB => {
             let text = if let Some(default_value) = field.default_value(patches) {
                 if u32::from_str_radix(&default_value, 16).is_ok() {
-                    default_value.to_owned()
+                    default_value
                 } else {
                     "000000".to_owned()
                 }
@@ -365,7 +365,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         FieldType::OptionalStringU8 |
         FieldType::OptionalStringU16 => {
             let text = if let Some(default_value) = field.default_value(patches) {
-                default_value.to_owned()
+                default_value
             } else {
                 String::new()
             };
@@ -378,13 +378,13 @@ pub unsafe fn get_default_item_from_field(field: &Field, table_name: Option<&str
         },
 
         FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
-            //let table = serde_json::to_string(&Table::new(definition)).unwrap();
+            let table = serde_json::to_string(&Table::new(definition, None, field.name(), false)).unwrap();
             let item = QStandardItem::new();
 
             item.set_text(&qtr("packedfile_editable_sequence"));
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
-            //item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
             item
         }
     };
@@ -473,7 +473,7 @@ pub unsafe fn load_data(
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
     else {
-        let qlist = get_new_row(definition, table_name.as_deref(), None);
+        let qlist = get_new_row(definition, None);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
     }

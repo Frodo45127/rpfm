@@ -314,9 +314,7 @@ fn add_file_from_csv(src: &str) -> Result<(PathBuf, String)> {
         .flexible(true)
         .from_reader(src.as_bytes());
 
-    for record in reader.records() {
-        let record = record?;
-
+    if let Some(Ok(record)) = reader.records().next() {
         if record.len() == 2 {
             let source = PathBuf::from(&record[0]);
             if !source.is_file() {
@@ -355,9 +353,7 @@ fn add_folder_from_csv(src: &str) -> Result<(PathBuf, String)> {
         .flexible(true)
         .from_reader(src.as_bytes());
 
-    for record in reader.records() {
-        let record = record?;
-
+    if let Some(Ok(record)) = reader.records().next() {
         if record.len() == 2 {
             let source = PathBuf::from(&record[0]);
             if !source.is_dir() {
@@ -391,9 +387,7 @@ fn extract_from_csv(src: &str) -> Result<(String, PathBuf)> {
         .flexible(true)
         .from_reader(src.as_bytes());
 
-    for record in reader.records() {
-        let record = record?;
-
+    if let Some(Ok(record)) = reader.records().next() {
         if record.len() == 2 {
             let source = record[0].to_owned();
             let dest = PathBuf::from(&record[1]);

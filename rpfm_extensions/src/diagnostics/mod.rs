@@ -690,8 +690,8 @@ impl Diagnostics {
                 }
 
                 // Only in case none of the two columns are ignored, we perform these checks.
-                if !Self::ignore_diagnostic(Some(&field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
-                    !Self::ignore_diagnostic(Some(&field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(Some(field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
+                    !Self::ignore_diagnostic(Some(field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
 
                     if key.is_empty() && data.is_empty() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);

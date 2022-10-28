@@ -39,7 +39,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     let path_str = path.to_str().unwrap();
 
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.set_disk_file_path(Some(&path_str));
+    extra_data.set_disk_file_path(Some(path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
 
@@ -80,11 +80,11 @@ pub fn add(config: &Config, pack_path: &Path, file_path: &[(PathBuf, String)], f
     let mut pack = AnimPack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
-        pack.insert_folder(&folder_path, container_path, &None, &None)?;
+        pack.insert_folder(folder_path, container_path, &None, &None)?;
     }
 
     for (file_path, container_path) in file_path {
-        pack.insert_file(&file_path, container_path, &None)?;
+        pack.insert_file(file_path, container_path, &None)?;
     }
 
     pack.preload()?;
@@ -153,12 +153,12 @@ pub fn extract(config: &Config, pack_path: &Path, file_path: &[(String, PathBuf)
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, &folder_path, true, &None)?;
+        pack.extract(container_path, folder_path, true, &None)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, &file_path, true, &None)?;
+        pack.extract(container_path, file_path, true, &None)?;
     }
 
     if config.verbose {

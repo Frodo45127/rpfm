@@ -350,7 +350,7 @@ impl TableView {
         dbg!(t.elapsed().unwrap());
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition)?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, table_definition)?;
         dbg!(t.elapsed().unwrap());
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
@@ -602,7 +602,7 @@ dbg!(t.elapsed().unwrap());
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
             if let Some(ref table_name) = table_name {
-                schema.referencing_columns_for_table(&table_name, &table_definition)
+                schema.referencing_columns_for_table(table_name, table_definition)
             } else {
                 HashMap::new()
             }
@@ -681,7 +681,7 @@ dbg!(t.elapsed().unwrap());
             table_uuid: table_uuid.map(|x| x.to_owned()),
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition.clone())),
-            patches: Arc::new(RwLock::new(patches.clone())),
+            patches: Arc::new(RwLock::new(patches)),
             data_source,
             packed_file_path: packed_file_path.clone(),
             packed_file_type: Arc::new(packed_file_type),
@@ -706,7 +706,7 @@ dbg!(t.elapsed().unwrap());
             diagnostics_ui,
             dependencies_ui,
             references_ui,
-            packed_file_path.clone()
+            packed_file_path
         );
 dbg!(t.elapsed().unwrap());
         // Build the first filter.
@@ -1496,7 +1496,7 @@ dbg!(t.elapsed().unwrap());
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
+                            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
                             for index in 0..row.count_0a() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
@@ -1551,7 +1551,7 @@ dbg!(t.elapsed().unwrap());
 
                     // Prepare the redo operation, then do the rest.
                     let mut redo_editions = vec![];
-                    editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
+                    editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_ptr((*model.item_2a((x.0).0, (x.0).1)).clone()))));
                     history_opposite.push(TableOperations::Editing(redo_editions));
 
                     self.undo_lock.store(true, Ordering::SeqCst);
@@ -1615,12 +1615,10 @@ dbg!(t.elapsed().unwrap());
 
                     // Then, create the redo action for this one.
                     let mut rows_to_add = rows.iter()
-                        .map(|(index, row_pack)|
+                        .flat_map(|(index, row_pack)|
                             row_pack.iter().enumerate()
                                 .map(|(x, _)| *index + x as i32)
-                                .collect::<Vec<i32>>()
-                        )
-                        .flatten()
+                                .collect::<Vec<i32>>())
                         .collect::<Vec<i32>>();
 
                     rows_to_add.reverse();
@@ -1839,7 +1837,7 @@ dbg!(t.elapsed().unwrap());
             FieldType::StringU8 |
             FieldType::StringU16 |
             FieldType::OptionalStringU8 |
-            FieldType::OptionalStringU16 => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
+            FieldType::OptionalStringU16 => format!("\"{}\"", item.text().to_std_string().escape_default()),
             FieldType::SequenceU16(_) => "\"SequenceU16\"".to_owned(),
             FieldType::SequenceU32(_) => "\"SequenceU32\"".to_owned(),
         }
@@ -1877,7 +1875,7 @@ dbg!(t.elapsed().unwrap());
             }
             rows
         } else {
-            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1930,7 +1928,7 @@ dbg!(t.elapsed().unwrap());
 
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
+            let row = get_new_row(&self.table_definition(), Some(&self.patches()));
             for index in 0..row.count_0a() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
@@ -1957,7 +1955,7 @@ dbg!(t.elapsed().unwrap());
                 }
                 qlist
             } else {
-                let row = get_new_row(&self.table_definition(), self.table_name().as_deref(), Some(&self.patches()));
+                let row = get_new_row(&self.table_definition(), Some(&self.patches()));
                 for index in 0..row.count_0a() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
@@ -2170,7 +2168,7 @@ dbg!(t.elapsed().unwrap());
 
             let mut realer_cells = vec![];
             for index in (0..real_cells.len()).rev() {
-                realer_cells.push((real_cells.pop().unwrap(), &*values[index]));
+                realer_cells.push((real_cells.pop().unwrap(), values[index]));
             }
             realer_cells.reverse();
 
@@ -2361,7 +2359,7 @@ dbg!(t.elapsed().unwrap());
         // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
         if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
             item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
-            let edition = vec![((item.row(), item.column()), atomic_from_ptr((&*item_old).clone()))];
+            let edition = vec![((item.row(), item.column()), atomic_from_ptr((*item_old).clone()))];
             let operation = TableOperations::Editing(edition);
             self.history_undo.write().unwrap().push(operation);
 

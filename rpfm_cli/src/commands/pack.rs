@@ -73,7 +73,7 @@ pub fn list(config: &Config, path: &Path) -> Result<()> {
     let path_str = path.to_str().unwrap();
 
     let mut extra_data = DecodeableExtraData::default();
-    extra_data.set_disk_file_path(Some(&path_str));
+    extra_data.set_disk_file_path(Some(path_str));
     extra_data.set_timestamp(last_modified_time_from_file(reader.get_ref())?);
     extra_data.set_data_size(reader.len()?);
 
@@ -96,7 +96,7 @@ pub fn create(config: &Config, path: &Path) -> Result<()> {
         Some(game) => {
             let mut file = BufWriter::new(File::create(path)?);
             let mut pack = Pack::new_with_version(game.pfh_version_by_file_type(PFHFileType::Mod));
-            let _ = pack.encode(&mut file, &None)?;
+            pack.encode(&mut file, &None)?;
             Ok(())
         }
         None => Err(anyhow!("No Game provided.")),
@@ -116,7 +116,7 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
 
             // Quick fix so we can load old schemas. To be removed once 4.0 lands.
             let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
-            Some(Schema::load(&schema_path)?)
+            Some(Schema::load(schema_path)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `TSV to Binary`.");
             None
@@ -134,11 +134,11 @@ pub fn add(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path, fil
     let mut pack = Pack::decode(&mut reader, &Some(extra_data))?;
 
     for (folder_path, container_path) in folder_path {
-        pack.insert_folder(&folder_path, container_path, &None, &schema)?;
+        pack.insert_folder(folder_path, container_path, &None, &schema)?;
     }
 
     for (file_path, container_path) in file_path {
-        pack.insert_file(&file_path, container_path, &schema)?;
+        pack.insert_file(file_path, container_path, &schema)?;
     }
 
     pack.preload()?;
@@ -202,7 +202,7 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
 
             // Quick fix so we can load old schemas. To be removed once 4.0 lands.
             let _ = Schema::update(schema_path, &PathBuf::from("schemas/patches.ron"), &config.game.as_ref().unwrap().game_key_name());
-            Some(Schema::load(&schema_path)?)
+            Some(Schema::load(schema_path)?)
         } else {
             warn!("Schema path provided, but it doesn't point to a valid schema. Disabling `Table as TSV`.");
             None
@@ -221,12 +221,12 @@ pub fn extract(config: &Config, schema_path: &Option<PathBuf>, pack_path: &Path,
 
     for (container_path, folder_path) in folder_path {
         let container_path = ContainerPath::Folder(container_path.to_owned());
-        pack.extract(container_path, &folder_path, true, &schema)?;
+        pack.extract(container_path, folder_path, true, &schema)?;
     }
 
     for (container_path, file_path) in file_path {
         let container_path = ContainerPath::File(container_path.to_owned());
-        pack.extract(container_path, &file_path, true, &schema)?;
+        pack.extract(container_path, file_path, true, &schema)?;
     }
 
     if config.verbose {

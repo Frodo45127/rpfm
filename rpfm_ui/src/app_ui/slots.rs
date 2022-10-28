@@ -726,7 +726,7 @@ impl AppUISlots {
                             if mymods_base_path.is_dir() {
 
                                 // We get the "MyMod"s PackFile path.
-                                let mut mymod_path = mymods_base_path.to_path_buf();
+                                let mut mymod_path = mymods_base_path;
                                 mymod_path.push(&game_folder_name);
                                 mymod_path.push(&mod_name);
 
@@ -742,7 +742,7 @@ impl AppUISlots {
                                 // Now we get his assets folder.
                                 let mut mymod_assets_path = mymod_path.clone();
                                 mymod_assets_path.pop();
-                                mymod_assets_path.push(&mymod_path.file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+                                mymod_assets_path.push(mymod_path.file_stem().unwrap().to_string_lossy().as_ref());
 
                                 // We check that path exists. This is optional, so it should allow the deletion
                                 // process to continue with a warning.
@@ -1337,7 +1337,7 @@ impl AppUISlots {
                                     &table.table_view_frozen_ptr(),
                                     &table.table_definition(),
                                     &data,
-                                    &table.timer_delayed_updates()
+                                    table.timer_delayed_updates()
                                 );
                             }
                         }
@@ -1363,7 +1363,7 @@ impl AppUISlots {
                         if packed_file_view.get_is_preview() {
                             packed_file_view.set_is_preview(false);
                             let path = packed_file_view.get_ref_path();
-                            let path_split = path.split("/").collect::<Vec<_>>();
+                            let path_split = path.split('/').collect::<Vec<_>>();
 
                             let name = path_split.last().unwrap().to_owned();
                             app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));

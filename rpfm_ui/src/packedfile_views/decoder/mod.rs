@@ -1037,7 +1037,7 @@ impl PackedFileDecoderView {
             },
             FieldType::ColourRGB => {
                 match data.read_string_colour_rgb() {
-                    Ok(result) => result.to_string(),
+                    Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
@@ -1166,7 +1166,7 @@ impl PackedFileDecoderView {
         self.table_model_old_versions.clear();
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             if let Some(definitions) = schema.definitions_by_table_name(&self.table_name) {
-                definitions.into_iter().for_each(|definition| {
+                definitions.iter().for_each(|definition| {
                     let item = QStandardItem::from_q_string(&QString::from_std_str(&definition.version().to_string()));
                     self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
                 })

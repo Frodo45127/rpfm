@@ -571,18 +571,18 @@ impl AppUI {
         let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
         let game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ARENA));
 
-        game_selected_warhammer_3.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap().icon_file_name()))).as_ref());
-        game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_TROY).unwrap().icon_file_name()))).as_ref());
-        game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_THREE_KINGDOMS).unwrap().icon_file_name()))).as_ref());
-        game_selected_warhammer_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_WARHAMMER_2).unwrap().icon_file_name()))).as_ref());
-        game_selected_warhammer.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_WARHAMMER).unwrap().icon_file_name()))).as_ref());
-        game_selected_thrones_of_britannia.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_THRONES_OF_BRITANNIA).unwrap().icon_file_name()))).as_ref());
-        game_selected_attila.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_ATTILA).unwrap().icon_file_name()))).as_ref());
-        game_selected_rome_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_ROME_2).unwrap().icon_file_name()))).as_ref());
-        game_selected_shogun_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_SHOGUN_2).unwrap().icon_file_name()))).as_ref());
-        game_selected_napoleon.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_NAPOLEON).unwrap().icon_file_name()))).as_ref());
-        game_selected_empire.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_EMPIRE).unwrap().icon_file_name()))).as_ref());
-        game_selected_arena.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.game(KEY_ARENA).unwrap().icon_file_name()))).as_ref());
+        game_selected_warhammer_3.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap().icon_file_name()))).as_ref());
+        game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_TROY).unwrap().icon_file_name()))).as_ref());
+        game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THREE_KINGDOMS).unwrap().icon_file_name()))).as_ref());
+        game_selected_warhammer_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER_2).unwrap().icon_file_name()))).as_ref());
+        game_selected_warhammer.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_WARHAMMER).unwrap().icon_file_name()))).as_ref());
+        game_selected_thrones_of_britannia.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THRONES_OF_BRITANNIA).unwrap().icon_file_name()))).as_ref());
+        game_selected_attila.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ATTILA).unwrap().icon_file_name()))).as_ref());
+        game_selected_rome_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ROME_2).unwrap().icon_file_name()))).as_ref());
+        game_selected_shogun_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_SHOGUN_2).unwrap().icon_file_name()))).as_ref());
+        game_selected_napoleon.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_NAPOLEON).unwrap().icon_file_name()))).as_ref());
+        game_selected_empire.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_EMPIRE).unwrap().icon_file_name()))).as_ref());
+        game_selected_arena.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ARENA).unwrap().icon_file_name()))).as_ref());
 
         let game_selected_group = QActionGroup::new(&menu_bar_game_selected);
 
@@ -1319,13 +1319,13 @@ impl AppUI {
             // If we are saving an existing PackFile with another name, we start in his current path.
             if path.is_file() {
                 path.pop();
-                file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
+                file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref()));
             }
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
             else if let Ok(ref path) = GAME_SELECTED.read().unwrap().local_mods_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
-                if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
+                if path.is_dir() { file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref())); }
             }
 
             // Run it and act depending on the response we get (1 => Accept, 0 => Cancel).
@@ -1823,71 +1823,69 @@ impl AppUI {
         let mymod_base_path = PathBuf::from(setting_string(MYMOD_BASE_PATH));
         if !mymod_base_path.is_dir() {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
-                for game_folder in game_folder_list {
-                    if let Ok(game_folder) = game_folder {
+                for game_folder in game_folder_list.flatten() {
 
-                        // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
-                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
-                        let is_supported = SUPPORTED_GAMES.games().iter().filter_map(|x| if x.supports_editing() { Some(x.game_key_name()) } else { None }).any(|x| x == game_folder_name);
-                        if game_folder.path().is_dir() && is_supported {
-                            let game_submenu = match &*game_folder_name {
-                                KEY_WARHAMMER_3 => &app_ui.mymod_open_warhammer_3,
-                                KEY_TROY => &app_ui.mymod_open_troy,
-                                KEY_THREE_KINGDOMS => &app_ui.mymod_open_three_kingdoms,
-                                KEY_WARHAMMER_2 => &app_ui.mymod_open_warhammer_2,
-                                KEY_WARHAMMER => &app_ui.mymod_open_warhammer,
-                                KEY_THRONES_OF_BRITANNIA => &app_ui.mymod_open_thrones_of_britannia,
-                                KEY_ATTILA => &app_ui.mymod_open_attila,
-                                KEY_ROME_2 => &app_ui.mymod_open_rome_2,
-                                KEY_SHOGUN_2 => &app_ui.mymod_open_shogun_2,
-                                KEY_NAPOLEON => &app_ui.mymod_open_napoleon,
-                                KEY_EMPIRE => &app_ui.mymod_open_empire,
-                                _ => unimplemented!()
-                            };
+                    // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
+                    let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
+                    let is_supported = SUPPORTED_GAMES.games().iter().filter_map(|x| if x.supports_editing() { Some(x.game_key_name()) } else { None }).any(|x| x == game_folder_name);
+                    if game_folder.path().is_dir() && is_supported {
+                        let game_submenu = match &*game_folder_name {
+                            KEY_WARHAMMER_3 => &app_ui.mymod_open_warhammer_3,
+                            KEY_TROY => &app_ui.mymod_open_troy,
+                            KEY_THREE_KINGDOMS => &app_ui.mymod_open_three_kingdoms,
+                            KEY_WARHAMMER_2 => &app_ui.mymod_open_warhammer_2,
+                            KEY_WARHAMMER => &app_ui.mymod_open_warhammer,
+                            KEY_THRONES_OF_BRITANNIA => &app_ui.mymod_open_thrones_of_britannia,
+                            KEY_ATTILA => &app_ui.mymod_open_attila,
+                            KEY_ROME_2 => &app_ui.mymod_open_rome_2,
+                            KEY_SHOGUN_2 => &app_ui.mymod_open_shogun_2,
+                            KEY_NAPOLEON => &app_ui.mymod_open_napoleon,
+                            KEY_EMPIRE => &app_ui.mymod_open_empire,
+                            _ => unimplemented!()
+                        };
 
-                            if let Ok(game_folder_files) = game_folder.path().read_dir() {
-                                let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|x| x.unwrap().path()).collect();
-                                game_folder_files_sorted.sort();
+                        if let Ok(game_folder_files) = game_folder.path().read_dir() {
+                            let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|x| x.unwrap().path()).collect();
+                            game_folder_files_sorted.sort();
 
-                                for pack_file in &game_folder_files_sorted {
-                                    if pack_file.is_file() && pack_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() == "pack" {
-                                        let pack_file = pack_file.clone();
-                                        let mod_name = pack_file.file_name().unwrap().to_string_lossy();
-                                        let open_mod_action = game_submenu.add_action_q_string(&QString::from_std_str(&mod_name));
+                            for pack_file in &game_folder_files_sorted {
+                                if pack_file.is_file() && pack_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() == "pack" {
+                                    let pack_file = pack_file.clone();
+                                    let mod_name = pack_file.file_name().unwrap().to_string_lossy();
+                                    let open_mod_action = game_submenu.add_action_q_string(&QString::from_std_str(&mod_name));
 
-                                        // Create the slot for that action.
-                                        let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                                            app_ui,
-                                            pack_file_contents_ui,
-                                            global_search_ui,
-                                            diagnostics_ui,
-                                            game_folder_name => move |_| {
-                                            if Self::are_you_sure(&app_ui, false) {
-                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
-                                                    return show_dialog(&app_ui.main_window, error, false);
-                                                }
-
-                                                if setting_bool("diagnostics_trigger_on_open") {
-
-                                                    // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                                    app_ui.menu_bar_mymod.set_enabled(false);
-
-                                                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                                                    app_ui.menu_bar_mymod.set_enabled(true);
-                                                }
+                                    // Create the slot for that action.
+                                    let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                                        app_ui,
+                                        pack_file_contents_ui,
+                                        global_search_ui,
+                                        diagnostics_ui,
+                                        game_folder_name => move |_| {
+                                        if Self::are_you_sure(&app_ui, false) {
+                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                return show_dialog(&app_ui.main_window, error, false);
                                             }
-                                        }));
 
-                                        open_mod_action.triggered().connect(&slot_open_mod);
-                                    }
+                                            if setting_bool("diagnostics_trigger_on_open") {
+
+                                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
+                                                app_ui.menu_bar_mymod.set_enabled(false);
+
+                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+
+                                                app_ui.menu_bar_mymod.set_enabled(true);
+                                            }
+                                        }
+                                    }));
+
+                                    open_mod_action.triggered().connect(&slot_open_mod);
                                 }
                             }
+                        }
 
-                            // Only if the submenu has items, we show it to the big menu.
-                            if game_submenu.actions().count_0a() > 0 {
-                                game_submenu.menu_action().set_visible(true);
-                            }
+                        // Only if the submenu has items, we show it to the big menu.
+                        if game_submenu.actions().count_0a() > 0 {
+                            game_submenu.menu_action().set_visible(true);
                         }
                     }
                 }
@@ -3489,9 +3487,9 @@ impl AppUI {
                         let path = path_split[1..].join("/");
                         let _ = CENTRAL_COMMAND.send_background(Command::RemovePackFileExtra(PathBuf::from(&path)));
                     }
-                    //else if path.ends_with(DECODER_EXTENSION) {
-                    //    purge_on_delete.push(path.to_owned());
-                    //}
+                    else if path.ends_with(DECODER_EXTENSION) {
+                        purge_on_delete.push(path.to_owned());
+                    }
                 }
             }
         }
@@ -3711,7 +3709,7 @@ dbg!(t.elapsed().unwrap());
                     mod_name.pop();
                     mod_name.pop();
 
-                    let mut assets_folder = mymods_base_path.to_path_buf();
+                    let mut assets_folder = mymods_base_path;
                     assets_folder.push(&game_folder_name);
                     assets_folder.push(&mod_name);
 
