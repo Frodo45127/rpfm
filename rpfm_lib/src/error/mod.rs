@@ -113,6 +113,9 @@ pub enum RLibError {
     #[error("This is either not a Text File, or a Text File using an unsupported encoding")]
     DecodingTextUnsupportedEncodingOrNotATextFile,
 
+    #[error("This file has an unknown/unsupported version: {0}.")]
+    DecodingAnimsTableUnknownVersion(i32),
+
     #[error("This file is neither a CA_VP8 nor an IVF file.")]
     DecodingCAVP8UnsupportedFormat,
 

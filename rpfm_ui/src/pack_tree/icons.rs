@@ -81,24 +81,6 @@ pub struct Icons {
 /// Implementation of `IconType`.
 impl IconType {
 
-    pub fn set_icon_for_file_type(item: &QStandardItem, file_type: Option<&FileType>) {
-         let icon = ref_from_atomic_ref(
-            match file_type {
-                Some(file_type) => match file_type {
-                    FileType::Pack => &TREEVIEW_ICONS.packfile_editable,
-                    FileType::DB |
-                    FileType::Loc => &TREEVIEW_ICONS.table,
-                    FileType::RigidModel => &TREEVIEW_ICONS.rigid_model,
-                    FileType::Text => &TREEVIEW_ICONS.text_generic,
-                    FileType::Image => &TREEVIEW_ICONS.image_generic,
-                    _ => &TREEVIEW_ICONS.file,
-                },
-                None => &TREEVIEW_ICONS.folder,
-            }
-        );
-        unsafe { item.set_icon(icon) };
-    }
-
     /// This function is used to set the icon of an Item in the `TreeView` depending on his type.
     ///
     /// TODO: Find a way to abstract this into the PackedFileType thing.

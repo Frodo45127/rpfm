@@ -124,7 +124,7 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.main_window().set_enabled(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(DataSource::PackFile, view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -137,10 +137,8 @@ impl PackedFileAnimPackViewSlots {
                             // Reload all the views belonging to overwritten files.
                             for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
-                                    if let ContainerPath::File(path) = path_ok {
-                                        if path == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
-                                            let _ = packed_file_view.reload(path, &pack_file_contents_ui);
-                                        }
+                                    if path_ok.path_raw() == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
+                                        let _ = packed_file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
                                     }
                                 }
                             }

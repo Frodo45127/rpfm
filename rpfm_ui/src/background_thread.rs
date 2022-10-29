@@ -555,7 +555,7 @@ pub fn background_loop() {
             }
 
             // In case we want to move stuff from an Animpack to our PackFile...
-            Command::AddPackedFilesFromAnimpack(anim_pack_path, paths) => {
+            Command::AddPackedFilesFromAnimpack(data_source, anim_pack_path, paths) => {
                 let files = match pack_file_decoded.files_mut().get_mut(&anim_pack_path) {
                     Some(file) => {
 
@@ -585,7 +585,8 @@ pub fn background_loop() {
                 };
 
                 let paths = files.iter().map(|file| file.path_in_container()).collect::<Vec<_>>();
-                for file in files {
+                for mut file in files {
+                    let _ = file.guess_file_type();
                     let _ = pack_file_decoded.insert(file);
                 }
 
@@ -638,6 +639,7 @@ pub fn background_loop() {
                             // Find the PackedFile we want and send back the response.
                             match pack_file_decoded.files_mut().get_mut(&path) {
                                 Some(file) => {
+                dbg!(file.file_type());
                                     let mut extra_data = DecodeableExtraData::default();
                                     extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
 
@@ -1458,8 +1460,10 @@ pub fn background_loop() {
                         },
                     };
 
-                    for file in files.values() {
-                        added_paths.push(pack_file_decoded.insert((*file).clone()).unwrap());
+                    for file in files.into_values() {
+                        let mut file = file.clone();
+                        let _ = file.guess_file_type();
+                        added_paths.push(pack_file_decoded.insert(file).unwrap());
                     }
                 }
 

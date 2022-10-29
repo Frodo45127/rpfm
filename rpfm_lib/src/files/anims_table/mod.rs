@@ -84,26 +84,32 @@ impl AnimsTable {
     }
 
     /// This function returns the definition of a Loc table.
-    pub(crate) fn new_definition(version: i32) -> Definition {
-        let mut subdefinition = Definition::new(-1);
-        let subfields = vec![
-            Field::new("uk_1".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-        ];
-        subdefinition.set_fields(subfields);
+    pub(crate) fn new_definition(version: i32) -> Result<Definition> {
+        match version {
+            2 => {
 
-        let mut definition = Definition::new(version);
-        let fields = vec![
-            Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_uk_2".to_owned(), FieldType::I16, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-        ];
+                let mut subdefinition = Definition::new(-1);
+                let subfields = vec![
+                    Field::new("fragment".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unknown_2".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+                subdefinition.set_fields(subfields);
 
-        definition.set_fields(fields);
-        definition
+                let mut definition = Definition::new(version);
+                let fields = vec![
+                    Field::new("unknown_1".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unknown_2".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unknown_3".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    //Field::new("unknown_4".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unknown_combined".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unknown_5".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+
+                definition.set_fields(fields);
+                Ok(definition)
+            },
+            _ => return Err(RLibError::DecodingAnimsTableUnknownVersion(version))
+        }
     }
 
     /// This function returns a reference of the definition used by the Loc table.
@@ -147,13 +153,10 @@ impl AnimsTable {
 
 impl Decodeable for AnimsTable {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
-
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let (version, entry_count) = Self::read_header(data)?;
-        let definition = Self::new_definition(version);
-        let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), true, table_name)?;
+        let definition = Self::new_definition(version)?;
+        let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), true, "")?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

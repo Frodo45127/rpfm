@@ -46,6 +46,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::table::Table;
+use rpfm_lib::integrations::log::error;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use crate::ffi::*;
@@ -64,8 +65,12 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
-            let item = &*model.item_2a(row, column);
-            undo_model.set_item_3a(row, column, item.clone());
+            let item = model.item_2a(row, column);
+            if item.is_null() {
+                error!("Null on item model? WTF? Row: {}, Column: {}", row, column);
+            } else {
+                undo_model.set_item_3a(row, column, (&*item).clone());
+            }
         }
     }
 }

@@ -18,7 +18,6 @@ use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
-
 use qt_widgets::QPushButton;
 
 use qt_gui::QStandardItemModel;

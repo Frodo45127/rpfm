@@ -39,7 +39,7 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_lib::files::{ContainerPath, pack::PFHFlags};
+use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
 use rpfm_lib::utils::*;
 
 use crate::backend::*;
@@ -50,6 +50,7 @@ use crate::pack_tree::icons::IconType;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
+use crate::TREEVIEW_ICONS;
 use crate::utils::*;
 
 // This one is needed for initialization on boot, so it has to be public.
@@ -313,6 +314,8 @@ impl PackTree for QBox<QTreeView> {
         let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
+        //TODO: This needs heavy optimization.
+
         // Get the first item's index, as that one should always exist (the Packfile).
         let mut item = match source {
             DataSource::PackFile => model.item_1a(0),
@@ -359,7 +362,9 @@ impl PackTree for QBox<QTreeView> {
 
         // If it's valid (filter didn't hid it away), we expand it and search among its children the next one to expand.
         if filtered_index.is_valid() {
-            self.expand(&filtered_index);
+            if !self.is_expanded(&filtered_index) {
+                self.expand(&filtered_index);
+            }
 
             // Indexes to see how deep we must go.
             let mut index = 0;
@@ -1005,42 +1010,7 @@ impl PackTree for QBox<QTreeView> {
                 // - FolderB
                 // - FileA
                 // - FileB
-                packed_files_data.par_sort_unstable_by(|a, b| {
-                    let a_path = a.path();
-                    let b_path = b.path();
-
-                    let a_len = a_path.split('/').count() - 1;
-                    let b_len = b_path.split('/').count() - 1;
-
-                    let a_last_split = a_path.rfind('/').unwrap_or(0);
-                    let b_last_split = b_path.rfind('/').unwrap_or(0);
-
-                    // Short-circuit cases: one or both files on root.
-                    if a_last_split == 0 && b_last_split == 0 {
-                        return a_path.cmp(&b_path);
-                    } else if a_last_split == 0 {
-                        return Ordering::Greater;
-                    } else if b_last_split == 0 {
-                        return Ordering::Less;
-                    }
-
-                    // Short-circuit: both are files under the same amount of subfolders.
-                    if a_len == b_len {
-                        return a_path.cmp(&b_path);
-                    } else if a_len > b_len {
-                        if a_path.starts_with(&b_path[..b_last_split]) {
-                            return Ordering::Less;
-                        } else {
-                            return a_path.cmp(b_path);
-                        }
-                    } else {
-                        if b_path.starts_with(&a_path[..a_last_split]) {
-                            return Ordering::Greater;
-                        } else {
-                            return a_path.cmp(b_path);
-                        }
-                    }
-                });
+                sort_folders_before_files_alphabetically_file_infos(&mut packed_files_data);
 
                 let variant_type_file = QVariant::from_int(ITEM_TYPE_FILE);
                 let variant_type_folder = QVariant::from_int(ITEM_TYPE_FOLDER);
@@ -1055,12 +1025,11 @@ impl PackTree for QBox<QTreeView> {
                 base_folder_item.set_editable(false);
                 base_folder_item.set_data_2a(&variant_type_folder, ITEM_TYPE);
                 base_folder_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
-                IconType::set_icon_for_file_type(&base_folder_item, None);
+                set_icon_for_file_type(&base_folder_item, None);
 
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
                 for packed_file in &packed_files_data {
-                    //let path = packed_file.path().split("/").collect::<Vec<_>>();
                     let count = packed_file.path().split('/').count() - 1;
 
                     // First, we reset the parent to the big_parent (the PackFile).
@@ -1076,7 +1045,7 @@ impl PackTree for QBox<QTreeView> {
                             file.set_text(&name);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
 
-                            IconType::set_icon_for_file_type(&file, Some(packed_file.file_type()));
+                            set_icon_for_file_type(&file, Some(packed_file.file_type()));
 
                             parent.append_row_q_standard_item(file);
                         }
@@ -1152,63 +1121,7 @@ impl PackTree for QBox<QTreeView> {
                     ContainerPath::Folder(path) => path.to_owned(),
                 }).collect::<Vec<_>>();
 
-                item_types.par_sort_unstable_by(|a, b| {
-                    let a = match a {
-                        ContainerPath::File(path) => path.split('/').collect::<Vec<_>>(),
-                        ContainerPath::Folder(path) => path.split('/').collect::<Vec<_>>(),
-                    };
-                    let b = match b {
-                        ContainerPath::File(path) => path.split('/').collect::<Vec<_>>(),
-                        ContainerPath::Folder(path) => path.split('/').collect::<Vec<_>>(),
-                    };
-                    //let a = &a.path().split('/').collect::<Vec<_>>();
-                    //let b = &b.path().split('/').collect::<Vec<_>>();
-                    let mut index = 0;
-                    loop {
-
-                        // If both options have the same name.
-                        if a[index] == b[index] {
-
-                            // If A doesn't have more children, but B has them, A is a file and B a folder.
-                            if index == (a.len() - 1) && index < (b.len() - 1) {
-                                return Ordering::Greater
-                            }
-
-                            // If B doesn't have more children, but A has them, B is a file and A a folder.
-                            else if index < (a.len() - 1) && index == (b.len() - 1) {
-                                return Ordering::Less
-                            }
-
-                            // If both options still has children, continue the loop.
-                            else if index < (a.len() - 1) && index < (b.len() - 1) {
-                                index += 1;
-                                continue;
-                            }
-
-                            // Otherwise, it means you got 2 files with the same name in the same PackFile, and I would like to know how the hell did you did it.
-                            else {
-                                return Ordering::Equal
-                            }
-                        }
-
-                        // If both are the same type (both have children, or none have them), doesn't matter if
-                        // they are files or folder. Just compare them to see what one it's first.
-                        else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
-                            (index < (a.len() - 1) && index < (b.len() - 1)) {
-                            return a.cmp(&b)
-                        }
-
-                        // If A doesn't have more children, but B has them, A is a file and B a folder.
-                        else if index == (a.len() - 1) && index < (b.len() - 1) {
-                            return Ordering::Greater
-
-                        }
-                        // If B doesn't have more children, but A has them, B is a file and A a folder.
-                        else if index < (a.len() - 1) && index == (b.len() - 1) {
-                            return Ordering::Less
-                        }
-                    }
-                });
+                sort_folders_before_files_alphabetically_container_paths(&mut item_types);
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
                 let response = CentralCommand::recv(&receiver);
@@ -1292,16 +1205,15 @@ impl PackTree for QBox<QTreeView> {
                                 item.set_editable(false);
 
                                 if let ContainerPath::File(ref path) = &item_type {
-                                    let icon_type = IconType::File(path.to_owned());
-                                    icon_type.set_icon_to_item_safe(&item);
+                                    set_icon_for_file_type(&item, Some(packed_file_info.file_type()));
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
-                                    //let tooltip = new_packed_file_tooltip(packed_file_info);
-                                    //item.set_tool_tip(&QString::from_std_str(tooltip));
+                                    let tooltip = new_packed_file_tooltip(packed_file_info);
+                                    item.set_tool_tip(&QString::from_std_str(tooltip));
                                 }
 
                                 else if let ContainerPath::Folder(_) = &item_type {
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                    IconType::set_icon_to_item_safe(&IconType::Folder, &item);
+                                    set_icon_for_file_type(&item, None);
                                 }
 
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1381,9 +1293,9 @@ impl PackTree for QBox<QTreeView> {
                         }
                     }
 
-                    //if setting_bool("expand_treeview_when_adding_items") {
-                    //    self.expand_treeview_to_item(&path, source);
-                    //}
+                    if setting_bool("expand_treeview_when_adding_items") {
+                        self.expand_treeview_to_item(&path, source);
+                    }
                 }
             },
 
@@ -1482,6 +1394,14 @@ impl PackTree for QBox<QTreeView> {
                             let path_split = path.split('/').collect::<Vec<_>>();
                             let path_deep = path_split.len();
 
+                            // If path is empty, it's the Pack.
+                            if path_split.is_empty() {
+                                let mut build_data = BuildData::new();
+                                build_data.editable = true;
+                                self.update_treeview(true, TreeViewOperation::Build(build_data), source);
+                                return;
+                            }
+
                             // First looping downwards.
                             loop {
 
@@ -1538,15 +1458,6 @@ impl PackTree for QBox<QTreeView> {
                                 }
                             }
                         }
-
-                        // Only editable packfiles can be deleted.
-                        /*ContainerPath::Pack => {
-                            if model.item_1a(0).data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
-                                let mut build_data = BuildData::new();
-                                build_data.editable = true;
-                                self.update_treeview(true, TreeViewOperation::Build(build_data), source)
-                            }
-                        },*/
                     }
                 }
             },
@@ -1984,6 +1895,87 @@ impl BuildData {
             editable: false,
         }
     }
+}
+
+fn sort_folders_before_files_alphabetically_container_paths(files: &mut Vec<ContainerPath>) {
+    files.par_sort_unstable_by(|a, b| {
+        let a_path = a.path_raw();
+        let b_path = b.path_raw();
+
+        sort_folders_before_files_alphabetically_paths(a_path, b_path)
+    });
+}
+
+// We sort the paths with this horrific monster I don't want to touch ever again, using the following format:
+// - FolderA
+// - FolderB
+// - FileA
+// - FileB
+fn sort_folders_before_files_alphabetically_file_infos(files: &mut Vec<RFileInfo>) {
+    files.par_sort_unstable_by(|a, b| {
+        let a_path = a.path();
+        let b_path = b.path();
+
+        sort_folders_before_files_alphabetically_paths(a_path, b_path)
+    });
+}
+
+fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) -> Ordering {
+    let a_len = a_path.split('/').count() - 1;
+    let b_len = b_path.split('/').count() - 1;
+
+    let a_last_split = a_path.rfind('/').unwrap_or(0);
+    let b_last_split = b_path.rfind('/').unwrap_or(0);
+
+    // Short-circuit cases: one or both files on root.
+    if a_last_split == 0 && b_last_split == 0 {
+        return a_path.cmp(&b_path);
+    } else if a_last_split == 0 {
+        return Ordering::Greater;
+    } else if b_last_split == 0 {
+        return Ordering::Less;
+    }
+
+    // Short-circuit: both are files under the same amount of subfolders.
+    if a_len == b_len {
+        return a_path.cmp(&b_path);
+    } else if a_len > b_len {
+        if a_path.starts_with(&b_path[..b_last_split]) {
+            return Ordering::Less;
+        } else {
+            return a_path.cmp(b_path);
+        }
+    } else {
+        if b_path.starts_with(&a_path[..a_last_split]) {
+            return Ordering::Greater;
+        } else {
+            return a_path.cmp(b_path);
+        }
+    }
+}
+
+pub unsafe fn set_icon_for_file_type(item: &QStandardItem, file_type: Option<&FileType>) {
+     let icon = ref_from_atomic_ref(
+        match file_type {
+            Some(file_type) => match file_type {
+                FileType::Pack => {
+                    if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                        &TREEVIEW_ICONS.packfile_editable
+                    } else {
+                        &TREEVIEW_ICONS.packfile_locked
+                    }
+                },
+                FileType::DB |
+                FileType::Loc => &TREEVIEW_ICONS.table,
+                FileType::RigidModel => &TREEVIEW_ICONS.rigid_model,
+                FileType::Text => &TREEVIEW_ICONS.text_generic,
+                FileType::Image => &TREEVIEW_ICONS.image_generic,
+                _ => &TREEVIEW_ICONS.file,
+            },
+            None => &TREEVIEW_ICONS.folder,
+        }
+    );
+    item.set_icon(icon);
 }
 
 pub unsafe fn get_color_correct() -> String {

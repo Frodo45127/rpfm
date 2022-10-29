@@ -176,7 +176,7 @@ pub enum Command {
     AddPackedFilesFromPackFileToAnimpack(String, Vec<ContainerPath>),
 
     // This command is used when we want to add a PackedFile from an AnimPack to our PackFile.
-    AddPackedFilesFromAnimpack(String, Vec<ContainerPath>),
+    AddPackedFilesFromAnimpack(DataSource, String, Vec<ContainerPath>),
 
     // This command is used when we want to delete a PackedFile from an AnimPack.
     DeleteFromAnimpack((String, Vec<ContainerPath>)),
