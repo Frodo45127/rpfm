@@ -406,9 +406,7 @@ impl PackFileContentsUI {
 
         // If we only have one selected item, put his name by default in the rename dialog.
         if selected_items.len() == 1 {
-            if let ContainerPath::File(path) | ContainerPath::Folder(path) = &selected_items[0] {
-                rewrite_sequence_line_edit.set_text(&QString::from_std_str(path));
-            }
+            rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
         }
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
