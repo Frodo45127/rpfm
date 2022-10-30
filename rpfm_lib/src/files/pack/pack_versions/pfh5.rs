@@ -41,7 +41,7 @@ impl Pack {
         let extra_header_size = {
             if (self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && data_len < 44) ||
                 (!self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && data_len < 24) {
-                return Err(RLibError::PackFileHeaderNotComplete);
+                return Err(RLibError::PackHeaderNotComplete);
             }
 
             if self.header.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 20 } else { 0 }
@@ -65,7 +65,7 @@ impl Pack {
         }
 
         if data_len < data_pos {
-            return Err(RLibError::PackFileIndexesNotComplete)
+            return Err(RLibError::PackIndexesNotComplete)
         }
 
         // Get the Packs this Pack depends on, if any.

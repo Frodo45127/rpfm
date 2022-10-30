@@ -49,13 +49,13 @@ impl Pack {
         // Check that the position of the data we want to get is actually valid.
         let data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
-            return Err(RLibError::PackFileIndexesNotComplete)
+            return Err(RLibError::PackIndexesNotComplete)
         }
 
         // Check if we actually have the subheader we expect.
         let subheader_marker = buffer_mem.read_u32()?;
         if subheader_marker != SUBHEADER_MARK {
-            return Err(RLibError::PackFileSubHeaderMissing)
+            return Err(RLibError::PackSubHeaderMissing)
         }
         let _subheader_version = buffer_mem.read_u32()?;
 
@@ -67,7 +67,7 @@ impl Pack {
         // Check that the position of the data we want to get is actually valid.
         let mut data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
-            return Err(RLibError::PackFileIndexesNotComplete)
+            return Err(RLibError::PackIndexesNotComplete)
         }
 
         // Get the Packs this Pack depends on, if any.

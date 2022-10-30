@@ -93,13 +93,13 @@ pub enum RLibError {
     ReadFileFolderError(String),
 
     #[error("The header of the Pack is incomplete, unsupported or damaged.")]
-    PackFileHeaderNotComplete,
+    PackHeaderNotComplete,
 
     #[error("The subheader of the Pack is incomplete, unsupported or damaged.")]
-    PackFileSubHeaderMissing,
+    PackSubHeaderMissing,
 
     #[error("The indexes of the Pack are incomplete, unsupported or damaged")]
-    PackFileIndexesNotComplete,
+    PackIndexesNotComplete,
 
     #[error("Unknown PFH File Type: {0}")]
     UnknownPFHFileType(String),

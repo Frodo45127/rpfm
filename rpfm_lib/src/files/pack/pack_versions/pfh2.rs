@@ -46,7 +46,7 @@ impl Pack {
         // Check that the position of the data we want to get is actually valid.
         let mut data_pos = data.stream_position()? - extra_data.disk_file_offset;
         if data_len < data_pos {
-            return Err(RLibError::PackFileIndexesNotComplete)
+            return Err(RLibError::PackIndexesNotComplete)
         }
 
         // Get the Packs this Pack depends on, if any.
