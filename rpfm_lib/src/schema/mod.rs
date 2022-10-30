@@ -555,7 +555,7 @@ impl Definition {
 
                         // If found, add the default value to the other previously known default value.
                         // TODO: fix the combined default value of colour columns.
-                        Some(field) => {}
+                        Some(field) => {},
                         None => {
                             let colour_split = x.name().rsplitn(2, '_').collect::<Vec<&str>>();
                             let colour_field_name = if colour_split.len() == 2 { format!("{}{}", colour_split[1].to_lowercase(), MERGE_COLOUR_POST) } else { MERGE_COLOUR_NO_NAME.to_lowercase() };
@@ -565,8 +565,7 @@ impl Definition {
                             field.set_field_type(FieldType::ColourRGB);
 
                             // We need to fix the default value so it's a ColourRGB one.
-                            //let default_value = Some("0".to_owned());
-                            //field.set_default_value(default_value);
+                            field.set_default_value(Some("000000".to_owned()));
 
                             split_colour_fields.insert(colour_index, field);
                         }
