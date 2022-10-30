@@ -1433,10 +1433,17 @@ pub fn background_loop() {
             Command::GetPackedFileRawData(path) => {
                 match pack_file_decoded.files_mut().get_mut(&path) {
                     Some(ref mut rfile) => {
+
+                        // Make sure it's in memory.
                         match rfile.load() {
                             Ok(_) => match rfile.cached() {
                                 Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.to_vec())),
-                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+
+                                // If we don't have binary data, it may be decoded. Encode it and return the binary data.
+                                Err(_) =>  match rfile.encode(&None, false, false, true) {
+                                    Ok(data) => CentralCommand::send_back(&sender, Response::VecU8(data.unwrap())),
+                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                                },
                             },
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }

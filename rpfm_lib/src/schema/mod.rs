@@ -267,6 +267,20 @@ impl Schema {
         }
     }
 
+    /// This function removes a definition for a table from the currently loaded schema.
+    pub fn remove_definition(&mut self, table_name: &str, version: i32) {
+        if let Some(definitions) = self.definitions.get_mut(table_name) {
+            let mut index_to_delete = vec![];
+            for (index, definition) in definitions.iter().enumerate() {
+                if definition.version == version {
+                    index_to_delete.push(index);
+                }
+            }
+
+            index_to_delete.iter().rev().for_each(|index| { definitions.remove(*index); });
+        }
+    }
+
     /// This function returns a copy of a specific `VersionedFile` of DB Type from the provided `Schema`.
     pub fn definitions_by_table_name_cloned(&self, table_name: &str) -> Option<Vec<Definition>> {
         self.definitions.get(table_name).cloned()

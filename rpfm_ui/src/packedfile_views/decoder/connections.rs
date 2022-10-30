@@ -33,6 +33,9 @@ pub unsafe fn set_connections(ui: &PackedFileDecoderView, slots: &PackedFileDeco
     ui.i16_button().released().connect(&slots.use_this_i16);
     ui.i32_button().released().connect(&slots.use_this_i32);
     ui.i64_button().released().connect(&slots.use_this_i64);
+    ui.optional_i16_button().released().connect(&slots.use_this_optional_i16);
+    ui.optional_i32_button().released().connect(&slots.use_this_optional_i32);
+    ui.optional_i64_button().released().connect(&slots.use_this_optional_i64);
     ui.colour_rgb_button().released().connect(&slots.use_this_colour_rgb);
     ui.string_u8_button().released().connect(&slots.use_this_string_u8);
     ui.string_u16_button().released().connect(&slots.use_this_string_u16);

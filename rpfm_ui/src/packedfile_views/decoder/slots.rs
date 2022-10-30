@@ -26,7 +26,7 @@ use std::io::{Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB, table::Table};
+use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
@@ -35,9 +35,8 @@ use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICA
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::SCHEMA;
-use crate::utils::show_dialog;
-use crate::utils::show_debug_dialog;
 use crate::UI_STATE;
+use crate::utils::*;
 
 use super::PackedFileDecoderView;
 use super::DECODER_EXTENSION;
@@ -58,6 +57,9 @@ pub struct PackedFileDecoderViewSlots {
     pub use_this_i16: QBox<SlotNoArgs>,
     pub use_this_i32: QBox<SlotNoArgs>,
     pub use_this_i64: QBox<SlotNoArgs>,
+    pub use_this_optional_i16: QBox<SlotNoArgs>,
+    pub use_this_optional_i32: QBox<SlotNoArgs>,
+    pub use_this_optional_i64: QBox<SlotNoArgs>,
     pub use_this_colour_rgb: QBox<SlotNoArgs>,
     pub use_this_string_u8: QBox<SlotNoArgs>,
     pub use_this_string_u16: QBox<SlotNoArgs>,
@@ -122,85 +124,87 @@ impl PackedFileDecoderViewSlots {
             view.hex_selection_sync(false);
         }));
 
-        // Slot to use a boolean value.
+        //------------------------------------//
+        // Slots for the "Use This" buttons.
+        //------------------------------------//
         let use_this_bool = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             let _ = view.use_this(FieldType::Boolean);
         }));
 
-        // Slot to use a float value.
         let use_this_f32 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::F32);
         }));
 
-        // Slot to use a long float value.
         let use_this_f64 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::F64);
         }));
 
-        // Slot to use an integer value.
         let use_this_i16 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::I16);
         }));
 
-        // Slot to use an integer value.
         let use_this_i32 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::I32);
         }));
 
-        // Slot to use a long integer value.
         let use_this_i64 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::I64);
         }));
 
-        // Slot to use a 4byte colour value.
-        let use_this_colour_rgb = SlotNoArgs::new(&view.table_view, clone!(
+        let use_this_optional_i16 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI16);
+        }));
 
+        let use_this_optional_i32 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI32);
+        }));
+
+        let use_this_optional_i64 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI64);
+        }));
+
+        let use_this_colour_rgb = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             let _ = view.use_this(FieldType::ColourRGB);
         }));
 
-        // Slot to use a string u8 value.
         let use_this_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::StringU8);
         }));
 
-        // Slot to use a string u16 value.
         let use_this_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
             let _ = view.use_this(FieldType::StringU16);
         }));
 
-        // Slot to use an optional string u8 value.
         let use_this_optional_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             let _ = view.use_this(FieldType::OptionalStringU8);
         }));
 
-        // Slot to use an optional string u16 value.
         let use_this_optional_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             let _ = view.use_this(FieldType::OptionalStringU16);
         }));
 
-        // Slot to use a sequence u32 value.
         let use_this_sequence_u32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100))));
         }));
+
+        //-----------------------------------------//
+        // End of slots for the "Use This" buttons.
+        //-----------------------------------------//
 
         // Slot for when we change the Type of the selected field in the table.
         let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(&view.table_view, clone!(
@@ -457,7 +461,7 @@ impl PackedFileDecoderViewSlots {
 
                     // Reset the definition we have.
                     view.table_model.clear();
-                    view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                    let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
 
                     // Update the decoder view.
                     let _ = view.update_view(definition.fields(), true);
@@ -477,19 +481,10 @@ impl PackedFileDecoderViewSlots {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
 
-                    /*
                     if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
-                        let versioned_file = match view.packed_file_type {
-                            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
-                            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
-                            PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
-                            PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
-                            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
-                            _ => unimplemented!(),
-                        }.unwrap();
+                        schema.remove_definition(view.table_name(), version);
+                    }
 
-                        versioned_file.remove_version(version);
-                    }*/
                     view.load_versions_list();
                 }
             }
@@ -506,7 +501,7 @@ impl PackedFileDecoderViewSlots {
 
                             // If it worked, update the decoder view.
                             view.table_model.clear();
-                            view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                            let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
                             let _ = view.update_view(field_list, true);
                             let _ = view.update_rows_decoded(None, None);
                         }
@@ -549,10 +544,9 @@ impl PackedFileDecoderViewSlots {
 
         // Slot for the "Kill them all!" button.
         let remove_all_fields = SlotNoArgs::new(&view.table_view, clone!(
-
             mut view => move || {
                 view.table_model.clear();
-                view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
                 let _ = view.update_view(&[], true);
             }
         ));
@@ -610,6 +604,9 @@ impl PackedFileDecoderViewSlots {
             use_this_i16,
             use_this_i32,
             use_this_i64,
+            use_this_optional_i16,
+            use_this_optional_i32,
+            use_this_optional_i64,
             use_this_colour_rgb,
             use_this_string_u8,
             use_this_string_u16,
