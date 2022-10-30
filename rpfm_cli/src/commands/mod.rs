@@ -13,3 +13,4 @@
 pub mod animpack;
 pub mod dependencies;
 pub mod pack;
+pub mod schema;

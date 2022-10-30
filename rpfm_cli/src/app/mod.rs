@@ -49,6 +49,13 @@ pub enum Commands {
         commands: CommandsAnimPack,
     },
 
+    /// Command to perform operations related with the dependencies cache.
+    Dependencies {
+
+        #[clap(subcommand)]
+        commands: CommandsDependencies,
+    },
+
     /// Command to perform operations over Pack files.
     Pack {
 
@@ -56,11 +63,11 @@ pub enum Commands {
         commands: CommandsPack,
     },
 
-    /// Command to perform operations related with the dependencies cache.
-    Dependencies {
+    /// Command to perform operations over Schemas.
+    Schemas {
 
         #[clap(subcommand)]
-        commands: CommandsDependencies,
+        commands: CommandsSchemas,
     },
 }
 
@@ -145,6 +152,28 @@ pub enum CommandsAnimPack {
         #[arg(short = 'F', long, required = false, num_args = 1.., value_parser = extract_from_csv, value_name = "FOLDER_PATH_IN_PACK,FOLDER_TO_EXTRACT_TO")]
         folder_path: Vec<(String, PathBuf)>,
     },
+}
+
+#[derive(Subcommand)]
+pub enum CommandsDependencies {
+
+    /// Generate the dependencies cache for a specific game.
+    Generate {
+
+        /// Path where the dependencies cache will be saved.
+        #[arg(short = 'P', long, required = true, value_name = "PAK2_PATH")]
+        pak_path: PathBuf,
+
+        /// Path of the game the dependencies cache is for.
+        #[arg(short, long, required = true, value_name = "GAME_PATH")]
+        game_path: PathBuf,
+
+        /// Path of the assembly kit the dependencies cache is for.
+        ///
+        /// Optional.
+        #[arg(short, long, required = false, value_name = "ASSEMBLY_KIT_PATH")]
+        assembly_kit_path: Option<PathBuf>,
+    }
 }
 
 #[derive(Subcommand)]
@@ -278,26 +307,15 @@ pub enum CommandsPack {
     }
 }
 
-
 #[derive(Subcommand)]
-pub enum CommandsDependencies {
+pub enum CommandsSchemas {
 
-    /// Generate the dependencies cache for a specific game.
-    Generate {
+    /// Update the schemas from the main schema repo into the provided folder.
+    Update {
 
-        /// Path where the dependencies cache will be saved.
-        #[arg(short = 'P', long, required = true, value_name = "PAK2_PATH")]
-        pak_path: PathBuf,
-
-        /// Path of the game the dependencies cache is for.
-        #[arg(short, long, required = true, value_name = "GAME_PATH")]
-        game_path: PathBuf,
-
-        /// Path of the assembly kit the dependencies cache is for.
-        ///
-        /// Optional.
-        #[arg(short, long, required = false, value_name = "ASSEMBLY_KIT_PATH")]
-        assembly_kit_path: Option<PathBuf>,
+        /// Path where the schemas will be downloaded.
+        #[arg(short, long, required = true, value_name = "SCHEMA_PATH")]
+        schema_path: PathBuf,
     }
 }
 
