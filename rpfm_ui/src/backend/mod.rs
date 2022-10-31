@@ -135,8 +135,16 @@ pub struct DependenciesInfo {
 
 impl From<&Pack> for ContainerInfo {
     fn from(pack: &Pack) -> Self {
+
+        // If we have no disk file for the pack, it's a new one.
+        let file_name = if pack.disk_file_path().is_empty() {
+            "new_file.pack"
+        } else {
+            pack.disk_file_path().split("/").last().unwrap_or("unknown.pack")
+        };
+
         Self {
-            file_name: pack.disk_file_path().split("/").last().unwrap_or("unknown.pack").to_string(),
+            file_name: file_name.to_string(),
             file_path: pack.disk_file_path().to_string(),
             pfh_version: *pack.header().pfh_version(),
             pfh_file_type: *pack.header().pfh_file_type(),
