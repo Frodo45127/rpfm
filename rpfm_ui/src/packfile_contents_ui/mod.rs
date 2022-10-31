@@ -324,7 +324,7 @@ impl PackFileContentsUI {
             app_ui.main_window().set_enabled(false);
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore, import_tables_from_tsv));
+        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {

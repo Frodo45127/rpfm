@@ -594,6 +594,9 @@ pub trait Container {
             rfile.set_path_in_container_raw(&container_path_folder);
         }
 
+        // Make sure to guess the file type before inserting it.
+        rfile.guess_file_type()?;
+
         self.insert(rfile)
     }
 

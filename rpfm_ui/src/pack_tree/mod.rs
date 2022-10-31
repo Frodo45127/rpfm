@@ -1465,58 +1465,41 @@ impl PackTree for QBox<QTreeView> {
             // If you want to modify the contents of something...
             TreeViewOperation::Modify(path_types) => {
                 for path_type in path_types {
-                    match path_type {
-                        ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
+                    let path = path_type.path_raw();
+                    let path_split = path.split('/').collect::<Vec<_>>();
+                    let item = Self::get_item_from_type(&path_type, &model);
+                    match item.data_1a(ITEM_STATUS).to_int_0a() {
+                        ITEM_STATUS_PRISTINE => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                        ITEM_STATUS_ADDED => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                        ITEM_STATUS_MODIFIED | 3 => {},
+                        _ => unimplemented!(),
+                    };
 
-                            let item = Self::get_item_from_type(&path_type, &model);
-                            match item.data_1a(ITEM_STATUS).to_int_0a() {
-                                ITEM_STATUS_PRISTINE => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                ITEM_STATUS_ADDED => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                ITEM_STATUS_MODIFIED | 3 => {},
-                                _ => unimplemented!(),
-                            };
-
-                            // If its a file, we get his new info and put it in a tooltip.
-                            if let ContainerPath::File(_) = path_type {
-                                let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
-                                let response = CentralCommand::recv(&receiver);
-                                let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                                if let Some(info) = packed_file_info {
-                                    let tooltip = new_packed_file_tooltip(&info);
-                                    item.set_tool_tip(&QString::from_std_str(tooltip));
-                                }
-                            }
-
-                            let cycles = if !path.is_empty() { path.len() } else { 0 };
-                            let mut parent = item.parent();
-                            for _ in 0..cycles {
-
-                                // Get the status and mark them as needed.
-                                match parent.data_1a(ITEM_STATUS).to_int_0a() {
-                                    ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                    ITEM_STATUS_ADDED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                    ITEM_STATUS_MODIFIED | 3 => {},
-                                    _ => unimplemented!(),
-                                };
-
-                                // Set the new parent.
-                                parent = parent.parent();
-                            }
+                    // If its a file, we get his new info and put it in a tooltip.
+                    if path_type.is_file() {
+                        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFileInfo(path.to_owned()));
+                        let response = CentralCommand::recv(&receiver);
+                        let packed_file_info = if let Response::OptionRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                        if let Some(info) = packed_file_info {
+                            let tooltip = new_packed_file_tooltip(&info);
+                            item.set_tool_tip(&QString::from_std_str(tooltip));
                         }
+                    }
 
-                        /*ContainerPath::PackFile => {
-                            let item = model.item_2a(0, 0);
-                            if !item.is_null() {
-                                let status = item.data_1a(ITEM_STATUS).to_int_0a();
-                                match status {
-                                    ITEM_STATUS_PRISTINE => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                    ITEM_STATUS_ADDED => item.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                    ITEM_STATUS_MODIFIED | 3 => {},
-                                    _ => unimplemented!(),
-                                };
-                                item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                            }
-                        }*/
+                    let cycles = if !path_split.is_empty() { path_split.len() - 1 } else { 0 };
+                    let mut parent = item.parent();
+                    for _ in 0..cycles {
+
+                        // Get the status and mark them as needed.
+                        match parent.data_1a(ITEM_STATUS).to_int_0a() {
+                            ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                            ITEM_STATUS_ADDED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                            ITEM_STATUS_MODIFIED | 3 => {},
+                            _ => unimplemented!(),
+                        };
+
+                        // Set the new parent.
+                        parent = parent.parent();
                     }
                 }
             }

@@ -433,32 +433,12 @@ pub fn background_loop() {
             }
 
             // When we want to add one or more PackedFiles to our PackFile.
-            Command::AddPackedFiles(source_paths, destination_paths, paths_to_ignore, import_tables_from_tsv) => {
+            Command::AddPackedFiles(source_paths, destination_paths, paths_to_ignore) => {
                 let mut added_paths = vec![];
                 let mut it_broke = None;
 
                 // If we're going to import TSV, make sure to remove any collision between binary and TSV.
-                let paths = if import_tables_from_tsv {
-                    source_paths.iter().zip(destination_paths.iter())
-                        .filter(|(source, _)| {
-                            if let Some(extension) = source.extension() {
-                                if extension == "tsv" {
-                                    true
-                                } else {
-                                    let mut path = source.to_path_buf();
-                                    path.set_extension("tsv");
-                                    source_paths.par_iter().all(|source| source != &path)
-                                }
-                            } else {
-                                let mut path = source.to_path_buf();
-                                path.set_extension("tsv");
-                                source_paths.par_iter().all(|source| source != &path)
-                            }
-                        })
-                        .collect::<Vec<(&PathBuf, &String)>>()
-                } else {
-                    source_paths.iter().zip(destination_paths.iter()).collect::<Vec<(&PathBuf, &String)>>()
-                };
+                let paths = source_paths.iter().zip(destination_paths.iter()).collect::<Vec<(&PathBuf, &String)>>();
 
                 let schema = SCHEMA.read().unwrap();
 
