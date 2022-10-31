@@ -756,17 +756,14 @@ pub fn background_loop() {
                 let schema = SCHEMA.read().unwrap();
                 let schema = if extract_tables_to_tsv { &*schema } else { &None };
                 let mut errors = 0;
-                let mut success = 0;
                 for container_path in container_paths {
                     if pack_file_decoded.extract(container_path, &path, true, schema).is_err() {
                         errors += 1;
-                    }else {
-                        success += 1;
                     }
                 }
 
                 if errors == 0 {
-                    CentralCommand::send_back(&sender, Response::String(tre("files_extracted_success", &[&success.to_string()])));
+                    CentralCommand::send_back(&sender, Response::String(tr("files_extracted_success")));
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There were {} errors while extracting.", errors)));
                 }
