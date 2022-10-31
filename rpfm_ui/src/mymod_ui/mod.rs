@@ -164,8 +164,8 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        let mod_path = PathBuf::from(setting_string("mymods_base_path"));
-        if !mod_path.is_dir() {
+        let mod_path = setting_path(MYMOD_BASE_PATH);
+        if mod_path.is_dir() {
 
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {

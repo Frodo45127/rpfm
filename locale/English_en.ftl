@@ -563,7 +563,7 @@ lua_autogen_update_success = <h4>TW Autogen Data updated.</h4><p>You can continu
 
 
 files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
-mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
+mymod_delete_success = MyMod successfully deleted: "{"{"}{"}"}"
 
 game_selected_unsupported_operation = This operation is not supported for the Game Selected.
 

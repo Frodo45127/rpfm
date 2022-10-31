@@ -722,7 +722,7 @@ impl AppUISlots {
                         // copy the PackFile to the data folder of the selected game.
                         OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                             old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = setting_path("mymods_base_path");
+                            let mymods_base_path = setting_path(MYMOD_BASE_PATH);
                             if mymods_base_path.is_dir() {
 
                                 // We get the "MyMod"s PackFile path.

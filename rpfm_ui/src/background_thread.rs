@@ -1632,8 +1632,8 @@ pub fn background_loop() {
 
             // Initialize the folder for a MyMod, including the folder structure it needs.
             Command::InitializeMyModFolder(mod_name, mod_game)  => {
-                let mut mymod_path = setting_path("mymods_base_path");
-                if mymod_path.is_dir() {
+                let mut mymod_path = setting_path(MYMOD_BASE_PATH);
+                if !mymod_path.is_dir() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("MyMod path is not configured. Configure it in the settings and try again.")));
                     continue;
                 }

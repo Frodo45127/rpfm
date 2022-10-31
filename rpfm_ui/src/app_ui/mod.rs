@@ -1820,8 +1820,8 @@ impl AppUI {
         app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
-        let mymod_base_path = PathBuf::from(setting_string(MYMOD_BASE_PATH));
-        if !mymod_base_path.is_dir() {
+        let mymod_base_path = setting_path(MYMOD_BASE_PATH);
+        if mymod_base_path.is_dir() {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list.flatten() {
 

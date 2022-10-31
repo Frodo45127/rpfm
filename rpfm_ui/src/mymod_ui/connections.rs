@@ -20,9 +20,9 @@ use super::{MyModUI, slots::MyModUISlots};
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub fn set_connections(ui: &MyModUI, slots: &MyModUISlots) {
-    unsafe { ui.mymod_name_line_edit.text_changed().connect(&slots.mymod_name_change); }
-    unsafe { ui.mymod_game_combobox.current_text_changed().connect(&slots.mymod_game_change); }
-    unsafe { ui.mymod_cancel_button.released().connect(ui.mymod_dialog.slot_close()); }
-    unsafe { ui.mymod_accept_button.released().connect(ui.mymod_dialog.slot_accept()); }
+pub unsafe fn set_connections(ui: &MyModUI, slots: &MyModUISlots) {
+    ui.mymod_name_line_edit().text_changed().connect(&slots.mymod_name_change);
+    ui.mymod_game_combobox().current_text_changed().connect(&slots.mymod_game_change);
+    ui.mymod_cancel_button().released().connect(ui.mymod_dialog.slot_close());
+    ui.mymod_accept_button().released().connect(ui.mymod_dialog.slot_accept());
 }
