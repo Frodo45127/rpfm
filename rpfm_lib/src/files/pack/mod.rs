@@ -34,6 +34,7 @@ use crate::utils::{current_time, last_modified_time_from_file};
 mod pack_test;
 mod pack_versions;
 
+/// Extension used by Packs.
 pub const EXTENSION: &str = ".pack";
 
 /// Special Preamble/Id prefixing steam workshop files, for some reason.
@@ -504,7 +505,7 @@ impl Pack {
         Ok(pack)
     }
 
-    /// This function writes a `Pack` of version 5 into the provided buffer.
+    /// This function writes a `Pack` into the provided buffer.
     fn write<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         let test_mode = if let Some(extra_data) = extra_data {
             extra_data.test_mode
@@ -638,7 +639,8 @@ impl Pack {
             self.disk_file_path = path.to_string_lossy().to_string();
         }
 
-        // TODO: Maybe check if the previous path is valid?
+        // Before truncating the file, make sure we loaded everything to memory.
+        self.files.iter_mut().try_for_each(|(_, file)| file.load())?;
 
         let mut file = BufWriter::new(File::create(&self.disk_file_path)?);
         let extra_data = EncodeableExtraData::default();
