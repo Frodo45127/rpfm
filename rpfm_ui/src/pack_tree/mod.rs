@@ -1204,14 +1204,14 @@ impl PackTree for QBox<QTreeView> {
                                 let item = QStandardItem::from_q_string(&name2).into_ptr();
                                 item.set_editable(false);
 
-                                if let ContainerPath::File(ref path) = &item_type {
+                                if item_type.is_file() {
                                     set_icon_for_file_type(&item, Some(packed_file_info.file_type()));
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
                                     let tooltip = new_packed_file_tooltip(packed_file_info);
                                     item.set_tool_tip(&QString::from_std_str(tooltip));
                                 }
 
-                                else if let ContainerPath::Folder(_) = &item_type {
+                                else {
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
                                     set_icon_for_file_type(&item, None);
                                 }
