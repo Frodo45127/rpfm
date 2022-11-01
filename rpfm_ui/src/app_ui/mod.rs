@@ -80,7 +80,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{BuildData, icons::IconType, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, /*packfile::PackFileExtraView,*/ packfile_settings::*, table::*, text::*, unit_variant::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, video::*, DataSource, decoder::*, dependencies_manager::*, esf::*, external::*, image::*, PackedFileView, packfile::PackFileExtraView, packfile_settings::*, SpecialView, table::*, text::*, unit_variant::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::RPFM_PATH;
@@ -2751,6 +2751,115 @@ impl AppUI {
         for diagnostic_type in UI_STATE.get_diagnostics().results() {
             DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
         }
+    }
+
+    /// This function is used to open the dependency manager.
+    pub unsafe fn open_special_view(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
+        view_type: SpecialView,
+    ) {
+
+        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
+        if !UI_STATE.get_packfile_contents_read_only() {
+
+            let (path, name) = match view_type {
+                SpecialView::Decoder(ref path) => {
+
+                    // If we don't have an schema, don't even try it.
+                    if SCHEMA.read().unwrap().is_none() {
+                        return show_dialog(&app_ui.main_window, "No schema found. You need one to open the decoder.", false);
+                    }
+
+                    let mut fake_path = path.to_owned();
+                    fake_path.push_str(DECODER_EXTENSION);
+                    (fake_path, qtr("decoder_title"))
+                },
+                SpecialView::Pack(ref path) => (path.to_owned(), QString::from_std_str(path)),
+                SpecialView::PackSettings => todo!(),
+                SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned(), qtr("table_dependency_manager_title")),
+                SpecialView::Notes => todo!(),
+            };
+
+            // Close all preview views except the file we're opening. The path used for the manager is empty.
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let open_path = packed_file_view.get_ref_path();
+                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
+                    app_ui.tab_bar_packed_file.remove_tab(index);
+                }
+            }
+
+            // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
+                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+
+                if index == -1 {
+                    let icon_type = IconType::PackFile(true);
+                    let icon = icon_type.get_icon_from_path();
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                }
+
+                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                return;
+            }
+
+            // If it's not already open/hidden, we create it and add it as a new tab.
+            let mut tab = PackedFileView::default();
+            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
+            tab.set_is_preview(false);
+            tab.set_path(&path);
+            let icon_type = IconType::PackFile(true);
+            let icon = icon_type.get_icon_from_path();
+
+            match view_type {
+                SpecialView::Decoder(_) => {
+                    match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, app_ui) {
+                        Ok(_) => {
+
+                            // Add the decoder to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.push(tab);
+                        },
+                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                    }
+                }
+                SpecialView::Pack(ref path) => {
+                    tab.set_path(&(RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + path));
+                    let pathbuf = PathBuf::from(path.to_owned());
+                    match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, pathbuf) {
+                        Ok(_) => {
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            UI_STATE.set_open_packedfiles().push(tab);
+                        }
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
+                    }
+                },
+                SpecialView::PackSettings => todo!(),
+                SpecialView::PackDependencies => {
+                    match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
+                        Ok(_) => {
+
+                            // Add the manager to the 'Currently open' list and make it visible.
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            UI_STATE.set_open_packedfiles().push(tab);
+                        },
+                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                    }
+                }
+                SpecialView::Notes => todo!(),
+            }
+        }
+
+        Self::update_views_names(app_ui);
     }
 
     /// This function is used to open the PackedFile Decoder.

@@ -25,8 +25,8 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use rpfm_lib::files::{RFileDecoded, FileType};
-use rpfm_lib::files::{anims_table::AnimsTable, db::DB, loc::Loc, matched_combat::MatchedCombat, text::Text};
+use rpfm_lib::integrations::log::*;
+use rpfm_lib::files::{anims_table::AnimsTable, ContainerPath, db::DB, loc::Loc, FileType, matched_combat::MatchedCombat, RFileDecoded, text::Text};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -49,7 +49,7 @@ use self::external::PackedFileExternalView;
 use self::image::PackedFileImageView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
-//use self::packfile::PackFileExtraView;
+use self::packfile::PackFileExtraView;
 use self::packfile_settings::PackFileSettingsView;
 //use self::tips::TipsView;
 use self::video::PackedFileVideoView;
@@ -68,7 +68,7 @@ pub mod dependencies_manager;
 pub mod esf;
 pub mod external;
 pub mod image;
-//pub mod packfile;
+pub mod packfile;
 pub mod packfile_settings;
 
 #[cfg(feature = "support_rigidmodel")]
@@ -142,7 +142,7 @@ pub enum View {
     DependenciesManager(Arc<DependenciesManagerView>),
     ESF(Arc<PackedFileESFView>),
     Image(PackedFileImageView),
-    //PackFile(Arc<PackFileExtraView>),
+    PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
 
     #[cfg(feature = "support_rigidmodel")]
@@ -155,6 +155,14 @@ pub enum View {
     UnitVariant(Arc<PackedFileUnitVariantView>),
     Video(Arc<PackedFileVideoView>),
     None,
+}
+
+pub enum SpecialView {
+    Decoder(String),
+    Pack(String),
+    PackSettings,
+    PackDependencies,
+    Notes,
 }
 
 //-------------------------------------------------------------------------------//
@@ -282,11 +290,7 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub unsafe fn save(
-        &self,
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-    ) -> Result<()> {
+    pub unsafe fn save(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
 
         // Only save non-read-only, local files.
         if let DataSource::PackFile = self.get_data_source() {
@@ -294,14 +298,76 @@ impl PackedFileView {
                 match self.get_view() {
                     ViewType::Internal(view) => {
 
-                        // This is a two-step process. First, we take the data from the view into a `RFileDecoded` format.
-                        // Then, we send that `RFileDecoded` to the backend to replace the older one. We need no response.
-                        let data = match self.packed_file_type {
-                            FileType::AnimsTable |
-                            FileType::DB |
-                            FileType::Loc |
-                            FileType::MatchedCombat => if let View::Table(view) = view {
+                        let data = match view {
+                            View::AnimFragment(view) => view.save_data()?,
+                            View::AnimFragmentDebug(_) => return Ok(()),
+                            View::AnimPack(_) => return Ok(()),
+                            View::Decoder(_) => return Ok(()),
+                            View::DependenciesManager(view) => {
+                                let mut entries = vec![];
+                                let model = view.get_ref_table().table_model_ptr();
+                                if model.is_null() {
+                                    warn!("
+                                        model null on active view!!! WTF?
+                                        this basically means RPFM it's going to crash once this if is over.
+                                        to avoid crashing, we'll skip this save step.
+                                        also, log whatever is in that active view.
+                                        because I have no idea how it managed to end up like that:
+                                        - is_preview? {}
+                                        - is_read_only? {}
+                                        - is_the_qbox_seriously_null? {}
+                                        - is_the_table_also_null? {}
+                                        ",
+                                        self.get_is_preview(),
+                                        self.get_is_read_only(),
+                                        view.get_ref_table().table_model_ptr().is_null(),
+                                        view.get_ref_table().table_view_primary_ptr().is_null()
+                                    );
 
+                                    show_dialog(app_ui.main_window(),
+                                        "Congratulations! You hit a rare bug I'm trying to fix!
+
+                                        First, if there's an update for RPFM, update, as this may have been fixed already in an update.
+
+                                        If not, welcome to hell. RPFM will try to work around the bug and not crash, but if you edited the dependencies with the dependencies manager,
+                                        your changes to it may (may or may not) have been lost. Better save, then reopen the PackFile (to avoid further issues),
+                                        and open the Dependencies manager again and check if your changes are still there.
+
+                                        Also, RPFM has logged a bit of data that may help pinpoint why this is actually happen in a rpfm.log file you can access going to
+                                        Game Selected/Open RPFM Config folder. If you don't mind, share it with the dev, and if you can, specify the steps you took before this appeared,
+                                        specially those related to the
+
+                                        ", false);
+                                } else {
+                                    for row in 0..model.row_count_0a() {
+                                        let item = model.item_1a(row as i32).text().to_std_string();
+                                        entries.push(item);
+                                    }
+
+                                    // Save the new list and return Ok.
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
+
+                                    // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
+                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
+                                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+                                }
+                                return Ok(())
+                            },
+                            View::ESF(view) => RFileDecoded::ESF(view.save_view()),
+                            View::Image(_) => return Ok(()),
+                            View::PackFile(_) => return Ok(()),
+                            View::PackSettings(view) => {
+                                let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(view.save_view()));
+                                return Ok(())
+                            },
+
+                            #[cfg(feature = "support_rigidmodel")]
+                            View::RigidModel => {
+                                let data = view.save_view()?;
+                                RFileDecoded::RigidModel(data)
+                            }
+
+                            View::Table(view) => {
                                 let new_table = get_table_from_view(&view.get_ref_table().table_model_ptr().static_upcast(), &view.get_ref_table().table_definition())?;
                                 match self.packed_file_type {
                                     FileType::AnimsTable => {
@@ -328,128 +394,25 @@ impl PackedFileView {
                                     }
                                     _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path()))
                                 }
-                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) },
-
-                            // Images are read-only.
-                            FileType::Image => return Ok(()),
-
-                            // AnimPacks save on edit.
-                            FileType::AnimPack => return Ok(()),
-
-                            FileType::AnimFragment => {
-                                match view {
-                                    View::AnimFragment(view) => view.save_data()?,
-                                    View::AnimFragmentDebug(_) => return Ok(()),
-                                    _ => return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())),
-                                }
                             },
-
-                            // These ones are a bit special. We just need to send back the current format of the video.
-                            FileType::Video => {
-                                if let View::Video(view) = view {
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.get_path(), view.get_current_format()));
-                                    return Ok(())
-                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
+                            View::Text(view) => {
+                                let mut text = Text::default();
+                                let widget = view.get_mut_editor();
+                                let string = get_text_safe(widget).to_std_string();
+                                text.set_contents(string);
+                                RFileDecoded::Text(text)
                             },
-
-                            #[cfg(feature = "support_rigidmodel")]
-                            FileType::RigidModel => {
-                                if let View::RigidModel(view) = view {
-                                    let data = view.save_view()?;
-                                    RFileDecoded::RigidModel(data)
-                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
+                            #[cfg(feature = "support_uic")]
+                            View::UIC(view) => {
+                                RFileDecoded::UIC(view.save_view())
+                            },
+                            View::UnitVariant(_) => return Ok(()),
+                            View::Video(view) => {
+                                let _ = CENTRAL_COMMAND.send_background(Command::SetVideoFormat(self.get_path(), view.get_current_format()));
+                                return Ok(());
                             }
 
-                            FileType::Text => {
-                                if let View::Text(view) = view {
-                                    let mut text = Text::default();
-                                    let widget = view.get_mut_editor();
-                                    let string = get_text_safe(widget).to_std_string();
-                                    text.set_contents(string);
-                                    RFileDecoded::Text(text)
-                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
-                            },
-                            /*
-                            // These ones are like very reduced tables.
-                            FileType::DependencyPackFilesList => if let View::DependenciesManager(view) = view {
-                                let mut entries = vec![];
-                                let model = view.get_ref_table().get_mut_ptr_table_model();
-                                if model.is_null() {
-                                    log::warn!("
-                                        model null on active view!!! WTF?
-                                        this basically means RPFM it's going to crash once this if is over.
-                                        to avoid crashing, we'll skip this save step.
-                                        also, log whatever is in that active view.
-                                        because I have no idea how it managed to end up like that:
-                                        - is_preview? {}
-                                        - is_read_only? {}
-                                        - is_the_qbox_seriously_null? {}
-                                        - is_the_table_also_null? {}
-                                        ",
-                                        self.get_is_preview(),
-                                        self.get_is_read_only(),
-                                        view.get_ref_table().get_ref_table_model().is_null(),
-                                        view.get_ref_table().get_mut_ptr_table_view_primary().is_null()
-                                    );
-
-                                    show_dialog(&app_ui.main_window,
-                                        "Congratulations! You hit a rare bug I'm trying to fix!
-
-                                        First, if there's an update for RPFM, update, as this may have been fixed already in an update.
-
-                                        If not, welcome to hell. RPFM will try to work around the bug and not crash, but if you edited the dependencies with the dependencies manager,
-                                        your changes to it may (may or may not) have been lost. Better save, then reopen the PackFile (to avoid further issues),
-                                        and open the Dependencies manager again and check if your changes are still there.
-
-                                        Also, RPFM has logged a bit of data that may help pinpoint why this is actually happen in a rpfm.log file you can access going to
-                                        Game Selected/Open RPFM Config folder. If you don't mind, share it with the dev, and if you can, specify the steps you took before this appeared,
-                                        specially those related to the
-
-                                        ", false);
-                                } else {
-                                    for row in 0..model.row_count_0a() {
-                                        let item = model.item_1a(row as i32).text().to_std_string();
-                                        entries.push(item);
-                                    }
-
-                                    // Save the new list and return Ok.
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetDependencyPackFilesList(entries));
-
-                                    // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::PackFile]), DataSource::PackFile);
-                                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
-                                }
-
-                                return Ok(())
-                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) },
-                            FileType::PackSettings => {
-                                if let View::PackSettings(view) = view {
-                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(view.save_view()));
-                                    return Ok(())
-                                } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
-                            },
-                            */
-
-                            // Disable saving UIC until support for saving them is wired up.
-                            #[cfg(feature = "support_uic")]
-                            FileType::UIC => {
-                                return Ok(());
-                                //if let View::UIC(view) = view {
-                                //    RFileDecoded::UIC(view.save_view())
-                                //} else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
-                            },
-
-                            // UnitVariant use custom saving.
-                            FileType::UnitVariant => return Ok(()),
-
-                            // ESF files are re-generated from the view.
-                            FileType::ESF => if let View::ESF(view) = view {
-                                RFileDecoded::ESF(view.save_view())
-                            } else { return Err(anyhow!("{}{}", RFILE_SAVED_ERROR, self.get_path())) }
-
-                            // Ignore these ones.
-                            FileType::Unknown | FileType::Pack => return Ok(()),
-                            _ => unimplemented!(),
+                            View::None => todo!(),
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.

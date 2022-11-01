@@ -540,76 +540,86 @@ impl PackTree for QBox<QTreeView> {
 
         // Get it another time, this time to use it to hold the current item.
         let mut item = model.item_1a(0);
-        match item_type {
-            ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
-                let mut index = 0;
-                let path = path.split('/').collect::<Vec<_>>();
-                let path_deep = path.len();
+        let path = item_type.path_raw();
+        let count = path.split('/').count() - 1;
 
-                // If path is empty, is the Pack or a mislabeled path.
-                if path_deep == 0 {
-                    return item;
-                }
+        // If path is empty, is the Pack or a mislabeled path.
+        if count == 0 {
+            return item;
+        }
 
-                loop {
 
-                    // If we reached the folder of the item...
-                    let children_count = item.row_count();
-                    if index == (path_deep - 1) {
-                        let path_2 = QString::from_std_str(&path[index]);
-                        for row in 0..children_count {
-                            let child = item.child_1a(row);
+        for (index, path_element) in path.split('/').enumerate() {
 
-                            // We ignore files or folders, depending on what we want to create.
-                            if let ContainerPath::File(_) = &item_type {
-                                if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
-                            }
+            // If we reached the folder of the item...
+            let children_count = item.row_count();
+            if index == count {
+                let path_element_q_string = QString::from_std_str(&path_element);
+                for row in 0..children_count {
+                    let child = item.child_1a(row);
 
-                            if let ContainerPath::Folder(_) = &item_type {
-                                if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-                            }
+                    // We ignore files or folders, depending on what we want to create.
+                    if item_type.is_file() && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
+                    if item_type.is_folder() && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
-                            let compare = QString::compare_2_q_string(child.text().as_ref(), path_2.as_ref());
-                            match compare.cmp(&0) {
-                                Ordering::Equal => {
-                                    item = child;
-                                    break;
-                                },
-                                Ordering::Less |
-                                Ordering::Greater => {
-                                    dbg!("Bug?");
-                                    break;
-                                },
-                            }
-                        }
-                        break;
-                    }
+                    let compare = QString::compare_2_q_string(child.text().as_ref(), path_element_q_string.as_ref());
+                    match compare.cmp(&0) {
+                        Ordering::Equal => {
+                            item = child;
+                            break;
+                        },
 
-                    // If we are not still in the folder of the file...
-                    else {
+                        // If it's less, we still can find the item.
+                        Ordering::Less => {}
 
-                        // Get the amount of children of the current item and goe through them until we find our folder.
-                        let mut not_found = true;
-                        for row in 0..children_count {
-                            let child = item.child_1a(row);
-                            if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-
-                            let text = child.text().to_std_string();
-                            if text == path[index] {
-                                item = child;
-                                index += 1;
-                                not_found = false;
-                                break;
-                            }
-                        }
-
-                        // If the child was not found, stop and return the parent.
-                        if not_found { break; }
+                        // If it's greater, we passed the item. In theory, this can't happen.
+                        Ordering::Greater => {
+                            dbg!(child.text().to_std_string());
+                            dbg!(path_element_q_string.to_std_string());
+                            dbg!("bug?");
+                            break;
+                        },
                     }
                 }
-                item
+                break;
+            }
+
+            // If we are not still in the folder of the file...
+            else {
+
+                // Get the amount of children of the current item and go through them until we find our folder.
+                let mut not_found = true;
+                let text_to_search = QString::from_std_str(path_element);
+                for row in 0..children_count {
+                    let child = item.child_1a(row);
+
+                    // Items are sorted with folders first. If we start finding files, we already skipped our item.
+                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { break; }
+
+                    let compare = QString::compare_2_q_string(child.text().as_ref(), text_to_search.as_ref());
+                    match compare.cmp(&0) {
+                        Ordering::Equal => {
+                            item = child;
+                            not_found = false;
+                            break;
+                        },
+
+                        // If it's less, we still can find the item.
+                        Ordering::Less => {}
+
+                        // If it's greater, we passed all the possible items and we can no longer find the folder.
+                        Ordering::Greater => {
+                            break;
+                        },
+                    }
+                }
+
+                // If the child was not found, stop and return the parent.
+                if not_found { break; }
             }
         }
+
+        item
     }
 
     unsafe fn get_root_source_type_from_selection(&self, has_filter: bool) -> Option<DataSource> {
@@ -1035,7 +1045,7 @@ impl PackTree for QBox<QTreeView> {
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
                     let mut parent = big_parent;
-                    for (index_in_path, name) in packed_file.path().split("/").enumerate() {
+                    for (index_in_path, name) in packed_file.path().split('/').enumerate() {
                         let name = QString::from_std_str(name);
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
@@ -1115,77 +1125,72 @@ impl PackTree for QBox<QTreeView> {
             // add his files individually, not the folder!!!
             TreeViewOperation::Add(mut item_types) => {
 
-                // First, get the `RFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
-                let item_paths = item_types.par_iter().map(|path| match path {
-                    ContainerPath::File(path) => path.to_owned(),
-                    ContainerPath::Folder(path) => path.to_owned(),
-                }).collect::<Vec<_>>();
-
+                // Make sure all items are pre-sorted. This can speed up adding large amounts of items.
                 sort_folders_before_files_alphabetically_container_paths(&mut item_types);
 
+                // Get the `RFileInfo` of each of the new paths, so we can later build their tooltip.
+                let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
                 let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesInfo(item_paths));
                 let response = CentralCommand::recv(&receiver);
-                let packed_files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                dbg!("adding to view");
+                let files_info = if let Response::VecRFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
-                let mut x = 0;
-                for (item_type, packed_file_info) in item_types.iter().zip(packed_files_info.iter()) {
-                    let is_file = matches!(item_type, ContainerPath::File(_));
-                    let path = match item_type {
-                        ContainerPath::File(ref path) => path.to_owned(),
-                        ContainerPath::Folder(ref path) => path.to_owned(),
-                    };
-
-                    x += 1;
-
-                    if x % 500 == 0 {
-                        dbg!(x);
-                    }
-
-                    // We only use this to add files and empty folders. Ignore the rest.
-                    let mut parent = model.item_1a(0);
+                // Mark the base Pack as modified and having received additions.
+                if !item_types.is_empty() {
+                    let parent = model.item_1a(0);
                     match parent.data_1a(ITEM_STATUS).to_int_0a() {
                          ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
                          ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
                          ITEM_STATUS_ADDED | 3 => {},
                          _ => unimplemented!(),
                     }
+
+                    // We cannot revert file additions.
                     if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                         parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                     }
+                }
 
-                    let path_split = path.split('/').collect::<Vec<_>>();
-                    for (index, name) in path_split.iter().enumerate() {
-                        let name2 = QString::from_std_str(name);
+                // Add each item type, together with its own info.
+                for (item_type, file_info) in item_types.iter().zip(files_info.iter()) {
+                    let is_file = matches!(item_type, ContainerPath::File(_));
+                    let path = item_type.path_raw();
+                    let count = path.split('/').count() - 1;
+                    let mut parent = model.item_1a(0);
 
-                        // If it's the last one of the path, it's a file or an empty folder. First, we check if it
-                        // already exists. If it does, then we update it and set it as new. If it doesn't, we create it.
+                    for (index, name) in path.split('/').enumerate() {
+                        let name_q_string = QString::from_std_str(name);
+
+                        // If it's the last element of the path, it's a file or an empty folder. First, we check if it
+                        // already exists. If it does, then we update it and set it as added. If it doesn't, we create it.
                         let mut duplicate_found = false;
-                        if index >= (path_split.len() - 1) {
+                        if index >= count {
 
-                            // If the current parent has at least one child, check if the folder already exists.
+                            // If the current parent has at least one child, check if it already contains what we're trying to add.
                             if parent.has_children() {
 
-                                // It's a folder, so we check his children.
+                                // Optimization: We do it in reverse because, due to already having the paths to add pre-sorted,
+                                // it's way faster to start searching for them from the end.
                                 for index in (0..parent.row_count()).rev() {
                                     let child = parent.child_2a(index, 0);
 
                                     // We ignore files or folders, depending on what we want to create.
                                     if is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
-
                                     if !is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
                                     // Get his text. If it's the same file/folder we are trying to add, this is the one.
-                                    let compare = QString::compare_2_q_string(child.text().as_ref(), name2.as_ref());
-                                    if compare == 0 {
-                                        parent = parent.child_1a(index);
-                                        duplicate_found = true;
-                                        break;
-                                    }
+                                    let compare = child.text().compare_q_string(name_q_string.as_ref());
+                                    match compare.cmp(&0) {
+                                        Ordering::Equal => {
+                                            parent = parent.child_1a(index);
+                                            duplicate_found = true;
+                                            break;
+                                        },
 
-                                    // If our file should be after this one in sorting, take it as that the file doesn't exists.
-                                    else if compare < 0 {
-                                        break;
+                                        // If our file/folder should be after this one in sorting, take it as that the file/folder doesn't exists.
+                                        Ordering::Less => {
+                                            break;
+                                        },
+                                        Ordering::Greater => {},
                                     }
                                 }
                             }
@@ -1196,24 +1201,22 @@ impl PackTree for QBox<QTreeView> {
                                 parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                             }
 
-                            // Otherwise, it's a new PackedFile, so do the usual stuff.
+                            // Otherwise, it's a new item, so we create it.
                             else {
-
-                                // Create the Item, configure it depending on if it's a file or a folder,
-                                // and add the file to the TreeView.
-                                let item = QStandardItem::from_q_string(&name2).into_ptr();
+                                let item = QStandardItem::from_q_string(&name_q_string).into_ptr();
                                 item.set_editable(false);
 
                                 if item_type.is_file() {
-                                    set_icon_for_file_type(&item, Some(packed_file_info.file_type()));
+                                    set_icon_for_file_type(&item, Some(file_info.file_type()));
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
-                                    let tooltip = new_packed_file_tooltip(packed_file_info);
+
+                                    let tooltip = new_packed_file_tooltip(file_info);
                                     item.set_tool_tip(&QString::from_std_str(tooltip));
                                 }
 
                                 else {
-                                    item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
                                     set_icon_for_file_type(&item, None);
+                                    item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
                                 }
 
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1221,13 +1224,7 @@ impl PackTree for QBox<QTreeView> {
 
                                 parent.append_row_q_standard_item(item);
 
-
-                                // Sort the TreeView.
-                                sort_item_in_tree_view(
-                                    &model,
-                                    item,
-                                    item_type
-                                );
+                                sort_item_in_tree_view(&model, item, item_type);
                             }
                         }
 
@@ -1237,64 +1234,62 @@ impl PackTree for QBox<QTreeView> {
                             // If the current parent has at least one child, check if the folder already exists.
                             if parent.has_children() {
 
-                                // It's a folder, so we check his children. We are only interested in
-                                // folders, so ignore the files.
-                                for index in (0..parent.row_count()).rev() {
+                                // It's a folder, so we check his children starting by the beginning.
+                                for index in 0..parent.row_count() {
                                     let child = parent.child_2a(index, 0);
-                                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-
-                                    // Get his text. If it's the same folder we are trying to add, this is our parent now.
-                                    let compare = QString::compare_2_q_string(child.text().as_ref(), name2.as_ref());
-                                    if compare == 0 {
-                                        parent = parent.child_1a(index);
-                                        match parent.data_1a(ITEM_STATUS).to_int_0a() {
-                                             ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
-                                             ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
-                                             ITEM_STATUS_ADDED | 3 => {},
-                                             _ => unimplemented!(),
-                                        }
-
-                                        if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                                            parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                        }
-
-                                        duplicate_found = true;
+                                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE {
                                         break;
-                                    } else if compare < 0 {
-                                        break;
+                                    }
+
+                                    let compare = child.text().compare_q_string(&name_q_string);
+                                    match compare.cmp(&0) {
+                                        Ordering::Equal => {
+                                            parent = parent.child_1a(index);
+                                            match parent.data_1a(ITEM_STATUS).to_int_0a() {
+                                                 ITEM_STATUS_PRISTINE => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS),
+                                                 ITEM_STATUS_MODIFIED => parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS),
+                                                 ITEM_STATUS_ADDED | 3 => {},
+                                                 _ => unimplemented!(),
+                                            }
+
+                                            if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                                                parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                            }
+
+                                            duplicate_found = true;
+                                            break;
+                                        },
+
+                                        // If our file/folder should be after this one in sorting, take it as that the file/folder doesn't exists.
+                                        Ordering::Greater => {
+                                            break;
+                                        },
+                                        Ordering::Less => {},
                                     }
                                 }
                             }
 
-
                             // If the folder doesn't already exists, just add it.
                             if !duplicate_found {
-                                let folder = QStandardItem::from_q_string(&name2).into_ptr();
+                                let folder = QStandardItem::from_q_string(&name_q_string).into_ptr();
                                 folder.set_editable(false);
                                 folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
                                 folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
                                 folder.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-
-                                IconType::set_icon_to_item_safe(&IconType::Folder, &folder);
+                                set_icon_for_file_type(&folder, None);
 
                                 parent.append_row_q_standard_item(folder);
 
-                                // This is our parent now.
                                 let index = parent.row_count() - 1;
                                 parent = parent.child_1a(index);
 
-                                // Sort the TreeView.
-                                sort_item_in_tree_view(
-                                    &model,
-                                    folder,
-                                    &ContainerPath::Folder(String::new())
-                                );
+                                sort_item_in_tree_view(&model, parent, &ContainerPath::Folder(String::new()));
                             }
                         }
                     }
 
                     if setting_bool("expand_treeview_when_adding_items") {
-                        self.expand_treeview_to_item(&path, source);
+                        self.expand_treeview_to_item(path, source);
                     }
                 }
             },
@@ -1704,14 +1699,12 @@ unsafe fn sort_item_in_tree_view(
     item_type: &ContainerPath,
 ) {
 
-    // Get the ModelIndex of our Item and his row, as that's what we are going to be changing.
+    // Get the index of our item, and our item's parent index.
     let mut item_index = item.index();
-
-    // Get the parent of the item.
     let parent = item.parent();
     let parent_index = parent.index();
 
-    // Get the previous and next item ModelIndex on the list.
+    // Get the previous and next indexes on the list.
     let item_index_prev = model.index_3a(item_index.row() - 1, item_index.column(), &parent_index);
     let item_index_next = model.index_3a(item_index.row() + 1, item_index.column(), &parent_index);
 
@@ -1719,24 +1712,16 @@ unsafe fn sort_item_in_tree_view(
     let item_type_prev: Option<ContainerPath> = if item_index_prev.is_valid() {
         let item_sibling = model.item_from_index(&item_index_prev);
         Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
-    }
+    } else { None };
 
-    // Otherwise, return the type as `None`.
-    else { None };
-
-    // Get the type of the previous and next items on the list.
+    // Get the type of the next item on the list.
     let item_type_next: Option<ContainerPath> = if item_index_next.is_valid() {
-
-        // Get the next item.
         let item_sibling = model.item_from_index(&item_index_next);
         Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
-    }
-
-    // Otherwise, return the type as `None`.
-    else { None };
+    } else { None };
 
     // We get the boolean to determinate the direction to move (true -> up, false -> down).
-    // If the previous and the next Items are `None`, we don't need to move.
+    // If the previous and the next items are `None`, we don't need to move as there are no more items.
     let direction = if item_type_prev.is_none() && item_type_next.is_none() { return }
 
     // If the top one is `None`, but the bottom one isn't, we go down.
@@ -1745,7 +1730,7 @@ unsafe fn sort_item_in_tree_view(
     // If the bottom one is `None`, but the top one isn't, we go up.
     else if item_type_prev.is_some() && item_type_next.is_none() { true }
 
-    // If the top one is a folder, and the bottom one is a file, get the type of our iter.
+    // If the top one is a folder, and the bottom one is a file, act depending on the type of our item.
     else if item_type_prev.unwrap().is_folder() && item_type_next.unwrap().is_file() {
         *item_type == ContainerPath::Folder(String::new())
     }
@@ -1754,32 +1739,19 @@ unsafe fn sort_item_in_tree_view(
     else {
 
         // Get the previous, current and next texts.
-        let previous_name = parent.child_1a(item_index.row() - 1).text().to_std_string();
-        let current_name = parent.child_1a(item_index.row()).text().to_std_string();
-        let next_name = parent.child_1a(item_index.row() + 1).text().to_std_string();
+        let previous_name = parent.child_1a(item_index.row() - 1).text();
+        let current_name = parent.child_1a(item_index.row()).text();
+        let next_name = parent.child_1a(item_index.row() + 1).text();
 
-        // If, after sorting, the previous hasn't changed position, it shouldn't go up.
-        let name_list = vec![previous_name.to_owned(), current_name.to_owned()];
-        let mut name_list_sorted = vec![previous_name, current_name.to_owned()];
-        name_list_sorted.sort();
-        if name_list == name_list_sorted {
+        let compare_prev = previous_name.compare_q_string(&current_name);
+        let compare_next = next_name.compare_q_string(&current_name);
 
-            // If, after sorting, the next hasn't changed position, it shouldn't go down.
-            let name_list = vec![current_name.to_owned(), next_name.to_owned()];
-            let mut name_list_sorted = vec![current_name, next_name];
-            name_list_sorted.sort();
-            if name_list == name_list_sorted {
-
-                // In this case, we don't move.
-                return
-            }
-
-            // Go down.
-            else { false }
+        // If we don't need to move, just return.
+        if compare_prev < 0 && compare_next > 0 {
+            return;
+        } else {
+            compare_prev > 0
         }
-
-        // Go up.
-        else { true }
     };
 
     // We "sort" it among his peers.
@@ -1791,8 +1763,6 @@ unsafe fn sort_item_in_tree_view(
 
         // Depending on the direction we have to move, get the second item's index.
         let item_sibling_index = if direction { item_index_prev } else { item_index_next };
-
-        // If the sibling is valid...
         if item_sibling_index.is_valid() {
 
             // Get the Item sibling to our current Item.
@@ -1800,50 +1770,51 @@ unsafe fn sort_item_in_tree_view(
             let item_sibling_type = <QBox<QTreeView>>::get_type_from_item(item_sibling, model);
 
             // If both are of the same type...
-            if *item_type == item_sibling_type {
+            if item_type.is_file() == item_sibling_type.is_file() || item_type.is_folder() == item_sibling_type.is_folder() {
 
                 // Get both texts.
-                let item_name = item.text().to_std_string();
-                let sibling_name = item_sibling.text().to_std_string();
+                let item_name = item.text();
+                let sibling_name = item_sibling.text();
+                let compare = item_name.compare_q_string(&sibling_name);
 
                 // Depending on our direction, we sort one way or another
                 if direction {
+                    match compare.cmp(&0) {
 
-                    // For the previous item...
-                    let name_list = vec![sibling_name.to_owned(), item_name.to_owned()];
-                    let mut name_list_sorted = vec![sibling_name.to_owned(), item_name.to_owned()];
-                    name_list_sorted.sort();
+                        // This means we need to move our item up.
+                        Ordering::Less => {
+                            let item_x = parent.take_row(item_index.row());
+                            parent.insert_row_int_q_list_of_q_standard_item(item_sibling_index.row(), &item_x);
+                            item = parent.child_1a(item_sibling_index.row());
+                            item_index = item.index();
+                        },
 
-                    // If the order hasn't changed, we're done.
-                    if name_list == name_list_sorted { break; }
+                        // This cannot happen unless someone else bug out a Pack.
+                        Ordering::Equal => { dbg!("bug"); break; },
 
-                    // If they have changed positions...
-                    else {
-
-                        // Move the item one position above.
-                        let item_x = parent.take_row(item_index.row());
-                        parent.insert_row_int_q_list_of_q_standard_item(item_sibling_index.row(), &item_x);
-                        item = parent.child_1a(item_sibling_index.row());
-                        item_index = item.index();
+                        // This means we reached our intended position.
+                        Ordering::Greater => {
+                            break;
+                        },
                     }
                 } else {
+                    match compare.cmp(&0) {
 
-                    // For the next item...
-                    let name_list = vec![item_name.to_owned(), sibling_name.to_owned()];
-                    let mut name_list_sorted = vec![item_name.to_owned(), sibling_name.to_owned()];
-                    name_list_sorted.sort();
+                        // This means we reached our intended position.
+                        Ordering::Less => {
+                            break;
+                        },
 
-                    // If the order hasn't changed, we're done.
-                    if name_list == name_list_sorted { break; }
+                        // This cannot happen unless someone else bug out a Pack.
+                        Ordering::Equal => { dbg!("bug"); break; },
 
-                    // If they have changed positions...
-                    else {
-
-                        // Move the item one position below.
-                        let item_x = parent.take_row(item_index.row());
-                        parent.insert_row_int_q_list_of_q_standard_item(item_sibling_index.row(), &item_x);
-                        item = parent.child_1a(item_sibling_index.row());
-                        item_index = item.index();
+                        // This means we need to move our item up.
+                        Ordering::Greater => {
+                            let item_x = parent.take_row(item_index.row());
+                            parent.insert_row_int_q_list_of_q_standard_item(item_sibling_index.row(), &item_x);
+                            item = parent.child_1a(item_sibling_index.row());
+                            item_index = item.index();
+                        },
                     }
                 }
             }
@@ -1912,7 +1883,7 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
 
     // Short-circuit cases: one or both files on root.
     if a_last_split == 0 && b_last_split == 0 {
-        return a_path.cmp(&b_path);
+        return a_path.cmp(b_path);
     } else if a_last_split == 0 {
         return Ordering::Greater;
     } else if b_last_split == 0 {
@@ -1921,19 +1892,17 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
 
     // Short-circuit: both are files under the same amount of subfolders.
     if a_len == b_len {
-        return a_path.cmp(&b_path);
+        a_path.cmp(b_path)
     } else if a_len > b_len {
         if a_path.starts_with(&b_path[..b_last_split]) {
-            return Ordering::Less;
+            Ordering::Less
         } else {
-            return a_path.cmp(b_path);
+            a_path.cmp(b_path)
         }
+    } else if b_path.starts_with(&a_path[..a_last_split]) {
+        Ordering::Greater
     } else {
-        if b_path.starts_with(&a_path[..a_last_split]) {
-            return Ordering::Greater;
-        } else {
-            return a_path.cmp(b_path);
-        }
+        a_path.cmp(b_path)
     }
 }
 

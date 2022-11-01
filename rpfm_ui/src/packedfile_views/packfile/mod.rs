@@ -34,8 +34,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use rpfm_error::Result;
-use rpfm_lib::packedfile::PackedFileType;
+use anyhow::Result;
+
+use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -88,7 +89,7 @@ impl PackFileExtraView {
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
-        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFileExtra(pack_file_path.clone()));
+        let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackExtra(pack_file_path.clone()));
         let response = CentralCommand::recv(&receiver);
         match response {
             Response::ContainerInfo(_) => {},
@@ -154,7 +155,7 @@ impl PackFileExtraView {
 
         connections::set_connections(&view, &slots);
         shortcuts::set_shortcuts(&view);
-        pack_file_view.packed_file_type = PackedFileType::PackFile;
+        //pack_file_view.packed_file_type = PackedFileType::PackFile;
         pack_file_view.view = ViewType::Internal(View::PackFile(view));
 
         // Return success.

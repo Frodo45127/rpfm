@@ -193,7 +193,7 @@ pub fn background_loop() {
                 match pack_files_decoded_extra.get(&path) {
                     Some(pack_file) => CentralCommand::send_back(&sender, Response::ContainerInfoVecRFileInfo((
                         From::from(pack_file),
-                        pack_file_decoded.files().par_iter().map(|(_, file)| From::from(file)).collect(),
+                        pack_file.files().par_iter().map(|(_, file)| From::from(file)).collect(),
                     ))),
                     None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Cannot find extra PackFile with path: {}", path.to_string_lossy()))),
                 }
@@ -219,7 +219,7 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 match *SCHEMA.read().unwrap() {
                     Some(ref schema) => {
-                        global_search.search(&game_selected, &schema, &mut pack_file_decoded, &mut dependencies, &[]);
+                        global_search.search(&game_selected, schema, &mut pack_file_decoded, &mut dependencies, &[]);
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
                         CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, packed_files_info));
                     }

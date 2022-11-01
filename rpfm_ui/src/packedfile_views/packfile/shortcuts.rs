@@ -26,11 +26,11 @@ use super::PackFileExtraView;
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
 pub unsafe fn set_shortcuts(ui: &Arc<PackFileExtraView>) {
-    let shortcuts = UI_STATE.get_shortcuts_no_lock();
+    //let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
-    ui.get_mut_ptr_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
-    ui.get_mut_ptr_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
+    //ui.get_mut_ptr_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
+    //ui.get_mut_ptr_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
 
-    ui.get_mut_ptr_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.get_mut_ptr_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    //ui.get_mut_ptr_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    //ui.get_mut_ptr_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
 }

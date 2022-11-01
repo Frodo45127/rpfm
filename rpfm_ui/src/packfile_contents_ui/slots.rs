@@ -33,7 +33,6 @@ use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::integrations::log::*;
 use rpfm_lib::utils::*;
 
-
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
@@ -43,7 +42,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tre};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::DataSource;
+use crate::packedfile_views::{DataSource, SpecialView};
 use crate::references_ui::ReferencesUI;
 use crate::SCHEMA;
 use crate::settings_ui::backend::*;
@@ -665,7 +664,7 @@ impl PackFileContentsSlots {
 
                     app_ui.main_window().set_enabled(false);
                     let fake_path = RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + &path_str;
-                    AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(fake_path), false, false, DataSource::ExternalFile);
+                    AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Pack(path_str));
 
                     app_ui.main_window().set_enabled(true);
                 }
