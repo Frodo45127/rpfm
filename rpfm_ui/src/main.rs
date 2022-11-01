@@ -274,10 +274,12 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|app| {
-        let _ui = unsafe { UI::new(app) };
+        let ui = unsafe { UI::new(app) };
 
-        // And launch it.
-        let exit_code = unsafe { QApplication::exec() };
+        // If we closed the window BEFORE executing, exit the app.
+        let exit_code = if unsafe { ui.app_ui.main_window().is_visible() } {
+            unsafe { QApplication::exec() }
+        } else { 0 };
 
         // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
         CENTRAL_COMMAND.send_background(Command::Exit);
