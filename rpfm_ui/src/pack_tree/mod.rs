@@ -1292,163 +1292,86 @@ impl PackTree for QBox<QTreeView> {
                 }
             },
 
-            // If we want to delete something from the TreeView...
-            // NOTE: You're responsible of removing redundant types from here BEFORE passing them here for deletion.
-            TreeViewOperation::Delete(path_types) => {
-                for path_type in path_types {
-                    match path_type {
+            // If we want to delete something from the TreeView.
+            TreeViewOperation::Delete(paths) => {
+                let paths = ContainerPath::dedup(&paths);
+                let pack = model.item_1a(0);
 
-                        // Different types require different methods...
-                        ContainerPath::File(path) => {
+                for path_type in paths {
+                    let mut item = pack;
+                    let path = path_type.path_raw();
+                    let count = path.split('/').count() - 1;
+                    let is_file = matches!(path_type, ContainerPath::File(_));
 
-                            // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
-                            let packfile = model.item_1a(0);
-                            let mut item = model.item_1a(0);
-                            let mut index = 0;
-                            let path_split = path.split('/').collect::<Vec<_>>();
-                            let path_deep = path_split.len();
+                    // If path is empty, it's the Pack.
+                    if path.is_empty() {
+                        let mut build_data = BuildData::new();
+                        build_data.editable = true;
+                        self.update_treeview(true, TreeViewOperation::Build(build_data), source);
+                    }
 
-                            // First looping downwards.
-                            loop {
+                    else {
+                        for (index, name) in path.split('/').enumerate() {
+                            let name_q_string = QString::from_std_str(name);
 
-                                // If we reached the folder of the file, search through all his children for the file we want.
-                                if index == (path_deep - 1) {
-                                    for row in 0..item.row_count() {
-                                        let child = item.child_1a(row);
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
+                            // If we reached the final element of the path, get it.
+                            if index == count {
+                                for row in 0..item.row_count() {
+                                    let child = item.child_1a(row);
 
-                                        // If we found it, we're done.
-                                        if child.text().to_std_string() == path_split[index] {
-                                            item = child;
-                                            break;
-                                        }
-                                    }
+                                    if is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FOLDER { continue }
+                                    if !is_file && child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
-                                    // End the first loop.
-                                    break;
-                                }
-
-                                // If we are not still in the folder of the file, search the next folder of the path, and get it as new item.
-                                else {
-                                    for row in 0..item.row_count() {
-                                        let child = item.child_1a(row);
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-
-                                        // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
-                                        if child.text().to_std_string() == path_split[index] {
-                                            item = child;
-                                            index += 1;
-                                            break;
-                                        }
+                                    // If we found it, we're done.
+                                    if child.text().compare_q_string(&name_q_string) == 0 {
+                                        item = child;
+                                        break;
                                     }
                                 }
                             }
 
-                            // Prepare the Parent...
-                            let mut parent;
+                            // If we are not still in the final folder, we only look for a folder.
+                            else {
+                                for row in 0..item.row_count() {
+                                    let child = item.child_1a(row);
+                                    if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
 
-                            // Begin the endless cycle of war and dead.
-                            loop {
-
-                                // Get the parent of the item, and kill the item in a cruel way.
-                                parent = item.parent();
-
-                                // Block the selection from retriggering open PackedFiles.
-                                let blocker = QSignalBlocker::from_q_object(&self.selection_model());
-                                parent.remove_row(item.row());
-                                blocker.unblock();
-
-                                parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
-                                if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                }
-
-                                // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
-                                if parent.has_children() || !packfile.has_children() { break; }
-                                else { item = parent }
-                            }
-
-                            // Third time's a charm.
-                            if let ContainerPath::Folder(ref path) = Self::get_type_from_item(parent, &model) {
-                                for _ in 0..path.len() {
-                                    parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
-                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                    parent = parent.parent();
+                                    // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
+                                    if child.text().compare_q_string(&name_q_string) == 0 {
+                                        item = child;
+                                        break;
+                                    }
                                 }
                             }
                         }
 
-                        ContainerPath::Folder(path) => {
+                        // Begin the endless cycle of war and dead.
+                        let mut index = 0;
+                        for i in 0..count {
 
-                            // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
-                            let packfile = model.item_1a(0);
-                            let mut item = model.item_1a(0);
-                            let mut index = 0;
-                            let path_split = path.split('/').collect::<Vec<_>>();
-                            let path_deep = path_split.len();
+                            // Get the parent of the item, and kill the item in a cruel way.
+                            index = i;
+                            let parent = item.parent();
+                            parent.remove_row(item.row());
 
-                            // If path is empty, it's the Pack.
-                            if path_split.is_empty() {
-                                let mut build_data = BuildData::new();
-                                build_data.editable = true;
-                                self.update_treeview(true, TreeViewOperation::Build(build_data), source);
-                                return;
+                            parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
+                            if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                                parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                             }
 
-                            // First looping downwards.
-                            loop {
-
-                                // If we reached the folder we're looking for, stop.
-                                if index == path_deep { break; }
-
-                                // If we are not still in the folder...
-                                else {
-
-                                    // For each children we have, check if it's a folder.
-                                    for row in 0..item.row_count() {
-                                        let child = item.child_1a(row);
-                                        if child.data_1a(ITEM_TYPE).to_int_0a() == ITEM_TYPE_FILE { continue }
-
-                                        // If we found a folder that matches the one we want, that's out new good boy.
-                                        if child.text().to_std_string() == path_split[index] {
-                                            item = child;
-                                            index += 1;
-                                            break;
-                                        }
-                                    }
-                                }
+                            // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
+                            item = parent;
+                            if parent.has_children() || !pack.has_children() {
+                                break;
                             }
+                        }
 
-                            // Prepare the Parent...
-                            let mut parent;
-
-                            // Begin the endless cycle of war and dead.
-                            loop {
-
-                                // Get the parent of the item and kill the item in a cruel way.
-                                parent = item.parent();
-
-                                let blocker = QSignalBlocker::from_q_object(&self.selection_model());
-                                parent.remove_row(item.row());
-                                blocker.unblock();
-
-                                parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
-                                if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                }
-
-                                // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
-                                if parent.has_children() | !packfile.has_children() { break; }
-                                else { item = parent }
-                            }
-
-                            // Third time's a charm.
-                            if let ContainerPath::Folder(ref path) = Self::get_type_from_item(parent, &model) {
-                                for _ in 0..path.len() {
-                                    parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
-                                    parent.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                    parent = parent.parent();
-                                }
+                        // Mark all the parents left, up to the Pack.
+                        for _ in 0..index {
+                            if !item.is_null() {
+                                item.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
+                                item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
+                                item = item.parent();
                             }
                         }
                     }

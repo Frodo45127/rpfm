@@ -700,9 +700,8 @@ pub trait Container {
 
                 // If the path is empty, we mean the root of the container, including everything on it.
                 if path.is_empty() {
-                    let paths = self.files().keys().map(|x| ContainerPath::File(x.to_string())).collect();
                     self.files_mut().clear();
-                    paths
+                    vec![ContainerPath::Folder(String::new()); 1]
                 }
 
                 // Otherwise, it's a normal folder.
@@ -2011,27 +2010,22 @@ impl ContainerPath {
 
                 // If it's a file, we have to check if there is a folder containing it.
                 ContainerPath::File(ref path_to_add) => {
-                    paths.par_iter().filter(|x| {
-                        !matches!(x, ContainerPath::File(_))
-                    }).any(|item_type| {
+                    !paths.par_iter()
+                        .any(|item_type| {
 
                         // If the other one is a folder that contains it, dont add it.
-                        if let ContainerPath::Folder(ref path) = item_type {
-                            path_to_add.starts_with(path)
-                        } else { false }
+                        item_type.is_folder() && path_to_add.starts_with(item_type.path_raw())
                     })
                 }
 
                 // If it's a folder, we have to check if there is already another folder containing it.
                 ContainerPath::Folder(ref path_to_add) => {
-                    paths.par_iter().filter(|x| {
-                        !matches!(x, ContainerPath::File(_))
-                    }).any(|item_type| {
+                    !paths.par_iter()
+                        .any(|item_type| {
 
                         // If the other one is a folder that contains it, dont add it.
-                        if let ContainerPath::Folder(ref path) = item_type {
-                            path_to_add.starts_with(path) && path_to_add.len() > path.len()
-                        } else { false }
+                        let path = item_type.path_raw();
+                        item_type.is_folder() && path_to_add.starts_with(path) && path_to_add.len() > path.len()
                     })
                 }
             }
