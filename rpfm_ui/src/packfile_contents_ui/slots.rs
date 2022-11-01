@@ -486,7 +486,7 @@ impl PackFileContentsSlots {
                                 };
 
                                 app_ui.main_window().set_enabled(false);
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, true);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                                 app_ui.main_window().set_enabled(true);
                             }
                         }
@@ -517,7 +517,7 @@ impl PackFileContentsSlots {
                             }
 
                             app_ui.main_window().set_enabled(false);
-                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, false);
+                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                             app_ui.main_window().set_enabled(true);
                         }
                     }
@@ -581,14 +581,14 @@ impl PackFileContentsSlots {
                                             let filtered_path = path.strip_prefix(&assets_folder).unwrap();
                                             paths_packedfile.push(filtered_path.to_string_lossy().to_string());
                                         }
-                                        PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, true);
+                                        PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                                     }
 
                                     // Otherwise, they are added like normal files.
                                     else {
                                         if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
                                             app_ui.main_window().set_enabled(false);
-                                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, true);
+                                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None);
                                             app_ui.main_window().set_enabled(true);
                                         }
                                     }
@@ -619,7 +619,7 @@ impl PackFileContentsSlots {
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
 
                                 app_ui.main_window().set_enabled(false);
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None, false);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None);
                                 app_ui.main_window().set_enabled(true);
                             }
                         }
@@ -647,7 +647,6 @@ impl PackFileContentsSlots {
                 file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
                 if file_dialog.exec() == 1 {
                     let path_str = file_dialog.selected_files().at(0).to_std_string();
-                    let path = PathBuf::from(path_str.to_owned());
 
                     // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFileDataForTreeView);
@@ -663,7 +662,6 @@ impl PackFileContentsSlots {
                     }
 
                     app_ui.main_window().set_enabled(false);
-                    let fake_path = RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + &path_str;
                     AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Pack(path_str));
 
                     app_ui.main_window().set_enabled(true);

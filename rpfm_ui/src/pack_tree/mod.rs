@@ -778,24 +778,22 @@ impl PackTree for QBox<QTreeView> {
             // Then, for each file, remove his prefix, leaving only the path from the folder onwards.
             for file_path in &file_list {
                 let filtered_path = file_path.strip_prefix(&useless_prefix).unwrap();
-
-                // Turn it from &Path to a Vec<String>, reverse it, and push it to the list.
-                let filtered_path = filtered_path.to_string_lossy().to_string();
+                let filtered_path = filtered_path.to_string_lossy().replace('\\', "/");
                 paths.push(filtered_path);
             }
         }
 
-        // For each path we have...
+        // Then build the container paths for each file.
         for path in &mut paths {
-
-            // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view().get_path_from_selection();
             let mut base_path = selected_paths[0].to_owned();
 
-            if base_path.ends_with('/') {
+            if !base_path.ends_with('/') {
                 base_path.push('/');
             }
+
             base_path.push_str(path);
+            *path = base_path;
         }
 
         // Return the paths (sorted from parent to children)

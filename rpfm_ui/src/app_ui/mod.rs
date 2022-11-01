@@ -3686,7 +3686,7 @@ dbg!(t.elapsed().unwrap());
                         }
                     });
 
-                    PackFileContentsUI::add_packedfiles(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore, true);
+                    PackFileContentsUI::add_packedfiles(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
                 }
 
                 // If there is no MyMod path configured, report it.

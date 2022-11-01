@@ -317,7 +317,6 @@ impl PackFileContentsUI {
         paths: &[PathBuf],
         paths_packedfile: &[String],
         paths_to_ignore: Option<Vec<PathBuf>>,
-        import_tables_from_tsv: bool
     ) {
         let window_was_disabled = !app_ui.main_window().is_enabled();
         if !window_was_disabled {
