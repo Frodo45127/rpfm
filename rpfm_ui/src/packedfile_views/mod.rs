@@ -162,7 +162,7 @@ pub enum SpecialView {
     Pack(String),
     PackSettings,
     PackDependencies,
-    Notes,
+    //Notes,
 }
 
 //-------------------------------------------------------------------------------//

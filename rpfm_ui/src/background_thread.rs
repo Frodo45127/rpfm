@@ -41,7 +41,7 @@ use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::GAME_SELECTED;
-use crate::locale::{tr, tre};
+use crate::locale::tr;
 use crate::packedfile_views::DataSource;
 use crate::RPFM_PATH;
 use crate::SCHEMA;

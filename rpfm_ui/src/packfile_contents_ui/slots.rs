@@ -922,9 +922,16 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Open Decoder" Action.
         let contextual_menu_open_decoder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
-            pack_file_contents_ui => move |_| {
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open Decoder` By Slot");
-            AppUI::open_decoder(&app_ui, &pack_file_contents_ui);
+            let selected_items = pack_file_contents_ui.packfile_contents_tree_view().get_item_types_from_selection(true);
+            if selected_items.len() == 1 {
+                AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Decoder(selected_items[0].path_raw().to_string()))
+            } else { return }
         }));
 
         // What happens when we trigger the "Open Dependency Table" Action.
@@ -936,7 +943,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             info!("Triggering `Open Dependency Manager` By Slot");
-            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+            AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::PackDependencies);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
@@ -965,9 +972,13 @@ impl PackFileContentsSlots {
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
-            pack_file_contents_ui => move |_| {
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move |_| {
             info!("Triggering `Open PackFile Settings` By Slot");
-            AppUI::open_packfile_settings(&app_ui, &pack_file_contents_ui);
+            AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::PackSettings);
         }));
 
         // What happens when we trigger the "Open Notes" Action.

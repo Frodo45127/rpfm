@@ -2753,7 +2753,7 @@ impl AppUI {
         }
     }
 
-    /// This function is used to open the dependency manager.
+    /// This function is used to open views that cannot be open with the normal open_file_view function.
     pub unsafe fn open_special_view(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
@@ -2780,9 +2780,9 @@ impl AppUI {
                     (fake_path, qtr("decoder_title"))
                 },
                 SpecialView::Pack(ref path) => (path.to_owned(), QString::from_std_str(path)),
-                SpecialView::PackSettings => todo!(),
+                SpecialView::PackSettings => (RESERVED_NAME_SETTINGS.to_owned(), qtr("settings")),
                 SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned(), qtr("table_dependency_manager_title")),
-                SpecialView::Notes => todo!(),
+                //SpecialView::Notes => (RESERVED_NAME_NOTES.to_owned(), QString::from_std_str(RESERVED_NAME_NOTES)),
             };
 
             // Close all preview views except the file we're opening. The path used for the manager is empty.
@@ -2842,7 +2842,16 @@ impl AppUI {
                         Err(error) => show_dialog(&app_ui.main_window, error, false),
                     }
                 },
-                SpecialView::PackSettings => todo!(),
+                SpecialView::PackSettings => {
+                    match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
+                        Ok(_) => {
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            UI_STATE.set_open_packedfiles().push(tab);
+                        },
+                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                    }
+                },
                 SpecialView::PackDependencies => {
                     match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
                         Ok(_) => {
@@ -2855,197 +2864,21 @@ impl AppUI {
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     }
                 }
-                SpecialView::Notes => todo!(),
-            }
-        }
+                /*
+                SpecialView::Notes => {
+                    PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
-        Self::update_views_names(app_ui);
-    }
-
-    /// This function is used to open the PackedFile Decoder.
-    pub unsafe fn open_decoder(
-        app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>
-    ) {
-
-        // If we don't have an schema, don't even try it.
-        if SCHEMA.read().unwrap().is_none() {
-            return show_dialog(&app_ui.main_window, "No schema found. You need one to open the decoder.", false);
-        }
-
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        if !UI_STATE.get_packfile_contents_read_only() {
-            let mut selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
-            let item_type = if selected_items.len() == 1 { &mut selected_items[0] } else { return };
-            if let ContainerPath::File(ref mut path) = item_type {
-                let mut fake_path = path.to_owned();
-                fake_path.push_str(DECODER_EXTENSION);
-
-                // Close all preview views except the file we're opening.
-                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let open_path = packed_file_view.get_ref_path();
-                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
-                        app_ui.tab_bar_packed_file.remove_tab(index);
-                    }
-                }
-
-                // Close all preview views except the file we're opening. The path used for the decoder is empty.
-                let name = qtr("decoder_title");
-                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let open_path = packed_file_view.get_ref_path();
-                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
-                        app_ui.tab_bar_packed_file.remove_tab(index);
-                    }
-                }
-
-                // If the decoder is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == fake_path) {
-                    let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                    if index == -1 {
-                        let icon_type = IconType::PackFile(true);
-                        let icon = icon_type.get_icon_from_path();
-                        app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
-                    }
-
-                    app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                    return;
-                }
-
-                // If it's not already open/hidden, we create it and add it as a new tab.
-                let mut tab = PackedFileView::default();
-                tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
-                tab.set_is_preview(false);
-                let icon_type = IconType::PackFile(true);
-                let icon = icon_type.get_icon_from_path();
-                tab.set_path(path);
-
-                match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, app_ui) {
-                    Ok(_) => {
-
-                        // Add the decoder to the 'Currently open' list and make it visible.
-                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                        let mut open_list = UI_STATE.set_open_packedfiles();
-                        open_list.push(tab);
-                    },
-                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
-                }
-            }
-        }
-
-        Self::update_views_names(app_ui);
-    }
-
-    /// This function is used to open the dependency manager.
-    pub unsafe fn open_dependency_manager(
-        app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
-        references_ui: &Rc<ReferencesUI>,
-    ) {
-
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        if !UI_STATE.get_packfile_contents_read_only() {
-
-            // Close all preview views except the file we're opening. The path used for the manager is empty.
-            let path = RESERVED_NAME_DEPENDENCIES_MANAGER.to_owned();
-            let name = qtr("table_dependency_manager_title");
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.get_ref_path();
-                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
-                    app_ui.tab_bar_packed_file.remove_tab(index);
-                }
-            }
-
-            // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
-                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                if index == -1 {
-                    let icon_type = IconType::PackFile(true);
-                    let icon = icon_type.get_icon_from_path();
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
-                }
-
-                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                return;
-            }
-
-            // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = PackedFileView::default();
-            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
-            tab.set_is_preview(false);
-            tab.set_path(&path);
-            let icon_type = IconType::PackFile(true);
-            let icon = icon_type.get_icon_from_path();
-
-            match DependenciesManagerView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui) {
-                Ok(_) => {
-
-                    // Add the manager to the 'Currently open' list and make it visible.
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                    // Add the file to the 'Currently open' list and make it visible.
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    UI_STATE.set_open_packedfiles().push(tab);
-                },
-                Err(error) => return show_dialog(&app_ui.main_window, error, false),
-            }
-        }
 
-        Self::update_views_names(app_ui);
-    }
+                    // Fix the tips view.
+                    let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                    layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
 
-    /// This function is used to open the settings embedded into a PackFile.
-    pub unsafe fn open_packfile_settings(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-
-        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
-        if !UI_STATE.get_packfile_contents_read_only() {
-
-            // Close all preview views except the file we're opening. The path used for the settings is reserved.
-            let path = RESERVED_NAME_SETTINGS.to_owned();
-            let name = qtr("settings");
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let open_path = packed_file_view.get_ref_path();
-                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
-                    app_ui.tab_bar_packed_file.remove_tab(index);
-                }
-            }
-
-            // If the settings are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|x| *x.get_ref_path() == path) {
-                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-
-                if index == -1 {
-                    let icon_type = IconType::PackFile(true);
-                    let icon = icon_type.get_icon_from_path();
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
-                }
-
-                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                return;
-            }
-
-            // If it's not already open/hidden, we create it and add it as a new tab.
-            let mut tab = PackedFileView::default();
-            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
-            tab.set_is_preview(false);
-            let icon_type = IconType::PackFile(true);
-            let icon = icon_type.get_icon_from_path();
-            tab.set_path(&path);
-
-            match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
-                Ok(_) => {
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    UI_STATE.set_open_packedfiles().push(tab);
-                },
-                Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                    let mut open_list = UI_STATE.set_open_packedfiles();
+                    open_list.push(tab);
+                },*/
             }
         }
 
