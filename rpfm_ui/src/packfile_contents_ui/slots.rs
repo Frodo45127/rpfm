@@ -467,26 +467,26 @@ impl PackFileContentsSlots {
 
                                 // Check if the files are in the Assets Folder. The file chooser kinda guarantees that
                                 // all are in the same folder, so we can just check the first one.
-                                let paths_packedfile: Vec<String> = if paths[0].starts_with(&assets_folder) {
-                                    let mut paths_packedfile: Vec<String> = vec![];
+                                let paths_packedfile: Vec<ContainerPath> = if paths[0].starts_with(&assets_folder) {
+                                    let mut paths_packedfile: Vec<ContainerPath> = vec![];
                                     for path in &paths {
                                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                                        paths_packedfile.push(filtered_path.to_string_lossy().to_string());
+                                        paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                                     }
                                     paths_packedfile
                                 }
 
                                 // Otherwise, they are added like normal files.
                                 else {
-                                    let mut paths_packedfile: Vec<String> = vec![];
+                                    let mut paths_packedfile: Vec<ContainerPath> = vec![];
                                     for path in &paths {
-                                        paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true));
+                                        paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
                                     }
                                     paths_packedfile
                                 };
 
                                 app_ui.main_window().set_enabled(false);
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                                 app_ui.main_window().set_enabled(true);
                             }
                         }
@@ -511,13 +511,13 @@ impl PackFileContentsSlots {
                             }
 
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
-                            let mut paths_packedfile: Vec<String> = vec![];
+                            let mut paths_packedfile: Vec<ContainerPath> = vec![];
                             for path in &paths {
-                                paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true));
+                                paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
                             }
 
                             app_ui.main_window().set_enabled(false);
-                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                            PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                             app_ui.main_window().set_enabled(true);
                         }
                     }
@@ -576,21 +576,19 @@ impl PackFileContentsSlots {
 
                                     // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
                                     if path.starts_with(&assets_folder) {
-                                        let mut paths_packedfile: Vec<String> = vec![];
+                                        let mut paths_packedfile: Vec<ContainerPath> = vec![];
                                         for path in &paths {
                                             let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                                            paths_packedfile.push(filtered_path.to_string_lossy().to_string());
+                                            paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                                         }
-                                        PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
                                     }
 
                                     // Otherwise, they are added like normal files.
-                                    else {
-                                        if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
-                                            app_ui.main_window().set_enabled(false);
-                                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None);
-                                            app_ui.main_window().set_enabled(true);
-                                        }
+                                    else if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
+                                        app_ui.main_window().set_enabled(false);
+                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
+                                        app_ui.main_window().set_enabled(true);
                                     }
                                 }
                             }
@@ -619,7 +617,7 @@ impl PackFileContentsSlots {
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
 
                                 app_ui.main_window().set_enabled(false);
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &folder_paths, &[selection.to_string()], None);
+                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
                                 app_ui.main_window().set_enabled(true);
                             }
                         }

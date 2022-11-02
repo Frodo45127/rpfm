@@ -437,11 +437,8 @@ pub fn background_loop() {
                 let mut added_paths = vec![];
                 let mut it_broke = None;
 
-                // If we're going to import TSV, make sure to remove any collision between binary and TSV.
-                let paths = source_paths.iter().zip(destination_paths.iter()).collect::<Vec<(&PathBuf, &String)>>();
-
+                let paths = source_paths.iter().zip(destination_paths.iter()).collect::<Vec<(&PathBuf, &ContainerPath)>>();
                 let schema = SCHEMA.read().unwrap();
-
                 for (source_path, destination_path) in paths {
 
                     // Skip ignored paths.
@@ -451,11 +448,24 @@ pub fn background_loop() {
                         }
                     }
 
-                    match pack_file_decoded.insert_file(source_path, destination_path, &schema) {
-                        Ok(path) => added_paths.push(path),
-                        Err(error) => it_broke = Some(error),
+                    match destination_path {
+                        ContainerPath::File(destination_path) => {
+                            match pack_file_decoded.insert_file(source_path, destination_path, &schema) {
+                                Ok(path) => added_paths.push(path),
+                                Err(error) => it_broke = Some(error),
+                            }
+                        },
+
+                        // TODO: See what should we do with the ignored paths.
+                        ContainerPath::Folder(destination_path) => {
+                            match pack_file_decoded.insert_folder(source_path, destination_path, &None, &schema) {
+                                Ok(mut paths) => added_paths.append(&mut paths),
+                                Err(error) => it_broke = Some(error),
+                            }
+                        },
                     }
                 }
+
                 if let Some(error) = it_broke {
                     CentralCommand::send_back(&sender, Response::VecContainerPath(added_paths.to_vec()));
                     CentralCommand::send_back(&sender, Response::Error(From::from(error)));

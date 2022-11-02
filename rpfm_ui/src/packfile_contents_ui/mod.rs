@@ -14,10 +14,9 @@ Module with all the code related to the main `PackFileContentsUI`.
 
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
-use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::QDockWidget;
-use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
+use qt_widgets::{QFileDialog};
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
@@ -37,11 +36,9 @@ use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QTimer;
-use qt_core::SlotNoArgs;
 
 use getset::Getters;
 
-use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -51,7 +48,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
-use crate::locale::{qtr, qtre};
+use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::*;
@@ -311,11 +308,11 @@ impl PackFileContentsUI {
 
 
     /// This function is a helper to add PackedFiles to the UI, keeping the UI updated.
-    pub unsafe fn add_packedfiles(
+    pub unsafe fn add_files(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
         paths: &[PathBuf],
-        paths_packedfile: &[String],
+        paths_in_container: &[ContainerPath],
         paths_to_ignore: Option<Vec<PathBuf>>,
     ) {
         let window_was_disabled = !app_ui.main_window().is_enabled();
@@ -323,7 +320,7 @@ impl PackFileContentsUI {
             app_ui.main_window().set_enabled(false);
         }
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_packedfile.to_vec(), paths_to_ignore));
+        let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
@@ -333,7 +330,8 @@ impl PackFileContentsUI {
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = paths_packedfile.iter().filter_map(|path| {
+                let failed_paths = paths.iter().filter_map(|path| {
+                    let path = path.path_raw();
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             Some(path.to_owned())
@@ -431,7 +429,7 @@ impl PackFileContentsUI {
         // Get the currently selected paths (and visible) paths, or the ones received from the function.
         let items_to_extract = match paths_to_extract {
             Some(paths) => paths,
-            None => <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui),
+            None => <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui),
         };
 
         let extraction_path = match UI_STATE.get_operational_mode() {
@@ -449,7 +447,7 @@ impl PackFileContentsUI {
                     mod_name.pop();
                     mod_name.pop();
 
-                    let mut assets_folder = mymods_base_path.to_path_buf();
+                    let mut assets_folder = mymods_base_path;
                     assets_folder.push(&game_folder_name);
                     assets_folder.push(&mod_name);
                     assets_folder
@@ -477,7 +475,7 @@ impl PackFileContentsUI {
         if let Err(error) = UI_STATE.get_open_packedfiles()
             .iter()
             .filter(|x| x.get_data_source() == DataSource::PackFile)
-            .try_for_each(|packed_file| packed_file.save(&app_ui, &pack_file_contents_ui)) {
+            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
             show_dialog(app_ui.main_window(), error, false);
         }
 

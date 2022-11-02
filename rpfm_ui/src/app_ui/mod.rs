@@ -3665,10 +3665,10 @@ dbg!(t.elapsed().unwrap());
                     };
 
                     // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                    let mut paths_packedfile: Vec<String> = vec![];
+                    let mut paths_packedfile: Vec<ContainerPath> = vec![];
                     for path in &paths {
                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
-                        paths_packedfile.push(filtered_path.to_string_lossy().to_string());
+                        paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                     }
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetPackSettings);
@@ -3686,7 +3686,7 @@ dbg!(t.elapsed().unwrap());
                         }
                     });
 
-                    PackFileContentsUI::add_packedfiles(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
+                    PackFileContentsUI::add_files(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
                 }
 
                 // If there is no MyMod path configured, report it.

@@ -161,7 +161,7 @@ pub enum Command {
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
-    AddPackedFiles(Vec<PathBuf>, Vec<String>, Option<Vec<PathBuf>>),
+    AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
     /// This command is used when we want to decode a PackedFile to be shown on the UI. It contains the path of the file, and were it is.
     DecodePackedFile(String, DataSource),
