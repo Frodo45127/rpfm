@@ -1119,7 +1119,9 @@ pub fn background_loop() {
 
                 // Note: we no longer notify the UI of success or error to not hang it up.
                 if let Ok(Some(file)) = oldest_file_in_folder(&backup_autosave_path().unwrap()) {
-                    let _ = pack_file_decoded.clone().save(Some(&file));
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod {
+                        let _ = pack_file_decoded.clone().save(Some(&file));
+                    }
                 }
             }
 
