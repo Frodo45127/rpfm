@@ -436,7 +436,7 @@ impl PackFileContentsUI {
 
             // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
             OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                let mymods_base_path = setting_path("mymods_base_path");
+                let mymods_base_path = setting_path(MYMOD_BASE_PATH);
                 if mymods_base_path.is_dir() {
 
                     // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.

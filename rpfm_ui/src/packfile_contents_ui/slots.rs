@@ -734,7 +734,7 @@ impl PackFileContentsSlots {
                 let mut are_you_seriously_trying_to_edit_the_damn_table_folder = false;
                 for item_type in &selected_items {
                     if let ContainerPath::Folder(ref path) = item_type {
-                        if path.to_lowercase() == "db" {
+                        if path.to_lowercase().starts_with("db/") {
                             are_you_seriously_trying_to_edit_the_damn_table_folder = true;
                             break;
                         }
@@ -751,21 +751,20 @@ impl PackFileContentsSlots {
                 if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
                     let mut renaming_data_background: Vec<(ContainerPath, String)> = vec![];
                     for item_type in selected_items {
-                        match item_type {
-                            ContainerPath::File(ref path) | ContainerPath::Folder(ref path) => {
-                                let path = path.split("/").collect::<Vec<_>>();
-                                let original_name = path.last().unwrap();
-                                let new_name = rewrite_sequence.to_owned().replace("{x}", original_name);
-                                renaming_data_background.push((item_type.clone(), new_name));
-                            }
-                        }
+                        let path = item_type.path_raw();
+                        let path = path.split("/").collect::<Vec<_>>();
+                        let original_name = path.last().unwrap();
+                        let new_name = rewrite_sequence.to_owned().replace("{x}", original_name);
+                        renaming_data_background.push((item_type.clone(), new_name));
                     }
 
+                    dbg!(&renaming_data_background);
                     // Send the renaming data to the Background Thread, wait for a response. TODO: MAke sure we don't pass folders here before the backend is adapted for them.
                     let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPathContainerPath(renamed_items) => {
+                    dbg!(&renamed_items);
                             let mut path_changes = vec![];
                             for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
                                 if !path.is_empty() {

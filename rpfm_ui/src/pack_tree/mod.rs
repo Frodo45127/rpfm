@@ -896,8 +896,7 @@ impl PackTree for QBox<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
                         }
 
-                        let icon_type = IconType::PackFile(build_data.editable);
-                        icon_type.set_icon_to_item_safe(&big_parent);
+                        set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
 
                         // For PackFiles, we only allow one per view.
                         model.clear();
@@ -930,8 +929,7 @@ impl PackTree for QBox<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_PARENT_DATA), ROOT_NODE_TYPE);
 
-                            let icon_type = IconType::PackFile(false);
-                            icon_type.set_icon_to_item_safe(&big_parent);
+                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
@@ -965,8 +963,7 @@ impl PackTree for QBox<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_GAME_DATA), ROOT_NODE_TYPE);
 
-                            let icon_type = IconType::PackFile(false);
-                            icon_type.set_icon_to_item_safe(&big_parent);
+                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
@@ -1000,8 +997,7 @@ impl PackTree for QBox<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_ASSKIT), ROOT_NODE_TYPE);
 
-                            let icon_type = IconType::PackFile(false);
-                            icon_type.set_icon_to_item_safe(&big_parent);
+                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {

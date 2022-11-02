@@ -39,9 +39,6 @@ pub enum IconType {
     // For normal PackFiles. `true` if it's editable, `false` if it's read-only.
     PackFile(bool),
 
-    // For folders.
-    Folder,
-
     // For files. Includes the path without the PackFile's name on it.
     File(String),
 }
@@ -81,64 +78,6 @@ pub struct Icons {
 /// Implementation of `IconType`.
 impl IconType {
 
-    /// This function is used to set the icon of an Item in the `TreeView` depending on his type.
-    ///
-    /// TODO: Find a way to abstract this into the PackedFileType thing.
-    pub fn set_icon_to_item_safe(&self, item: &QStandardItem) {
-        let icon = ref_from_atomic_ref(&TREEVIEW_ICONS.packfile_locked /*match self {
-
-            // For PackFiles.
-            IconType::PackFile(editable) => {
-                if *editable { &TREEVIEW_ICONS.packfile_editable }
-                else { &TREEVIEW_ICONS.packfile_locked }
-            },
-
-            // For folders.
-            IconType::Folder => &TREEVIEW_ICONS.folder,
-
-            // For files.
-            IconType::File(path) => {
-
-                // Get the name of the file.
-                let path_split = path.split('/').collect::<Vec<_>>();
-                let packed_file_name = path_split.last().unwrap();
-
-                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                if path_split[0] == "db" { &TREEVIEW_ICONS.table }
-
-                // If it ends in ".loc", it's a localisation PackedFile.
-                else if packed_file_name.ends_with(".loc") { &TREEVIEW_ICONS.table }
-
-                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-                else if packed_file_name.ends_with(".rigid_model_v2") { &TREEVIEW_ICONS.rigid_model }
-
-                // If it ends in any of these, it's a plain text PackedFile.
-                else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| packed_file_name.ends_with(extension)) {
-                    match text_type {
-                        TextFormat::Html => &TREEVIEW_ICONS.text_xml,
-                        TextFormat::Xml => &TREEVIEW_ICONS.text_xml,
-                        TextFormat::Lua => &TREEVIEW_ICONS.text_generic,
-                        TextFormat::Cpp => &TREEVIEW_ICONS.text_generic,
-                        TextFormat::Plain => &TREEVIEW_ICONS.text_txt,
-                        TextFormat::Markdown => &TREEVIEW_ICONS.text_txt,
-                        TextFormat::Json => &TREEVIEW_ICONS.text_txt,
-                    }
-                }
-
-                // If it ends in any of these, it's an image.
-                else if packed_file_name.ends_with(".jpg") { &TREEVIEW_ICONS.image_jpg }
-                else if packed_file_name.ends_with(".jpeg") { &TREEVIEW_ICONS.image_jpg }
-                else if packed_file_name.ends_with(".tga") { &TREEVIEW_ICONS.image_generic }
-                else if packed_file_name.ends_with(".dds") { &TREEVIEW_ICONS.image_generic }
-                else if packed_file_name.ends_with(".png") { &TREEVIEW_ICONS.image_png }
-
-                // Otherwise, it's a generic file.
-                else { &TREEVIEW_ICONS.file }
-            }
-        }*/);
-        unsafe { item.set_icon(icon) };
-    }
-
     /// This function is used to get the icon corresponding to an IconType.
     pub fn get_icon_from_path(&self) -> Ref<QIcon> {
         ref_from_atomic_ref(match self {
@@ -148,9 +87,6 @@ impl IconType {
                 if *editable { &TREEVIEW_ICONS.packfile_editable }
                 else { &TREEVIEW_ICONS.packfile_locked }
             },
-
-            // For folders.
-            IconType::Folder => &TREEVIEW_ICONS.folder,
 
             // For files.
             IconType::File(path) => {
