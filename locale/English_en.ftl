@@ -562,7 +562,7 @@ template_update_success = <h4>Templates updated and reloaded</h4><p>You can cont
 lua_autogen_update_success = <h4>TW Autogen Data updated.</h4><p>You can continue using RPFM now.</p>
 
 
-files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
+files_extracted_success = Files extracted successfully.
 mymod_delete_success = MyMod successfully deleted: "{"{"}{"}"}"
 
 game_selected_unsupported_operation = This operation is not supported for the Game Selected.
