@@ -1084,16 +1084,18 @@ impl PackTree for QBox<QTreeView> {
 
                                     // Get his text. If it's the same folder we are trying to add, this is our parent now.
                                     let compare = child.text().compare_q_string(&name);
+                                    match compare.cmp(&0) {
+                                        Ordering::Equal => {
+                                            parent = parent.child_1a(index);
+                                            duplicate_found = true;
+                                            break;
+                                        },
 
-                                    if compare == 0 {
-                                        parent = parent.child_1a(index);
-                                        duplicate_found = true;
-                                        break;
-                                    }
-
-                                    // Optimization: We get the paths pre-sorted. If the last folder cannot be under our folder, stop iterating.
-                                    else if compare < 0 {
-                                        break;
+                                        // Optimization: We get the paths pre-sorted. If the last folder cannot be under our folder, stop iterating.
+                                        Ordering::Less => {
+                                            break;
+                                        },
+                                        Ordering::Greater => {},
                                     }
                                 }
                             }
@@ -1149,7 +1151,7 @@ impl PackTree for QBox<QTreeView> {
                 }
 
                 // Add each item type, together with its own info.
-                for (item_type, file_info) in item_types.iter().zip(files_info.iter()) {
+                for item_type in &item_types {
                     let is_file = matches!(item_type, ContainerPath::File(_));
                     let path = item_type.path_raw();
                     let count = path.split('/').count() - 1;
@@ -1205,16 +1207,18 @@ impl PackTree for QBox<QTreeView> {
                                 item.set_editable(false);
 
                                 if item_type.is_file() {
-                                    set_icon_for_file_type(&item, Some(file_info.file_type()));
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
 
-                                    let tooltip = new_packed_file_tooltip(file_info);
-                                    item.set_tool_tip(&QString::from_std_str(tooltip));
+                                    if let Some(file_info) = files_info.par_iter().find_first(|x| x.path() == item_type.path_raw()) {
+                                        set_icon_for_file_type(&item, Some(file_info.file_type()));
+                                        let tooltip = new_packed_file_tooltip(file_info);
+                                        item.set_tool_tip(&QString::from_std_str(tooltip));
+                                    }
                                 }
 
                                 else {
-                                    set_icon_for_file_type(&item, None);
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
+                                    set_icon_for_file_type(&item, None);
                                 }
 
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
