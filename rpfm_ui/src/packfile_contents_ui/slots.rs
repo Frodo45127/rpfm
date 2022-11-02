@@ -888,7 +888,7 @@ impl PackFileContentsSlots {
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_owned();
 
-                        if !complete_path.ends_with('/') {
+                        if !complete_path.is_empty() && !complete_path.ends_with('/') {
                             complete_path.push('/');
                         }
                         complete_path.push_str(&new_folder_name);

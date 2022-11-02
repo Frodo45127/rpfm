@@ -2960,7 +2960,7 @@ impl AppUI {
                                 // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
                                 if selected_paths.len() == 1 {
                                     let mut complete_path = selected_paths[0].to_owned();
-                                   if !complete_path.ends_with('/') {
+                                   if !complete_path.is_empty() && !complete_path.ends_with('/') {
                                         complete_path.push('/');
                                     }
                                     complete_path.push_str(name);
