@@ -1064,7 +1064,11 @@ impl PackFileContentsSlots {
                         }
                     }
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(paths_to_close.to_vec(), name, delete_source_files));
+                    let mut path_to_add = selected_paths[0].rsplitn(2, '/').collect::<Vec<_>>()[1].to_string();
+                    path_to_add.push('/');
+                    path_to_add.push_str(&name);
+
+                    let receiver = CENTRAL_COMMAND.send_background(Command::MergeFiles(paths_to_close.to_vec(), path_to_add, delete_source_files));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::String(path_to_add) => {

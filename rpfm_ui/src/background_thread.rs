@@ -828,7 +828,7 @@ pub fn background_loop() {
                 let files_to_merge = pack_file_decoded.files_by_paths(&paths, false);
                 match RFile::merge(&files_to_merge, &merged_path) {
                     Ok(file) => {
-                        pack_file_decoded.insert(file);
+                        let _ = pack_file_decoded.insert(file);
 
                         if delete_source_files {
                             paths.iter().for_each(|path| { pack_file_decoded.remove(path); });
