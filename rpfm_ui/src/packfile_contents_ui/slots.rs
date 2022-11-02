@@ -888,7 +888,7 @@ impl PackFileContentsSlots {
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_owned();
 
-                        if !complete_path.ends_with("/") {
+                        if !complete_path.ends_with('/') {
                             complete_path.push('/');
                         }
                         complete_path.push_str(&new_folder_name);
@@ -927,7 +927,7 @@ impl PackFileContentsSlots {
             let selected_items = pack_file_contents_ui.packfile_contents_tree_view().get_item_types_from_selection(true);
             if selected_items.len() == 1 {
                 AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Decoder(selected_items[0].path_raw().to_string()))
-            } else { return }
+            }
         }));
 
         // What happens when we trigger the "Open Dependency Table" Action.

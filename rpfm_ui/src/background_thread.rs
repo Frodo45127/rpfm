@@ -797,27 +797,20 @@ pub fn background_loop() {
             Command::PackedFileExists(path) => {
                 CentralCommand::send_back(&sender, Response::Bool(pack_file_decoded.has_file(&path)));
             }
-/*
+
             // In case we want to get the list of tables in the dependency database...
-            Command::GetTableListFromDependencyPackFile => {
-                let tables = if let Ok(tables) = dependencies.get_db_and_loc_tables_from_cache(true, false, true, true) {
-                    tables.iter().map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>()
-                } else { vec![] };
-                CentralCommand::send_back(&sender, Response::VecString(tables));
-            }
+            Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.vanilla_tables().keys().map(|x| x.to_owned()).collect())),
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
-                if dependencies.game_has_vanilla_data_loaded(false) {
-                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                            Ok(definition) => CentralCommand::send_back(&sender, Response::I32(definition.get_version())),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                        }
-                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
+                if dependencies.is_vanilla_data_loaded(false) {
+                    match dependencies.db_version(&table_name) {
+                        Some(version) => CentralCommand::send_back(&sender, Response::I32(version)),
+                        None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files."))),
+                    }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be generated before this."))); }
             }
-
+/*
             // In case we want to get the definition of an specific table from the dependency database...
             Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
                 if dependencies.game_has_vanilla_data_loaded(false) {

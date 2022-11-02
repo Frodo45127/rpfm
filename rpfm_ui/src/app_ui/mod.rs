@@ -3179,22 +3179,14 @@ impl AppUI {
         if let FileType::DB = file_type {
             let receiver = CENTRAL_COMMAND.send_background(Command::GetTableListFromDependencyPackFile);
             let response = CentralCommand::recv(&receiver);
-            let tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-            match *SCHEMA.read().unwrap() {
-                Some(ref schema) => {
+            let mut tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            tables.sort();
+            tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
+            table_filter.set_source_model(&table_model);
+            table_dropdown.set_model(&table_filter);
 
-                    // Add every table to the dropdown if exists in the dependency database.
-                    schema.definitions().keys()
-                        .filter(|x| tables.contains(x))
-                        .for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
-                    table_filter.set_source_model(&table_model);
-                    table_dropdown.set_model(&table_filter);
-
-                    main_grid.add_widget_5a(&table_dropdown, 1, 0, 1, 1);
-                    main_grid.add_widget_5a(&table_filter_line_edit, 2, 0, 1, 1);
-                }
-                None => return Some(Err(anyhow!("There is no Schema for the Game Selected."))),
-            }
+            main_grid.add_widget_5a(&table_dropdown, 1, 0, 1, 1);
+            main_grid.add_widget_5a(&table_filter_line_edit, 2, 0, 1, 1);
         }
 
         // Remember to hide the unused stuff. Otherwise, it'll be shown out of place due to parenting.

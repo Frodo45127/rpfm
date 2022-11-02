@@ -365,11 +365,13 @@ impl Dependencies {
         let extra_data = Some(decode_extra_data);
 
         // Ignore any errors related with decoded tables.
-        let _ = dependencies.vanilla_files.par_iter_mut().try_for_each(|(_, file)| {
+        dependencies.vanilla_files.par_iter_mut().for_each(|(_, file)| {
             match file.file_type() {
                 FileType::DB |
-                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
-                _ => Ok(())
+                FileType::Loc => {
+                    let _ = file.decode(&extra_data, true, false);
+                },
+                _ => {}
             }
         });
 
@@ -1023,6 +1025,20 @@ impl Dependencies {
         }
 
         false
+    }
+
+    /// This function is used to get the version of a table in the game files, if said table is in the game files.
+    pub fn db_version(&self, table_name: &str) -> Option<i32> {
+        let tables = self.vanilla_tables.get(table_name)?;
+        for table_path in tables {
+
+            let table = self.vanilla_files.get(table_path)?;
+            if let RFileDecoded::DB(table) = table.decoded().ok()? {
+                return Some(*table.definition().version());
+            }
+        }
+
+        None
     }
 
     /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the vanilla files.
