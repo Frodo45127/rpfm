@@ -64,9 +64,6 @@ pub enum APIResponse {
 
     /// This means don't know if there was an update or not, because the version we got was invalid.
     SuccessUnknownVersion,
-
-    /// This means there was an error when checking for updates.
-    Error,
 }
 
 //---------------------------------------------------------------------------//
@@ -99,7 +96,7 @@ pub fn update_main_program() -> Result<()> {
 
         // self_update extractor doesn't work. It fails on every-single-test I did. So we use another one.
         let tmp_zip = File::open(&tmp_zip_path)?;
-        zip_extract::extract(tmp_zip, &tmp_dir.path().to_path_buf(), true).map_err(|_| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later."))?;
+        zip_extract::extract(tmp_zip, tmp_dir.path(), true).map_err(|_| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later."))?;
     }
 
     let mut dest_base_path = current_exe()?;

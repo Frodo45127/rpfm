@@ -506,6 +506,8 @@ pub enum Response {
     /// Response to return `DependenciesInfo`.
     DependenciesInfo(DependenciesInfo),
 
+    RFileDecoded(RFileDecoded),
+
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),

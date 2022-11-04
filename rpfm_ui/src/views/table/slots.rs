@@ -30,7 +30,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
-use rpfm_lib::files::{ContainerPath, table::Table};
+use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
 use rpfm_lib::integrations::log::*;
 
 use crate::app_ui::AppUI;
@@ -149,7 +149,7 @@ impl TableViewSlots {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
                         } else if let Some(path) = view.get_packed_file_path() {
-                            paths_to_check.push(path.to_owned());
+                            paths_to_check.push(path);
                         }
                     }
 
@@ -459,7 +459,12 @@ impl TableViewSlots {
                         let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
-                            Response::TableType(data) => {
+                            Response::RFileDecoded(data) => {
+                                let data = match data {
+                                    RFileDecoded::DB(data) => TableType::DB(data),
+                                    RFileDecoded::Loc(data) => TableType::Loc(data),
+                                    _ => unimplemented!(),
+                                };
                                 let old_data = view.get_copy_of_table();
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
@@ -543,8 +548,8 @@ impl TableViewSlots {
                             let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path));
                             let response = CentralCommand::recv_try(&receiver);
                             match response {
-                                Response::Success => return,
-                                Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
+                                Response::Success => (),
+                                Response::Error(error) => show_dialog(&view.table_view_primary, error, false),
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
                         }

@@ -952,8 +952,9 @@ pub fn background_loop() {
                             Some(file) => {
                                 match RFile::tsv_import_from_path(&external_path, schema) {
                                     Ok(imported) => {
-                                        file.set_decoded(imported.decoded().unwrap().clone()).unwrap();
-                                        CentralCommand::send_back(&sender, Response::Success)
+                                        let decoded = imported.decoded().unwrap();
+                                        file.set_decoded(decoded.clone()).unwrap();
+                                        CentralCommand::send_back(&sender, Response::RFileDecoded(decoded.clone()))
                                     },
                                     Err(error) =>  CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                                 }

@@ -71,7 +71,7 @@ use crate::SUPPORTED_GAMES;
 
 #[cfg(feature = "only_for_the_brave")]
 use crate::locale::qtr;
-use crate::locale::tr;
+
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -126,11 +126,11 @@ impl UI {
         let t = std::time::SystemTime::now();
 
         let app_ui = Rc::new(AppUI::new());
-        let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window()));
+        let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window()));
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui));
-        let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window()));
+        let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window()));
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui));
-        let references_ui = Rc::new(ReferencesUI::new(&app_ui.main_window()));
+        let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window()));
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
@@ -256,21 +256,17 @@ dbg!(t.elapsed().unwrap());
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
-        if args.len() > 1 && args[1] != "--booted_from_launcher" {
-            let path = PathBuf::from(&args[1]);
-            if path.is_file() {
-                info!("Directly opening PackFile {}.", path.to_string_lossy().to_string());
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
-                    show_dialog(app_ui.main_window(), error, false);
-                } else if setting_bool("diagnostics_trigger_on_open") {
-                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                }
+        if args.len() > 1 {
+            let paths = args[1..].iter().map(PathBuf::from).filter(|path| path.is_file()).collect::<Vec<_>>();
+
+            info!("Directly opening Pack/s {:?}.", paths);
+            if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &paths, "") {
+                show_dialog(app_ui.main_window(), error, false);
+            } else if setting_bool("diagnostics_trigger_on_open") {
+                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
             }
         }
 dbg!(t.elapsed().unwrap());
-        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions) && cfg!(target_os = "windows") {
-            show_dialog(app_ui.main_window(), &tr("error_not_booted_from_launcher"), false);
-        }
 
         // If we have it enabled in the prefs, check if there are updates.
         if setting_bool("check_updates_on_start") { AppUI::check_updates(&app_ui, false) };
@@ -287,12 +283,10 @@ dbg!(t.elapsed().unwrap());
         // Clean up folders from previous updates, if they exist.
         if !cfg!(debug_assertions) {
             if let Ok(folders) = read_dir(&*RPFM_PATH) {
-                for folder in folders {
-                    if let Ok(folder) = folder {
-                        let folder_path = folder.path();
-                        if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
-                            let _ = remove_dir_all(&folder_path);
-                        }
+                for folder in folders.flatten() {
+                    let folder_path = folder.path();
+                    if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
+                        let _ = remove_dir_all(&folder_path);
                     }
                 }
                 info!("Update folders cleared.");

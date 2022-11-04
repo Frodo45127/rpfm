@@ -13,7 +13,6 @@ This module contains code to make our live easier when dealing with `TreeViews`.
 !*/
 
 use qt_widgets::QTreeView;
-use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -25,7 +24,6 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
 use qt_core::QPtr;
-use qt_core::QSignalBlocker;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
@@ -46,7 +44,6 @@ use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::qtr;
-use crate::pack_tree::icons::IconType;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;

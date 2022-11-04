@@ -752,7 +752,7 @@ impl PackFileContentsSlots {
                     let mut renaming_data_background: Vec<(ContainerPath, String)> = vec![];
                     for item_type in selected_items {
                         let path = item_type.path_raw();
-                        let path = path.split("/").collect::<Vec<_>>();
+                        let path = path.split('/').collect::<Vec<_>>();
                         let original_name = path.last().unwrap();
                         let new_name = rewrite_sequence.to_owned().replace("{x}", original_name);
                         renaming_data_background.push((item_type.clone(), new_name));
@@ -789,8 +789,8 @@ impl PackFileContentsSlots {
                                 let data = open_packedfiles.remove(position);
                                 let widget = data.get_mut_widget();
                                 let index = app_ui.tab_bar_packed_file().index_of(widget);
-                                let path_split_before = path_before.split("/").collect::<Vec<_>>();
-                                let path_split_after = path_after.split("/").collect::<Vec<_>>();
+                                let path_split_before = path_before.split('/').collect::<Vec<_>>();
+                                let path_split_after = path_after.split('/').collect::<Vec<_>>();
                                 let old_name = path_split_before.last().unwrap();
                                 let new_name = path_split_after.last().unwrap();
                                 if old_name != new_name {
@@ -808,7 +808,7 @@ impl PackFileContentsSlots {
                                 match x {
                                     ContainerPath::Folder(path) |
                                     ContainerPath::File(path) => {
-                                        let mut path_split = path.split("/").collect::<Vec<_>>();
+                                        let mut path_split = path.split('/').collect::<Vec<_>>();
                                         *path_split.last_mut().unwrap() = y;
                                         (x.clone(), path_split.join("/"))
                                     }
