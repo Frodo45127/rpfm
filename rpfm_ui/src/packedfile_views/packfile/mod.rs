@@ -19,6 +19,7 @@ use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLineEdit;
+use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
 
@@ -35,8 +36,7 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use anyhow::Result;
-
-use rpfm_lib::files::FileType;
+use getset::Getters;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -46,11 +46,11 @@ use crate::locale::qtr;
 use crate::packedfile_views::{BuildData, DataSource, PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::utils::*;
 
 use self::slots::PackFileExtraViewSlots;
 
 mod connections;
-mod shortcuts;
 pub mod slots;
 
 //-------------------------------------------------------------------------------//
@@ -58,6 +58,8 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of the extra PackFile.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct PackFileExtraView {
     pack_file_path: Arc<RwLock<PathBuf>>,
     tree_view: QBox<QTreeView>,
@@ -67,8 +69,9 @@ pub struct PackFileExtraView {
     filter_autoexpand_matches_button: QBox<QPushButton>,
     filter_case_sensitive_button: QBox<QPushButton>,
 
-    expand_all: QBox<QAction>,
-    collapse_all: QBox<QAction>,
+    context_menu: QBox<QMenu>,
+    expand: QPtr<QAction>,
+    collapse: QPtr<QAction>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -125,10 +128,9 @@ impl PackFileExtraView {
         filter_case_sensitive_button.set_checkable(true);
 
         // Create the extra actions for the TreeView.
-        let expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), pack_file_view.get_mut_widget());
-        let collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), pack_file_view.get_mut_widget());
-        tree_view.add_action(&expand_all);
-        tree_view.add_action(&collapse_all);
+        let context_menu = QMenu::from_q_widget(pack_file_view.get_mut_widget());
+        let expand = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "secondary_pack_tree_context_menu", "expand", "treeview_expand_all", Some(pack_file_view.get_mut_widget().static_upcast::<qt_widgets::QWidget>()));
+        let collapse = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "secondary_pack_tree_context_menu", "collapse", "treeview_collapse_all", Some(pack_file_view.get_mut_widget().static_upcast::<qt_widgets::QWidget>()));
 
         // Add everything to the main widget's Layout.
         let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
@@ -147,49 +149,18 @@ impl PackFileExtraView {
             filter_autoexpand_matches_button,
             filter_case_sensitive_button,
 
-            expand_all,
-            collapse_all,
+            context_menu,
+            expand,
+            collapse,
         });
 
         let slots = PackFileExtraViewSlots::new(app_ui, pack_file_contents_ui, &view);
 
         connections::set_connections(&view, &slots);
-        shortcuts::set_shortcuts(&view);
-        //pack_file_view.packed_file_type = PackedFileType::PackFile;
         pack_file_view.view = ViewType::Internal(View::PackFile(view));
 
         // Return success.
         Ok(())
-    }
-
-    /// This function returns a mutable reference to the `TreeView` widget.
-    pub fn get_mut_ptr_tree_view(&self) -> &QBox<QTreeView> {
-        &self.tree_view
-    }
-
-    /// This function returns a mutable reference to the `Expand All` Action.
-    pub fn get_mut_ptr_expand_all(&self) -> &QBox<QAction> {
-        &self.expand_all
-    }
-
-    /// This function returns a mutable reference to the `Collapse All` Action.
-    pub fn get_mut_ptr_collapse_all(&self) -> &QBox<QAction> {
-        &self.collapse_all
-    }
-
-    /// This function returns a mutable reference to the `Filter` Line Edit.
-    pub fn get_mut_ptr_filter_line_edit(&self) -> &QBox<QLineEdit> {
-        &self.filter_line_edit
-    }
-
-    /// This function returns a mutable reference to the `Autoexpand Matches` Button.
-    pub fn get_mut_ptr_autoexpand_matches_button(&self) -> &QBox<QPushButton> {
-        &self.filter_autoexpand_matches_button
-    }
-
-    /// This function returns a mutable reference to the `Case Sensitive` Button.
-    pub fn get_mut_ptr_case_sensitive_button(&self) -> &QBox<QPushButton> {
-        &self.filter_case_sensitive_button
     }
 
     // Function to filter the contents of the TreeView.

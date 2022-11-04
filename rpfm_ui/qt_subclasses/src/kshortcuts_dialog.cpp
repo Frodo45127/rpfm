@@ -137,6 +137,13 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(anim_pack_tree_actions, "pack_collapse_all", "Collapse All", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+-"));
     anim_pack_tree_actions->readSettings();
 
+    // AnimPack Tree Context actions.
+    KActionCollection* secondary_pack_tree_actions = new KActionCollection(parent, "secondary_pack_tree_context_menu");
+    secondary_pack_tree_actions->setComponentDisplayName("Pack Tree Context Menu");
+    new_action(secondary_pack_tree_actions, "expand", "Expand", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl++"));
+    new_action(secondary_pack_tree_actions, "collapse", "Collapse", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+-"));
+    secondary_pack_tree_actions->readSettings();
+
     // Table Editor actions.
     KActionCollection* table_editor_actions = new KActionCollection(parent, "table_editor");
     table_editor_actions->setComponentDisplayName("Table Editor");
@@ -199,6 +206,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(dependencies_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(anim_pack_tree_actions));
+    shortcuts->append(dynamic_cast<QObject*>(secondary_pack_tree_actions));
     shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(decoder_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
