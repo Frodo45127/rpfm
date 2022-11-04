@@ -1968,7 +1968,7 @@ impl AppUI {
                     restart_button.set_enabled(true);
                     close_button.set_enabled(true);
 
-                    // This closes the program and triggers a restart in the launcher.
+                    // This closes the program and triggers a restart.
                     if dialog.exec() == 1 {
                         let mut rpfm_exe_path = current_exe().unwrap();
                         rpfm_exe_path.pop();
@@ -1978,6 +1978,11 @@ impl AppUI {
                         } else {
                             rpfm_exe_path.push("rpfm_ui");
                         };
+
+                        // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
+                        CENTRAL_COMMAND.send_background(Command::Exit);
+                        CENTRAL_COMMAND.send_network(Command::Exit);
+                        qt_widgets::QApplication::close_all_windows();
 
                         SystemCommand::new(&rpfm_exe_path).spawn().unwrap();
                         exit(10);
