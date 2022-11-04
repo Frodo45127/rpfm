@@ -47,7 +47,7 @@ use crate::schema::*;
 use crate::utils::check_size_mismatch;
 
 /// Matched combat files go under this folder.
-pub const BASE_PATH: &str = "animations/matched_combat";
+pub const BASE_PATHS: [&str; 2] = ["animations/matched_combat", "animations/database/matched"];
 
 /// Extension of MatchedCombat files.
 pub const EXTENSION: &str = ".bin";
@@ -86,31 +86,68 @@ impl MatchedCombat {
 
     /// This function returns the definition of a Loc table.
     pub(crate) fn new_definition(version: i32) -> Definition {
-        let mut subdefinition = Definition::new(-1);
-        let subfields = vec![
-            Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-        ];
-        subdefinition.set_fields(subfields);
+        dbg!(version);
+        match version {
 
-        let mut definition = Definition::new(version);
-        let fields = vec![
-            Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition.clone())), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            // Seen in 3k.
+            3 => {
 
-            Field::new("unit_2_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_2_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_2_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_2_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_2_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("unit_2_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-        ];
+                let mut subdefinition = Definition::new(-1);
+                let subfields = vec![
+                    Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+                subdefinition.set_fields(subfields);
+                let mut definition = Definition::new(version);
+                let fields = vec![
+                    Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition.clone())), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
 
-        definition.set_fields(fields);
-        definition
+                    Field::new("unit_2_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+
+                definition.set_fields(fields);
+                definition
+            },
+
+            // Seen in wh3
+            1 => {
+
+                let mut subdefinition = Definition::new(-1);
+                let subfields = vec![
+                    Field::new("uk_1".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+                subdefinition.set_fields(subfields);
+                let mut definition = Definition::new(version);
+                let fields = vec![
+                    Field::new("unit_1_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition.clone())), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_1_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+
+                    Field::new("unit_2_uk_1".to_owned(), FieldType::SequenceU32(Box::new(subdefinition)), true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_2".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_3".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_uk_4".to_owned(), FieldType::I32, true, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_key".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                    Field::new("unit_2_text".to_owned(), FieldType::StringU8, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+                ];
+
+                definition.set_fields(fields);
+                definition
+            },
+            _ => todo!(),
+        }
     }
 
     /// This function returns a reference of the definition used by the Loc table.
@@ -156,13 +193,10 @@ impl MatchedCombat {
 
 impl Decodeable for MatchedCombat {
 
-    fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
-        let extra_data = extra_data.as_ref().ok_or(RLibError::DecodingMissingExtraData)?;
-        let table_name = extra_data.table_name.ok_or(RLibError::DecodingMissingExtraData)?;
-
+    fn decode<R: ReadBytes>(data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let (version, entry_count) = Self::read_header(data)?;
         let definition = Self::new_definition(version);
-        let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), true, table_name)?;
+        let table = Table::decode(&None, data, &definition, &HashMap::new(), Some(entry_count), true, "matched_combat")?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         check_size_mismatch(data.stream_position()? as usize, data.len()? as usize)?;

@@ -1684,7 +1684,7 @@ impl RFile {
         }
 
         // If that failed, try types that need to be in a specific path.
-        else if path.starts_with(&matched_combat::BASE_PATH) && path.ends_with(matched_combat::EXTENSION) {
+        else if matched_combat::BASE_PATHS.iter().any(|x| path.starts_with(*x)) && path.ends_with(matched_combat::EXTENSION) {
             self.file_type = FileType::MatchedCombat;
         }
 
