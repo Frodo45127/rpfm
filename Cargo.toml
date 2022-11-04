@@ -6,6 +6,7 @@ members = [
     "rpfm_extensions",
 
     # Executables
+    "rpfm",
     "rpfm_cli",
     # "rpfm_mod_checker",
     "rpfm_ui",

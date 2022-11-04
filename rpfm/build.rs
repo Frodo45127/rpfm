@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Build script for RPFM.
-!*/
+//! Build script for the RPFM Restarter Companion program.
 
 /// Windows Build Script.
 #[cfg(target_os = "windows")]

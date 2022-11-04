@@ -57,9 +57,10 @@ use self_update::cargo_crate_version;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::env::current_exe;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::exit;
+use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
@@ -1975,6 +1976,16 @@ impl AppUI {
 
                     // This closes the program and triggers a restart in the launcher.
                     if dialog.exec() == 1 {
+                        let mut rpfm_exe_path = current_exe().unwrap();
+                        rpfm_exe_path.pop();
+
+                        if cfg!(target_os = "windows") {
+                            rpfm_exe_path.push("rpfm_ui.exe");
+                        } else {
+                            rpfm_exe_path.push("rpfm_ui");
+                        };
+
+                        SystemCommand::new(&rpfm_exe_path).spawn().unwrap();
                         exit(10);
                     }
                 },

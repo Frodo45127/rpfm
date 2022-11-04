@@ -8,47 +8,44 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-This crate is a launcher for the RPFM UI, so it has a restart capability for updates.
-!*/
+//! This crate is a simple program to restart RPFM when it gets updated.
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
-use std::env::{args, current_dir, current_exe};
-use std::path::PathBuf;
+use std::env::current_exe;
 use std::process::*;
+use std::thread;
+use std::time;
 
-/// Guess you know what this function does....
 fn main() {
 
-    let rpfm_path: PathBuf = if cfg!(debug_assertions) {
-        current_dir().unwrap()
-    } else {
-        let mut path = current_exe().unwrap();
+    let mut path = current_exe().unwrap();
+    path.pop();
+
+    // Debug builds need to use the root repo folder as current dir.
+    let rpfm_path = if cfg!(debug_assertions) {
         path.pop();
+        path.pop();
+        path
+    } else {
         path
     };
 
-    let mut rpfm_ui_exe_path: PathBuf = current_exe().unwrap();
-    rpfm_ui_exe_path.pop();
+    let mut rpfm_exe_path = current_exe().unwrap();
+    rpfm_exe_path.pop();
 
     if cfg!(target_os = "windows") {
-        rpfm_ui_exe_path.push("rpfm_ui.exe");
+        rpfm_exe_path.push("rpfm_ui.exe");
     } else {
-        rpfm_ui_exe_path.push("rpfm_ui");
+        rpfm_exe_path.push("rpfm_ui");
     };
 
-    let mut args = args().collect::<Vec<String>>();
-    args.push("--booted_from_launcher".to_string());
+    // Sleep for a sec to give the previous program time to close.
+    let sec = time::Duration::from_millis(1000);
+    thread::sleep(sec);
 
-    // Code 10 is what we use to restart the program on exit.
-    while let Some(code) = Command::new(&rpfm_ui_exe_path)
+    Command::new(&rpfm_exe_path)
         .current_dir(&rpfm_path)
-        .args(&args[1..])
-        .output().unwrap().status.code() {
-        if code != 10 {
-            exit(code);
-        }
-    }
+        .spawn().unwrap();
 }
