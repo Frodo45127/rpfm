@@ -624,8 +624,8 @@ pub trait ReadBytes: Read + Seek {
         let new_pos = (end_pos - curr_pos - 1) as i64;
         self.seek(SeekFrom::Current(-new_pos))?;
 
-        // Get a String from it.
-        String::from_utf8(data).map_err(From::from)
+        // Get a String from it. Lossy because older games have packs with broken symbols in their paths.
+        Ok(String::from_utf8_lossy(&data).to_string())
     }
 
     /// This function tries to read a Sized UTF-8 String value from `self`.
