@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += widgets
+QT       += KIconThemes
 QT       += KTextEditor
 QT       += KWidgetsAddons
 

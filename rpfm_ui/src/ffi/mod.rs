@@ -168,9 +168,10 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 }
 
 // This function allow us to create a custom window.
-extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> *mut QMainWindow; }
+extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
 pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
-    unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure)) }
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
 
 //---------------------------------------------------------------------------//

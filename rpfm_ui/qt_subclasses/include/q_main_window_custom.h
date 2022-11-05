@@ -9,20 +9,21 @@
 #include <QSettings>
 #include <KBusyIndicatorWidget>
 
-extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr);
+extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr, bool is_dark_theme_enabled = false);
 
 class QMainWindowCustom : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    explicit QMainWindowCustom(QWidget *parent = nullptr, bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr);
+    explicit QMainWindowCustom(QWidget *parent = nullptr, bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod) = nullptr, bool is_dark_theme_enabled = false);
     void closeEvent(QCloseEvent *event);
     void moveEvent(QMoveEvent *event);
     void changeEvent(QEvent *event);
 
 private:
     bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod);
+    bool dark_theme_enabled;
     KBusyIndicatorWidget* busyIndicator;
 
 signals:

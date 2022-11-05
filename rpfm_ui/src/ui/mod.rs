@@ -194,22 +194,15 @@ impl UI {
             QApplication::set_font_1a(&font);
         }
 
-        // Add the icon themes path to the current list of paths where Qt searches for icons.
-        let current_theme_search_path = QIcon::theme_search_paths();
-        current_theme_search_path.push_front(&QString::from_std_str(&format!("{}/icons", RPFM_PATH.to_string_lossy())));
-        QIcon::set_theme_search_paths(&current_theme_search_path);
-
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
             if setting_bool("use_dark_theme") {
                 QApplication::set_style_q_string(&QString::from_std_str("fusion"));
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-                QIcon::set_theme_name(&QString::from_std_str("breeze-dark"));
             } else {
                 QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
                 QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
-                QIcon::set_theme_name(&QString::from_std_str("breeze"));
             }
         }
 
@@ -218,10 +211,8 @@ impl UI {
             if setting_bool("use_dark_theme") {
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-                QIcon::set_theme_name(&QString::from_std_str("breeze-dark"));
             } else {
                 QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
-                QIcon::set_theme_name(&QString::from_std_str("breeze"));
             }
         }
 dbg!(t.elapsed().unwrap());
