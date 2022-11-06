@@ -1251,3 +1251,10 @@ impl From<self_update::errors::Error> for Error {
         Self::from(ErrorKind::GenericHTMLError(error.to_string()))
     }
 }
+
+impl From<anyhow::Error> for Error {
+    fn from(error: anyhow::Error) -> Self {
+        Self::from(ErrorKind::GenericHTMLError(error.to_string()))
+    }
+}
+

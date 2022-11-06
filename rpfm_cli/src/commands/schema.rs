@@ -8,10 +8,14 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use log::info;
+//! This module contains the `Schema` command functions.
 
-use rpfm_error::Result;
-use rpfm_lib::schema::Schema;
+use anyhow::Result;
+
+use std::path::Path;
+
+use rpfm_lib::integrations::{git::*, log::*};
+use rpfm_lib::schema::*;
 
 use crate::config::Config;
 
@@ -19,18 +23,23 @@ use crate::config::Config;
 // 							Schema Command Variants
 //---------------------------------------------------------------------------//
 
-pub fn update(config: &Config) -> Result<()> {
-	if config.verbosity_level > 0 {
+/// This function downloads the most recent schemas into the provided path.
+pub fn update(config: &Config, schema_path: &Path) -> Result<()> {
+	if config.verbose {
 		info!("Updating schemas…");
 	}
 
-	let result = Schema::update_schema_repo();
-    if config.verbosity_level > 0 {
+    let git_integration = GitIntegration::new(schema_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE);
+    git_integration.update_repo()?;
+
+    if config.verbose {
         info!("Schemas updated.");
     }
-    result
+
+    Ok(())
 }
 
+/*
 pub fn to_json(config: &Config) -> Result<()> {
     if config.verbosity_level > 0 {
         info!("Converting schemas to Json…");
@@ -56,3 +65,4 @@ pub fn to_xml(config: &Config) -> Result<()> {
     }
     result
 }
+*/

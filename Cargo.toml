@@ -1,14 +1,21 @@
 # Workspace containing all RPFM crates.
 [workspace]
 members = [
-	"rpfm_error",
-    "rpfm_macros",
+    # Libs
     "rpfm_lib",
+    "rpfm_extensions",
+
+    # Executables
     "rpfm_cli",
-    "rpfm_mod_checker",
+    # "rpfm_mod_checker",
     "rpfm_ui",
-    "rpfm",
 ]
+
+[workspace.package]
+version = "3.99.104"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+rust-version = "1.64"
+edition = "2021"
 
 [profile.dev]
 incremental = true

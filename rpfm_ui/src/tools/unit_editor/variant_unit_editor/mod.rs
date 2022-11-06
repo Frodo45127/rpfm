@@ -42,8 +42,8 @@ use itertools::Itertools;
 use std::collections::HashMap;
 
 use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::packfile::PathType;
-use rpfm_macros::*;
+use rpfm_lib::packfile::ContainerPath;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -89,7 +89,7 @@ const VARIANT_KEY_VALUE: &str = "unit_variants_faction";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Unit Editor` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct SubToolVariantUnitEditor {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,
@@ -379,7 +379,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available icon paths to the UI.
     unsafe fn load_icon_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(PathType::Folder(UNIT_ICONS_PATH.split("/").map(|x| x.to_owned()).collect())));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.split("/").map(|x| x.to_owned()).collect())));
         let response = CentralCommand::recv(&receiver);
         let icon_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let icon_keys_sorted = icon_keys.values()
@@ -403,7 +403,7 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available variantmesh paths to the UI.
     unsafe fn load_variant_mesh_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(PathType::Folder(VARIANT_MESH_PATH.split("/").map(|x| x.to_owned()).collect())));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.split("/").map(|x| x.to_owned()).collect())));
         let response = CentralCommand::recv(&receiver);
         let variant_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let variant_keys_sorted = variant_keys.values()
@@ -542,8 +542,8 @@ impl SubToolVariantUnitEditor {
             let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
 
             let icon_paths = vec![
-                PathType::File(icon_path_png_lowres.to_vec()),
-                PathType::File(icon_path_tga_lowres.to_vec()),
+                ContainerPath::File(icon_path_png_lowres.to_vec()),
+                ContainerPath::File(icon_path_tga_lowres.to_vec()),
             ];
 
             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths));
@@ -593,7 +593,7 @@ impl SubToolVariantUnitEditor {
         if let Some(variant) = variant {
             let variant_path = format!("{}{}.{}", VARIANT_MESH_PATH, variant, VARIANT_MESH_EXTENSION).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
             let variant_paths = vec![
-                PathType::File(variant_path.to_vec()),
+                ContainerPath::File(variant_path.to_vec()),
             ];
 
             let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(variant_paths));

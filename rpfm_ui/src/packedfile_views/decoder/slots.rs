@@ -22,21 +22,11 @@ use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, SlotNoA
 
 use cpp_core::Ref;
 
-use bincode::deserialize;
-
+use std::io::{Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_error::ErrorKind;
-
-use rpfm_lib::packedfile::table::animtable::AnimTable;
-use rpfm_lib::packedfile::table::anim_fragment::AnimFragment;
-use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packedfile::table::loc::Loc;
-use rpfm_lib::packedfile::table::matched_combat::MatchedCombat;
-use rpfm_lib::packedfile::table::Table;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::SCHEMA;
+use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
@@ -44,14 +34,11 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::utils::show_dialog;
-use crate::utils::show_debug_dialog;
+use crate::SCHEMA;
 use crate::UI_STATE;
+use crate::utils::*;
 
-use super::get_definition;
-use super::get_header_size;
 use super::PackedFileDecoderView;
-use super::PackedFileDecoderMutableData;
 use super::DECODER_EXTENSION;
 
 //-------------------------------------------------------------------------------//
@@ -70,6 +57,9 @@ pub struct PackedFileDecoderViewSlots {
     pub use_this_i16: QBox<SlotNoArgs>,
     pub use_this_i32: QBox<SlotNoArgs>,
     pub use_this_i64: QBox<SlotNoArgs>,
+    pub use_this_optional_i16: QBox<SlotNoArgs>,
+    pub use_this_optional_i32: QBox<SlotNoArgs>,
+    pub use_this_optional_i64: QBox<SlotNoArgs>,
     pub use_this_colour_rgb: QBox<SlotNoArgs>,
     pub use_this_string_u8: QBox<SlotNoArgs>,
     pub use_this_string_u16: QBox<SlotNoArgs>,
@@ -110,7 +100,6 @@ impl PackedFileDecoderViewSlots {
     /// This function creates the entire slot pack for images.
     pub unsafe fn new(
         view: &Arc<PackedFileDecoderView>,
-        mutable_data: PackedFileDecoderMutableData,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Self {
@@ -135,104 +124,99 @@ impl PackedFileDecoderViewSlots {
             view.hex_selection_sync(false);
         }));
 
-        // Slot to use a boolean value.
+        //------------------------------------//
+        // Slots for the "Use This" buttons.
+        //------------------------------------//
         let use_this_bool = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::Boolean, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::Boolean);
         }));
 
-        // Slot to use a float value.
         let use_this_f32 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::F32, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::F32);
         }));
 
-        // Slot to use a long float value.
         let use_this_f64 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::F64, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::F64);
         }));
 
-        // Slot to use an integer value.
         let use_this_i16 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::I16, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::I16);
         }));
 
-        // Slot to use an integer value.
         let use_this_i32 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::I32, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::I32);
         }));
 
-        // Slot to use a long integer value.
         let use_this_i64 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::I64, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::I64);
         }));
 
-        // Slot to use a 4byte colour value.
+        let use_this_optional_i16 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI16);
+        }));
+
+        let use_this_optional_i32 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI32);
+        }));
+
+        let use_this_optional_i64 = SlotNoArgs::new(&view.table_view, clone!(
+            mut view => move || {
+            let _ = view.use_this(FieldType::OptionalI64);
+        }));
+
         let use_this_colour_rgb = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::ColourRGB, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::ColourRGB);
         }));
 
-        // Slot to use a string u8 value.
         let use_this_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::StringU8, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::StringU8);
         }));
 
-        // Slot to use a string u16 value.
         let use_this_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::StringU16, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::StringU16);
         }));
 
-        // Slot to use an optional string u8 value.
         let use_this_optional_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::OptionalStringU8, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::OptionalStringU8);
         }));
 
-        // Slot to use an optional string u16 value.
         let use_this_optional_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::OptionalStringU16, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::OptionalStringU16);
         }));
 
-
-        // Slot to use a sequence u32 value.
         let use_this_sequence_u32 = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100))), &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100))));
         }));
+
+        //-----------------------------------------//
+        // End of slots for the "Use This" buttons.
+        //-----------------------------------------//
 
         // Slot for when we change the Type of the selected field in the table.
         let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(&view.table_view, clone!(
-            mutable_data,
             view => move |initial_model_index,final_model_index,_| {
                 if initial_model_index.column() == 2 && final_model_index.column() == 2 {
-                    let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                    let _ = view.update_rows_decoded(None, None);
                 }
             }
         ));
 
         // Slots for the "Move up" contextual action of the TableView.
         let table_view_context_menu_move_up = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view.selection_model().selection();
@@ -259,14 +243,13 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
                 view.table_view.expand_all();
             }
         ));
 
         // Slots for the "Move down" contextual action of the TableView.
         let table_view_context_menu_move_down = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view.selection_model().selection();
@@ -300,14 +283,13 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
                 view.table_view.expand_all();
             }
         ));
 
         // Slots for the "Move left" contextual action of the TableView.
         let table_view_context_menu_move_left = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view.selection_model().selection();
@@ -334,14 +316,13 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
                 view.table_view.expand_all();
             }
         ));
 
         // Slots for the "Move right" contextual action of the TableView.
         let table_view_context_menu_move_right = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view.selection_model().selection();
@@ -375,14 +356,13 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
                 view.table_view.expand_all();
             }
         ));
 
         // Slots for the "Delete" contextual action of the TableView.
         let table_view_context_menu_delete = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view.selection_model().selection();
@@ -405,7 +385,7 @@ impl PackedFileDecoderViewSlots {
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
             }
         ));
 
@@ -465,7 +445,6 @@ impl PackedFileDecoderViewSlots {
 
         // Slots for the "Load" contextual action of the Version's TableView.
         let table_view_old_versions_context_menu_load = SlotOfBool::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move |_| {
 
                 let selection = view.table_view_old_versions.selection_model().selection();
@@ -473,27 +452,22 @@ impl PackedFileDecoderViewSlots {
                 if indexes.count_0a() == 1 {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
-                    if view.get_mut_ptr_packed_file_info_version_decoded_spinbox().is_enabled() {
-                        view.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_value(version);
+                    if view.packed_file_info_version_decoded_spinbox().is_enabled() {
+                        view.packed_file_info_version_decoded_spinbox().set_value(version);
                     }
 
                     // Get the new definition.
-                    let definition = get_definition(
-                        view.packed_file_type,
-                        &view.packed_file_path,
-                        &view.packed_file_data,
-                        Some(version)
-                    ).unwrap();
+                    let definition = view.definition().unwrap();
 
                     // Reset the definition we have.
                     view.table_model.clear();
-                    *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
+                    let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
 
                     // Update the decoder view.
-                    let _ = view.update_view(definition.get_ref_fields(), true, &mut mutable_data.index.lock().unwrap());
+                    let _ = view.update_view(definition.fields(), true);
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                let _ = view.update_rows_decoded(None, None);
             }
         ));
 
@@ -508,17 +482,9 @@ impl PackedFileDecoderViewSlots {
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
 
                     if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
-                        let versioned_file = match view.packed_file_type {
-                            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
-                            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
-                            PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
-                            PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
-                            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
-                            _ => unimplemented!(),
-                        }.unwrap();
-
-                        versioned_file.remove_version(version);
+                        schema.remove_definition(view.table_name(), version);
                     }
+
                     view.load_versions_list();
                 }
             }
@@ -526,7 +492,7 @@ impl PackedFileDecoderViewSlots {
 
         // Slot for the "Import from Assembly Kit" button.
         let import_from_assembly_kit = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
+
             mut view => move || {
                 match view.import_from_assembly_kit() {
                     Ok(field_list) => {
@@ -535,9 +501,9 @@ impl PackedFileDecoderViewSlots {
 
                             // If it worked, update the decoder view.
                             view.table_model.clear();
-                            *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
-                            let _ = view.update_view(field_list, true, &mut mutable_data.index.lock().unwrap());
-                            let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                            let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                            let _ = view.update_view(field_list, true);
+                            let _ = view.update_rows_decoded(None, None);
                         }
 
                         else {
@@ -557,80 +523,31 @@ impl PackedFileDecoderViewSlots {
             view => move || {
                 let schema = view.add_definition_to_schema();
 
-                match view.packed_file_type {
+                let mut extra_data = DecodeableExtraData::default();
+                extra_data.set_schema(Some(&schema));
+                let extra_data = Some(extra_data);
 
-                    PackedFileType::AnimTable => match AnimTable::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                        Err(error) => {
-                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                                let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
-                            } else {
-                                show_dialog(&app_ui.main_window, error, true);
-                            }
-                        }
+                 match DB::decode(&mut *view.data.write().unwrap(), &extra_data) {
+                    Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
+                    Err(error) => {
+                        /*
+                        if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
+                            let data: Table = deserialize(data).unwrap();
+                            show_debug_dialog(app_ui.main_window(), &format!("{}\n{:#?}", error, data.get_table_data()));
+                        } else {
+                            show_dialog(app_ui.main_window(), error, true);
+                        }*/
                     }
-
-                    PackedFileType::AnimFragment => match AnimFragment::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                        Err(error) => {
-                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                                let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
-                            } else {
-                                show_dialog(&app_ui.main_window, error, true);
-                            }
-                        }
-                    }
-
-                    PackedFileType::DB => match DB::read(&view.packed_file_data, &view.packed_file_path[1], &schema, true) {
-                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                        Err(error) => {
-                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                                let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
-                            } else {
-                                show_dialog(&app_ui.main_window, error, true);
-                            }
-                        }
-                    }
-
-                    PackedFileType::Loc => match Loc::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                        Err(error) => {
-                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                                let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
-                            } else {
-                                show_dialog(&app_ui.main_window, error, true);
-                            }
-                        }
-                    }
-
-                   PackedFileType::MatchedCombat => match MatchedCombat::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                        Err(error) => {
-                            if let ErrorKind::TableIncompleteError(error, data) = error.kind() {
-                                let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&app_ui.main_window, &format!("{}\n{:#?}", error, data.get_table_data()));
-                            } else {
-                                show_dialog(&app_ui.main_window, error, true);
-                            }
-                        }
-                    }
-
-                    _ => unimplemented!()
                 }
             }
         ));
 
         // Slot for the "Kill them all!" button.
         let remove_all_fields = SlotNoArgs::new(&view.table_view, clone!(
-            mut mutable_data,
             mut view => move || {
                 view.table_model.clear();
-                *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
-                let _ = view.update_view(&[], true, &mut mutable_data.index.lock().unwrap());
+                let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
+                let _ = view.update_view(&[], true);
             }
         ));
 
@@ -643,12 +560,10 @@ impl PackedFileDecoderViewSlots {
 
                 // Save and close all PackedFiles that use our definition.
                 let mut packed_files_to_save = vec![];
+                let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
                 for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
-                    if open_path.len() > 2 &&
-                        open_path[0] == view.packed_file_path[0] &&
-                        open_path[1] == view.packed_file_path[1] &&
-                        !open_path[2].ends_with(DECODER_EXTENSION) {
-                        packed_files_to_save.push(open_path.to_vec());
+                    if *open_path == table_path {
+                        packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
                     }
                 }
 
@@ -656,7 +571,7 @@ impl PackedFileDecoderViewSlots {
                     if let Err(error) = AppUI::purge_that_one_specifically(
                         &app_ui,
                         &pack_file_contents_ui,
-                        path,
+                        path.path_raw(),
                         DataSource::PackFile,
                         true,
                     ) {
@@ -689,6 +604,9 @@ impl PackedFileDecoderViewSlots {
             use_this_i16,
             use_this_i32,
             use_this_i64,
+            use_this_optional_i16,
+            use_this_optional_i32,
+            use_this_optional_i64,
             use_this_colour_rgb,
             use_this_string_u8,
             use_this_string_u16,

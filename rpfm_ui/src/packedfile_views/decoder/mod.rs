@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code for managing the PackedFile decoder.
-!*/
+//! Module implementing the DB Decoder.
 
 use qt_widgets::q_abstract_item_view::{EditTrigger, SelectionMode};
 use qt_widgets::q_header_view::ResizeMode;
@@ -53,51 +51,38 @@ use qt_core::QPtr;
 
 use cpp_core::CppBox;
 
+use anyhow::{anyhow, Result};
+use getset::Getters;
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
+use std::io::{Cursor, Seek, SeekFrom};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
-use rpfm_error::{ErrorKind, Result};
-
-use rpfm_lib::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
-use rpfm_lib::common::decoder::*;
-use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
-use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
-use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packedfile::table::DecodedData;
-use rpfm_lib::packedfile::table::{loc, loc::Loc};
-use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
-use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
-use rpfm_lib::SCHEMA;
-use rpfm_lib::SETTINGS;
+use rpfm_lib::binary::ReadBytes;
+use rpfm_lib::integrations::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
+use rpfm_lib::files::{ContainerPath, db::DB, table::DecodedData};
+use rpfm_lib::schema::*;
 
 use crate::app_ui::AppUI;
+use crate::assembly_kit_path;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
 use crate::FONT_MONOSPACE;
+use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
-use crate::utils::create_grid_layout;
-use crate::utils::ref_from_atomic;
+use crate::SCHEMA;
+use crate::setting_bool;
+use crate::utils::*;
+
 use self::slots::PackedFileDecoderViewSlots;
 
 pub mod connections;
 pub mod shortcuts;
 pub mod slots;
-
-/// List of supported PackedFile Types by the decoder.
-const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 5] = [
-    PackedFileType::AnimTable,
-    PackedFileType::AnimFragment,
-    PackedFileType::DB,
-    PackedFileType::Loc,
-    PackedFileType::MatchedCombat,
-];
 
 pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
 
@@ -106,6 +91,8 @@ pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of the PackedFile Decoder.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct PackedFileDecoderView {
     hex_view_index: QBox<QTextEdit>,
     hex_view_raw: QBox<QTextEdit>,
@@ -127,11 +114,14 @@ pub struct PackedFileDecoderView {
     i16_line_edit: QBox<QLineEdit>,
     i32_line_edit: QBox<QLineEdit>,
     i64_line_edit: QBox<QLineEdit>,
+    optional_i16_line_edit: QBox<QLineEdit>,
+    optional_i32_line_edit: QBox<QLineEdit>,
+    optional_i64_line_edit: QBox<QLineEdit>,
+    colour_rgb_line_edit: QBox<QLineEdit>,
     string_u8_line_edit: QBox<QLineEdit>,
     string_u16_line_edit: QBox<QLineEdit>,
     optional_string_u8_line_edit: QBox<QLineEdit>,
     optional_string_u16_line_edit: QBox<QLineEdit>,
-    colour_rgb_line_edit: QBox<QLineEdit>,
     sequence_u32_line_edit: QBox<QLineEdit>,
 
     bool_button: QBox<QPushButton>,
@@ -140,11 +130,14 @@ pub struct PackedFileDecoderView {
     i16_button: QBox<QPushButton>,
     i32_button: QBox<QPushButton>,
     i64_button: QBox<QPushButton>,
+    optional_i16_button: QBox<QPushButton>,
+    optional_i32_button: QBox<QPushButton>,
+    optional_i64_button: QBox<QPushButton>,
+    colour_rgb_button: QBox<QPushButton>,
     string_u8_button: QBox<QPushButton>,
     string_u16_button: QBox<QPushButton>,
     optional_string_u8_button: QBox<QPushButton>,
     optional_string_u16_button: QBox<QPushButton>,
-    colour_rgb_button: QBox<QPushButton>,
     sequence_u32_button: QBox<QPushButton>,
 
     packed_file_info_version_decoded_spinbox: QBox<QSpinBox>,
@@ -162,15 +155,12 @@ pub struct PackedFileDecoderView {
     clear_definition_button: QBox<QPushButton>,
     save_button: QBox<QPushButton>,
 
-    packed_file_type: PackedFileType,
-    packed_file_path: Vec<String>,
-    packed_file_data: Arc<Vec<u8>>,
-}
-
-/// This struct contains data we need to keep separated from the other two due to mutability issues.
-#[derive(Clone)]
-pub struct PackedFileDecoderMutableData {
-    pub index: Arc<Mutex<usize>>,
+    packed_file_path: String,
+    data: Arc<RwLock<Cursor<Vec<u8>>>>,
+    table_name: String,
+    version: i32,
+    entry_count: u32,
+    header_size: u64,
 }
 
 //-------------------------------------------------------------------------------//
@@ -187,24 +177,15 @@ impl PackedFileDecoderView {
         app_ui: &Rc<AppUI>
     ) -> Result<()> {
 
-        // Get the decoded Text.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFile(packed_file_view.get_path()));
+        let container_path = ContainerPath::File(packed_file_view.get_path());
+        let table_name = container_path.db_table_name_from_path().unwrap();
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFileRawData(packed_file_view.get_path()));
         let response = CentralCommand::recv(&receiver);
-        let packed_file = match response {
-            Response::OptionPackedFile(packed_file) => match packed_file {
-                Some(packed_file) => packed_file,
-                None => return Err(ErrorKind::PackedFileNotFound.into()),
-            }
+        let mut data = match response {
+            Response::VecU8(data) => Cursor::new(data),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
-
-        let packed_file_type = PackedFileType::get_packed_file_type(packed_file.get_ref_raw(), true);
-
-        // If the PackedFileType is not one of the ones supported by the schema system, get out.
-        if !SUPPORTED_PACKED_FILE_TYPES.iter().any(|x| x == &packed_file_type)  {
-            return Err(ErrorKind::PackedFileNotDecodeableWithDecoder.into());
-        }
 
         // Create the hex view on the left side.
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
@@ -274,11 +255,14 @@ impl PackedFileDecoderView {
         let i16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I16\":"), &decoded_fields_frame);
         let i32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I32\":"), &decoded_fields_frame);
         let i64_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I64\":"), &decoded_fields_frame);
+        let optional_i16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional I16\":"), &decoded_fields_frame);
+        let optional_i32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional I32\":"), &decoded_fields_frame);
+        let optional_i64_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional I64\":"), &decoded_fields_frame);
+        let colour_rgb_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Colour (RGB)\":"), &decoded_fields_frame);
         let string_u8_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"String U8\":"), &decoded_fields_frame);
         let string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"String U16\":"), &decoded_fields_frame);
         let optional_string_u8_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U8\":"), &decoded_fields_frame);
         let optional_string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U16\":"), &decoded_fields_frame);
-        let colour_rgb_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Colour (RGB)\":"), &decoded_fields_frame);
         let sequence_u32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"SequenceU32\":"), &decoded_fields_frame);
 
         let bool_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
@@ -287,11 +271,14 @@ impl PackedFileDecoderView {
         let i16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let i32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let i64_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let optional_i16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let optional_i32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let optional_i64_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let colour_rgb_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let string_u8_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let optional_string_u8_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let optional_string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
-        let colour_rgb_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
         let sequence_u32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
 
         let bool_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
@@ -300,11 +287,14 @@ impl PackedFileDecoderView {
         let i16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let i32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let i64_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let optional_i16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let optional_i32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let optional_i64_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let colour_rgb_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let string_u8_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let optional_string_u8_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let optional_string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
-        let colour_rgb_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
         let sequence_u32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
 
         decoded_fields_layout.add_widget_5a(&bool_label, 0, 0, 1, 1);
@@ -313,12 +303,15 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&i16_label, 3, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(&i32_label, 4, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(&i64_label, 5, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&colour_rgb_label, 6, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_label, 7, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_label, 8, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_label, 9, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_label, 10, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_label, 11, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i16_label, 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i32_label, 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i64_label, 8, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_label, 9, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_label, 10, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_label, 11, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_label, 12, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_label, 13, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_label, 14, 0, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&bool_line_edit, 0, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_line_edit, 1, 1, 1, 1);
@@ -326,12 +319,15 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&i16_line_edit, 3, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&i32_line_edit, 4, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&i64_line_edit, 5, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&colour_rgb_line_edit, 6, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_line_edit, 7, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_line_edit, 8, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_line_edit, 9, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_line_edit, 10, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_line_edit, 11, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i16_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i32_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i64_line_edit, 8, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_line_edit, 9, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_line_edit, 10, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_line_edit, 11, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_line_edit, 12, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_line_edit, 13, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_line_edit, 14, 1, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&bool_button, 0, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_button, 1, 2, 1, 1);
@@ -339,12 +335,15 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&i16_button, 3, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&i32_button, 4, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&i64_button, 5, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&colour_rgb_button, 6, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u8_button, 7, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&string_u16_button, 8, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u8_button, 9, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 10, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&sequence_u32_button, 11, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i16_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i32_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_i64_button, 8, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&colour_rgb_button, 9, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_button, 10, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_button, 11, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_button, 12, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 13, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_button, 14, 2, 1, 1);
 
         layout.add_widget_5a(&decoded_fields_frame, 1, 1, 3, 1);
 
@@ -360,10 +359,7 @@ impl PackedFileDecoderView {
         let packed_file_info_version_label = QLabel::from_q_string_q_widget(&QString::from_std_str("PackedFile version:"), &info_frame);
         let packed_file_info_entry_count_label = QLabel::from_q_string_q_widget(&QString::from_std_str("PackedFile entry count:"), &info_frame);
 
-        let packed_file_info_type_decoded_label = QLabel::from_q_string_q_widget(&QString::from_std_str(match packed_file_type {
-            PackedFileType::DB => format!("DB/{}", packed_file_view.get_path()[1]),
-            _ => format!("{}", packed_file_type),
-        }), &info_frame);
+        let packed_file_info_type_decoded_label = QLabel::from_q_string_q_widget(&QString::from_std_str(table_name), &info_frame);
         let packed_file_info_version_decoded_spinbox = QSpinBox::new_1a(&info_frame);
         let packed_file_info_entry_count_decoded_label = QLabel::from_q_widget(&info_frame);
 
@@ -426,11 +422,8 @@ impl PackedFileDecoderView {
         layout.set_row_stretch(0, 10);
         layout.set_row_stretch(2, 5);
 
-        let header_size = get_header_size(
-            packed_file_type,
-            &packed_file.get_raw_data()?
-        )?;
-
+        let (version,_,_,entry_count) = DB::read_header(&mut data)?;
+        let header_size = data.position();
         let packed_file_decoder_view = Arc::new(PackedFileDecoderView {
             hex_view_index,
             hex_view_raw,
@@ -452,6 +445,9 @@ impl PackedFileDecoderView {
             i16_line_edit,
             i32_line_edit,
             i64_line_edit,
+            optional_i16_line_edit,
+            optional_i32_line_edit,
+            optional_i64_line_edit,
             string_u8_line_edit,
             string_u16_line_edit,
             optional_string_u8_line_edit,
@@ -465,6 +461,9 @@ impl PackedFileDecoderView {
             i16_button,
             i32_button,
             i64_button,
+            optional_i16_button,
+            optional_i32_button,
+            optional_i64_button,
             string_u8_button,
             string_u16_button,
             optional_string_u8_button,
@@ -487,44 +486,37 @@ impl PackedFileDecoderView {
             clear_definition_button,
             save_button,
 
-            packed_file_type,
-            packed_file_path: packed_file.get_path().to_vec(),
-            packed_file_data: Arc::new(packed_file.get_raw_data()?),
+            packed_file_path: packed_file_view.get_path(),
+            data: Arc::new(RwLock::new(data)),
+            table_name: table_name.to_owned(),
+            version,
+            entry_count,
+            header_size,
         });
-
-        let packed_file_decoder_mutable_data = PackedFileDecoderMutableData {
-            index: Arc::new(Mutex::new(header_size)),
-        };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
             &packed_file_decoder_view,
-            packed_file_decoder_mutable_data.clone(),
             app_ui,
             pack_file_contents_ui
         );
 
-        let definition = get_definition(
-            packed_file_decoder_view.packed_file_type,
-            &packed_file_decoder_view.packed_file_path,
-            &packed_file_decoder_view.packed_file_data,
-            None
-        );
+        let definition = packed_file_decoder_view.definition();
 
         let fields = if let Some(definition) = definition {
-            definition.get_ref_fields().to_vec()
+            definition.fields().to_vec()
         } else { vec![] };
 
-        packed_file_decoder_view.load_packed_file_data()?;
+        packed_file_decoder_view.load_data()?;
         packed_file_decoder_view.load_versions_list();
-        packed_file_decoder_view.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
-        packed_file_decoder_view.update_rows_decoded(&mut 0, None, None)?;
+        packed_file_decoder_view.update_view(&fields, true)?;
+        packed_file_decoder_view.update_rows_decoded(None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
 
         // Update the path so the decoder is identified as a separate file.
         let mut path = packed_file_view.get_path();
-        *path.last_mut().unwrap() = path.last().unwrap().to_owned() + DECODER_EXTENSION;
+        path.push_str(DECODER_EXTENSION);
         packed_file_view.set_path(&path);
 
         // Return success.
@@ -532,10 +524,10 @@ impl PackedFileDecoderView {
     }
 
     /// This function loads the raw data of a PackedFile into the UI and prepare it to be updated later on.
-    pub unsafe fn load_packed_file_data(&self) -> Result<()> {
+    pub unsafe fn load_data(&self) -> Result<()> {
 
         // We need to set up the fonts in a specific way, so the scroll/sizes are kept correct.
-        let font = self.get_mut_ptr_hex_view_index().document().default_font();
+        let font = self.hex_view_index().document().default_font();
         let font_metrics = QFontMetrics::new_1a(&font);
 
         //---------------------------------------------//
@@ -548,13 +540,13 @@ impl PackedFileDecoderView {
         // - Amount of lines is "bytes we have / 16 + 1" (+ 1 because we want to show incomplete lines too).
         // - Then, for the zeroes, we default to 4, meaning all lines are 00XX.
         let mut hex_index = String::new();
-        let hex_lines = (self.packed_file_data.len() / 16) + 1;
+        let hex_lines = (self.data.write().unwrap().len()? / 16) + 1;
         (0..hex_lines).for_each(|x| hex_index.push_str(&format!("{:>0count$X}\n", x * 16, count = 4)));
 
         let qhex_index = QString::from_std_str(&hex_index);
         let text_size = font_metrics.size_2a(0, &qhex_index);
-        self.get_mut_ptr_hex_view_index().set_text(&qhex_index);
-        self.get_mut_ptr_hex_view_index().set_fixed_width(text_size.width() + 34);
+        self.hex_view_index().set_text(&qhex_index);
+        self.hex_view_index().set_fixed_width(text_size.width() + 34);
 
         //---------------------------------------------//
         // Raw data section.
@@ -562,7 +554,7 @@ impl PackedFileDecoderView {
 
         // Prepare the Hex Raw Data string, looking like:
         // 01 0a 02 0f 0d 02 04 06 01 0a 02 0f 0d 02 04 06
-        let mut hex_raw_data = format!("{:02X?}", self.packed_file_data);
+        let mut hex_raw_data = format!("{:02X?}", (*self.data.read().unwrap()).get_ref());
         hex_raw_data.remove(0);
         hex_raw_data.pop();
         hex_raw_data.retain(|c| c != ',');
@@ -573,8 +565,8 @@ impl PackedFileDecoderView {
 
         let qhex_raw_data = QString::from_std_str(&hex_raw_data);
         let text_size = font_metrics.size_2a(0, &qhex_raw_data);
-        self.get_mut_ptr_hex_view_raw().set_text(&qhex_raw_data);
-        self.get_mut_ptr_hex_view_raw().set_fixed_width(text_size.width() + 34);
+        self.hex_view_raw().set_text(&qhex_raw_data);
+        self.hex_view_raw().set_fixed_width(text_size.width() + 34);
 
         //---------------------------------------------//
         // Decoded data section.
@@ -582,7 +574,7 @@ impl PackedFileDecoderView {
 
         // This pushes a newline after 16 characters.
         let mut hex_decoded_data = String::new();
-        for (j, i) in self.packed_file_data.iter().enumerate() {
+        for (j, i) in self.data.read().unwrap().get_ref().iter().enumerate() {
             if j % 16 == 0 && j != 0 { hex_decoded_data.push('\n'); }
             let character = *i as char;
 
@@ -594,40 +586,39 @@ impl PackedFileDecoderView {
         // Add all the "Decoded" lines to the TextEdit.
         let qhex_decoded_data = QString::from_std_str(&hex_decoded_data);
         let text_size = font_metrics.size_2a(0, &qhex_decoded_data);
-        self.get_mut_ptr_hex_view_decoded().set_text(&qhex_decoded_data);
-        self.get_mut_ptr_hex_view_decoded().set_fixed_width(text_size.width() + 34);
+        self.hex_view_decoded().set_text(&qhex_decoded_data);
+        self.hex_view_decoded().set_fixed_width(text_size.width() + 34);
 
         //---------------------------------------------//
         // Header Marking section.
         //---------------------------------------------//
 
-        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-        let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
+        let use_dark_theme = setting_bool("use_dark_theme");
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
 
         // Block the signals during this, so we don't mess things up.
-        let blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_raw().static_upcast::<QObject>());
-        let cursor = self.get_mut_ptr_hex_view_raw().text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_raw().static_upcast::<QObject>());
+        let cursor = self.hex_view_raw().text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size * 3) as i32);
-        self.get_mut_ptr_hex_view_raw().set_text_cursor(&cursor);
-        self.get_mut_ptr_hex_view_raw().set_current_char_format(&header_format);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (self.header_size * 3) as i32);
+        self.hex_view_raw().set_text_cursor(&cursor);
+        self.hex_view_raw().set_current_char_format(&header_format);
         cursor.clear_selection();
-        self.get_mut_ptr_hex_view_raw().set_text_cursor(&cursor);
+        self.hex_view_raw().set_text_cursor(&cursor);
 
         blocker.unblock();
 
         // Block the signals during this, so we don't mess things up.
-        let blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_decoded().static_upcast::<QObject>());
-        let cursor = self.get_mut_ptr_hex_view_decoded().text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_decoded().static_upcast::<QObject>());
+        let cursor = self.hex_view_decoded().text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
-        self.get_mut_ptr_hex_view_decoded().set_text_cursor(&cursor);
-        self.get_mut_ptr_hex_view_decoded().set_current_char_format(&header_format);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (self.header_size + (self.header_size as f32 / 16.0).floor() as u64) as i32);
+        self.hex_view_decoded().set_text_cursor(&cursor);
+        self.hex_view_decoded().set_current_char_format(&header_format);
         cursor.clear_selection();
-        self.get_mut_ptr_hex_view_decoded().set_text_cursor(&cursor);
+        self.hex_view_decoded().set_text_cursor(&cursor);
 
         blocker.unblock();
 
@@ -636,160 +627,17 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Load the "Info" data to the view.
-        let (version, entry_count) = match self.packed_file_type {
-            PackedFileType::AnimTable => {
-                if let Ok((version, entry_count)) = AnimTable::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
-            }
-            PackedFileType::AnimFragment => {
-                if let Ok((version, entry_count)) = AnimFragment::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
-            }
-            PackedFileType::DB => {
-                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
-            }
-            PackedFileType::Loc => {
-                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
-            }
-            PackedFileType::MatchedCombat => {
-                if let Ok((version, entry_count)) = MatchedCombat::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
-            }
-            _ => unimplemented!()
-        };
-
-        if version > 0 {
-            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_enabled(false);
+        if self.version > 0 {
+            self.packed_file_info_version_decoded_spinbox().set_enabled(false);
         } else {
-            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_maximum(0);
-            self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_minimum(-99);
+            self.packed_file_info_version_decoded_spinbox().set_maximum(0);
+            self.packed_file_info_version_decoded_spinbox().set_minimum(-99);
         }
 
-        self.get_mut_ptr_packed_file_info_version_decoded_spinbox().set_value(version);
-        self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
+        self.packed_file_info_version_decoded_spinbox().set_value(self.version);
+        self.packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(&self.entry_count.to_string()));
 
         Ok(())
-    }
-
-    fn get_mut_ptr_hex_view_index(&self) -> &QBox<QTextEdit> {
-        &self.hex_view_index
-    }
-
-    fn get_mut_ptr_hex_view_raw(&self) -> &QBox<QTextEdit> {
-        &self.hex_view_raw
-    }
-
-    fn get_mut_ptr_hex_view_decoded(&self) -> &QBox<QTextEdit> {
-        &self.hex_view_decoded
-    }
-
-    fn get_mut_ptr_bool_button(&self) -> &QBox<QPushButton> {
-        &self.bool_button
-    }
-
-    fn get_mut_ptr_f32_button(&self) -> &QBox<QPushButton> {
-        &self.f32_button
-    }
-
-    fn get_mut_ptr_f64_button(&self) -> &QBox<QPushButton> {
-        &self.f64_button
-    }
-
-    fn get_mut_ptr_i16_button(&self) -> &QBox<QPushButton> {
-        &self.i16_button
-    }
-
-    fn get_mut_ptr_i32_button(&self) -> &QBox<QPushButton> {
-        &self.i32_button
-    }
-
-    fn get_mut_ptr_i64_button(&self) -> &QBox<QPushButton> {
-        &self.i64_button
-    }
-
-    fn get_mut_ptr_colour_rgb_button(&self) -> &QBox<QPushButton> {
-        &self.colour_rgb_button
-    }
-
-    fn get_mut_ptr_string_u8_button(&self) -> &QBox<QPushButton> {
-        &self.string_u8_button
-    }
-
-    fn get_mut_ptr_string_u16_button(&self) -> &QBox<QPushButton> {
-        &self.string_u16_button
-    }
-
-    fn get_mut_ptr_optional_string_u8_button(&self) -> &QBox<QPushButton> {
-        &self.optional_string_u8_button
-    }
-
-    fn get_mut_ptr_optional_string_u16_button(&self) -> &QBox<QPushButton> {
-        &self.optional_string_u16_button
-    }
-
-    fn get_mut_ptr_sequence_u32_button(&self) -> &QBox<QPushButton> {
-        &self.sequence_u32_button
-    }
-
-    fn get_mut_ptr_packed_file_info_version_decoded_spinbox(&self) -> &QBox<QSpinBox> {
-        &self.packed_file_info_version_decoded_spinbox
-    }
-
-    fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> &QBox<QLabel> {
-        &self.packed_file_info_entry_count_decoded_label
-    }
-
-    fn get_mut_ptr_table_model(&self) -> &QBox<QStandardItemModel> {
-        &self.table_model
-    }
-
-    fn get_mut_ptr_table_view(&self) -> &QBox<QTreeView> {
-        &self.table_view
-    }
-
-    fn get_mut_ptr_table_view_old_versions(&self) -> &QBox<QTableView> {
-        &self.table_view_old_versions
-    }
-
-    fn get_mut_ptr_table_view_context_menu_move_up(&self) -> &QPtr<QAction> {
-        &self.table_view_context_menu_move_up
-    }
-
-    fn get_mut_ptr_table_view_context_menu_move_down(&self) -> &QPtr<QAction> {
-        &self.table_view_context_menu_move_down
-    }
-
-    fn get_mut_ptr_table_view_context_menu_move_left(&self) -> &QPtr<QAction> {
-        &self.table_view_context_menu_move_left
-    }
-
-    fn get_mut_ptr_table_view_context_menu_move_rigth(&self) -> &QPtr<QAction> {
-        &self.table_view_context_menu_move_right
-    }
-
-    fn get_mut_ptr_table_view_context_menu_delete(&self) -> &QPtr<QAction> {
-        &self.table_view_context_menu_delete
-    }
-
-    fn get_mut_ptr_table_view_old_versions_context_menu_load(&self) -> &QPtr<QAction> {
-        &self.table_view_old_versions_context_menu_load
-    }
-
-    fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> &QPtr<QAction> {
-        &self.table_view_old_versions_context_menu_delete
-    }
-
-    fn get_mut_ptr_import_from_assembly_kit_button(&self) -> &QBox<QPushButton> {
-        &self.import_from_assembly_kit_button
-    }
-
-    fn get_mut_ptr_test_definition_button(&self) -> &QBox<QPushButton> {
-        &self.test_definition_button
-    }
-
-    fn get_mut_ptr_clear_definition_button(&self) -> &QBox<QPushButton> {
-        &self.clear_definition_button
-    }
-
-    fn get_mut_ptr_save_button(&self) -> &QBox<QPushButton> {
-        &self.save_button
     }
 
     /// This function syncronize the selection between the Hex View and the Decoded View of the PackedFile Data.
@@ -840,7 +688,6 @@ impl PackedFileDecoderView {
         &self,
         field_list: &[Field],
         is_initial_load: bool,
-        mut index: &mut usize,
     ) -> Result<()> {
 
         // If it's the first load, we have to prepare the table's column data.
@@ -858,24 +705,29 @@ impl PackedFileDecoderView {
             // Otherswise, we add each field we got as a row to the table.
             else {
                 for field in field_list {
-                    self.add_field_to_view(field, &mut index, is_initial_load, None);
+                    self.add_field_to_view(field, is_initial_load, None);
                 }
                 configure_table_view(&self.table_view);
             }
         }
 
-        let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
-        let decoded_f32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F32, &mut index.clone());
-        let decoded_f64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F64, &mut index.clone());
-        let decoded_i16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I16, &mut index.clone());
-        let decoded_i32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I32, &mut index.clone());
-        let decoded_i64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I64, &mut index.clone());
-        let decoded_colour_rgb = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::ColourRGB, &mut index.clone());
-        let decoded_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU8, &mut index.clone());
-        let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
-        let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
-        let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
-        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Box::new(Definition::new(-100))), &mut index.clone());
+        let mut data = self.data.write().unwrap();
+
+        let decoded_bool = Self::decode_data_by_fieldtype(&mut *data, &FieldType::Boolean);
+        let decoded_f32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::F32);
+        let decoded_f64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::F64);
+        let decoded_i16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I16);
+        let decoded_i32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I32);
+        let decoded_i64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::I64);
+        let decoded_optional_i16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI16);
+        let decoded_optional_i32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI32);
+        let decoded_optional_i64 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalI64);
+        let decoded_colour_rgb = Self::decode_data_by_fieldtype(&mut *data, &FieldType::ColourRGB);
+        let decoded_string_u8 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::StringU8);
+        let decoded_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::StringU16);
+        let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU8);
+        let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::OptionalStringU16);
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&mut *data, &FieldType::SequenceU32(Box::new(Definition::new(-100))));
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -884,6 +736,9 @@ impl PackedFileDecoderView {
         self.i16_line_edit.set_text(&QString::from_std_str(decoded_i16));
         self.i32_line_edit.set_text(&QString::from_std_str(decoded_i32));
         self.i64_line_edit.set_text(&QString::from_std_str(decoded_i64));
+        self.optional_i16_line_edit.set_text(&QString::from_std_str(decoded_optional_i16));
+        self.optional_i32_line_edit.set_text(&QString::from_std_str(decoded_optional_i32));
+        self.optional_i64_line_edit.set_text(&QString::from_std_str(decoded_optional_i64));
         self.colour_rgb_line_edit.set_text(&QString::from_std_str(decoded_colour_rgb));
         self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
         self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
@@ -896,8 +751,7 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Prepare to paint the changes in the hex data views.
-        let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
-        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+        let use_dark_theme = setting_bool("use_dark_theme");
         let index_format = QTextCharFormat::new();
         let decoded_format = QTextCharFormat::new();
         let neutral_format = QTextCharFormat::new();
@@ -909,7 +763,7 @@ impl PackedFileDecoderView {
         let blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast::<QObject>());
         let cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (self.header_size * 3) as i32);
         cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
 
         self.hex_view_raw.set_text_cursor(&cursor);
@@ -922,7 +776,7 @@ impl PackedFileDecoderView {
         let blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast::<QObject>());
         let cursor = self.hex_view_decoded.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (self.header_size + (self.header_size as f32 / 16.0).floor() as u64) as i32);
         cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
 
         self.hex_view_decoded.set_text_cursor(&cursor);
@@ -939,8 +793,8 @@ impl PackedFileDecoderView {
         let blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast::<QObject>());
         let cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((*index - header_size) * 3) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (self.header_size * 3) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((data.position() - self.header_size) * 3) as i32);
 
         self.hex_view_raw.set_text_cursor(&cursor);
         self.hex_view_raw.set_current_char_format(&decoded_format);
@@ -953,14 +807,14 @@ impl PackedFileDecoderView {
         let cursor = self.hex_view_decoded.text_cursor();
 
         // Create the "Selection" for the decoded row.
-        let positions_to_move_end = *index / 16;
-        let positions_to_move_start = header_size / 16;
+        let positions_to_move_end = data.position() / 16;
+        let positions_to_move_start = self.header_size / 16;
         let positions_to_move_vertical = positions_to_move_end - positions_to_move_start;
-        let positions_to_move_horizontal = *index - header_size;
+        let positions_to_move_horizontal = data.position() - self.header_size;
         let positions_to_move = positions_to_move_horizontal + positions_to_move_vertical;
 
         cursor.move_position_1a(MoveOperation::Start);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (self.header_size + (self.header_size as f32 / 16.0).floor() as u64) as i32);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, positions_to_move as i32);
 
         self.hex_view_decoded.set_text_cursor(&cursor);
@@ -1006,82 +860,63 @@ impl PackedFileDecoderView {
     pub unsafe fn add_field_to_view(
         &self,
         field: &Field,
-        mut index: &mut usize,
         is_initial_load: bool,
         parent: Option<CppBox<QModelIndex>>,
     ) {
 
         // Decode the data from the field.
-        let decoded_data = Self::decode_data_by_fieldtype(
-            &self.packed_file_data,
-            field.get_ref_field_type(),
-            &mut index
-        );
+        let decoded_data = Self::decode_data_by_fieldtype(&mut *self.data.write().unwrap(), field.field_type());
 
         // Get the type of the data we are going to put into the Table.
-        let field_type = match field.get_ref_field_type() {
-            FieldType::Boolean => "Bool",
-            FieldType::F32 => "F32",
-            FieldType::F64 => "F64",
-            FieldType::I16 => "I16",
-            FieldType::I32 => "I32",
-            FieldType::I64 => "I64",
-            FieldType::ColourRGB => "ColourRGB",
-            FieldType::StringU8 => "StringU8",
-            FieldType::StringU16 => "StringU16",
-            FieldType::OptionalStringU8 => "OptionalStringU8",
-            FieldType::OptionalStringU16 => "OptionalStringU16",
-            FieldType::SequenceU16(_) => "SequenceU16",
-            FieldType::SequenceU32(_) => "SequenceU32",
-        };
+        let field_type = field.field_type().to_string();
 
         // Create a new list of StandardItem.
         let qlist = QListOfQStandardItem::new();
 
         // Create the items of the new row.
-        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.get_name()));
+        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.name()));
         let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
         let field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
         field_is_key.set_checkable(true);
-        field_is_key.set_check_state(if field.get_is_key() { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_key.set_check_state(if field.is_key() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.get_is_reference() {
+        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference() {
             (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
         } else { (QStandardItem::new(), QStandardItem::new()) };
 
-        let field_lookup_columns = if let Some(ref columns) = field.get_lookup() {
+        let field_lookup_columns = if let Some(ref columns) = field.lookup() {
             QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
         let decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
         decoded_data.set_editable(false);
 
-        let field_default_value = if let Some(ref default_value) = field.get_default_value(None) {
+        let field_default_value = if let Some(ref default_value) = field.default_value(None) {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 
         let field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
-        field_is_filename.set_check_state(if field.get_is_filename() { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_filename.set_check_state(if field.is_filename() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.get_filename_relative_path() {
+        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path() {
             QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
         } else { QStandardItem::new() };
 
-        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_ca_order())));
-        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.get_description()));
-        let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.get_enum_values_to_string()));
+        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order())));
+        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.description()));
+        let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.enum_values_to_string()));
 
         let field_is_bitwise = QStandardItem::new();
-        field_is_bitwise.set_data_2a(&QVariant::from_int(field.get_is_bitwise()), 2);
+        field_is_bitwise.set_data_2a(&QVariant::from_int(field.is_bitwise()), 2);
 
         let field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
         field_number.set_editable(false);
 
         let field_is_part_of_colour = QStandardItem::new();
-        if let Some(ref is_part_of_colour) = field.get_is_part_of_colour() {
+        if let Some(ref is_part_of_colour) = field.is_part_of_colour() {
             field_is_part_of_colour.set_data_2a(&QVariant::from_uint(*is_part_of_colour as u32), 2);
         }
 
@@ -1109,10 +944,10 @@ impl PackedFileDecoderView {
                 Some(ref parent) => self.table_model.item_from_index(parent).append_row_q_list_of_q_standard_item(&qlist),
                 None => self.table_model.append_row_q_list_of_q_standard_item(&qlist),
             }
-            if let FieldType::SequenceU32(table) = field.get_ref_field_type() {
+            if let FieldType::SequenceU32(table) = field.field_type() {
 
                 // The new parent is either the last child of the current parent, or the last item in the tree.
-                for field in table.get_ref_fields() {
+                for field in table.fields() {
                     let parent = match parent {
                         Some(ref parent) => {
                             let item = self.table_model.item_from_index(parent);
@@ -1126,7 +961,7 @@ impl PackedFileDecoderView {
                         }
                     };
 
-                    self.add_field_to_view(field, &mut index, is_initial_load, Some(parent));
+                    self.add_field_to_view(field, is_initial_load, Some(parent));
                 }
             }
         }
@@ -1158,14 +993,10 @@ impl PackedFileDecoderView {
     }
 
     /// This function is the one that takes care of actually decoding the provided data based on the field type.
-    fn decode_data_by_fieldtype(
-        packed_file_data: &[u8],
-        field_type: &FieldType,
-        mut index: &mut usize
-    ) -> String {
+    fn decode_data_by_fieldtype<T: ReadBytes>(data: &mut T, field_type: &FieldType) -> String {
         match field_type {
             FieldType::Boolean => {
-                match packed_file_data.decode_packedfile_bool(*index, &mut index) {
+                match data.read_bool() {
                     Ok(result) => {
                         if result { "True".to_string() }
                         else { "False".to_string() }
@@ -1174,73 +1005,91 @@ impl PackedFileDecoderView {
                 }
             },
             FieldType::F32 => {
-                match packed_file_data.decode_packedfile_float_f32(*index, &mut index) {
+                match data.read_f32() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::F64 => {
-                match packed_file_data.decode_packedfile_float_f64(*index, &mut index) {
+                match data.read_f64() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::I16 => {
-                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                match data.read_i16() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::I32 => {
-                match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
+                match data.read_i32() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::I64 => {
-                match packed_file_data.decode_packedfile_integer_i64(*index, &mut index) {
+                match data.read_i64() {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::OptionalI16 => {
+                match data.read_optional_i16() {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::OptionalI32 => {
+                match data.read_optional_i32() {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::OptionalI64 => {
+                match data.read_optional_i64() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::ColourRGB => {
-                match packed_file_data.decode_packedfile_string_colour_rgb(*index, &mut index) {
-                    Ok(result) => result.to_string(),
+                match data.read_string_colour_rgb() {
+                    Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::StringU8 => {
-                match packed_file_data.decode_packedfile_string_u8(*index, &mut index) {
+                match data.read_sized_string_u8() {
                     Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::StringU16 => {
-                match packed_file_data.decode_packedfile_string_u16(*index, &mut index) {
+                match data.read_sized_string_u16() {
                     Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::OptionalStringU8 => {
-                match packed_file_data.decode_packedfile_optional_string_u8(*index, &mut index) {
+                match data.read_optional_string_u8() {
                     Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::OptionalStringU16 => {
-                match packed_file_data.decode_packedfile_optional_string_u16(*index, &mut index) {
+                match data.read_optional_string_u16() {
                     Ok(result) => result,
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::SequenceU16(_) => {
-                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                match data.read_i16() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
             FieldType::SequenceU32(_) => {
-                match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
+                match data.read_i32() {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
@@ -1253,14 +1102,13 @@ impl PackedFileDecoderView {
     /// To be triggered when the table changes.
     unsafe fn update_rows_decoded(
         &self,
-        mut index: &mut usize,
         entries: Option<u32>,
         model_index: Option<CppBox<QModelIndex>>,
     ) -> Result<()> {
 
         // If it's the first cycle, reset the index.
         if model_index.is_none() {
-            *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
+            self.data.write().unwrap().seek(SeekFrom::Start(self.header_size))?;
         }
 
         // Loop through all the rows.
@@ -1286,28 +1134,26 @@ impl PackedFileDecoderView {
                     // Get the row's type.
                     let row_type = model_index.sibling_at_column(2);
                     let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
-                        "Bool" => FieldType::Boolean,
+                        "Boolean" => FieldType::Boolean,
                         "F32" => FieldType::F32,
                         "F64" => FieldType::F64,
                         "I16" => FieldType::I16,
                         "I32" => FieldType::I32,
                         "I64" => FieldType::I64,
+                        "OptionalI16" => FieldType::OptionalI16,
+                        "OptionalI32" => FieldType::OptionalI32,
+                        "OptionalI64" => FieldType::OptionalI64,
                         "ColourRGB" => FieldType::ColourRGB,
                         "StringU8" => FieldType::StringU8,
                         "StringU16" => FieldType::StringU16,
                         "OptionalStringU8" => FieldType::OptionalStringU8,
                         "OptionalStringU16" => FieldType::OptionalStringU16,
-                        "SequenceU16" => FieldType::SequenceU16(Box::new(Definition::new(-100))),
                         "SequenceU32" => FieldType::SequenceU32(Box::new(Definition::new(-100))),
                         _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
                     };
 
                     // Get the decoded data using it's type...
-                    let decoded_data = Self::decode_data_by_fieldtype(
-                        &self.packed_file_data,
-                        &field_type,
-                        &mut index
-                    );
+                    let decoded_data = Self::decode_data_by_fieldtype(&mut *self.data.write().unwrap(), &field_type);
 
                     // Get the items from the "Row Number" and "First Row Decoded" columns.
                     if entry == 0 {
@@ -1320,7 +1166,7 @@ impl PackedFileDecoderView {
 
                     // If it's a sequence,decode also it's internal first row, then move the index to skip the rest.
                     if let FieldType::SequenceU32(_) = field_type {
-                        self.update_rows_decoded(&mut index, Some(decoded_data.parse::<u32>()?), Some(model_index.sibling_at_column(0)))?;
+                        self.update_rows_decoded(Some(decoded_data.parse::<u32>()?), Some(model_index.sibling_at_column(0)))?;
                     }
                 }
             }
@@ -1328,7 +1174,7 @@ impl PackedFileDecoderView {
 
         // Update the entire decoder to use the new index.
         if model_index.is_none() {
-            self.update_view(&[], false, &mut index)?;
+            self.update_view(&[], false)?;
         }
 
         Ok(())
@@ -1338,23 +1184,11 @@ impl PackedFileDecoderView {
     unsafe fn load_versions_list(&self) {
         self.table_model_old_versions.clear();
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
-
-            // Depending on the type, get one version list or another.
-            let versioned_file = match self.packed_file_type {
-                PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
-                PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
-                PackedFileType::DB => schema.get_ref_versioned_file_db(&self.packed_file_path[1]),
-                PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
-                PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
-                _ => unimplemented!(),
-            };
-
-            // And get all the versions of this table, and list them in their TreeView, if we have any.
-            if let Ok(versioned_file) = versioned_file {
-                versioned_file.get_version_list().iter().map(|x| x.get_version()).for_each(|version| {
-                    let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", version)));
+            if let Some(definitions) = schema.definitions_by_table_name(&self.table_name) {
+                definitions.iter().for_each(|definition| {
+                    let item = QStandardItem::from_q_string(&QString::from_std_str(&definition.version().to_string()));
                     self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
-                });
+                })
             }
         }
 
@@ -1364,17 +1198,13 @@ impl PackedFileDecoderView {
 
     /// This function is used to update the decoder view when we try to add a new field to
     /// the definition with one of the "Use this" buttons.
-    pub unsafe fn use_this(
-        &self,
-        field_type: FieldType,
-        mut index: &mut usize,
-    ) -> Result<()> {
+    pub unsafe fn use_this(&self, field_type: FieldType) -> Result<()> {
         let mut field = Field::default();
-        *field.get_ref_mut_field_type() = field_type;
+        field.set_field_type(field_type);
 
-        self.add_field_to_view(&field, &mut index, false, None);
-        self.update_view(&[], false, &mut index)?;
-        self.update_rows_decoded(&mut index, None, None)
+        self.add_field_to_view(&field, false, None);
+        self.update_view(&[], false)?;
+        self.update_rows_decoded(None, None)
     }
 
 
@@ -1429,21 +1259,23 @@ impl PackedFileDecoderView {
 
                 // Get the proper type of the field. If invalid, default to OptionalStringU16.
                 let field_type = match &*field_type {
-                    "Bool" => FieldType::Boolean,
+                    "Boolean" => FieldType::Boolean,
                     "F32" => FieldType::F32,
                     "F64" => FieldType::F64,
                     "I16" => FieldType::I16,
                     "I32" => FieldType::I32,
                     "I64" => FieldType::I64,
+                    "OptionalI16" => FieldType::OptionalI16,
+                    "OptionalI32" => FieldType::OptionalI32,
+                    "OptionalI64" => FieldType::OptionalI64,
                     "ColourRGB" => FieldType::ColourRGB,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "SequenceU16" => FieldType::SequenceU16(Box::new(Definition::new(-100))),
                     "SequenceU32" => FieldType::SequenceU32({
                         let mut definition = Definition::new(-100);
-                        *definition.get_ref_mut_fields() = self.get_fields_from_view(Some(model_index));
+                        *definition.fields_mut() = self.get_fields_from_view(Some(model_index));
                         Box::new(definition)
                     }),
                     _ => unimplemented!()
@@ -1483,48 +1315,9 @@ impl PackedFileDecoderView {
     /// This function adds the definition currently in the view to a temporal schema, and returns it.
     unsafe fn add_definition_to_schema(&self) -> Schema {
         let mut schema = SCHEMA.read().unwrap().clone().unwrap();
-        let fields = self.get_fields_from_view(None);
-
-        let version = self.packed_file_info_version_decoded_spinbox.value();
-
-        let versioned_file = match self.packed_file_type {
-            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
-            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
-            PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&self.packed_file_path[1]),
-            PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
-            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
-            _ => unimplemented!(),
-        };
-
-        match versioned_file {
-            Ok(versioned_file) => {
-                match versioned_file.get_ref_mut_version(version) {
-                    Ok(definition) => *definition.get_ref_mut_fields() = fields,
-                    Err(_) => {
-                        let mut definition = Definition::new(version);
-                        *definition.get_ref_mut_fields() = fields;
-                        versioned_file.add_version(&definition);
-                    }
-                }
-            }
-            Err(_) => {
-                let mut definition = Definition::new(version);
-                *definition.get_ref_mut_fields() = fields;
-
-                let definitions = vec![definition];
-                let versioned_file = match self.packed_file_type {
-                    PackedFileType::AnimTable => VersionedFile::AnimTable(definitions),
-                    PackedFileType::AnimFragment => VersionedFile::AnimFragment(definitions),
-                    PackedFileType::DB => VersionedFile::DB(self.packed_file_path[1].to_owned(), definitions),
-                    PackedFileType::Loc => VersionedFile::Loc(definitions),
-                    PackedFileType::MatchedCombat => VersionedFile::MatchedCombat(definitions),
-                    PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
-                    _ => unimplemented!()
-                };
-
-                schema.add_versioned_file(&versioned_file);
-            }
-        }
+        let mut definition = Definition::new(self.version);
+        *definition.fields_mut() = self.get_fields_from_view(None);
+        schema.add_definition(&self.table_name, &definition);
 
         schema
     }
@@ -1539,81 +1332,95 @@ impl PackedFileDecoderView {
     pub fn import_from_assembly_kit(&self) -> Result<Vec<Vec<Field>>> {
 
         // Get the raw data ready.
-        let raw_db_version = GAME_SELECTED.read().unwrap().get_raw_db_version();
-        let raw_db_path = GAME_SELECTED.read().unwrap().get_assembly_kit_db_tables_path()?;
+        let game = GAME_SELECTED.read().unwrap();
+        let raw_db_version = game.raw_db_version();
+        let raw_db_path = assembly_kit_path()?;
 
         let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;
         let raw_definition = RawDefinition::read(raw_definition_paths.iter().find(|x| {
-            format!("{}_tables", x.file_stem().unwrap().to_str().unwrap().split_at(5).1) == self.packed_file_path[1]
+            format!("{}_tables", x.file_stem().unwrap().to_str().unwrap().split_at(5).1) == self.table_name
         }).unwrap(), raw_db_version).unwrap();
 
         let raw_table = RawTable::read(&raw_definition, &raw_db_path, raw_db_version)?;
-        let imported_table = DB::from(&raw_table);
+        let imported_table = DB::try_from(&raw_table)?;
 
-        let raw_localisable_fields: RawLocalisableFields = RawLocalisableFields::read(&raw_db_path, raw_db_version).map_err(|error| ErrorKind::MissingRawLocalisableFields(error.to_string()))?;
+        let raw_localisable_fields: RawLocalisableFields = RawLocalisableFields::read(&raw_db_path, raw_db_version).map_err(|error| anyhow!("{}. This happens when the TExc_LocalisableFields.xml file is missing/empty/broken in raw_data/db. If it's so, copy it from another game and try again.", error))?;
         let mut raw_columns: Vec<Vec<String>> = vec![];
 
-        for row in imported_table.get_ref_table_data() {
+        let table_data = imported_table.data(&None)?;
+        for row in table_data.iter() {
             for (index, field) in row.iter().enumerate() {
                 match raw_columns.get_mut(index) {
-                    Some(ref mut column) => column.push(field.data_to_string()),
-                    None => raw_columns.push(vec![field.data_to_string()])
+                    Some(ref mut column) => column.push(field.data_to_string().to_string()),
+                    None => raw_columns.push(vec![field.data_to_string().to_string()])
                 }
             }
         }
 
-        if imported_table.get_ref_table_data().is_empty() {
-            return Err(ErrorKind::TableEmptyWithNoDefinition.into());
+        if table_data.is_empty() {
+            return Err(anyhow!("This table is empty and there is not a Definition for it. That means it cannot be decoded."));
         }
 
-        let imported_first_row = &imported_table.get_ref_table_data()[0];
-        let packed_file_data = &self.packed_file_data;
-        let path = &self.packed_file_path[1];
+        let expected_cells_bool = imported_table.definition().fields().iter().filter(|x| if let FieldType::Boolean = x.field_type() { true } else { false }).count();
+        let expected_cells_f32 = imported_table.definition().fields().iter().filter(|x| if let FieldType::F32 = x.field_type() { true } else { false }).count();
+        let expected_cells_f64 = imported_table.definition().fields().iter().filter(|x| if let FieldType::F64 = x.field_type() { true } else { false }).count();
+        let expected_cells_i32 = imported_table.definition().fields().iter().filter(|x| if let FieldType::I32 = x.field_type() { true } else { false }).count();
+        let expected_cells_i64 = imported_table.definition().fields().iter().filter(|x| if let FieldType::I64 = x.field_type() { true } else { false }).count();
+        let expected_cells_colour_rgb = imported_table.definition().fields().iter().filter(|x| if let FieldType::ColourRGB = x.field_type() { true } else { false }).count();
+        let expected_cells_string_u8 = imported_table.definition().fields().iter().filter(|x| if let FieldType::StringU8 = x.field_type() { true } else if let FieldType::OptionalStringU8 = x.field_type() { true } else { false }).count();
 
-        let mut definitions_possible: Vec<Vec<FieldType>> = vec![];
-
-        let header = DB::read_header(packed_file_data).unwrap();
-        let data = &packed_file_data[header.4..];
-        let index = 0;
-
-        let expected_cells_bool = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::Boolean = x.get_field_type() { true } else { false }).count();
-        let expected_cells_f32 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::F32 = x.get_field_type() { true } else { false }).count();
-        let expected_cells_f64 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::F64 = x.get_field_type() { true } else { false }).count();
-        let expected_cells_i32 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::I32 = x.get_field_type() { true } else { false }).count();
-        let expected_cells_i64 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::I64 = x.get_field_type() { true } else { false }).count();
-        let expected_cells_colour_rgb = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::ColourRGB = x.get_field_type() { true } else { false }).count();
-        let expected_cells_string_u8 = imported_table.get_ref_definition().get_ref_fields().iter().filter(|x| if let FieldType::StringU8 = x.get_field_type() { true } else if let FieldType::OptionalStringU8 = x.get_field_type() { true } else { false }).count();
+        let imported_first_row = &table_data[0];
+        let mut data = self.data.write().unwrap();
+        data.seek(SeekFrom::Start(self.header_size))?;
 
         // First check is done here, to initialize the possible schemas.
+        let mut definitions_possible: Vec<Vec<FieldType>> = vec![];
         if definitions_possible.is_empty() {
-            if data.decode_packedfile_float_f32(index, &mut index.clone()).is_ok() {
+            if data.read_f32().is_ok() {
                 definitions_possible.push(vec![FieldType::F32]);
             }
-            if data.decode_packedfile_float_f64(index, &mut index.clone()).is_ok() {
+
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if data.read_f64().is_ok() {
                 definitions_possible.push(vec![FieldType::F64]);
             }
-            if data.decode_packedfile_integer_i32(index, &mut index.clone()).is_ok() {
+
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if data.read_i32().is_ok() {
                 definitions_possible.push(vec![FieldType::I32]);
             }
-            if data.decode_packedfile_integer_i64(index, &mut index.clone()).is_ok() {
+
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if data.read_i64().is_ok() {
                 definitions_possible.push(vec![FieldType::I64]);
             }
-            if data.decode_packedfile_integer_u32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::ColourRGB]); }
-            if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
 
-            if let Ok(data) = data.decode_packedfile_string_u8(index, &mut index.clone()) {
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if data.read_string_colour_rgb().is_ok() { definitions_possible.push(vec![FieldType::ColourRGB]); }
+
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if data.read_bool().is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
+
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if let Ok(data) = data.read_sized_string_u8() {
                 if imported_first_row.iter().any(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }) {
                     definitions_possible.push(vec![FieldType::StringU8]);
                 }
             }
 
-            if let Ok(data) = data.decode_packedfile_optional_string_u8(index, &mut index.clone()) {
+            data.seek(SeekFrom::Start(self.header_size))?;
+            if let Ok(data) = data.read_optional_string_u8() {
                 if imported_first_row.iter().any(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }) {
                     definitions_possible.push(vec![FieldType::OptionalStringU8]);
                 }
             }
+
         }
 
+        data.seek(SeekFrom::Start(self.header_size))?;
+
+        return Err(anyhow!("TBF"));
+        /*
         // All the other checks are done here.
         for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.fields, &raw_table.rows[0]).len() - 1 {
             println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
@@ -1629,35 +1436,35 @@ impl PackedFileDecoderView {
                     for field_type in base {
                         match field_type {
                             FieldType::Boolean => {
-                                let value = data.decode_packedfile_bool(index, &mut index).unwrap();
+                                let value = data.read_bool().unwrap();
                                 values_position.push(DecodedData::Boolean(value));
                             },
                             FieldType::F32 => {
-                                let value = data.decode_packedfile_float_f32(index, &mut index).unwrap();
+                                let value = data.read_f32().unwrap();
                                 values_position.push(DecodedData::F32(value));
                             },
                             FieldType::F64 => {
-                                let value = data.decode_packedfile_float_f64(index, &mut index).unwrap();
+                                let value = data.read_f64().unwrap();
                                 values_position.push(DecodedData::F64(value));
                             },
                             FieldType::I32 => {
-                                let value = data.decode_packedfile_integer_i32(index, &mut index).unwrap();
+                                let value = data.read_i32().unwrap();
                                 values_position.push(DecodedData::I32(value));
                             },
                             FieldType::I64 => {
-                                let value = data.decode_packedfile_integer_i64(index, &mut index).unwrap();
+                                let value = data.read_i64().unwrap();
                                 values_position.push(DecodedData::I64(value));
                             },
                             FieldType::ColourRGB => {
-                                let value = data.decode_packedfile_integer_u32(index, &mut index).unwrap();
+                                let value = data.read_string_colour_rgb().unwrap();
                                 values_position.push(DecodedData::ColourRGB(value));
                             },
                             FieldType::StringU8 => {
-                                let value = data.decode_packedfile_string_u8(index, &mut index).unwrap();
+                                let value = data.read_sized_string_u8().unwrap();
                                 values_position.push(DecodedData::StringU8(value));
                             },
                             FieldType::OptionalStringU8 => {
-                                let value = data.decode_packedfile_optional_string_u8(index, &mut index).unwrap();
+                                let value = data.read_optional_string_u8().unwrap();
                                 values_position.push(DecodedData::OptionalStringU8(value));
                             },
                             _ => unimplemented!()
@@ -1665,7 +1472,7 @@ impl PackedFileDecoderView {
                     }
 
                     if base.iter().filter(|x| if let FieldType::Boolean = x { true } else { false }).count() < expected_cells_bool {
-                        if let Ok(data) = data.decode_packedfile_bool(index, &mut index.clone()) {
+                        if let Ok(data) = data.read_bool() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::Boolean(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1677,7 +1484,7 @@ impl PackedFileDecoderView {
                     }
 
                     if base.iter().filter(|x| if let FieldType::I32 = x { true } else { false }).count() < expected_cells_i32 {
-                        if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
+                        if let Ok(number) = data.read_i32() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I32(value) = x { value == &number } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1689,7 +1496,7 @@ impl PackedFileDecoderView {
                     }
 
                     if base.iter().filter(|x| if let FieldType::F32 = x { true } else { false }).count() < expected_cells_f32 {
-                        if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+                        if let Ok(number) = data.read_f32() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F32(value) = x { float_eq::float_eq!(*value, number, abs <= 0.01) } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1701,7 +1508,7 @@ impl PackedFileDecoderView {
                     }
 
                     if base.iter().filter(|x| if let FieldType::F64 = x { true } else { false }).count() < expected_cells_f64 {
-                        if let Ok(number) = data.decode_packedfile_float_f64(index, &mut index.clone()) {
+                        if let Ok(number) = data.read_f64() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::F64(value) = x { float_eq::float_eq!(*value, number, abs <= 0.2) } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1713,7 +1520,7 @@ impl PackedFileDecoderView {
                     }
 
                     if base.iter().filter(|x| if let FieldType::I64 = x { true } else { false }).count() < expected_cells_i64 {
-                        if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
+                        if let Ok(number) = data.read_i64() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::I64(value) = x { value == &number } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1724,9 +1531,9 @@ impl PackedFileDecoderView {
                         }
                     }
                     if base.iter().filter(|x| if let FieldType::ColourRGB = x { true } else { false }).count() < expected_cells_colour_rgb {
-                        if let Ok(number) = data.decode_packedfile_integer_u32(index, &mut index.clone()) {
-                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &number } else { false }).count();
-                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &number } else { false }).count();
+                        if let Ok(data) = data.read_string_colour_rgb() {
+                            let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &data } else { false }).count();
+                            let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::ColourRGB(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
                                 let mut def = base.to_vec();
                                 def.push(FieldType::ColourRGB);
@@ -1735,7 +1542,7 @@ impl PackedFileDecoderView {
                         }
                     }
                     if base.iter().filter(|x| if let FieldType::StringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
-                        if let Ok(data) = data.decode_packedfile_string_u8(index, &mut index.clone()) {
+                        if let Ok(data) = data.read_sized_string_u8() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::StringU8(value) = x { value == &data } else if let DecodedData::OptionalStringU8(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1746,7 +1553,7 @@ impl PackedFileDecoderView {
                         }
                     }
                     if base.iter().filter(|x| if let FieldType::OptionalStringU8 = x { true } else { false }).count() < expected_cells_string_u8 {
-                        if let Ok(data) = data.decode_packedfile_optional_string_u8(index, &mut index.clone()) {
+                        if let Ok(data) = data.read_optional_string_u8() {
                             let duplicate_values_count = values_position.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
                             let duplicate_values_count_expected = imported_first_row.iter().filter(|x| if let DecodedData::OptionalStringU8(value) = x { value == &data } else if let DecodedData::StringU8(value) = x { value == &data } else { false }).count();
                             if duplicate_values_count < duplicate_values_count_expected {
@@ -1773,100 +1580,61 @@ impl PackedFileDecoderView {
                 field.set_field_type(x.clone());
                 field
             }).collect::<Vec<Field>>();
+            let definition = Definition::new_with_fields(self.version, &field_list, &[]);
+            let table = DB::new(&definition, None, &self.table_name, false);
 
-            if let Ok(table) = DB::read_with_fields(packed_file_data, path, &field_list, false) {
+            if let Ok(table) = table.set_data(None, ) {
                 if !table.get_ref_table_data().is_empty() {
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];
+                    let fields_processed = table.definition().fields_processed();
 
                     // Organized in columns, not in rows, so we can match by columns.
-                    for row in table.get_ref_table_data() {
-                        for (index, field) in row.iter().enumerate() {
-                            match decoded_columns.get_mut(index) {
-                                Some(ref mut column) => column.push(field.data_to_string()),
-                                None => decoded_columns.push(vec![field.data_to_string()])
+                    if let Ok(data) = table.data() {
+                        for row in data.iter() {
+                            for (index, field) in row.iter().enumerate() {
+                                match decoded_columns.get_mut(index) {
+                                    Some(ref mut column) => column.push(field.data_to_string()),
+                                    None => decoded_columns.push(vec![field.data_to_string()])
+                                }
                             }
                         }
-                    }
 
-                    let mut already_matched_columns = vec![];
-                    for (index, column) in decoded_columns.iter().enumerate() {
-                        match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
-                            Some(raw_column) => {
-                                mapper.insert(index, raw_column);
-                                already_matched_columns.push(raw_column);
-                            },
+                        let mut already_matched_columns = vec![];
+                        for (index, column) in decoded_columns.iter().enumerate() {
+                            match raw_columns.iter().enumerate().position(|(pos, x)| !already_matched_columns.contains(&pos) && x == column) {
+                                Some(raw_column) => {
+                                    mapper.insert(index, raw_column);
+                                    already_matched_columns.push(raw_column);
+                                },
 
-                            // If no equivalent has been found, drop the definition.
-                            None => return None,
+                                // If no equivalent has been found, drop the definition.
+                                None => return None,
+                            }
                         }
+
+                        // Filter the mapped data to see if we have a common one in every cell.
+                        let fields = mapper.iter().map(|(x, y)| {
+                            let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
+                            field.set_field_type(fields_processed[*x].get_field_type());
+                            field
+                        }).collect();
+
+                        return Some(fields);
                     }
-
-                    // Filter the mapped data to see if we have a common one in every cell.
-                    let fields = mapper.iter().map(|(x, y)| {
-                        let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
-                        field.set_field_type(table.get_ref_definition().get_fields_processed()[*x].get_field_type());
-                        field
-                    }).collect();
-
-                    return Some(fields);
                 }
             }
             None
-        }).collect::<Vec<Vec<Field>>>())
+        }).collect::<Vec<Vec<Field>>>())*/
     }
-}
 
-/// This function returns the header size (or first byte after the header) of the provided PackedFile.
-fn get_header_size(
-    packed_file_type: PackedFileType,
-    packed_file_data: &[u8],
-) -> Result<usize> {
-    match packed_file_type {
-        PackedFileType::AnimTable => Ok(animtable::HEADER_SIZE),
-        PackedFileType::AnimFragment => Ok(anim_fragment::HEADER_SIZE),
-        PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.4),
-        PackedFileType::Loc => Ok(loc::HEADER_SIZE),
-        PackedFileType::MatchedCombat => Ok(matched_combat::HEADER_SIZE),
-        _ => unimplemented!()
-    }
-}
-
-/// This function returns the definition corresponding to the decoded Packedfile, if exists.
-fn get_definition(
-    packed_file_type: PackedFileType,
-    packed_file_path: &[String],
-    packed_file_data: &[u8],
-    version: Option<i32>
-) -> Option<Definition> {
-    if let Some(ref schema) = *SCHEMA.read().unwrap() {
-
-        // Depending on the type, get one version list or another.
-        let versioned_file = match packed_file_type {
-            PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
-            PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
-            PackedFileType::DB => schema.get_ref_versioned_file_db(&packed_file_path[1]),
-            PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
-            PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
-            _ => unimplemented!(),
-        };
-
-        // And get all the versions of this table, and list them in their TreeView, if we have any.
-        if let Ok(versioned_file) = versioned_file {
-            let version = if let Some(version) = version { version } else { match packed_file_type {
-                PackedFileType::AnimTable => AnimTable::read_header(packed_file_data).ok()?.0,
-                PackedFileType::AnimFragment => AnimFragment::read_header(packed_file_data).ok()?.0,
-                PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
-                PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
-                PackedFileType::MatchedCombat => MatchedCombat::read_header(packed_file_data).ok()?.0,
-                _ => unimplemented!(),
-            }};
-
-            return versioned_file.get_version(version).ok().cloned()
+    /// This function returns the definition corresponding to the decoded Packedfile, if exists.
+    fn definition(&self) -> Option<Definition> {
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            return schema.definition_by_name_and_version(&self.table_name, self.version).cloned();
         }
+        None
     }
-
-    None
 }
 
 /// This function configures the provided TableView, so it has the right columns and it's resized to the right size.
@@ -1893,18 +1661,20 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
 
     // The second field should be a combobox.
     let list = QStringList::new();
-    list.append_q_string(&QString::from_std_str("Bool"));
+    list.append_q_string(&QString::from_std_str("Boolean"));
     list.append_q_string(&QString::from_std_str("F32"));
     list.append_q_string(&QString::from_std_str("F64"));
     list.append_q_string(&QString::from_std_str("I16"));
     list.append_q_string(&QString::from_std_str("I32"));
     list.append_q_string(&QString::from_std_str("I64"));
+    list.append_q_string(&QString::from_std_str("OptionalI16"));
+    list.append_q_string(&QString::from_std_str("OptionalI32"));
+    list.append_q_string(&QString::from_std_str("OptionalI64"));
     list.append_q_string(&QString::from_std_str("ColourRGB"));
     list.append_q_string(&QString::from_std_str("StringU8"));
     list.append_q_string(&QString::from_std_str("StringU16"));
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
-    list.append_q_string(&QString::from_std_str("SequenceU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
     new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, &QTimer::new_0a().into_ptr(), false);
 

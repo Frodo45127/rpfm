@@ -18,14 +18,14 @@ use qt_core::QBox;
 use std::sync::Arc;
 use std::rc::Rc;
 
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::files::ContainerPath;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::utils::show_dialog;
 use super::PackFileExtraView;
 use crate::UI_STATE;
@@ -69,18 +69,18 @@ impl PackFileExtraViewSlots {
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = pack_file_view.tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
-                    let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
+                    let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the Background Thread to move the files, and send him the path.
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.main_window().set_enabled(false);
                     let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFile(((&pack_file_view.pack_file_path.read().unwrap()).to_path_buf(), item_types)));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::VecPathType(paths_ok) => {
+                        Response::VecContainerPath(paths_ok) => {
 
                             // If any of the PackedFiles was already open (and we overwrote them) remove his view.
                             for path in &paths_ok {
-                                if let PathType::File(path) = path {
+                                if let ContainerPath::File(path) = path {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                                         if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
@@ -91,18 +91,17 @@ impl PackFileExtraViewSlots {
                             }
 
                             // Update the TreeView.
-                            let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 /*
                             // Update the global search stuff, if needed.
                             let paths = paths.iter().map(|x|
                                 match x {
-                                    TreePathType::File(ref path) => path.to_vec(),
-                                    TreePathType::Folder(ref path) => path.to_vec(),
-                                    TreePathType::PackFile => vec![],
-                                    TreePathType::None => unimplemented!(),
+                                    ContainerPath::File(ref path) => path.to_vec(),
+                                    ContainerPath::Folder(ref path) => path.to_vec(),
+                                    ContainerPath::PackFile => vec![],
+                                    ContainerPath::None => unimplemented!(),
                                 }
                             ).collect::<Vec<Vec<String>>>();
                             global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
@@ -120,12 +119,12 @@ impl PackFileExtraViewSlots {
                             }
                             */
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                     pack_file_view.tree_view.set_focus_0a();
                 }
             }

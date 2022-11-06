@@ -17,13 +17,13 @@ use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
-use log::info;
+use rpfm_lib::integrations::log::*;
 
 use std::rc::Rc;
 
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::files::ContainerPath;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -69,9 +69,9 @@ impl DiagnosticsUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Check PackFile (Diags)` By Slot");
 
-                app_ui.main_window.set_disabled(true);
+                app_ui.main_window().set_disabled(true);
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                app_ui.main_window.set_disabled(false);
+                app_ui.main_window().set_disabled(false);
             }
         ));
 
@@ -81,11 +81,11 @@ impl DiagnosticsUISlots {
             diagnostics_ui => move || {
                 info!("Triggering `Check Open PackedFiles (Diag)` By Slot");
 
-                app_ui.main_window.set_disabled(true);
+                app_ui.main_window().set_disabled(true);
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
-                let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| PathType::File(x.get_ref_path().to_vec())).collect::<Vec<PathType>>();
-                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
-                app_ui.main_window.set_disabled(false);
+                let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| ContainerPath::File(x.get_path())).collect::<Vec<ContainerPath>>();
+                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
+                app_ui.main_window().set_disabled(false);
             }
         ));
 

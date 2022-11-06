@@ -18,8 +18,10 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::AppUI;
-use crate::packedfile_views::{DataSource, PackedFileType};
+use rpfm_lib::files::FileType;
+
+use crate::app_ui::AppUI;
+use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use super::PackFileSettingsView;
@@ -51,11 +53,12 @@ impl PackFileSettingsSlots {
         let apply = SlotNoArgs::new(view.get_ref_apply_button(), clone!(
             app_ui,
             pack_file_contents_ui=> move || {
+                /*
                 if let Some(pack_file_view) = UI_STATE.get_open_packedfiles().iter()
                     .filter(|x| x.get_data_source() == DataSource::PackFile)
-                    .find(|x| matches!(x.get_packed_file_type(), PackedFileType::PackFileSettings)) {
+                    .find(|x| matches!(x.get_packed_file_type(), FileType::PackSettings)) {
                     let _ = pack_file_view.save(&app_ui, &pack_file_contents_ui);
-                }
+                }*/
             }
         ));
 

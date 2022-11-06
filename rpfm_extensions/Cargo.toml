@@ -1,0 +1,40 @@
+[package]
+name = "rpfm_extensions"
+description = "This crate contains extended functionality over the RPFM Lib crate, meaning stuff that didn't fit in there, it's here."
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+# Internal dependencies.
+rpfm_lib = { path = "../rpfm_lib", features = ["integration_log", "integration_assembly_kit", "support_error_bincode"] }
+
+# Basic get/set support.
+getset = "^0.1"
+
+# Support for advanced iter stuff.
+itertools = "^0.10"
+
+# Regex support.
+regex = "^1"
+
+# Support for advanced regex stuff (I think, I have to check if I can replace it with the normal regex crate).
+fancy-regex = "^0.10"
+
+# Serialization support.
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
+bincode = "^1.3"
+
+# Multithread iterator support.
+rayon = "^1.3"
+
+# Float equality support.
+float_eq = "^1"
+
+# Case-insensitive checks.
+caseless = "^0.2"

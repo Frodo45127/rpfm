@@ -23,12 +23,12 @@ use super::{PackFileExtraView, slots::PackFileExtraViewSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<PackFileExtraView>, slots: &PackFileExtraViewSlots) {
-    ui.get_mut_ptr_tree_view().double_clicked().connect(&slots.import);
-    ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_change_text);
+    ui.tree_view().double_clicked().connect(&slots.import);
+    ui.filter_line_edit().text_changed().connect(&slots.filter_change_text);
 
-    ui.get_mut_ptr_autoexpand_matches_button().toggled().connect(&slots.filter_change_autoexpand_matches);
-    ui.get_mut_ptr_case_sensitive_button().toggled().connect(&slots.filter_change_case_sensitive);
+    ui.filter_autoexpand_matches_button().toggled().connect(&slots.filter_change_autoexpand_matches);
+    ui.filter_case_sensitive_button().toggled().connect(&slots.filter_change_case_sensitive);
 
-    ui.get_mut_ptr_expand_all().triggered().connect(&slots.expand_all);
-    ui.get_mut_ptr_collapse_all().triggered().connect(&slots.collapse_all);
+    ui.expand().triggered().connect(&slots.expand_all);
+    ui.collapse().triggered().connect(&slots.collapse_all);
 }

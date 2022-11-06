@@ -18,12 +18,14 @@ use qt_core::{SlotOfBool, SlotOfQString, SlotNoArgs, SlotOfQModelIndex};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_lib::files::ContainerPath;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::DataSource;
 use crate::packedfile_views::animpack::PackedFileAnimPackView;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::utils::show_dialog;
@@ -75,7 +77,7 @@ impl PackedFileAnimPackViewSlots {
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.pack_tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
-                    let item_types = view.pack_tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
+                    let item_types = view.pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Save the files in question to the background, to ensure we have all their data updated.
                     for packed_file_view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
@@ -83,27 +85,26 @@ impl PackedFileAnimPackViewSlots {
                     }
 
                     // Ask the Background Thread to copy the files, and send him the path.
-                    app_ui.main_window.set_enabled(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFileToAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
+                    app_ui.main_window().set_enabled(false);
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFileToAnimpack(view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::VecPathType(paths_ok) => {
+                        Response::VecContainerPath(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
-                            let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
                             view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
                             view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable and re-focus the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                     view.pack_tree_view.clear_focus();
                     view.pack_tree_view.set_focus_0a();
                 }
@@ -119,17 +120,16 @@ impl PackedFileAnimPackViewSlots {
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
-                    let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
+                    let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the Background Thread to copy the files, and send him the path.
-                    app_ui.main_window.set_enabled(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack((view.get_ref_path().read().unwrap().to_vec(), item_types)));
+                    app_ui.main_window().set_enabled(false);
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(DataSource::PackFile, view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::VecPathType(paths_ok) => {
+                        Response::VecContainerPath(paths_ok) => {
 
                             // Update the AnimPack TreeView with the new files.
-                            let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -137,20 +137,18 @@ impl PackedFileAnimPackViewSlots {
                             // Reload all the views belonging to overwritten files.
                             for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
-                                    if let TreePathType::File(path) = path_ok {
-                                        if path == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
-                                            let _ = packed_file_view.reload(path, &pack_file_contents_ui);
-                                        }
+                                    if path_ok.path_raw() == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
+                                        let _ = packed_file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
                                     }
                                 }
                             }
                         },
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable and re-focus the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
                     view.pack_tree_view.clear_focus();
                     view.pack_tree_view.set_focus_0a();
                 }
@@ -166,24 +164,23 @@ impl PackedFileAnimPackViewSlots {
                 // Get the file to delete from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
-                    let tree_item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
-                    let item_types = tree_item_types.iter().map(From::from).collect();
+                    let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the backend to delete them.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DeleteFromAnimpack((view.path.read().unwrap().to_vec(), item_types)));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DeleteFromAnimpack((view.path().read().unwrap().to_owned(), item_types.clone())));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::Success => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(tree_item_types), DataSource::PackFile);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types), DataSource::PackFile);
 
                             // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(view.get_ref_path().read().unwrap().to_vec()); 1]), DataSource::PackFile);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         }
 
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }

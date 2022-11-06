@@ -26,6 +26,7 @@ use crate::UI_STATE;
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
 pub unsafe fn set_shortcuts(ui: &Arc<PackedFileDecoderView>) {
+    /*
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     ui.get_mut_ptr_table_view_context_menu_move_up().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_decoder["move_up"])));
@@ -51,4 +52,6 @@ pub unsafe fn set_shortcuts(ui: &Arc<PackedFileDecoderView>) {
     ui.get_mut_ptr_table_view().add_action(ui.get_mut_ptr_table_view_context_menu_delete().as_ptr());
     ui.get_mut_ptr_table_view().add_action(ui.get_mut_ptr_table_view_old_versions_context_menu_load().as_ptr());
     ui.get_mut_ptr_table_view().add_action(ui.get_mut_ptr_table_view_old_versions_context_menu_delete().as_ptr());
+
+    */
 }

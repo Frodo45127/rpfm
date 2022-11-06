@@ -50,17 +50,17 @@ use std::io::{Read, BufReader};
 use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
-use rpfm_macros::*;
+use getset::*;
 
-use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packfile::PathType;
+use crate::GAME_SELECTED;
+use rpfm_lib::packfile::ContainerPath;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData, loc::Loc, Table};
-use rpfm_lib::SCHEMA;
+use crate::SCHEMA;
 use rpfm_lib::schema::{Definition, FieldType};
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::ASSETS_PATH;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -69,7 +69,7 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::DataSource;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, ContainerPath, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::*;
 use crate::UI_STATE;
@@ -109,14 +109,14 @@ pub mod unit_editor;
 //-------------------------------------------------------------------------------//
 
 /// This struct represents the common content and behavior shared across Tools.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct Tool {
 
     /// Main widget of the tool, built from a Template. Usually, the dialog.
     main_widget: QBox<QWidget>,
 
     /// Paths which the tool requires data from.
-    used_paths: Vec<PathType>,
+    used_paths: Vec<ContainerPath>,
 
     /// Stored PackedFiles, for quickly pulling data from them if needed.
     packed_files: Rc<RefCell<HashMap<DataSource, HashMap<Vec<String>, PackedFile>>>>,
@@ -136,7 +136,7 @@ pub struct Tool {
 impl Tool {
 
     /// This function creates a Tool with the data it needs.
-    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[PathType], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
+    pub unsafe fn new(parent: impl CastInto<Ptr<QWidget>>, paths: &[ContainerPath], tool_supported_games: &[&str], template_path: &str) -> Result<Self> {
 
         // First, some checks to ensure we can actually open a tool.
         // The requirements for all tools are:
@@ -161,7 +161,7 @@ impl Tool {
         }
 
         // Load the UI Template.
-        let main_widget = Self::load_template(parent, &template_path)?;
+        let main_widget = crate::utils::load_template(parent, &template_path)?;
 
         // Get the common widgets for all tools.
         let message_widget: QPtr<QWidget> = Self::find_widget_no_tool(&main_widget.static_upcast(), "message_widget")?;
@@ -171,7 +171,7 @@ impl Tool {
         kmessage_widget_close_safe(&message_widget.as_ptr());
 
         // Dedup the paths.
-        let used_paths = PathType::dedup(paths);
+        let used_paths = ContainerPath::dedup(paths);
 
         // Then, build the tool.
         Ok(Self{
@@ -217,8 +217,8 @@ impl Tool {
             Response::VecVecStringVecVecString((paths_to_add, paths_to_delete)) => {
 
                 // Get the list of paths to add, removing those we "replaced".
-                let paths_to_add = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                let paths_to_delete = paths_to_delete.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                let paths_to_add = paths_to_add.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
+                let paths_to_delete = paths_to_delete.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
 
                 // Update the TreeView.
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile);
@@ -238,7 +238,7 @@ impl Tool {
 
     /// This function takes care of backing up the open files we need for the tool, so we always have their latest data.
     ///
-    /// Really... we backup everything. To be optimized in the future for backing up only specific PathTypes.
+    /// Really... we backup everything. To be optimized in the future for backing up only specific ContainerPaths.
     pub unsafe fn backup_used_paths(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)
     }
@@ -250,28 +250,28 @@ impl Tool {
         let mut paths_to_purge = vec![];
         for path_type in &self.used_paths {
             match path_type {
-                PathType::File(ref path) => {
+                ContainerPath::File(ref path) => {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
-                PathType::Folder(ref path) => {
+                ContainerPath::Folder(ref path) => {
                     for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.get_ref_path().starts_with(path) && x.get_ref_path().len() > path.len() && x.get_data_source() == DataSource::PackFile) {
                         if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_vec());
                         }
                     }
                 },
-                PathType::PackFile => {
+                ContainerPath::PackFile => {
                     for packed_file_view in &mut *UI_STATE.set_open_packedfiles() {
                         if packed_file_view.reload(&packed_file_view.get_path(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(packed_file_view.get_path().to_vec());
                         }
                     }
                 },
-                PathType::None => unimplemented!(),
+                ContainerPath::None => unimplemented!(),
             }
         }
 
@@ -285,19 +285,6 @@ impl Tool {
     /// It's an utility function for tools.
     pub fn get_row_by_column_index(row: &[DecodedData], index: usize) -> Result<&DecodedData> {
         row.get(index).ok_or_else(|| ErrorKind::ToolTableColumnNotFound.into())
-    }
-
-    /// This function load the template file in the provided path to memory, and returns it as a QBox<QWidget>.
-    pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
-        let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
-        let mut data = vec!();
-        let mut file = BufReader::new(File::open(&path)?);
-        file.read_to_end(&mut data)?;
-
-        let ui_loader = QUiLoader::new_0a();
-        let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
-
-        Ok(main_widget)
     }
 
     /// This function returns the a widget from the view if it exits, and an error if it doesn't.
@@ -346,7 +333,7 @@ impl Tool {
                     }
 
                     let key_column = table.get_column_position_by_name(key_names[0])?;
-                    let fields = table.get_ref_definition().get_fields_processed();
+                    let fields = table.get_ref_definition().fields_processed();
 
                     // Depending of if it's a linked table or not, we get it as full new entries, or filling existing entries.
                     match linked_key_name {
@@ -476,7 +463,7 @@ impl Tool {
                 let mut table = DB::new(&table_name_end_tables, None, &serde_json::from_str(definition)?);
 
                 // Generate the table's data from empty rows + our data.
-                let table_fields = table.get_ref_definition().get_fields_processed();
+                let table_fields = table.get_ref_definition().fields_processed();
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
 
@@ -707,7 +694,7 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(&definition).unwrap();
-                definition.get_fields_processed()
+                definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.get_name()))
                     .for_each(|field| {
@@ -1067,7 +1054,7 @@ impl Tool {
         match data.get(&definition_name) {
             Some(definition) => {
                 let definition: Definition = serde_json::from_str(&definition).unwrap();
-                definition.get_fields_processed()
+                definition.fields_processed()
                     .iter()
                     .filter(|field| !fields_to_ignore.contains(&field.get_name()))
                     .for_each(|field| {
@@ -1201,7 +1188,7 @@ impl Tool {
 
         // Then go, definition by definition, searching source values within our data, and updating our data from them.
         for (table_name, definition) in &mut definitions {
-            definition.get_fields_processed()
+            definition.fields_processed()
                 .iter()
                 .for_each(|field| {
 

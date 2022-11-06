@@ -24,16 +24,11 @@ use qt_core::AlignmentFlag;
 use qt_core::QByteArray;
 use qt_core::QPtr;
 
-use rpfm_error::{Result, ErrorKind};
-use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use anyhow::{anyhow, Result};
+use rpfm_lib::files::{FileType, image::Image};
 
 #[cfg(feature = "support_modern_dds")]
 use crate::ffi::get_dds_qimage;
-
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 
@@ -57,20 +52,11 @@ impl PackedFileImageView {
     /// This function creates a new Image View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-    ) -> Result<PackedFileInfo> {
-
-        // Get the path of the extracted Image.
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let (image, packed_file_info) = match response {
-            Response::ImagePackedFileInfo((image, packed_file_info)) => (image, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        data: &Image
+    ) -> Result<()> {
 
         // Create the image in the UI.
-        let byte_array = QByteArray::from_slice(image.get_data()).into_ptr();
+        let byte_array = QByteArray::from_slice(data.data()).into_ptr();
 
         #[cfg(feature = "support_modern_dds")]
         let mut image = QPixmap::new();
@@ -87,15 +73,15 @@ impl PackedFileImageView {
                     if !image_new.is_null() {
                         image = QPixmap::from_image_1a(image_new.as_ref().unwrap());
                     } else {
-                        return Err(ErrorKind::ImageDecode("The image is not supported by the previsualizer.".to_owned()).into());
+                        return Err(anyhow!("The image is not supported by the previsualizer."));
                     }
                 } else {
-                    return Err(ErrorKind::ImageDecode("The image is not supported by the previsualizer.".to_owned()).into());
+                    return Err(anyhow!("The image is not supported by the previsualizer."));
                 }
             }
 
             #[cfg(not(feature = "support_modern_dds"))] {
-                return Err(ErrorKind::ImageDecode("The image is not supported by the previsualizer.".to_owned()).into());
+                return Err(anyhow!("The image is not supported by the previsualizer."));
             }
         }
 
@@ -105,19 +91,18 @@ impl PackedFileImageView {
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
         layout.add_widget_5a(&label, 0, 0, 1, 1);
 
-        packed_file_view.packed_file_type = PackedFileType::Image;
+        packed_file_view.packed_file_type = FileType::Image;
         packed_file_view.view = ViewType::Internal(View::Image(Self {
             label,
             image
         }));
 
-        // Return success.
-        Ok(packed_file_info)
+        Ok(())
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &Image) {
-        let byte_array = QByteArray::from_slice(data.get_data());
+        let byte_array = QByteArray::from_slice(data.data());
         self.image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
         set_pixmap_on_resizable_label_safe(&self.label.as_ptr(), &self.image.as_ptr());
     }

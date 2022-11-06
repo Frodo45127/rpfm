@@ -44,10 +44,6 @@ jobs:
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
-          # Fix for the stupid KTextEditor header bug if it's not already fixed.
-          sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\editor.h"
-          sed -i 's/#include <KSyntaxHighlighting\/Theme>/#include <KF5\/KSyntaxHighlighting\/Theme>/g' "${{ matrix.DDISK }}:\Craft\include\KF5\KTextEditor\ktexteditor\view.h"
-
           # TODO: Build this from tag.
           cp C:\QtRMV2Widget.lib C:\actions-runner\_work\rpfm\rpfm\libs\
           cd C:\actions-runner\_work\rpfm\rpfm
@@ -183,9 +179,9 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
 
           # Copy Breeze icons into the release.
-          cp ${{ matrix.DDISK }}:\Craft\bin\data\icontheme.rcc ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\" -recurse
+          mkdir -p data/icons
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1

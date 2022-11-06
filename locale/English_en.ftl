@@ -275,9 +275,10 @@ global_search_schema_matches = Schema Matches
 global_search_match_packedfile_column = PackedFile/Column
 global_search_match_packedfile_text = PackedFile/Text
 
-global_search_versioned_file = VersionFiled (Type, Name)/Column Name
-global_search_definition_version = Definition Version
-global_search_column_index = Column Index
+global_search_table_name = Table Name
+global_search_version = Version
+global_search_column_name = Column Name
+global_search_column = Column Index
 
 ## tips
 
@@ -561,8 +562,8 @@ template_update_success = <h4>Templates updated and reloaded</h4><p>You can cont
 lua_autogen_update_success = <h4>TW Autogen Data updated.</h4><p>You can continue using RPFM now.</p>
 
 
-files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
-mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
+files_extracted_success = Files extracted successfully.
+mymod_delete_success = MyMod successfully deleted: "{"{"}{"}"}"
 
 game_selected_unsupported_operation = This operation is not supported for the Game Selected.
 
@@ -618,7 +619,7 @@ context_menu_clone_and_insert = &Clone and Insert
 context_menu_clone_and_append = Clone and &Append
 context_menu_copy = Copy
 context_menu_copy_as_lua_table = Copy as LUA Table
-context_menu_copy_to_filter = Copy to filter value
+context_menu_copy_to_filter_value = Copy to filter value
 context_menu_paste = &Paste
 context_menu_search = &Search
 context_menu_sidebar = Si&debar

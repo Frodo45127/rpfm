@@ -12,6 +12,7 @@
 Module containing the ffi functions used for custom widgets.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
 use qt_widgets::QLineEdit;
@@ -32,6 +33,7 @@ use qt_core::QByteArray;
 
 use qt_core::QAbstractItemModel;
 use qt_core::QBox;
+use qt_core::QListOfQObject;
 use qt_core::QObject;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -44,13 +46,13 @@ use qt_core::CaseSensitivity;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
+use cpp_core::Ref;
 
 #[cfg(feature = "support_rigidmodel")]
 use rpfm_error::{Result, ErrorKind};
 
-use rpfm_lib::SETTINGS;
-
 use crate::locale::qtr;
+use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 
 //---------------------------------------------------------------------------//
@@ -60,62 +62,62 @@ use crate::UI_STATE;
 // This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
 extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_combobox_item_delegate(table_view.as_mut_raw_ptr(), column, list.as_raw_ptr(), is_editable, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for I32/64 cells on tables with a numeric one.
 extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_spinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, integer_type: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_spinbox_item_delegate(table_view.as_mut_raw_ptr(), column, integer_type, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for F32 cells on tables with a numeric one.
 extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_doublespinbox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_doublespinbox_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for ColourRGB cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_colour_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_colour_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_colour_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema.
 extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_qstring_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_qstring_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default delegate for all cell types that doesn't have a specific delegate already.
 extern "C" { fn new_generic_item_delegate(table_view: *mut QObject, column: i32, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool); }
 pub fn new_generic_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, timer: &Ptr<QTimer>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-    let is_right_side_mark_enabled = SETTINGS.read().unwrap().settings_bool["use_right_size_markers"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    let is_right_side_mark_enabled = setting_bool("use_right_size_markers");
     unsafe { new_generic_item_delegate(table_view.as_mut_raw_ptr(), column, timer.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter, is_right_side_mark_enabled) }
 }
 
 // This function changes the default delegate for all items in a Tips ListView.
 extern "C" { fn new_tips_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tips_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
     unsafe { new_tips_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
 // This function changes the default delegate for all items in a TreeView.
 extern "C" { fn new_tree_item_delegate(tree_view: *mut QObject, is_dark_theme_enabled: bool, has_filter: bool); }
 pub fn new_tree_item_delegate_safe(tree_view: &Ptr<QObject>, has_filter: bool) {
-    let is_dark_theme_enabled = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
     unsafe { new_tree_item_delegate(tree_view.as_mut_raw_ptr(), is_dark_theme_enabled, has_filter) }
 }
 
@@ -166,9 +168,10 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 }
 
 // This function allow us to create a custom window.
-extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> *mut QMainWindow; }
+extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
 pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
-    unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure)) }
+    let is_dark_theme_enabled = setting_bool("use_dark_theme");
+    unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
 
 //---------------------------------------------------------------------------//
@@ -249,6 +252,7 @@ pub fn get_text_changed_dummy_widget_safe<'a>(parent: &Ptr<QWidget>) -> Ptr<QLin
     unsafe { Ptr::from_raw(get_text_changed_dummy_widget(parent.as_mut_raw_ptr())) }
 }
 
+// This function allows to scroll to an specific row in a KTextEditor.
 extern "C" { fn scroll_to_row(parent: *mut QWidget, row_number: u64); }
 pub fn scroll_to_row_safe<'a>(parent: &Ptr<QWidget>, row_number: u64) {
     unsafe { scroll_to_row(parent.as_mut_raw_ptr(), row_number) }
@@ -305,6 +309,30 @@ pub fn kmessage_widget_set_info_safe(widget: &Ptr<QWidget>, text: Ptr<QString>) 
 }
 
 //---------------------------------------------------------------------------//
+// KShortcutsDialog stuff.
+//---------------------------------------------------------------------------//
+
+extern "C" { fn shortcut_collection_init(widget: *mut QWidget, shortcuts: *mut QListOfQObject); }
+pub fn shortcut_collection_init_safe(widget: &Ptr<QWidget>, shortcuts: Ptr<QListOfQObject>) {
+    unsafe { shortcut_collection_init(widget.as_mut_raw_ptr(), shortcuts.as_mut_raw_ptr()) }
+}
+
+extern "C" { fn shortcut_action(shortcuts: *const QListOfQObject, action_group: *const QString, action_name: *const QString) -> *const QAction; }
+pub fn shortcut_action_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QString>, action_name: Ptr<QString>) -> QPtr<QAction> {
+    unsafe { QPtr::from_raw(shortcut_action(shortcuts.as_raw_ptr(), action_group.as_raw_ptr(), action_name.as_raw_ptr())) }
+}
+
+extern "C" { fn shortcut_associate_action_group_to_widget(shortcuts: *mut QListOfQObject, action_group: *const QString, widget: *mut QWidget); }
+pub fn shortcut_associate_action_group_to_widget_safe(shortcuts: Ptr<QListOfQObject>, action_group: Ptr<QString>, widget: Ptr<QWidget>) {
+    unsafe { shortcut_associate_action_group_to_widget(shortcuts.as_mut_raw_ptr(), action_group.as_raw_ptr(), widget.as_mut_raw_ptr()) }
+}
+
+extern "C" { fn kshortcut_dialog_init(widget: *mut QWidget, shortcuts: *mut QListOfQObject); }
+pub fn kshortcut_dialog_init_safe(widget: &Ptr<QWidget>, shortcuts: Ptr<QListOfQObject>) {
+    unsafe { kshortcut_dialog_init(widget.as_mut_raw_ptr(), shortcuts.as_mut_raw_ptr()) }
+}
+
+//---------------------------------------------------------------------------//
 // Image stuff.
 //---------------------------------------------------------------------------//
 
@@ -319,7 +347,7 @@ pub fn set_pixmap_on_resizable_label_safe(label: &Ptr<QLabel>, pixmap: &Ptr<QPix
     unsafe { set_pixmap_on_resizable_label(label.as_mut_raw_ptr(), pixmap.as_mut_raw_ptr()); }
 }
 
-/// This function allow us to create a QImage with the contents of a DDS Texture.
+// This function allow us to create a QImage with the contents of a DDS Texture.
 #[cfg(feature = "support_modern_dds")]
 extern "C" { fn getDDS_QImage(data: *const QByteArray) -> *mut QImage; }
 #[cfg(feature = "support_modern_dds")]
@@ -331,7 +359,7 @@ pub fn get_dds_qimage(data: &Ptr<QByteArray>) -> Ptr<QImage> {
 // Rigidmodel stuff.
 //---------------------------------------------------------------------------//
 
-/// This function allow us to create a complete RigidModel view.
+// This function allow us to create a complete RigidModel view.
 #[cfg(feature = "support_rigidmodel")]
 extern "C" { fn createRMV2Widget(parent: *mut QWidget) -> *mut QWidget; }
 #[cfg(feature = "support_rigidmodel")]
@@ -339,7 +367,7 @@ pub fn new_rigid_model_view_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
     unsafe { QBox::from_raw(createRMV2Widget(parent.as_mut_raw_ptr())) }
 }
 
-/// This function allow us to get the data from a Rigidmodel view.
+// This function allow us to get the data from a Rigidmodel view.
 #[cfg(feature = "support_rigidmodel")]
 extern "C" { fn getRMV2Data(parent: *mut QWidget, data: *mut QByteArray) -> bool; }
 #[cfg(feature = "support_rigidmodel")]
@@ -356,7 +384,7 @@ pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<Q
     }
 }
 
-/// This function allow us to manually load data into a RigidModel View.
+// This function allow us to manually load data into a RigidModel View.
 #[cfg(feature = "support_rigidmodel")]
 extern "C" { fn setRMV2Data(parent: *mut QWidget, data: *const QByteArray) -> bool; }
 #[cfg(feature = "support_rigidmodel")]
@@ -372,7 +400,7 @@ pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) 
     }
 }
 
-/// This function allow us to get the last error reported by the lib.
+// This function allow us to get the last error reported by the lib.
 #[cfg(feature = "support_rigidmodel")]
 extern "C" { fn getLastErrorString(parent: *mut QWidget, string: *mut QString) -> bool; }
 #[cfg(feature = "support_rigidmodel")]

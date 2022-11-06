@@ -26,14 +26,12 @@ use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
 
-use log::info;
-
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
-use rpfm_lib::packfile::PathType;
-use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::files::{ContainerPath, RFileDecoded, table::Table};
+use rpfm_lib::integrations::log::*;
 
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
@@ -46,7 +44,6 @@ use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
 use crate::utils::{check_regex, log_to_status_bar, show_dialog};
 use crate::UI_STATE;
-
 use super::utils::*;
 use super::*;
 
@@ -70,7 +67,7 @@ pub struct TableViewSlots {
     pub clone_and_insert: QBox<SlotNoArgs>,
     pub copy: QBox<SlotNoArgs>,
     pub copy_as_lua_table: QBox<SlotNoArgs>,
-    pub copy_to_filter: QBox<SlotNoArgs>,
+    pub copy_to_filter_value: QBox<SlotNoArgs>,
     pub paste: QBox<SlotNoArgs>,
     pub paste_as_new_row: QBox<SlotNoArgs>,
     pub invert_selection: QBox<SlotNoArgs>,
@@ -133,7 +130,7 @@ impl TableViewSlots {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+        packed_file_path: Option<Arc<RwLock<String>>>,
     ) -> Self {
 
         // When we want to update the diagnostic/global search data of this table.
@@ -152,15 +149,15 @@ impl TableViewSlots {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                             show_dialog(&view.table_view_primary, error, false);
                         } else if let Some(path) = view.get_packed_file_path() {
-                            paths_to_check.push(path.to_vec());
+                            paths_to_check.push(path);
                         }
                     }
 
-                    if SETTINGS.read().unwrap().settings_bool["diagnostics_trigger_on_table_edit"] {
-                        if diagnostics_ui.get_ref_diagnostics_dock_widget().is_visible() {
+                    if setting_bool("diagnostics_trigger_on_table_edit") {
+                        if diagnostics_ui.diagnostics_dock_widget().is_visible() {
                             for path in &paths_to_check {
-                                let path_types = vec![PathType::File(path.to_vec())];
-                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
+                                let path_types = vec![ContainerPath::File(path.to_owned())];
+                                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
                             }
                         }
                     }
@@ -177,7 +174,7 @@ impl TableViewSlots {
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view_primary, clone!(
             view => move |column, _| {
                 info!("Triggering `Sort Order` By Slot");
-                sort_column(&view.get_mut_ptr_table_view_primary(), column, view.column_sort_state.clone());
+                sort_column(&view.table_view_primary_ptr(), column, view.column_sort_state.clone());
             }
         ));
 
@@ -222,7 +219,7 @@ impl TableViewSlots {
 
                         // For pasting, or really any heavy operation, only do these tasks the last iteration of the operation.
                         if !view.save_lock.load(Ordering::SeqCst) {
-                            update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                            update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
                                 TableSearch::update_search(&view);
@@ -234,7 +231,7 @@ impl TableViewSlots {
                     }
                 }
 
-                if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
+                if setting_bool("table_resize_on_edit") {
                     view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
@@ -337,7 +334,7 @@ impl TableViewSlots {
         }));
 
         // When you want to copy a table to a filter string.
-        let copy_to_filter = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let copy_to_filter_value = SlotNoArgs::new(&view.table_view_primary, clone!(
             view => move || {
             info!("Triggering `Copy selection to filter` By Slot");
             view.copy_selection_to_filter();
@@ -408,7 +405,7 @@ impl TableViewSlots {
             view => move || {
                 info!("Triggering `Undo` By Slot");
                 view.undo_redo(true, 0);
-                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
                 if view.history_undo.read().unwrap().is_empty() {
                     if let Some(ref packed_file_path) = view.packed_file_path {
@@ -427,7 +424,7 @@ impl TableViewSlots {
             view => move || {
                 info!("Triggering `Redo` By Slot");
                 view.undo_redo(false, 0);
-                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
@@ -459,17 +456,22 @@ impl TableViewSlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
-                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                        let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
                         let response = CentralCommand::recv_try(&receiver);
                         match response {
-                            Response::TableType(data) => {
+                            Response::RFileDecoded(data) => {
+                                let data = match data {
+                                    RFileDecoded::DB(data) => TableType::DB(data),
+                                    RFileDecoded::Loc(data) => TableType::Loc(data),
+                                    _ => unimplemented!(),
+                                };
                                 let old_data = view.get_copy_of_table();
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
                                 load_data(
-                                    &view.get_mut_ptr_table_view_primary(),
-                                    &view.get_mut_ptr_table_view_frozen(),
-                                    &view.get_ref_table_definition(),
+                                    &view.table_view_primary_ptr(),
+                                    &view.table_view_frozen_ptr(),
+                                    &view.table_definition(),
                                     &view.dependency_data,
                                     &data,
                                     &view.timer_delayed_updates,
@@ -481,22 +483,22 @@ impl TableViewSlots {
                                 view.update_line_counter();
 
                                 let table_name = match data {
-                                    TableType::DB(_) => packed_file_path.read().unwrap().get(1).cloned(),
+                                    TableType::DB(db) => Some(db.table_name().to_owned()),
                                     _ => None,
                                 };
 
                                 build_columns(
-                                    &view.get_mut_ptr_table_view_primary(),
-                                    Some(&view.get_mut_ptr_table_view_frozen()),
-                                    &view.get_ref_table_definition(),
-                                    table_name.as_ref()
+                                    &view.table_view_primary_ptr(),
+                                    Some(&view.table_view_frozen_ptr()),
+                                    &view.table_definition(),
+                                    table_name.as_deref()
                                 );
 
                                 view.undo_lock.store(false, Ordering::SeqCst);
 
                                 view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
                                 view.history_redo.write().unwrap().clear();
-                                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
+                                update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
 
                                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -543,11 +545,11 @@ impl TableViewSlots {
                                 }
                             }
 
-                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV((packed_file_path.read().unwrap().to_vec(), path)));
+                            let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path));
                             let response = CentralCommand::recv_try(&receiver);
                             match response {
-                                Response::Success => return,
-                                Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
+                                Response::Success => (),
+                                Response::Error(error) => show_dialog(&view.table_view_primary, error, false),
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
                         }
@@ -559,7 +561,7 @@ impl TableViewSlots {
         // When we want to resize the columns depending on their contents...
         let resize_columns = SlotNoArgs::new(&view.table_view_primary, clone!(view => move || {
             view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
-            if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
+            if setting_bool("extend_last_column_on_tables") {
                 view.table_view_primary.horizontal_header().set_stretch_last_section(false);
                 view.table_view_primary.horizontal_header().set_stretch_last_section(true);
             }
@@ -607,9 +609,9 @@ impl TableViewSlots {
         let patch_column = SlotNoArgs::new(&view.table_view_primary, clone!(
             view => move || {
                 info!("Triggering `Patch Column` By Slot");
-                if let Err(error) = view.patch_column() {
-                    show_dialog(&view.table_view_primary, error, false);
-                }
+                //if let Err(error) = view.patch_column() {
+                //    show_dialog(&view.table_view_primary, error, false);
+                //}
             }
         ));
 
@@ -622,23 +624,23 @@ impl TableViewSlots {
                 let filter_index = selection.take_at(0).indexes().take_at(0);
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
-                    if let Some(field) = view.table_definition.read().unwrap().get_fields_processed().get(index.column() as usize) {
-                        if let Some(reference_data) = view.reference_map.get(field.get_name()) {
+                    if let Some(field) = view.table_definition.read().unwrap().fields_processed().get(index.column() as usize) {
+                        if let Some(reference_data) = view.reference_map.get(field.name()) {
 
                             // Stop if we have another find already running.
-                            if references_ui.get_ref_references_table_view().is_enabled() {
-                                references_ui.get_ref_references_dock_widget().show();
-                                references_ui.get_ref_references_table_view().set_enabled(false);
+                            if references_ui.references_table_view().is_enabled() {
+                                references_ui.references_dock_widget().show();
+                                references_ui.references_table_view().set_enabled(false);
 
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
                                 let response = CentralCommand::recv_try(&receiver);
                                 match response {
-                                    Response::VecDataSourceVecStringStringUsizeUsize(data) => {
+                                    Response::VecDataSourceStringStringUsizeUsize(data) => {
                                         references_ui.load_references_to_ui(data);
 
                                         // Reenable the table.
-                                        references_ui.get_ref_references_table_view().set_enabled(true);
+                                        references_ui.references_table_view().set_enabled(true);
                                     }
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                 }
@@ -666,8 +668,8 @@ impl TableViewSlots {
 
         let mut go_to_loc = vec![];
 
-        for field in view.get_ref_table_definition().get_localised_fields() {
-            let field_name = field.get_name().to_owned();
+        for field in view.table_definition().localised_fields() {
+            let field_name = field.name().to_owned();
             let slot = SlotNoArgs::new(&view.table_view_primary, clone!(
                 view,
                 app_ui,
@@ -689,9 +691,10 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.get_ref_table_definition().get_fields_sorted();
+        let fields = view.table_definition().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
+        let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
-            if let Some(index) = view.get_ref_table_definition().get_fields_processed().iter().position(|x| x == field) {
+            if let Some(index) = fields_processed.iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                     mut view => move |state| {
                         let state = state == 2;
@@ -713,14 +716,14 @@ impl TableViewSlots {
         let hide_show_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
             mut view => move |state| {
                 let state = state == 2;
-                view.get_hide_show_checkboxes().iter().for_each(|x| x.set_checked(state))
+                view.sidebar_hide_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
         let freeze_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
             mut view => move |state| {
                 let state = state == 2;
-                view.get_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
+                view.sidebar_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
@@ -789,11 +792,10 @@ impl TableViewSlots {
                     let data = model_index.data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
                     let table: Table = serde_json::from_str(&data).unwrap();
                     let table_data = match *view.packed_file_type {
-                        PackedFileType::DB => TableType::DB(From::from(table)),
-                        PackedFileType::Loc => TableType::Loc(From::from(table)),
-                        PackedFileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),
-                        PackedFileType::AnimTable => TableType::AnimTable(From::from(table)),
-                        PackedFileType::DependencyPackFilesList => unimplemented!("This should never happen, unless you messed up the schemas"),
+                        FileType::DB => TableType::DB(From::from(table)),
+                        FileType::Loc => TableType::Loc(From::from(table)),
+                        FileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),
+                        FileType::AnimsTable => TableType::AnimsTable(From::from(table)),
                         _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
                     };
                     if let Some(new_data) = open_subtable(
@@ -833,7 +835,7 @@ impl TableViewSlots {
             clone_and_insert,
             copy,
             copy_as_lua_table,
-            copy_to_filter,
+            copy_to_filter_value,
             paste,
             paste_as_new_row,
             invert_selection,
@@ -924,9 +926,9 @@ impl FilterViewSlots {
         let filter_remove = SlotNoArgs::new(&view.filter_widget, clone!(
             view,
             parent_view => move || {
-            if parent_view.get_ref_filters().len() > 1 {
+            if parent_view.filters().len() > 1 {
                 parent_view.filter_base_widget.layout().remove_widget(view.filter_widget.as_ptr());
-                parent_view.get_ref_mut_filters().pop();
+                parent_view.filters_mut().pop();
                 parent_view.filter_table();
             }
         }));

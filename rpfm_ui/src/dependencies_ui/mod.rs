@@ -16,7 +16,6 @@ use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
 use qt_widgets::QLineEdit;
-use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
@@ -33,11 +32,13 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
 
+use anyhow::anyhow;
+use getset::Getters;
+
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use rpfm_error::ErrorKind;
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::files::ContainerPath;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -46,12 +47,11 @@ use crate::ffi::*;
 use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::UI_STATE;
 use crate::utils::*;
 
 pub mod connections;
-pub mod shortcuts;
 pub mod slots;
 pub mod tips;
 
@@ -60,33 +60,35 @@ pub mod tips;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the Dependencies panel.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct DependenciesUI {
 
     //-------------------------------------------------------------------------------//
     // `Dependencies` Dock Widget.
     //-------------------------------------------------------------------------------//
-    pub dependencies_dock_widget: QBox<QDockWidget>,
-    //pub dependencies_pined_table: Ptr<QTableView>,
-    pub dependencies_tree_view: QBox<QTreeView>,
-    pub dependencies_tree_model_filter: QBox<QSortFilterProxyModel>,
-    pub dependencies_tree_model: QBox<QStandardItemModel>,
-    pub filter_line_edit: QBox<QLineEdit>,
-    pub filter_autoexpand_matches_button: QBox<QPushButton>,
-    pub filter_case_sensitive_button: QBox<QPushButton>,
-    pub filter_timer_delayed_updates: QBox<QTimer>,
+    dependencies_dock_widget: QBox<QDockWidget>,
+    //dependencies_pined_table: Ptr<QTableView>,
+    dependencies_tree_view: QBox<QTreeView>,
+    dependencies_tree_model_filter: QBox<QSortFilterProxyModel>,
+    dependencies_tree_model: QBox<QStandardItemModel>,
+    filter_line_edit: QBox<QLineEdit>,
+    filter_autoexpand_matches_button: QBox<QPushButton>,
+    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_timer_delayed_updates: QBox<QTimer>,
 
     //-------------------------------------------------------------------------------//
     // Contextual menu for the Dependencies TreeView.
     //-------------------------------------------------------------------------------//
-    pub dependencies_tree_view_context_menu: QBox<QMenu>,
-    pub context_menu_import: QPtr<QAction>,
-    pub context_menu_copy_path: QPtr<QAction>,
+    dependencies_tree_view_context_menu: QBox<QMenu>,
+    context_menu_import: QPtr<QAction>,
+    context_menu_copy_path: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // Actions not in the UI.
     //-------------------------------------------------------------------------------//
-    pub dependencies_tree_view_expand_all: QBox<QAction>,
-    pub dependencies_tree_view_collapse_all: QBox<QAction>,
+    dependencies_tree_view_expand_all: QPtr<QAction>,
+    dependencies_tree_view_collapse_all: QPtr<QAction>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -97,18 +99,18 @@ pub struct DependenciesUI {
 impl DependenciesUI {
 
     /// This function creates an entire `DependenciesUI` struct.
-    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Self {
 
         //-----------------------------------------------//
         // `PackFile Contents` DockWidget.
         //-----------------------------------------------//
 
         // Create and configure the 'TreeView` Dock Widget and all his contents.
-        let dependencies_dock_widget = QDockWidget::from_q_widget(main_window);
+        let dependencies_dock_widget = QDockWidget::from_q_widget(app_ui.main_window());
         let dependencies_dock_inner_widget = QWidget::new_1a(&dependencies_dock_widget);
         let dependencies_dock_layout = create_grid_layout(dependencies_dock_inner_widget.static_upcast());
         dependencies_dock_widget.set_widget(&dependencies_dock_inner_widget);
-        main_window.add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &dependencies_dock_widget);
+        app_ui.main_window().add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &dependencies_dock_widget);
         dependencies_dock_widget.set_window_title(&qtr("gen_loc_dependencies"));
         dependencies_dock_widget.set_object_name(&QString::from_std_str("dependencies_dock"));
 
@@ -154,11 +156,10 @@ impl DependenciesUI {
         // Populate the `Contextual Menu` for the `Dependencies` TreeView.
         let dependencies_tree_view_context_menu = QMenu::from_q_widget(&dependencies_dock_inner_widget);
 
-        let context_menu_import = dependencies_tree_view_context_menu.add_action_q_string(&qtr("context_menu_import"));
-        let context_menu_copy_path = dependencies_tree_view_context_menu.add_action_q_string(&qtr("context_menu_copy_path"));
-
-        let dependencies_tree_view_expand_all = QAction::from_q_string(&qtr("treeview_expand_all"));
-        let dependencies_tree_view_collapse_all = QAction::from_q_string(&qtr("treeview_collapse_all"));
+        let context_menu_import = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "import_from_dependencies", "context_menu_import", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_copy_path = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "copy_path", "context_menu_copy_path", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
+        let dependencies_tree_view_expand_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "expand_all", "treeview_expand_all", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
+        let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "collapsse_all", "treeview_collapse_all", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
 
         // Create ***Da monsta***.
         Self {
@@ -218,46 +219,47 @@ impl DependenciesUI {
     }
 
     /// This function is used to import dependencies into our own PackFile.
-    pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<PathType>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+    pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<ContainerPath>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+        app_ui.main_window().set_enabled(false);
 
-        app_ui.main_window.set_enabled(false);
         let receiver = CENTRAL_COMMAND.send_background(Command::ImportDependenciesToOpenPackFile(paths_by_source));
         let response1 = CentralCommand::recv(&receiver);
         let response2 = CentralCommand::recv(&receiver);
         match response1 {
-            Response::VecPathType(added_paths) => {
-                let paths = added_paths.iter().map(From::from).collect::<Vec<TreePathType>>();
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile);
+            Response::VecContainerPath(paths) => {
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile);
+
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
+                // TODO: Find if there is a view with this file and change its data source.
+
                 // Try to reload all open files which data we altered, and close those that failed.
-                let failed_paths = added_paths.iter().filter_map(|path| {
-                    if let PathType::File(ref path) = path {
+                let failed_paths = paths.iter().filter_map(|path| {
+                    if let ContainerPath::File(ref path) = path {
                         if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                Some(path.to_vec())
+                                Some(path.to_owned())
                             } else { None }
                         } else { None }
                     } else { None }
-                }).collect::<Vec<Vec<String>>>();
+                }).collect::<Vec<String>>();
 
                 for path in &failed_paths {
                     let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
                 }
             }
 
-            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response1),
         }
 
         match response2 {
             Response::Success => {},
-            Response::VecVecString(error_paths) => show_dialog(&app_ui.main_window, ErrorKind::DependenciesImportFailure(error_paths), false),
+            Response::VecString(error_paths) => show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", error_paths.iter().map(|x| "<li>".to_owned() + &x + "</li>").collect::<String>()), false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
         }
 
         // Re-enable the Main Window.
-        app_ui.main_window.set_enabled(true);
+        app_ui.main_window().set_enabled(true);
     }
 }

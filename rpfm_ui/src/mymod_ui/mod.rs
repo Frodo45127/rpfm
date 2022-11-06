@@ -26,15 +26,18 @@ use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QPtr;
 
+use getset::Getters;
+
+use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
-
-use crate::AppUI;
+use crate::app_ui::AppUI;
+use crate::GAME_SELECTED;
 use crate::locale::qtr;
+use crate::settings_ui::backend::*;
+use crate::SUPPORTED_GAMES;
 use crate::utils::create_grid_layout;
+
 use self::slots::MyModUISlots;
 
 mod connections;
@@ -45,14 +48,15 @@ mod slots;
 //-------------------------------------------------------------------------------//
 
 /// `This struct holds all the relevant stuff for "MyMod"'s New Mod Window.
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct MyModUI {
-    pub mymod_dialog: QBox<QDialog>,
-    pub mymod_game_combobox: QBox<QComboBox>,
-    pub mymod_name_line_edit: QBox<QLineEdit>,
-    pub mymod_cancel_button: QPtr<QPushButton>,
-    pub mymod_accept_button: QPtr<QPushButton>,
+    mymod_dialog: QBox<QDialog>,
+    mymod_game_combobox: QBox<QComboBox>,
+    mymod_name_line_edit: QBox<QLineEdit>,
+    mymod_cancel_button: QPtr<QPushButton>,
+    mymod_accept_button: QPtr<QPushButton>,
 }
-
 
 //-------------------------------------------------------------------------------//
 //                              Implementations
@@ -66,7 +70,7 @@ impl MyModUI {
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<(String, String)> {
 
         // Create the "New MyMod" Dialog and configure it.
-        let dialog = QDialog::new_1a(&app_ui.main_window);
+        let dialog = QDialog::new_1a(app_ui.main_window());
         let main_grid = create_grid_layout(dialog.static_upcast());
         dialog.set_window_title(&qtr("mymod_new"));
         dialog.set_modal(true);
@@ -98,12 +102,12 @@ impl MyModUI {
         // Add the games to the ComboBox.
         let mut selected_index = 0;
         let mut selected_index_counter = 0;
-        let game_selected = GAME_SELECTED.read().unwrap().get_game_key_name();
-        for game in SUPPORTED_GAMES.get_games() {
-            if game.get_supports_editing() {
-                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.get_display_name()));
+        let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
+        for game in SUPPORTED_GAMES.games() {
+            if game.supports_editing() {
+                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name()));
 
-                if game.get_game_key_name() == game_selected {
+                if game.game_key_name() == game_selected {
                     selected_index = selected_index_counter
                 }
                 selected_index_counter += 1;
@@ -160,7 +164,8 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+        let mod_path = setting_path(MYMOD_BASE_PATH);
+        if mod_path.is_dir() {
 
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {

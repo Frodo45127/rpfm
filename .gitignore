@@ -78,12 +78,31 @@ shortcuts.ron
 /rpfm_ui/qt_subclasses/.qtc_clangd/
 
 # Files created during tests.
+/test_files/ca_vp8_v0_encode.ca_vp8
+/test_files/ca_vp8_v0_to_ivf_and_back.ca_vp8
+/test_files/ca_vp8_v1_encode.ca_vp8
+/test_files/ca_vp8_v1_to_ivf_and_back.ca_vp8
 /test_files/PFH0_test_encode.pack
 /test_files/PFH2_test_encode.pack
 /test_files/PFH3_test_encode.pack
 /test_files/PFH4_test_encode.pack
 /test_files/PFH5_test_encode.pack
 /test_files/PFH6_test_encode.pack
+/test_files/test_encode.animpack
+/test_files/test_encode_iso_8859_1.html
+/test_files/test_encode_utf8.html
+/test_files/test_encode_utf8_with_bom.html
+/test_files/test_encode_utf16_le.html
+/test_files/test_encode_v1.unit_variant
+/test_files/test_encode_v2.unit_variant
+/test_files/test_encode_no_sqlite.loc
+/test_files/test_encode_sqlite.loc
+/test_files/test_encode_db_no_sqlite
+/test_files/test_encode_db_sqlite
+/test_files/test_encode_matched_combat.bin
+/test_files/test_encode_anim_fragment.frg
+/test_files/test_encode_anims_table.bin
+/test_files/test_encode_rfile.pack
 
 # Secret tokens.
 gh-token
@@ -93,6 +112,13 @@ gh-token
 
 # Ignore autogen folder on debug builds.
 /tw_autogen/
+
+# Ignore grcov folder, if exists.
+/coverage/
+
+# Ignore files generated while building arch packages.
+/install/arch/src
+/install/arch/rpfm
 
 # Ignore this one, as it causes issues when recompiling.
 /rpfm_ui/qt_subclasses/.qmake.stash

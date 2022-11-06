@@ -23,6 +23,6 @@ use super::{PackedFileAnimFragmentView, slots::PackedFileAnimFragmentViewSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<PackedFileAnimFragmentView>, slots: &PackedFileAnimFragmentViewSlots) {
-    ui.get_ref_table_view_2().timer_delayed_updates.timeout().connect(&slots.delayed_updates);
+    ui.table_view().timer_delayed_updates().timeout().connect(&slots.delayed_updates);
 }
 

@@ -46,26 +46,27 @@ use qt_core::QSignalBlocker;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+use getset::Getters;
+
 use std::rc::Rc;
 
-use rpfm_lib::diagnostics::{*, anim_fragment::*, config::*, table::*, dependency_manager::*, packfile::*};
-use rpfm_lib::GAME_SELECTED;
+use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, dependency::*, pack::*, table::*};
+
+use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
-use rpfm_lib::packfile::PathType;
-use rpfm_lib::SETTINGS;
 
-use rpfm_macros::{GetRef, GetRefMut, Set};
-
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
+use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr};
-use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
-use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
+use crate::pack_tree::*;
+use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
 use crate::utils::create_grid_layout;
@@ -79,7 +80,8 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the Diagnostics panel.
-#[derive(GetRef, GetRefMut, Set)]
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct DiagnosticsUI {
 
     //-------------------------------------------------------------------------------//
@@ -215,7 +217,7 @@ impl DiagnosticsUI {
         diagnostics_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
         diagnostics_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
-        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+        if setting_bool("tight_table_mode") {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);
@@ -469,47 +471,51 @@ impl DiagnosticsUI {
             return;
         }
 
-        app_ui.menu_bar_packfile.set_enabled(false);
+        app_ui.menu_bar_packfile().set_enabled(false);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
-        diagnostics_ui.diagnostics_table_model.clear();
         let response = CentralCommand::recv_try(&receiver);
+        diagnostics_ui.diagnostics_table_model.clear();
+
         match response {
             Response::Diagnostics(diagnostics) => {
-                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
+                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
                 Self::filter(app_ui, diagnostics_ui);
-                Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+                Self::update_level_counts(diagnostics_ui, diagnostics.results());
                 UI_STATE.set_diagnostics(&diagnostics);
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
-        app_ui.menu_bar_packfile.set_enabled(true);
+        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
-    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
+    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, paths: Vec<ContainerPath>) {
 
         // Only check if we actually have the diagnostics open.
         if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
             return;
         }
 
-        let diagnostics = UI_STATE.get_diagnostics();
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate((diagnostics, paths)));
-        let response = CentralCommand::recv_try(&receiver);
-        match response {
-            Response::DiagnosticsVecPackedFileInfo(diagnostics, packed_files_info) => {
-                diagnostics_ui.diagnostics_table_model.clear();
-                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+        app_ui.menu_bar_packfile().set_enabled(false);
 
+        let diagnostics = UI_STATE.get_diagnostics();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
+        let response = CentralCommand::recv_try(&receiver);
+        diagnostics_ui.diagnostics_table_model.clear();
+
+        match response {
+            Response::Diagnostics(diagnostics) => {
+                Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
                 Self::filter(app_ui, diagnostics_ui);
-                Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
+                Self::update_level_counts(diagnostics_ui, diagnostics.results());
                 UI_STATE.set_diagnostics(&diagnostics);
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
+
+        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
@@ -529,7 +535,7 @@ impl DiagnosticsUI {
 
                 match diagnostic_type {
                     DiagnosticType::AnimFragment(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
+                        for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
                             // Create an empty row.
@@ -539,7 +545,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -548,10 +554,10 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -561,7 +567,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], &result.report_type);
+                            Self::set_tooltips_anim_fragment(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -577,7 +583,7 @@ impl DiagnosticsUI {
                     }
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
+                        for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
                             // Create an empty row.
@@ -587,7 +593,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -596,10 +602,10 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -609,7 +615,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_table(&[&level, &path, &message], &result.report_type);
+                            Self::set_tooltips_table(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -624,8 +630,8 @@ impl DiagnosticsUI {
                         }
                     }
 
-                    DiagnosticType::PackFile(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
+                    DiagnosticType::Pack(ref diagnostic) => {
+                        for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
                             // Create an empty row.
@@ -635,7 +641,7 @@ impl DiagnosticsUI {
                             let fill2 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -644,8 +650,8 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -655,7 +661,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_packfile(&[&level, &fill2, &message], &result.report_type);
+                            Self::set_tooltips_packfile(&[&level, &fill2, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -669,8 +675,8 @@ impl DiagnosticsUI {
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                         }
                     }
-                    DiagnosticType::DependencyManager(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
+                    DiagnosticType::Dependency(ref diagnostic) => {
+                        for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
                             // Create an empty row.
@@ -680,7 +686,7 @@ impl DiagnosticsUI {
                             let path = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -689,10 +695,10 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -702,7 +708,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], &result.report_type);
+                            Self::set_tooltips_dependency_manager(&[&level, &path, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -718,7 +724,7 @@ impl DiagnosticsUI {
                     }
 
                     DiagnosticType::Config(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
+                        for result in diagnostic.results() {
                             let qlist_boi = QListOfQStandardItem::new();
 
                             // Create an empty row.
@@ -728,7 +734,7 @@ impl DiagnosticsUI {
                             let fill2 = QStandardItem::new();
                             let message = QStandardItem::new();
                             let report_type = QStandardItem::new();
-                            let (result_type, color) = match result.level {
+                            let (result_type, color) = match result.level() {
                                 DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
                                 DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
                                 DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
@@ -737,8 +743,8 @@ impl DiagnosticsUI {
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            message.set_text(&QString::from_std_str(&result.message));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type)));
+                            message.set_text(&QString::from_std_str(&result.message()));
+                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -748,7 +754,7 @@ impl DiagnosticsUI {
                             report_type.set_editable(false);
 
                             // Set the tooltips to the diag type and description columns.
-                            Self::set_tooltips_config(&[&level, &fill2, &message], &result.report_type);
+                            Self::set_tooltips_config(&[&level, &fill2, &message], result.report_type());
 
                             // Add an empty row to the list.
                             qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
@@ -804,12 +810,11 @@ impl DiagnosticsUI {
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
         let item_path = model.item_2a(model_index.row(), 3);
         let path = item_path.text().to_std_string();
-        let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
-        let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path, DataSource::PackFile);
+        let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, DataSource::PackFile);
 
         let diagnostic_type = model.item_2a(model_index.row(), 1).text().to_std_string();
         if diagnostic_type == "DependencyManager" {
-            AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui);
+            AppUI::open_special_view(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, SpecialView::PackDependencies);
         } else if !path.is_empty() {
 
             // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
@@ -817,13 +822,13 @@ impl DiagnosticsUI {
 
             if let Some(ref tree_index) = tree_index {
                 if tree_index.is_valid() {
-                    pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                    pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                    pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                    pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                 }
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_vec()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, DataSource::PackFile);
         }
 
         // If it's a table, focus on the matched cell.
@@ -834,8 +839,8 @@ impl DiagnosticsUI {
 
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::AnimFragment(view)) = packed_file_view.get_view() {
-                        let table_view = view.get_ref_table_view_2();
-                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_view = view.table_view();
+                        let table_view = table_view.table_view_primary();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
@@ -863,7 +868,7 @@ impl DiagnosticsUI {
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                         let table_view = view.get_ref_table();
-                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_view = table_view.table_view_primary();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
@@ -880,7 +885,9 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
-                    } else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
+                    }
+                    /*
+                    else if let ViewType::Internal(View::DependenciesManager(view)) = packed_file_view.get_view() {
 
                         let table_view = view.get_ref_table();
                         let table_view = table_view.get_mut_ptr_table_view_primary();
@@ -900,7 +907,7 @@ impl DiagnosticsUI {
                                 table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::SelectCurrent));
                             }
                         }
-                    }
+                    }*/
                 }
             }
 
@@ -912,22 +919,22 @@ impl DiagnosticsUI {
                     "DependenciesCacheNotGenerated" |
                     "DependenciesCacheOutdated" |
                     "DependenciesCacheCouldNotBeLoaded" => {
-                        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
-                            KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache.trigger(),
-                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache.trigger(),
-                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache.trigger(),
-                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache.trigger(),
-                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache.trigger(),
-                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache.trigger(),
-                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache.trigger(),
-                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache.trigger(),
-                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache.trigger(),
-                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache.trigger(),
-                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache.trigger(),
+                        match &*GAME_SELECTED.read().unwrap().game_key_name() {
+                            KEY_WARHAMMER_3 => app_ui.special_stuff_wh3_generate_dependencies_cache().trigger(),
+                            KEY_TROY => app_ui.special_stuff_troy_generate_dependencies_cache().trigger(),
+                            KEY_THREE_KINGDOMS => app_ui.special_stuff_three_k_generate_dependencies_cache().trigger(),
+                            KEY_WARHAMMER_2 => app_ui.special_stuff_wh2_generate_dependencies_cache().trigger(),
+                            KEY_WARHAMMER => app_ui.special_stuff_wh_generate_dependencies_cache().trigger(),
+                            KEY_THRONES_OF_BRITANNIA => app_ui.special_stuff_tob_generate_dependencies_cache().trigger(),
+                            KEY_ATTILA => app_ui.special_stuff_att_generate_dependencies_cache().trigger(),
+                            KEY_ROME_2 => app_ui.special_stuff_rom2_generate_dependencies_cache().trigger(),
+                            KEY_SHOGUN_2 => app_ui.special_stuff_sho2_generate_dependencies_cache().trigger(),
+                            KEY_NAPOLEON => app_ui.special_stuff_nap_generate_dependencies_cache().trigger(),
+                            KEY_EMPIRE => app_ui.special_stuff_emp_generate_dependencies_cache().trigger(),
                             _ => {}
                         }
                     }
-                    "IncorrectGamePath" => app_ui.packfile_preferences.trigger(),
+                    "IncorrectGamePath" => app_ui.packfile_preferences().trigger(),
                     _ => {}
                 }
             }
@@ -942,23 +949,23 @@ impl DiagnosticsUI {
     ) {
 
         let path = match diagnostic {
-            DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.get_path(),
+            DiagnosticType::AnimFragment(ref diagnostic) => diagnostic.path(),
             DiagnosticType::DB(ref diagnostic) |
-            DiagnosticType::Loc(ref diagnostic) => diagnostic.get_path(),
-            DiagnosticType::DependencyManager(ref diagnostic) => diagnostic.get_path(),
+            DiagnosticType::Loc(ref diagnostic) => diagnostic.path(),
+            //DiagnosticType::DependencyManager(ref diagnostic) => diagnostic.get_path(),
             _ => return,
         };
 
-        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| view.get_path() == path) {
-            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).find(|view| &view.get_path() == path) {
+            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
-                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.get_ref_table_view_2() }
+                //else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() { view.get_ref_table() }
+                else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
-                let table_view = internal_table_view.get_mut_ptr_table_view_primary();
+                let table_view = internal_table_view.table_view_primary();
                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                 let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -966,8 +973,8 @@ impl DiagnosticsUI {
                 match diagnostic {
                     DiagnosticType::DB(ref diagnostic) |
                     DiagnosticType::Loc(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
-                            for (row, column) in &result.cells_affected {
+                        for result in diagnostic.results() {
+                            for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
@@ -976,7 +983,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -990,7 +997,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1003,7 +1010,7 @@ impl DiagnosticsUI {
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
-                                            match result.level {
+                                            match result.level() {
                                                 DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                 DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                 DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1014,6 +1021,7 @@ impl DiagnosticsUI {
                             }
                         }
                     },
+                    /*
                     DiagnosticType::DependencyManager(ref diagnostic) => {
                         for result in diagnostic.get_ref_result() {
                             for (row, column) in &result.cells_affected {
@@ -1063,10 +1071,10 @@ impl DiagnosticsUI {
                                 }
                             }
                         }
-                    },
+                    },*/
                     DiagnosticType::AnimFragment(ref diagnostic) => {
-                        for result in diagnostic.get_ref_result() {
-                            for (row, column) in &result.cells_affected {
+                        for result in diagnostic.results() {
+                            for (row, column) in result.cells_affected() {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
@@ -1075,7 +1083,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1089,7 +1097,7 @@ impl DiagnosticsUI {
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
                                             if table_model_index.is_valid() {
-                                                match result.level {
+                                                match result.level() {
                                                     DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                     DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                     DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1102,7 +1110,7 @@ impl DiagnosticsUI {
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
-                                            match result.level {
+                                            match result.level() {
                                                 DiagnosticLevel::Error => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_ERROR),
                                                 DiagnosticLevel::Warning => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_WARNING),
                                                 DiagnosticLevel::Info => table_model_item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_INFO),
@@ -1127,11 +1135,11 @@ impl DiagnosticsUI {
         for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile) {
 
             // Only update the visible tables.
-            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+            if app_ui.tab_bar_packed_file().index_of(view.get_mut_widget()) != -1 {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.get_view() {
-                    let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                    let table_view = view.get_ref_table().table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1154,7 +1162,7 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
-                    let table_view = view.get_ref_table_view_2().get_mut_ptr_table_view_primary();
+                    let table_view = view.table_view().table_view_primary_ptr();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1177,7 +1185,7 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 }
-
+                /*
                 else if let ViewType::Internal(View::DependenciesManager(view)) = view.get_view() {
                     let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
@@ -1201,7 +1209,7 @@ impl DiagnosticsUI {
                     }
                     blocker.unblock();
                     table_view.viewport().repaint();
-                }
+                }*/
             }
         }
     }
@@ -1233,14 +1241,14 @@ impl DiagnosticsUI {
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
             let open_packedfiles_ref = open_packedfiles.iter()
-                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file.index_of(x.get_mut_widget()) != -1)
+                .filter(|x| x.get_data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file().index_of(x.get_mut_widget()) != -1)
                 .collect::<Vec<&PackedFileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {
                 if !pattern.is_empty() {
                     pattern.push('|');
                 }
-                pattern.push_str(&open_packedfile.get_ref_path().join("/"));
+                pattern.push_str(&open_packedfile.get_ref_path().to_string());
             }
 
             // This makes sure the check works even if we don't have anything open.
@@ -1260,34 +1268,34 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::OutdatedTable));
         }
         if diagnostics_ui.checkbox_invalid_reference.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidReference));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidReference(String::new(), String::new())));
         }
         if diagnostics_ui.checkbox_empty_row.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyRow));
         }
         if diagnostics_ui.checkbox_empty_key_field.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyKeyField));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyKeyField(String::new())));
         }
         if diagnostics_ui.checkbox_empty_key_fields.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::EmptyKeyFields));
         }
         if diagnostics_ui.checkbox_duplicated_combined_keys.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedCombinedKeys));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedCombinedKeys(String::new())));
         }
         if diagnostics_ui.checkbox_no_reference_table_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableFound));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableFound(String::new())));
         }
         if diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new())));
         }
         if diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new())));
         }
         if diagnostics_ui.checkbox_invalid_escape.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidEscape));
         }
         if diagnostics_ui.checkbox_duplicated_row.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedRow));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::DuplicatedRow(String::new())));
         }
         if diagnostics_ui.checkbox_invalid_loc_key.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::InvalidLocKey));
@@ -1302,18 +1310,18 @@ impl DiagnosticsUI {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::TableIsDataCoring));
         }
         if diagnostics_ui.checkbox_field_with_path_not_found.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::FieldWithPathNotFound));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::FieldWithPathNotFound(vec![])));
         }
         if diagnostics_ui.checkbox_banned_table.is_checked() {
             diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::BannedTable));
         }
         if diagnostics_ui.checkbox_value_cannot_be_empty.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::ValueCannotBeEmpty));
+            diagnostic_type_pattern.push_str(&format!("{}|", TableDiagnosticReportType::ValueCannotBeEmpty(String::new())));
         }
 
 
         if diagnostics_ui.checkbox_invalid_dependency_packfile.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName));
+            diagnostic_type_pattern.push_str(&format!("{}|", DependencyDiagnosticReportType::InvalidDependencyPackName(String::new())));
         }
 
         if diagnostics_ui.checkbox_dependencies_cache_not_generated.is_checked() {
@@ -1330,7 +1338,7 @@ impl DiagnosticsUI {
         }
 
         if diagnostics_ui.checkbox_invalid_packfile_name.is_checked() {
-            diagnostic_type_pattern.push_str(&format!("{}|", PackFileDiagnosticReportType::InvalidPackFileName));
+            diagnostic_type_pattern.push_str(&format!("{}|", PackDiagnosticReportType::InvalidPackName(String::new())));
         }
 
         diagnostic_type_pattern.pop();
@@ -1352,78 +1360,78 @@ impl DiagnosticsUI {
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
         let info = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
                 DiagnosticType::DB(ref diag) |
-                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                DiagnosticType::Pack(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                 DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
+                 DiagnosticType::Dependency(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
-                 DiagnosticType::Config(ref diag) => diag.get_ref_result()
+                 DiagnosticType::Config(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Info))
-                    .count()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
+                    .count(),
             }).sum::<usize>();
 
         let warning = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::DB(ref diag) |
-                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
-                DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                DiagnosticType::Pack(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
-                DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
+                DiagnosticType::Dependency(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
-                DiagnosticType::Config(ref diag) => diag.get_ref_result()
+                DiagnosticType::Config(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Warning))
-                    .count()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
+                    .count(),
             }).sum::<usize>();
 
 
         let error = diagnostics.iter().map(|x|
             match x {
-                DiagnosticType::AnimFragment(ref diag) => diag.get_ref_result()
+                DiagnosticType::AnimFragment(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::DB(ref diag) |
-                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                DiagnosticType::Loc(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
-                DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                DiagnosticType::Pack(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
-                DiagnosticType::DependencyManager(ref diag) => diag.get_ref_result()
+                DiagnosticType::Dependency(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
-                DiagnosticType::Config(ref diag) => diag.get_ref_result()
+                DiagnosticType::Config(ref diag) => diag.results()
                     .iter()
-                    .filter(|y| matches!(y.level, DiagnosticLevel::Error))
-                    .count()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
+                    .count(),
             }).sum::<usize>();
 
         diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
@@ -1433,7 +1441,7 @@ impl DiagnosticsUI {
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {
         let tool_tip = match report_type {
-            AnimFragmentDiagnosticReportType::FieldWithPathNotFound => qtr("field_with_path_not_found_explanation"),
+            AnimFragmentDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
         };
 
         for item in items {
@@ -1444,23 +1452,23 @@ impl DiagnosticsUI {
     pub unsafe fn set_tooltips_table(items: &[&CppBox<QStandardItem>], report_type: &TableDiagnosticReportType) {
         let tool_tip = match report_type {
             TableDiagnosticReportType::OutdatedTable => qtr("outdated_table_explanation"),
-            TableDiagnosticReportType::InvalidReference => qtr("invalid_reference_explanation"),
+            TableDiagnosticReportType::InvalidReference(_, _) => qtr("invalid_reference_explanation"),
             TableDiagnosticReportType::EmptyRow => qtr("empty_row_explanation"),
-            TableDiagnosticReportType::EmptyKeyField => qtr("empty_key_field_explanation"),
+            TableDiagnosticReportType::EmptyKeyField(_) => qtr("empty_key_field_explanation"),
             TableDiagnosticReportType::EmptyKeyFields => qtr("empty_key_fields_explanation"),
-            TableDiagnosticReportType::DuplicatedCombinedKeys => qtr("duplicated_combined_keys_explanation"),
-            TableDiagnosticReportType::NoReferenceTableFound => qtr("no_reference_table_found_explanation"),
-            TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak => qtr("no_reference_table_nor_column_found_pak_explanation"),
-            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak => qtr("no_reference_table_nor_column_found_no_pak_explanation"),
+            TableDiagnosticReportType::DuplicatedCombinedKeys(_) => qtr("duplicated_combined_keys_explanation"),
+            TableDiagnosticReportType::NoReferenceTableFound(_) => qtr("no_reference_table_found_explanation"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(_) => qtr("no_reference_table_nor_column_found_pak_explanation"),
+            TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(_) => qtr("no_reference_table_nor_column_found_no_pak_explanation"),
             TableDiagnosticReportType::InvalidEscape => qtr("invalid_escape_explanation"),
-            TableDiagnosticReportType::DuplicatedRow => qtr("duplicated_row_explanation"),
+            TableDiagnosticReportType::DuplicatedRow(_) => qtr("duplicated_row_explanation"),
             TableDiagnosticReportType::InvalidLocKey => qtr("invalid_loc_key_explanation"),
             TableDiagnosticReportType::TableNameEndsInNumber => qtr("table_name_ends_in_number_explanation"),
             TableDiagnosticReportType::TableNameHasSpace => qtr("table_name_has_space_explanation"),
             TableDiagnosticReportType::TableIsDataCoring => qtr("table_is_datacoring_explanation"),
-            TableDiagnosticReportType::FieldWithPathNotFound => qtr("field_with_path_not_found_explanation"),
+            TableDiagnosticReportType::FieldWithPathNotFound(_) => qtr("field_with_path_not_found_explanation"),
             TableDiagnosticReportType::BannedTable => qtr("banned_table_explanation"),
-            TableDiagnosticReportType::ValueCannotBeEmpty => qtr("value_cannot_be_empty_explanation"),
+            TableDiagnosticReportType::ValueCannotBeEmpty(_) => qtr("value_cannot_be_empty_explanation"),
         };
 
         for item in items {
@@ -1468,9 +1476,9 @@ impl DiagnosticsUI {
         }
     }
 
-    pub unsafe fn set_tooltips_dependency_manager(items: &[&CppBox<QStandardItem>], report_type: &DependencyManagerDiagnosticReportType) {
+    pub unsafe fn set_tooltips_dependency_manager(items: &[&CppBox<QStandardItem>], report_type: &DependencyDiagnosticReportType) {
         let tool_tip = match report_type {
-            DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName => qtr("invalid_dependency_pack_file_name_explanation"),
+            DependencyDiagnosticReportType::InvalidDependencyPackName(_) => qtr("invalid_dependency_pack_file_name_explanation"),
         };
 
         for item in items {
@@ -1491,9 +1499,9 @@ impl DiagnosticsUI {
         }
     }
 
-    pub unsafe fn set_tooltips_packfile(items: &[&CppBox<QStandardItem>], report_type: &PackFileDiagnosticReportType) {
+    pub unsafe fn set_tooltips_packfile(items: &[&CppBox<QStandardItem>], report_type: &PackDiagnosticReportType) {
         let tool_tip = match report_type {
-            PackFileDiagnosticReportType::InvalidPackFileName => qtr("invalid_packfile_name_explanation"),
+            PackDiagnosticReportType::InvalidPackName(_) => qtr("invalid_packfile_name_explanation"),
         };
 
         for item in items {

@@ -33,19 +33,12 @@ use std::fs::remove_dir_all;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_lib::common::*;
-use rpfm_lib::settings::{init_config_path, Settings, MYMOD_BASE_PATH, ZIP_PATH};
+use crate::settings_ui::backend::*;
 
-use crate::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::app_ui::AppUI;
 use crate::ffi;
 use crate::locale::tr;
-use crate::QT_PROGRAM;
-use crate::QT_ORG;
 use crate::settings_ui::SettingsUI;
-use crate::shortcuts_ui::ShortcutsUI;
-use crate::UI_STATE;
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -96,20 +89,21 @@ impl SettingsUISlots {
     /// This function creates a new `SettingsUISlots`.
     pub unsafe fn new(ui: &Rc<SettingsUI>, app_ui: &Rc<AppUI>) -> Self {
 
-        // What happens when we hit thr "Restore Default" button.
+        // What happens when we hit the "Restore Default" button.
         let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
 
-                // Restore RPFM settings.
-                if let Err(error) = ui.load(&Settings::new()) {
+                // Restore RPFM settings and reload the view.
+                init_settings();
+                if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
                 }
 
-                // Restore layout settings.
-                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                // Restore layout settings. TODO: move this to initialization of settings.
+                let q_settings = settings();
+                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
 
                 QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
@@ -156,18 +150,10 @@ impl SettingsUISlots {
         }
 
         // What happens when we hit the "Shortcuts" button.
-        let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(ui => move || {
-
-            // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
-            if let Some(shortcuts) = ShortcutsUI::new(&ui.dialog) {
-                let receiver = CENTRAL_COMMAND.send_background(Command::SetShortcuts(shortcuts.clone()));
-                let response = CentralCommand::recv(&receiver);
-                match response {
-                    Response::Success => UI_STATE.set_shortcuts(&shortcuts),
-                    Response::Error(error) => show_dialog(&ui.dialog, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
-            }
+        let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(
+            app_ui,
+            ui => move || {
+                crate::ffi::kshortcut_dialog_init_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr(), app_ui.shortcuts().as_ptr());
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.
@@ -185,7 +171,7 @@ impl SettingsUISlots {
         }));
 
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_dependencies_cache_path() {
+            match dependencies_cache_path() {
                 Ok(path) => match remove_dir_all(&path) {
                     Ok(_) => {
                         let _ = init_config_path();
@@ -198,7 +184,7 @@ impl SettingsUISlots {
         }));
 
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_backup_autosave_path() {
+            match backup_autosave_path() {
                 Ok(path) => match remove_dir_all(&path) {
                     Ok(_) => {
                         let _ = init_config_path();
@@ -211,7 +197,7 @@ impl SettingsUISlots {
         }));
 
         let clear_schemas = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
-            match get_schemas_path() {
+            match schemas_path() {
                 Ok(path) => {
 
                     // On windows, remove the read-only flags before doing anything else, or this will fail.
@@ -233,9 +219,9 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
-                let q_settings = QSettings::from_2_q_string(&QString::from_std_str(QT_ORG), &QString::from_std_str(QT_PROGRAM));
-                app_ui.main_window.restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
-                app_ui.main_window.restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
+                let q_settings = settings();
+                app_ui.main_window().restore_geometry(&q_settings.value_1a(&QString::from_std_str("originalGeometry")).to_byte_array());
+                app_ui.main_window().restore_state_1a(&q_settings.value_1a(&QString::from_std_str("originalWindowState")).to_byte_array());
                 q_settings.sync();
         }));
 

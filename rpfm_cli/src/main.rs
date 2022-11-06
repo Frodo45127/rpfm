@@ -8,74 +8,80 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-This crate is the `CLI` version of RPFM, who fought in the splitting war as a new power and managed to stablish itself by the end of the war.
-!*/
+//! This is a small CLI tool to interact with files used by Total War games.
+//!
+//! The purpouse of this tool is to allow users to automate certain parts of the mod building process.
 
-use colored::*;
-use log::{error, info, warn};
+use anyhow::Result;
+use clap::Parser;
 
-use std::env;
+use std::path::PathBuf;
 use std::process::exit;
 
-use crate::config::Config;
-use crate::logger::initialize_logs;
-use crate::app::initialize_app;
+use rpfm_lib::integrations::log::*;
 
-// Modules used by this tool.
-pub mod app;
-pub mod commands;
-pub mod config;
-pub mod logger;
+use crate::app::{Cli, Commands, CommandsAnimPack, CommandsDependencies, CommandsPack, CommandsSchemas};
+use crate::config::Config;
+
+mod app;
+mod commands;
+mod config;
 
 /// Guess you know what this function does....
 fn main() {
 
+    // Parse the entire cli command.
+    let cli = Cli::parse();
+
+    if cli.verbose {
+        info!("Game: {}", cli.game);
+        info!("Verbose: {}", cli.verbose);
+    }
+
     // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    if initialize_logs().is_err() {
+    let logger = Logger::init(&PathBuf::from("."), cli.verbose);
+    if logger.is_err() && cli.verbose {
         warn!("Logging initialization has failed. No logs will be saved.");
     }
 
-    // Initialize the App itself.
-    let mut app = initialize_app();
-
-    // If no arguments where provided, trigger the "help" message. Otherwise, get the matches and continue.
-    if env::args_os().len() <= 1 { app.print_help().unwrap(); exit(0) }
-    let matches = app.get_matches();
-
-    // Set the verbosity level and game selected, based on the arguments provided.
-    let verbosity_level = if matches.occurrences_of("v") > 3 { 3 } else { matches.occurrences_of("v") as u8 };
-    let packfile = matches.value_of("packfile");
-    let asskit_db_path = matches.value_of("assdb");
-    let game_selected = match matches.value_of("game") {
-        Some(game) => game.to_owned(),
-        None => "three_kingdoms".to_owned(),
-    };
-
-    // By default, print the game selected we're using, just in case some asshole starts complaining about broken PackFiles.
-    if verbosity_level > 0 {
-        info!("Game Selected: {}", game_selected);
-        info!("Verbosity level: {}", verbosity_level);
-    }
-
     // Build the Config struct to remember the current configuration when processing stuff.
-    let config = match Config::new(game_selected, verbosity_level) {
-        Ok(config) => config,
-        Err(error) => { error!("{} {}","Error:".red().bold(), error.to_terminal()); exit(1) }
-    };
+    let config = Config::new(&cli.game, cli.verbose);
 
-    // If we reached here, execute the commands.
-    let result = match matches.subcommand() {
-        Some(("diagnostic", matches)) => commands::command_diagnostic(&config, matches, asskit_db_path),
-        Some(("packfile", matches)) => commands::command_packfile(&config, matches, packfile),
-        Some(("table", matches)) => commands::command_table(&config, matches, packfile),
-        Some(("schema", matches)) => commands::command_schema(&config, matches),
-        _ => { Ok(()) }
+    // Execute the commands.
+    let result: Result<()> = match cli.command {
+        Commands::AnimPack { commands } => match commands {
+            CommandsAnimPack::List { pack_path } => crate::commands::animpack::list(&config, &pack_path),
+            CommandsAnimPack::Create { pack_path } => crate::commands::animpack::create(&config, &pack_path),
+            CommandsAnimPack::Add { pack_path, file_path, folder_path } => crate::commands::animpack::add(&config, &pack_path, &file_path, &folder_path),
+            CommandsAnimPack::Delete { pack_path, file_path, folder_path } => crate::commands::animpack::delete(&config, &pack_path, &file_path, &folder_path),
+            CommandsAnimPack::Extract { pack_path, file_path, folder_path } => crate::commands::animpack::extract(&config, &pack_path, &file_path, &folder_path),
+        }
+
+        Commands::Dependencies { commands } => match commands {
+            CommandsDependencies::Generate { pak_path, game_path, assembly_kit_path } => crate::commands::dependencies::generate(&config, &pak_path, &game_path, &assembly_kit_path),
+        }
+
+        Commands::Pack { commands } => match commands {
+            CommandsPack::List { pack_path } => crate::commands::pack::list(&config, &pack_path),
+            CommandsPack::Create { pack_path } => crate::commands::pack::create(&config, &pack_path),
+            CommandsPack::Add { pack_path, tsv_to_binary, file_path, folder_path } => crate::commands::pack::add(&config, &tsv_to_binary, &pack_path, &file_path, &folder_path),
+            CommandsPack::Delete { pack_path, file_path, folder_path } => crate::commands::pack::delete(&config, &pack_path, &file_path, &folder_path),
+            CommandsPack::Extract { pack_path, tables_as_tsv, file_path, folder_path } => crate::commands::pack::extract(&config, &tables_as_tsv, &pack_path, &file_path, &folder_path),
+            CommandsPack::SetFileType { pack_path, file_type } => crate::commands::pack::set_pack_type(&config, &pack_path, file_type),
+            CommandsPack::Diagnose { game_path, pak_path, schema_path, pack_path } => crate::commands::pack::diagnose(&config, &game_path, &pak_path, &schema_path, &pack_path),
+        }
+
+        Commands::Schemas { commands } => match commands {
+            CommandsSchemas::Update { schema_path } => crate::commands::schema::update(&config, &schema_path),
+        }
     };
 
     // Output the result of the commands.
     match result {
         Ok(_) => exit(0),
-        Err(error) => { error!("{}", error.to_terminal()); exit(1) },
+        Err(error) => {
+            error!("{}", error);
+            exit(1)
+        },
     }
 }

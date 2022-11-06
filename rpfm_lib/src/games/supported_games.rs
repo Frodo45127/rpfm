@@ -15,14 +15,9 @@ This module defines the list of games this lib support for any `Game-Specific` f
 You should have no business here, except for supporting a new game.
 !*/
 
-use indexmap::IndexMap;
-
 use std::collections::HashMap;
 
-use rpfm_error::{Result, ErrorKind};
-
-use crate::packfile::{PFHFileType, PFHVersion};
-use super::{GameInfo, VanillaDBTableNameLogic, InstallData, InstallType};
+use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_version::PFHVersion, VanillaDBTableNameLogic};
 
 // Display Name for all the Supported Games.
 pub const DISPLAY_NAME_WARHAMMER_3: &str = "Warhammer 3";
@@ -60,26 +55,19 @@ pub const KEY_ARENA: &str = "arena";
 pub struct SupportedGames {
 
     /// List of games supported.
-    games: IndexMap<&'static str, GameInfo>,
+    games: HashMap<&'static str, GameInfo>,
+
+    /// Order the games were released.
+    order: Vec<&'static str>
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Default Implementation for `SupportedGames`.
 impl Default for SupportedGames {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Implementation for `SupportedGames`.
-impl SupportedGames {
-
-    /// This function builds and generates the entire SupportedGames list. For initialization.
-    pub fn new() -> Self {
-        let mut game_list = IndexMap::new();
+        let mut game_list = HashMap::new();
 
         // Warhammer 3
         game_list.insert(KEY_WARHAMMER_3, GameInfo {
@@ -98,7 +86,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: Some("language.txt".to_owned()),
+            locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![
                 "db/agent_subtype_ownership_content_pack_junctions_tables".to_owned(),
                 "db/allied_recruitment_core_units_tables".to_owned(),
@@ -176,7 +164,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: Some("language.txt".to_owned()),
+            locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
             game_selected_icon: "gs_troy.png".to_owned(),
             game_selected_big_icon: "gs_big_troy.png".to_owned(),
@@ -250,7 +238,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: Some("language.txt".to_owned()),
+            locale_file_name: Some("language.txt".to_owned()),
             banned_packedfiles: vec![],
             game_selected_icon: "gs_3k.png".to_owned(),
             game_selected_big_icon: "gs_big_3k.png".to_owned(),
@@ -425,7 +413,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_wh2.png".to_owned(),
             game_selected_big_icon: "gs_big_wh2.png".to_owned(),
@@ -837,7 +825,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_wh.png".to_owned(),
             game_selected_big_icon: "gs_big_wh.png".to_owned(),
@@ -991,7 +979,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_tob.png".to_owned(),
             game_selected_big_icon: "gs_big_tob.png".to_owned(),
@@ -1093,7 +1081,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_att.png".to_owned(),
             game_selected_big_icon: "gs_big_att.png".to_owned(),
@@ -1166,7 +1154,7 @@ impl SupportedGames {
             raw_db_version: 2,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_rom2.png".to_owned(),
             game_selected_big_icon: "gs_big_rom2.png".to_owned(),
@@ -1229,7 +1217,7 @@ impl SupportedGames {
             raw_db_version: 1,
             supports_editing: true,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_sho2.png".to_owned(),
             game_selected_big_icon: "gs_big_sho2.png".to_owned(),
@@ -1302,7 +1290,7 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_nap.png".to_owned(),
             game_selected_big_icon: "gs_big_nap.png".to_owned(),
@@ -1388,7 +1376,7 @@ impl SupportedGames {
             raw_db_version: 0,
             supports_editing: true,
             db_tables_have_guid: false,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_emp.png".to_owned(),
             game_selected_big_icon: "gs_big_emp.png".to_owned(),
@@ -1552,7 +1540,7 @@ impl SupportedGames {
             raw_db_version: -1,
             supports_editing: false,
             db_tables_have_guid: true,
-            locale_file: None,
+            locale_file_name: None,
             banned_packedfiles: vec![],
             game_selected_icon: "gs_are.png".to_owned(),
             game_selected_big_icon: "gs_big_are.png".to_owned(),
@@ -1575,18 +1563,53 @@ impl SupportedGames {
             lua_autogen_folder: None,
         });
 
+        let order_list = vec![
+            KEY_WARHAMMER_3,
+            KEY_TROY,
+            KEY_THREE_KINGDOMS,
+            KEY_WARHAMMER_2,
+            KEY_WARHAMMER,
+            KEY_THRONES_OF_BRITANNIA,
+            KEY_ATTILA,
+            KEY_ROME_2,
+            KEY_SHOGUN_2,
+            KEY_NAPOLEON,
+            KEY_EMPIRE,
+            KEY_ARENA,
+        ];
+
         Self {
             games: game_list,
+            order: order_list,
         }
     }
+}
+
+/// Implementation for `SupportedGames`.
+impl SupportedGames {
 
     /// This function returns a GameInfo from a game name.
-    pub fn get_supported_game_from_key(&self, key: &str) -> Result<&GameInfo> {
-        self.games.get(key).ok_or_else(|| ErrorKind::GameNotSupported.into())
+    pub fn game(&self, key: &str) -> Option<&GameInfo> {
+        self.games.get(key)
     }
 
     /// This function returns a vec with references to the full list of supported games.
-    pub fn get_games(&self) -> Vec<&GameInfo> {
+    pub fn games(&self) -> Vec<&GameInfo> {
         self.games.values().collect::<Vec<&GameInfo>>()
+    }
+
+    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports.
+    pub fn game_keys(&self) -> Vec<&str> {
+        self.games.keys().cloned().collect::<Vec<&str>>()
+    }
+
+    /// This function returns a vec with references to the full list of supported games, sorted by release date.
+    pub fn games_sorted(&self) -> Vec<&GameInfo> {
+        self.order.iter().map(|key| self.game(key).unwrap()).collect::<Vec<&GameInfo>>()
+    }
+
+    /// This function returns the list of Game Keys (Game name formatted for internal use) this crate supports, sorted by release date.
+    pub fn game_keys_sorted(&self) -> &[&'static str] {
+        &self.order
     }
 }

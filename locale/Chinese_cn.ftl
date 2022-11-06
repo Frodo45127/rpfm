@@ -480,7 +480,7 @@ schema_update_0 = <h4>New schema update available</h4> <table>
 schema_update_1 = <p>Do you want to update the schemas?</p>
 schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
 
-files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
+files_extracted_success = Files extracted successfully.
 mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
 
 generate_pak_success = PAK File succesfully created and reloaded.

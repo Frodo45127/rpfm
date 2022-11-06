@@ -14,7 +14,7 @@ Module with all the code to connect `PackFileContentsUI` signals with their corr
 This module is, and should stay, private, as it's only glue between the `PackFileContentsUI` and `PackFileContentsSlots` structs.
 !*/
 
-use rpfm_lib::SETTINGS;
+use crate::settings_ui::backend::*;
 
 use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 
@@ -23,7 +23,7 @@ use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
-    if SETTINGS.read().unwrap().settings_bool["disable_file_previews"] {
+    if setting_bool("disable_file_previews") {
         ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_full);
     } else {
         ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_preview);
@@ -66,9 +66,6 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_merge_tables.triggered().connect(&slots.contextual_menu_tables_merge_tables);
     ui.context_menu_update_table.triggered().connect(&slots.contextual_menu_tables_update_table);
     ui.context_menu_generate_missing_loc_data.triggered().connect(&slots.contextual_menu_generate_missing_loc_data);
-
-    ui.context_menu_mass_import_tsv.triggered().connect(&slots.contextual_menu_mass_import_tsv);
-    ui.context_menu_mass_export_tsv.triggered().connect(&slots.contextual_menu_mass_export_tsv);
 
     ui.packfile_contents_tree_view_expand_all.triggered().connect(&slots.packfile_contents_tree_view_expand_all);
     ui.packfile_contents_tree_view_collapse_all.triggered().connect(&slots.packfile_contents_tree_view_collapse_all);

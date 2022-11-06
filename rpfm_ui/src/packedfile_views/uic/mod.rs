@@ -31,9 +31,9 @@ use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::uic::UIC;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packfile::packedfile::RFileInfo;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::locale::qtr;
@@ -64,12 +64,12 @@ impl PackedFileUICView {
         packed_file_view: &mut PackedFileView,
         _app_ui: &Rc<AppUI>,
         _pack_file_contents_ui: &Rc<PackFileContentsUI>
-    ) -> Result<Option<PackedFileInfo>> {
+    ) -> Result<Option<RFileInfo>> {
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CentralCommand::recv(&receiver);
         let (data, packed_file_info) = match response {
-            Response::UICPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
+            Response::UICRFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

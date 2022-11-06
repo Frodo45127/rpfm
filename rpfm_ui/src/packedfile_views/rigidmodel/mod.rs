@@ -25,9 +25,9 @@ use qt_core::QPtr;
 use std::sync::Arc;
 
 use rpfm_error::{Result, ErrorKind};
-use rpfm_macros::*;
+use getset::*;
 
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packfile::packedfile::RFileInfo;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 
@@ -41,7 +41,7 @@ use crate::packedfile_views::{PackedFileView, View, ViewType};
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of a RigidModel PackedFile.
-#[derive(GetRef)]
+#[derive(Getters)]
 pub struct PackedFileRigidModelView {
     editor: QBox<QWidget>,
 }
@@ -56,13 +56,13 @@ impl PackedFileRigidModelView {
     /// This function creates a new RigidModel View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-    ) -> Result<Option<PackedFileInfo>> {
+    ) -> Result<Option<RFileInfo>> {
 
         // Get the decoded data from the backend.
         let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
         let response = CentralCommand::recv(&receiver);
         let (rigid_model, packed_file_info) = match response {
-            Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
+            Response::RigidModelRFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

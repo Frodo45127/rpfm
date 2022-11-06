@@ -14,38 +14,27 @@ This module defines the code used for thread communication.
 
 use qt_core::QEventLoop;
 
+use anyhow::Error;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use rpfm_error::Error;
+use rpfm_extensions::dependencies::TableReferences;
+use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::dependencies::DependenciesInfo;
-use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::git_integration::GitResponse;
-use rpfm_lib::global_search::GlobalSearch;
-use rpfm_lib::global_search::MatchHolder;
-use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
-use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::esf::ESF;
-use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::{DB, CascadeEdition}, loc::Loc, matched_combat::MatchedCombat};
-use rpfm_lib::packedfile::text::Text;
-use rpfm_lib::packedfile::rigidmodel::RigidModel;
-use rpfm_lib::packedfile::uic::UIC;
-use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
-use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
-use rpfm_lib::schema::{APIResponseSchema, Definition, Schema, patch::SchemaPatch};
-use rpfm_lib::settings::*;
-use rpfm_lib::tips::{APIResponseTips, Tip};
-use rpfm_lib::updater::APIResponse;
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
+use rpfm_lib::games::pfh_file_type::PFHFileType;
+use rpfm_lib::integrations::git::GitResponse;
+use rpfm_lib::schema::{Definition, Schema};
 
 use crate::app_ui::NewPackedFile;
+use crate::backend::*;
 use crate::packedfile_views::DataSource;
+use crate::updater::APIResponse;
 use crate::views::table::TableType;
-use crate::ui_state::shortcuts::Shortcuts;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
@@ -95,10 +84,7 @@ pub enum Command {
     SavePackFileAs(PathBuf),
 
     /// This command is used when we want to save our settings to disk. It requires the settings to save.
-    SetSettings(Settings),
-
-    /// This command is used when we want to save our shortcuts to disk. It requires the shortcuts to save.
-    SetShortcuts(Shortcuts),
+    //SetSettings(Settings),
 
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,
@@ -110,13 +96,13 @@ pub enum Command {
     OpenPackFiles(Vec<PathBuf>),
 
     /// This command is used to open an extra `PackFile`. It requires the path of the `PackFile`.
-    OpenPackFileExtra(PathBuf),
+    OpenPackExtra(PathBuf),
 
     /// This command is used to open all the CA PackFiles for the game selected as one.
     LoadAllCAPackFiles,
 
-    /// This command is used when we want to get the `PackedFileInfo` of one or more `PackedFiles`.
-    GetPackedFilesInfo(Vec<Vec<String>>),
+    /// This command is used when we want to get the `RFileInfo` of one or more `PackedFiles`.
+    GetPackedFilesInfo(Vec<String>),
 
     /// This command is used when we want to perform a `Global Search`. It requires the search info.
     GlobalSearch(GlobalSearch),
@@ -129,11 +115,11 @@ pub enum Command {
 
     /// This command is used when we want to generate the dependencies cache for a game. It contains the path of the
     /// source raw db files, the `Raw DB Version` of the currently selected game, and if we should has the files or not.
-    GenerateDependenciesCache(Option<PathBuf>, i16),
+    GenerateDependenciesCache,
 
     /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
     /// It contains the path of the source files, if needed.
-    UpdateCurrentSchemaFromAssKit(Option<PathBuf>),
+    UpdateCurrentSchemaFromAssKit,
 
     /// This command is used when we want to trigger an optimization pass over the currently open `PackFile`.
     OptimizePackFile,
@@ -151,7 +137,7 @@ pub enum Command {
     GetPackFilePath,
 
     /// This command is used when we want to get the info of the provided `PackedFile`.
-    GetPackedFileInfo(Vec<String>),
+    GetRFileInfo(String),
 
     /// This command is used when we want to check if there is an RPFM update available.
     CheckUpdates,
@@ -170,51 +156,45 @@ pub enum Command {
     /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
     ///
     /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
-    NewPackedFile(Vec<String>, NewPackedFile),
+    NewPackedFile(String, NewPackedFile),
 
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
-    /// It requires the list of filesystem paths to add, their path once they're inside the `PackFile`, and if the TSV files found must be imported or not.
-    AddPackedFiles(Vec<PathBuf>, Vec<Vec<String>>, Option<Vec<PathBuf>>, bool),
+    /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
+    AddPackedFiles(Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
 
     /// This command is used when we want to decode a PackedFile to be shown on the UI. It contains the path of the file, and were it is.
-    DecodePackedFile(Vec<String>, DataSource),
+    DecodePackedFile(String, DataSource),
 
-    /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
-    SavePackedFileFromView(Vec<String>, DecodedPackedFile),
+    // This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
+    SavePackedFileFromView(String, RFileDecoded),
 
-    /// This command is used when we want to add a PackedFile from one PackFile into another.
-    AddPackedFilesFromPackFile((PathBuf, Vec<PathType>)),
+    // This command is used when we want to add a PackedFile from one PackFile into another.
+    AddPackedFilesFromPackFile((PathBuf, Vec<ContainerPath>)),
 
-    /// This command is used when we want to add a PackedFile from our PackFile to an Animpack.
-    AddPackedFilesFromPackFileToAnimpack((Vec<String>, Vec<PathType>)),
+    // This command is used when we want to add a PackedFile from our PackFile to an Animpack.
+    AddPackedFilesFromPackFileToAnimpack(String, Vec<ContainerPath>),
 
-    /// This command is used when we want to add a PackedFile from an AnimPack to our PackFile.
-    AddPackedFilesFromAnimpack((Vec<String>, Vec<PathType>)),
+    // This command is used when we want to add a PackedFile from an AnimPack to our PackFile.
+    AddPackedFilesFromAnimpack(DataSource, String, Vec<ContainerPath>),
 
-    /// This command is used when we want to delete a PackedFile from an AnimPack.
-    DeleteFromAnimpack((Vec<String>, Vec<PathType>)),
+    // This command is used when we want to delete a PackedFile from an AnimPack.
+    DeleteFromAnimpack((String, Vec<ContainerPath>)),
 
-    /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
-    DeletePackedFiles(Vec<PathType>),
+    // This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the ContainerPath of each PackedFile to delete.
+    DeletePackedFiles(Vec<ContainerPath>),
 
-    /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
-    ExtractPackedFiles(Vec<PathType>, PathBuf, bool),
+    // This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the ContainerPaths to extract and the extraction path, and a bool to know if tables must be exported to tsv on extract or not.
+    ExtractPackedFiles(Vec<ContainerPath>, PathBuf, bool),
 
-    /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
-    RenamePackedFiles(Vec<(PathType, String)>),
-
-    /// This command is used when we want to import a large amount of table-like files from TSV files.
-    MassImportTSV(Vec<PathBuf>, Option<String>),
-
-    /// This command is used when we want to export a large amount of table-like files as TSV files.
-    MassExportTSV(Vec<PathType>, PathBuf),
+    // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
+    RenamePackedFiles(Vec<(ContainerPath, String)>),
 
     /// This command is used when we want to know if a folder exists in the currently open PackFile.
-    FolderExists(Vec<String>),
+    FolderExists(String),
 
     /// This command is used when we want to know if a PackedFile exists in the currently open PackFile.
-    PackedFileExists(Vec<String>),
+    PackedFileExists(String),
 
     /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
     GetTableListFromDependencyPackFile,
@@ -227,12 +207,12 @@ pub enum Command {
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
-    /// - String: Name of the new merged table.
+    /// - String: Path of the merged file.
     /// - Bool: Should we delete the source files after merging them?
-    MergeTables(Vec<Vec<String>>, String, bool),
+    MergeFiles(Vec<ContainerPath>, String, bool),
 
-    /// This command is used when we want to update a table to a newer version.
-    UpdateTable(PathType),
+    // This command is used when we want to update a table to a newer version.
+    UpdateTable(ContainerPath),
 
     /// This command is used when we want to replace some specific matches in a Global Search.
     GlobalSearchReplaceMatches(GlobalSearch, Vec<MatchHolder>),
@@ -242,11 +222,11 @@ pub enum Command {
 
     /// This command is used when we want to add entire folders to the PackFile. It contains their path in disk and their starting path in the PackFile,
     /// the list of paths to ignore, if any, and if any tsv found should be imported as tables.
-    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>, Option<Vec<PathBuf>>, bool),
+    AddPackedFilesFromFolder(Vec<(PathBuf, String)>, Option<Vec<PathBuf>>, bool),
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
-    GetReferenceDataFromDefinition(String, Definition, Vec<Vec<String>>),
+    GetReferenceDataFromDefinition(String, Definition),
 
     /// This command is used to get the list of PackFiles that are marked as dependency of our PackFile.
     GetDependencyPackFilesList,
@@ -255,34 +235,34 @@ pub enum Command {
     SetDependencyPackFilesList(Vec<String>),
 
     /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
-    GetPackedFile(Vec<String>),
+    FileFromLocalPack(String),
 
-    /// This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
-    GetPackedFilesFromAllSources(Vec<PathType>),
+    // This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
+    GetPackedFilesFromAllSources(Vec<ContainerPath>),
 
-    /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
-    SetCaVp8Format((Vec<String>, SupportedFormats)),
+    // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
+    SetVideoFormat(String, SupportedFormats),
 
-    /// This command is used to save the provided schema to disk.
+    // This command is used to save the provided schema to disk.
     SaveSchema(Schema),
 
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
-    CleanCache(Vec<Vec<String>>),
+    CleanCache(Vec<ContainerPath>),
 
     /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
-    ExportTSV((Vec<String>, PathBuf)),
+    ExportTSV(String, PathBuf),
 
     /// This command is used to import a TSV as a table. Requires the internal and destination paths for the PackedFile.
-    ImportTSV((Vec<String>, PathBuf)),
+    ImportTSV(String, PathBuf),
 
     /// This command is used to open in the defaul file manager the folder of the currently open PackFile.
     OpenContainingFolder,
 
     /// This command is used to open a PackedFile on a external program. Requires the internal path of the PackedFile.
-    OpenPackedFileInExternalProgram(Vec<String>),
+    OpenPackedFileInExternalProgram(DataSource, ContainerPath),
 
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
-    SavePackedFileFromExternalView((Vec<String>, PathBuf)),
+    SavePackedFileFromExternalView(String, PathBuf),
 
     /// This command is used to update the program to the last version available, if possible.
     UpdateMainProgram,
@@ -293,14 +273,14 @@ pub enum Command {
     /// This command is used to trigger a full diagnostics check over the open PackFile.
     DiagnosticsCheck,
 
-    /// This command is used to trigger a partial diagnostics check over the open PackFile.
-    DiagnosticsUpdate((Diagnostics, Vec<PathType>)),
+    // This command is used to trigger a partial diagnostics check over the open PackFile.
+    DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>),
 
-    /// This command is used to get the settings of the currently open PackFile. True if the message is for the autosave.
-    GetPackFileSettings(bool),
+    /// This command is used to get the settings of the currently open PackFile.
+    GetPackSettings,
 
-    /// This command is used to set the settings of the currently open PackFile.
-    SetPackFileSettings(PackFileSettings),
+    // This command is used to set the settings of the currently open PackFile.
+    SetPackSettings(PackSettings),
 
     /// This command is used to trigger the debug missing table definition's code.
     GetMissingDefinitions,
@@ -308,8 +288,8 @@ pub enum Command {
     /// This command is used to rebuild the dependencies of a PackFile. The bool is for rebuilding the whole dependencies, or just the mod-specific ones.
     RebuildDependencies(bool),
 
-    /// This command is used to trigger a cascade edition on all referenced data.
-    CascadeEdition(CascadeEdition),
+    // This command is used to trigger a cascade edition on all referenced data.
+    //CascadeEdition(CascadeEdition),
 
     /// This command is used for the Go To Definition feature. Contains table, column, and value to search.
     GoToDefinition(String, String, String),
@@ -323,29 +303,29 @@ pub enum Command {
     /// This command is used for the Find References feature. Contains list of table/columns to search, and value to search.
     SearchReferences(HashMap<String, Vec<String>>, String),
 
-    /// This command is used to get the type of a PackedFile.
-    GetPackedFileType(Vec<String>),
+    /// This command is used to get the type of a File.
+    GetFileType(String),
 
     /// This command is used to get the name of the currently open PackFile.
     GetPackFileName,
 
     /// This command is used to get the raw data of a PackedFile.
-    GetPackedFileRawData(Vec<String>),
+    GetPackedFileRawData(String),
 
-    // This command is used to import files from the dependencies into out PackFile.
-    ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<PathType>>),
+    /// This command is used to import files from the dependencies into out PackFile.
+    ImportDependenciesToOpenPackFile(BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// This command is used to save all provided PackedFiles into the current PackFile, then merge them and optimize them if possible.
-    SavePackedFilesToPackFileAndClean(Vec<PackedFile>),
+    SavePackedFilesToPackFileAndClean(Vec<RFile>),
 
     /// This command is used to get all the file names under a path in all dependencies.
-    GetPackedFilesNamesStartingWitPathFromAllSources(PathType),
+    GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
     /// This command is used to request all tips under a path, no matter their source.
     GetTipsForPath(Vec<String>),
 
-    /// This command is used to add a tip to the list of local tips.
-    AddTipToLocalTips(Tip),
+    // This command is used to add a tip to the list of local tips.
+    //AddTipToLocalTips(Tip),
 
     /// This command is used to delete a tip with an specific id.
     DeleteTipById(u64),
@@ -360,10 +340,10 @@ pub enum Command {
     PublishTipById(u64),
 
     /// This command is used to upload a schema patch.
-    UploadSchemaPatch(SchemaPatch),
+    //UploadSchemaPatch(SchemaPatch),
 
     /// This command is used to import a schema patch in the local schema patches.
-    ImportSchemaPatch(SchemaPatch),
+    //ImportSchemaPatch(SchemaPatch),
 
     /// This command is used to generate all missing loc entries for the currently open PackFile.
     GenerateMissingLocData,
@@ -401,30 +381,31 @@ pub enum Response {
 
     /// Response to return (String)
     String(String),
+    OptionContainerPath(Option<ContainerPath>),
 
-    /// Response to return (PackFileInfo, Vec<PackedFileInfo>).
-    PackFileInfoVecPackedFileInfo((PackFileInfo, Vec<PackedFileInfo>)),
+    // Response to return (ContainerInfo, Vec<RFileInfo>).
+    ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
 
-    /// Response to return (PackFileInfo).
-    PackFileInfo(PackFileInfo),
+    // Response to return (ContainerInfo).
+    ContainerInfo(ContainerInfo),
 
-    /// Response to return (Option<PackedFileInfo>).
-    OptionPackedFileInfo(Option<PackedFileInfo>),
+    // Response to return (Option<RFileInfo>).
+    OptionRFileInfo(Option<RFileInfo>),
 
-    /// Response to return (Vec<Option<PackedFileInfo>>).
-    VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),
+    // Response to return (Vec<Option<RFileInfo>>).
+    VecRFileInfo(Vec<RFileInfo>),
 
-    /// Response to return (GlobalSearch, Vec<PackedFileInfo>).
-    GlobalSearchVecPackedFileInfo((GlobalSearch, Vec<PackedFileInfo>)),
+    // Response to return (GlobalSearch, Vec<RFileInfo>).
+    GlobalSearchVecRFileInfo(GlobalSearch, Vec<RFileInfo>),
 
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),
 
-    /// Response to return (Vec<PathType>).
-    VecPathType(Vec<PathType>),
+    // Response to return (Vec<ContainerPath>).
+    VecContainerPath(Vec<ContainerPath>),
 
-    /// Response to return (Vec<(PathType, Vec<String>)>).
-    VecPathTypeVecString(Vec<(PathType, Vec<String>)>),
+    // Response to return (Vec<(ContainerPath, Vec<String>)>).
+    VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),
@@ -432,52 +413,49 @@ pub enum Response {
     /// Response to return `APIResponse`.
     APIResponse(APIResponse),
 
-    /// Response to return `APIResponseSchema`.
-    APIResponseSchema(APIResponseSchema),
+    /// Response to return `APIResponseGit`.
+    APIResponseGit(GitResponse),
 
-    /// Response to return `APIResponseTips`.
-    APIResponseTips(APIResponseTips),
+    /// Response to return `(AnimFragment, RFileInfo)`.
+    AnimFragmentRFileInfo(AnimFragment, RFileInfo),
 
-    /// Response to return `(AnimFragment, PackedFileInfo)`.
-    AnimFragmentPackedFileInfo((AnimFragment, PackedFileInfo)),
+    /// Response to return `(Vec<String>, RFileInfo)`.
+    AnimPackRFileInfo(ContainerInfo, Vec<RFileInfo>, RFileInfo),
 
-    /// Response to return `(Vec<String>, PackedFileInfo)`.
-    AnimPackPackedFileInfo(((PackFileInfo, Vec<PackedFileInfo>), PackedFileInfo)),
+    /// Response to return `(AnimTable, RFileInfo)`.
+    AnimsTableRFileInfo(AnimsTable, RFileInfo),
 
-    /// Response to return `(AnimTable, PackedFileInfo)`.
-    AnimTablePackedFileInfo((AnimTable, PackedFileInfo)),
+    /// Response to return `(CaVp8, RFileInfo)`.
+    VideoInfoRFileInfo(VideoInfo, RFileInfo),
 
-    /// Response to return `(CaVp8, PackedFileInfo)`.
-    CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),
+    /// Response to return `(ESF, RFileInfo)`.
+    ESFRFileInfo(ESF, RFileInfo),
 
-    /// Response to return `(ESF, PackedFileInfo)`.
-    ESFPackedFileInfo((ESF, PackedFileInfo)),
+    /// Response to return `(Image, RFileInfo)`.
+    ImageRFileInfo(Image, RFileInfo),
 
-    /// Response to return `(Image, PackedFileInfo)`.
-    ImagePackedFileInfo((Image, PackedFileInfo)),
+    /// Response to return `(Text, RFileInfo)`.
+    TextRFileInfo(Text, RFileInfo),
 
-    /// Response to return `(Text, PackedFileInfo)`.
-    TextPackedFileInfo((Text, PackedFileInfo)),
+    /// Response to return `(DB, RFileInfo)`.
+    DBRFileInfo(DB, RFileInfo),
 
-    /// Response to return `(DB, PackedFileInfo)`.
-    DBPackedFileInfo((DB, PackedFileInfo)),
+    /// Response to return `(Loc, RFileInfo)`.
+    LocRFileInfo(Loc, RFileInfo),
 
-    /// Response to return `(Loc, PackedFileInfo)`.
-    LocPackedFileInfo((Loc, PackedFileInfo)),
+    /// Response to return `(MatchedCombat, RFileInfo)`.
+    MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
 
-    /// Response to return `(MatchedCombat, PackedFileInfo)`.
-    MatchedCombatPackedFileInfo((MatchedCombat, PackedFileInfo)),
+    /// Response to return `(RigidModel, RFileInfo)`.
+    RigidModelRFileInfo(RigidModel, RFileInfo),
 
-    /// Response to return `(RigidModel, PackedFileInfo)`.
-    RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),
+    /// Response to return `(UIC, RFileInfo)`.
+    UICRFileInfo(UIC, RFileInfo),
 
-    /// Response to return `(UIC, PackedFileInfo)`.
-    UICPackedFileInfo((UIC, PackedFileInfo)),
+    UnitVariantRFileInfo(UnitVariant, RFileInfo),
 
-    //UnitVariantPackedFileInfo((UnitVariant, PackedFileInfo)),
-
-    /// Response to return `(DecodedPackedFile, PackedFileInfo)`. For debug views.
-    DecodedPackedFilePackedFileInfo((DecodedPackedFile, PackedFileInfo)),
+    /// Response to return `(DecodedPackedFile, RFileInfo)`. For debug views.
+    RFileDecodedRFileInfo(RFileDecoded, RFileInfo),
 
     /// Response to return `Text`.
     Text(Text),
@@ -486,7 +464,8 @@ pub enum Response {
     Unknown,
 
     /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
-    VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
+    VecStringVecString(Vec<String>, Vec<String>),
+    VecContainerPathHashSetString(Vec<ContainerPath>, HashSet<String>),
 
     /// Response to return `Vec<String>`.
     VecString(Vec<String>),
@@ -495,31 +474,31 @@ pub enum Response {
     I32I32((i32, i32)),
 
     /// Response to return `BTreeMap<i32, DependencyData>`.
-    BTreeMapI32DependencyData(BTreeMap<i32, DependencyData>),
+    HashMapI32TableReferences(HashMap<i32, TableReferences>),
 
-    /// Response to return `Option<PackedFile>`.
-    OptionPackedFile(Option<PackedFile>),
+    /// Response to return `Option<RFile>`.
+    OptionRFile(Option<RFile>),
 
     /// Response to return `TableType`.
     TableType(TableType),
 
     /// Response to return `PackFileSettings`.
-    PackFileSettings(PackFileSettings),
+    PackSettings(PackSettings),
 
-    /// Response to return `Vec<Vec<String>>, Vec<PackedFileInfo>`.
-    VecVecStringVecPackedFileInfo(Vec<Vec<String>>, Vec<PackedFileInfo>),
+    /// Response to return `Vec<Vec<String>>, Vec<RFileInfo>`.
+    //VecVecStringVecRFileInfo(Vec<Vec<String>>, Vec<RFileInfo>),
 
     /// Response to return `DataSource, Vec<String>, usize, usize`.
-    DataSourceVecStringUsizeUsize(DataSource, Vec<String>, usize, usize),
+    DataSourceStringUsizeUsize(DataSource, String, usize, usize),
 
     /// Response to return `Vec<(DataSource, Vec<String>, String, usize, usize)>`.
-    VecDataSourceVecStringStringUsizeUsize(Vec<(DataSource, Vec<String>, String, usize, usize)>),
+    VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
 
     /// Response to return `Option<(String, String, String)>`.
     OptionStringStringString(Option<(String, String, String)>),
 
-    /// Response to return `PackedFileType`.
-    PackedFileType(PackedFileType),
+    /// Response to return `FileType`.
+    FileType(FileType),
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
@@ -527,14 +506,18 @@ pub enum Response {
     /// Response to return `DependenciesInfo`.
     DependenciesInfo(DependenciesInfo),
 
+    RFileDecoded(RFileDecoded),
+
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
-    HashMapDataSourceHashMapVecStringPackedFile(HashMap<DataSource, HashMap<Vec<String>, PackedFile>>),
-    HashMapDataSourceHashSetVecString(HashMap<DataSource, HashSet<Vec<String>>>),
+    HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
+    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     Diagnostics(Diagnostics),
-    DiagnosticsVecPackedFileInfo(Diagnostics, Vec<PackedFileInfo>),
+    //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
     Definition(Definition),
-    VecTipVecTip(Vec<Tip>, Vec<Tip>),
-    APIResponseGit(GitResponse),
+    //VecTipVecTip(Vec<Tip>, Vec<Tip>),
+    HashSetString(HashSet<String>),
+    StringHashSetString(String, HashSet<String>),
+    StringVecContainerPath(String, Vec<ContainerPath>),
 }
 
 //-------------------------------------------------------------------------------//

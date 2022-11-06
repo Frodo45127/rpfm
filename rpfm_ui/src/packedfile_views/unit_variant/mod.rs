@@ -12,16 +12,12 @@
 Module with all the code for managing the UnitVariant Component Views.
 !*/
 
+use anyhow::Result;
+
 use std::sync::Arc;
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::files::{FileType, RFileDecoded, unit_variant::UnitVariant};
 
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::unit_variant::UnitVariant;
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
-
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::views::debug::DebugView;
 
 use crate::packedfile_views::PackedFileView;
@@ -69,16 +65,8 @@ impl PackedFileUnitVariantView {
     /// This function creates a new PackedFileUnitVariantView, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-    ) -> Result<Option<PackedFileInfo>> {
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let (data, packed_file_info) = match response {
-            Response::DecodedPackedFilePackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        data: RFileDecoded
+    ) -> Result<()> {
 
         /*
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
@@ -171,9 +159,9 @@ impl PackedFileUnitVariantView {
         };
 
         packed_file_view.view = ViewType::Internal(View::UnitVariant(Arc::new(packed_file_debug_view)));
-        packed_file_view.packed_file_type = PackedFileType::UnitVariant;
+        packed_file_view.packed_file_type = FileType::UnitVariant;
 
-        Ok(Some(packed_file_info))
+        Ok(())
     }
 
     // This function saves a PackFileSettingsView into a PackFileSetting.

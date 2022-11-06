@@ -37,12 +37,11 @@ use qt_core::q_item_selection_model::SelectionFlag;
 
 use cpp_core::Ptr;
 
+use getset::Getters;
+
 use std::rc::Rc;
 
-use rpfm_lib::SETTINGS;
-use rpfm_macros::{GetRef, GetRefMut, Set};
-
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::new_tableview_filter_safe;
@@ -51,6 +50,7 @@ use crate::locale::qtr;
 use crate::pack_tree::PackTree;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::settings_ui::backend::*;
 use crate::utils::create_grid_layout;
 use crate::UI_STATE;
 
@@ -62,7 +62,8 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the pointers we need to access the widgets in the References panel.
-#[derive(GetRef, GetRefMut, Set)]
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct ReferencesUI {
 
     //-------------------------------------------------------------------------------//
@@ -103,7 +104,7 @@ impl ReferencesUI {
         references_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
         references_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
-        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+        if setting_bool("tight_table_mode") {
             references_table_view.vertical_header().set_minimum_section_size(22);
             references_table_view.vertical_header().set_maximum_section_size(22);
             references_table_view.vertical_header().set_default_section_size(22);
@@ -127,7 +128,7 @@ impl ReferencesUI {
     }
 
     /// This function takes care of loading the results of a reference search into the table.
-    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, Vec<String>, String, usize, usize)>) {
+    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, String, String, usize, usize)>) {
 
         // First, clean the current diagnostics.
         self.references_table_model.clear();
@@ -151,7 +152,7 @@ impl ReferencesUI {
                 let row_number_item = QStandardItem::new();
 
                 data_source_item.set_text(&QString::from_std_str(&format!("{}", data_source)));
-                path_item.set_text(&QString::from_std_str(path.join("/")));
+                path_item.set_text(&QString::from_std_str(path));
                 column_name_item.set_text(&QString::from_std_str(column_name));
                 column_number_item.set_data_2a(&QVariant::from_int(*column_number as i32), 2);
                 column_number_item.set_data_1a(&QVariant::from_int(*column_number as i32));
@@ -207,30 +208,30 @@ impl ReferencesUI {
         let row = model_index.row();
 
         let reference_data_source = DataSource::from(&*model.item_2a(row, 0).text().to_std_string());
-        let reference_path = model.item_2a(row, 1).text().to_std_string().split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+        let reference_path = model.item_2a(row, 1).text().to_std_string();
         let reference_column_number = model.item_2a(row, 3).data_0a().to_int_0a();
         let reference_row_number = model.item_2a(row, 4).data_0a().to_int_0a();
 
         match reference_data_source {
             DataSource::PackFile => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.static_upcast::<QObject>());
-                        pack_file_contents_ui.packfile_contents_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        pack_file_contents_ui.packfile_contents_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
+                        pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
             },
             DataSource::ParentFiles |
             DataSource::AssKitFiles |
             DataSource::GameFiles => {
-                let tree_index = dependencies_ui.dependencies_tree_view.expand_treeview_to_item(&reference_path, reference_data_source);
+                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&reference_path, reference_data_source);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
-                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view.static_upcast::<QObject>());
-                        dependencies_ui.dependencies_tree_view.scroll_to_1a(tree_index.as_ref().unwrap());
-                        dependencies_ui.dependencies_tree_view.selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
                     }
                 }
             },
@@ -238,11 +239,11 @@ impl ReferencesUI {
         }
 
         // Open the table and select the cell.
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_vec()), true, false, reference_data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_owned()), true, false, reference_data_source);
         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == reference_path && x.get_data_source() == reference_data_source) {
             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                 let table_view = view.get_ref_table();
-                let table_view = table_view.get_mut_ptr_table_view_primary();
+                let table_view = table_view.table_view_primary_ptr();
                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                 let table_selection_model = table_view.selection_model();

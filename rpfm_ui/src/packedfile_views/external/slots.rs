@@ -15,7 +15,7 @@ Module with the slots for External Views.
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
-use open::that_in_background;
+use open::that;
 
 use std::cell::RefCell;
 use std::env::temp_dir;
@@ -49,7 +49,7 @@ impl PackedFileExternalViewSlots {
         view: &Arc<PackedFileExternalView>,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        packed_file_path: &Rc<RefCell<Vec<String>>>
+        packed_file_path: &Rc<RefCell<String>>
     )  -> Self {
 
         // Slot to close the open view.
@@ -58,14 +58,14 @@ impl PackedFileExternalViewSlots {
             pack_file_contents_ui,
             packed_file_path => move || {
                 if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, true) {
-                    show_dialog(&app_ui.main_window, error, false);
+                    show_dialog(app_ui.main_window(), error, false);
                 }
             }
         ));
 
         // Slot to open the folder of the current PackedFile in the file manager.
         let open_folder = SlotNoArgs::new(&view.stop_watching_button, move || {
-            let _ = that_in_background(temp_dir());
+            let _ = that(temp_dir());
         });
 
         // Return the slots, so we can keep them alive for the duration of the view.

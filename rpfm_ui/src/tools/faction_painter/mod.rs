@@ -46,13 +46,13 @@ use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 
 use std::collections::HashMap;
 
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::packfile::ContainerPath;
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, DecodedData};
 
 use rpfm_error::*;
-use rpfm_macros::*;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -96,7 +96,7 @@ const DEFAULT_FILENAME: &str = "faction_painter_edited";
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Faction Painter` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct ToolFactionPainter {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,
@@ -150,12 +150,12 @@ impl ToolFactionPainter {
         // TODO: Move this to a tool var.
         let paths = match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
             KEY_WARHAMMER_3 => vec![
-                PathType::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
+                ContainerPath::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
             ],
             _ => vec![
-                PathType::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
-                PathType::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()]),
-                PathType::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()]),
+                ContainerPath::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
+                ContainerPath::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()]),
+                ContainerPath::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()]),
             ]
         };
 
@@ -272,10 +272,10 @@ impl ToolFactionPainter {
         // Get the table's data.
         get_data_from_all_sources!(self, get_faction_data, data, processed_data, true);
 
-        if self.tool.get_ref_used_paths().contains(&PathType::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()])) {
+        if self.tool.get_ref_used_paths().contains(&ContainerPath::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()])) {
             get_data_from_all_sources!(self, get_faction_banner_data, data, processed_data, true);
         }
-        if self.tool.get_ref_used_paths().contains(&PathType::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()])) {
+        if self.tool.get_ref_used_paths().contains(&ContainerPath::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()])) {
             get_data_from_all_sources!(self, get_faction_uniform_data, data, processed_data, true);
         }
 
@@ -287,8 +287,8 @@ impl ToolFactionPainter {
                 .map(|x| x.to_owned())
                 .collect::<Vec<String>>()
             )
-            .filter_map(|x| if !x.is_empty() { Some(PathType::File(x.to_vec())) } else { None })
-            .collect::<Vec<PathType>>();
+            .filter_map(|x| if !x.is_empty() { Some(ContainerPath::File(x.to_vec())) } else { None })
+            .collect::<Vec<ContainerPath>>();
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
         let response = CentralCommand::recv(&receiver);
@@ -999,7 +999,7 @@ impl ToolFactionPainter {
                 let definition = serde_json::from_str(definition)?;
                 let mut table = DB::new(&table_name, None, &definition);
 
-                let fields_processed = definition.get_fields_processed();
+                let fields_processed = definition.fields_processed();
                 let key_column = table.get_column_position_by_name(key_column_name)?;
 
                 let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
@@ -1064,7 +1064,7 @@ impl ToolFactionPainter {
                 let definition = serde_json::from_str(definition)?;
                 let mut table = DB::new(&table_name, None, &definition);
 
-                let fields_processed = definition.get_fields_processed();
+                let fields_processed = definition.fields_processed();
                 let key_column = table.get_column_position_by_name(key_column_name)?;
 
                 let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;

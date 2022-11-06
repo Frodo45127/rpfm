@@ -52,10 +52,10 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use rpfm_lib::packedfile::text::{Text, TextType};
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::packfile::ContainerPath;
 use rpfm_lib::packfile::packedfile::PackedFile;
 
-use rpfm_macros::*;
+use getset::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -135,7 +135,7 @@ const LOC_KEYS: [(&str, &str); 4] = [
 //-------------------------------------------------------------------------------//
 
 /// This struct contains all the widgets used by the `Unit Editor` Tool, along with some data needed for the view to work.
-#[derive(GetRef, GetRefMut)]
+#[derive(Getters, MutGetters)]
 pub struct ToolUnitEditor {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,
@@ -210,16 +210,16 @@ impl ToolUnitEditor {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         let paths = vec![
-            //PathType::Folder(vec!["db".to_owned(), "battle_set_piece_armies_characters_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "land_units_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "main_units_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "unit_description_historical_texts_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "unit_description_short_texts_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "unit_description_strengths_weaknesses_texts_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "unit_variants_colours_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "unit_variants_tables".to_owned()]),
-            PathType::Folder(vec!["db".to_owned(), "variants_tables".to_owned()]),
-            PathType::Folder(vec!["text".to_owned()]),
+            //ContainerPath::Folder(vec!["db".to_owned(), "battle_set_piece_armies_characters_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "land_units_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "main_units_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "unit_description_historical_texts_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "unit_description_short_texts_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "unit_description_strengths_weaknesses_texts_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "unit_variants_colours_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "unit_variants_tables".to_owned()]),
+            ContainerPath::Folder(vec!["db".to_owned(), "variants_tables".to_owned()]),
+            ContainerPath::Folder(vec!["text".to_owned()]),
         ];
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
@@ -535,8 +535,8 @@ impl ToolUnitEditor {
         if !unit_cards.is_empty() {
             let mut icon_paths = vec![];
             for unit_card in unit_cards {
-                let icon_path_png = PathType::File(format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
-                let icon_path_tga = PathType::File(format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+                let icon_path_png = ContainerPath::File(format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
+                let icon_path_tga = ContainerPath::File(format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>());
 
                 if !icon_paths.contains(&icon_path_png) {
                     icon_paths.push(icon_path_png);
@@ -552,7 +552,7 @@ impl ToolUnitEditor {
             let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
             let images_files = icon_paths.iter().filter_map(|path_type| {
-                if let PathType::File(path) = path_type {
+                if let ContainerPath::File(path) = path_type {
                     Tool::get_most_relevant_file(&images_data, &path)
                 } else { None }
             }).collect::<Vec<PackedFile>>();

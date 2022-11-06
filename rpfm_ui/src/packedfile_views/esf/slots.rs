@@ -22,9 +22,9 @@ use qt_core::SlotOfBool;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::packedfile::esf::NodeType;
+use rpfm_lib::files::esf::NodeType;
 
-use crate::AppUI;
+use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;

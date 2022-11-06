@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += widgets
+QT       += KIconThemes
 QT       += KTextEditor
 QT       += KWidgetsAddons
 
@@ -33,6 +34,7 @@ SOURCES += \
     src/extended_q_styled_item_delegate.cpp \
     src/kcolor_combo.cpp \
     src/kmessage_widget.cpp \
+    src/kshortcuts_dialog.cpp \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
@@ -50,12 +52,12 @@ SOURCES += \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
-INCLUDEPATH += C:\CraftRoot\include
 
 HEADERS += \
     include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
     include/kmessage_widget.h \
+    include/kshortcuts_dialog.h \
     include/qt_subclasses_global.h \
     include/tableview_command_palette.h \
     include/tableview_filter.h \
@@ -85,6 +87,13 @@ debug:OBJECTS_DIR = debug/.obj
 debug:MOC_DIR = debug/.moc
 debug:RCC_DIR = debug/.rcc
 debug:UI_DIR = debug/.ui
+
+windows {
+    INCLUDEPATH += C:/CraftRoot/include
+
+    # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
+    INCLUDEPATH += C:/CraftRoot/include/KF5/KSyntaxHighlighting
+}
 
 unix {
 
