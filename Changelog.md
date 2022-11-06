@@ -21,6 +21,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Min rust version updated to 1.64.
 - Updated dependencies.
 
+### Fixed
+- Fixed missing icons on text view and text settings.
+
 ## [3.0.16]
 ### Changed
 - Improved by more than 50% the time it takes to populate the dependencies and the pack treeviews.

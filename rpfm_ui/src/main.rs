@@ -24,7 +24,7 @@
 )]
 
 // This disables the terminal window on windows on release builds.
-#[windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
