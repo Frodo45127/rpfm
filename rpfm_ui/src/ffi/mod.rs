@@ -46,10 +46,11 @@ use qt_core::CaseSensitivity;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
-use cpp_core::Ref;
 
 #[cfg(feature = "support_rigidmodel")]
-use rpfm_error::{Result, ErrorKind};
+use anyhow::{anyhow, Result};
+#[cfg(feature = "support_rigidmodel")]
+use rpfm_lib::integrations::log;
 
 use crate::locale::qtr;
 use crate::settings_ui::backend::*;
@@ -379,7 +380,7 @@ pub fn get_rigid_model_from_view_safe(parent: &QBox<QWidget>) -> Result<CppBox<Q
         } else {
             let error = get_last_rigid_model_error(&parent.as_ptr())?;
             log::warn!("Error setting rigid data: {:?}:", error);
-            Err(ErrorKind::GenericHTMLError(error).into())
+            Err(anyhow!(error))
         }
     }
 }
@@ -395,7 +396,7 @@ pub fn set_rigid_model_view_safe(parent: &Ptr<QWidget>, data: &Ptr<QByteArray>) 
         } else {
             let error = get_last_rigid_model_error(parent)?;
             log::warn!("Error setting rigid data: {:?}:", error);
-            Err(ErrorKind::GenericHTMLError(error).into())
+            Err(anyhow!(error))
         }
     }
 }
@@ -410,7 +411,7 @@ pub fn get_last_rigid_model_error(parent: &Ptr<QWidget>) -> Result<String> {
         if getLastErrorString(parent.as_mut_raw_ptr(), string.as_mut_raw_ptr()) {
             Ok(string.to_std_string())
         } else {
-            Err(ErrorKind::RigidModelParseError.into())
+            Err(anyhow!("Error parsing a RigidModel file."))
         }
     }
 }

@@ -68,7 +68,7 @@ impl PackedFileImageView {
         if !image.load_from_data_q_byte_array(byte_array.as_ref().unwrap()) {
 
             #[cfg(feature = "support_modern_dds")] {
-                if packed_file_info.path.last().unwrap().to_lowercase().ends_with(".dds") {
+                if packed_file_view.path.read().unwrap().to_lowercase().ends_with(".dds") {
                     let image_new = get_dds_qimage(&byte_array);
                     if !image_new.is_null() {
                         image = QPixmap::from_image_1a(image_new.as_ref().unwrap());

@@ -32,7 +32,8 @@ pub const EXTENSION: &str = ".rigid_model_v2";
 //---------------------------------------------------------------------------//
 
 /// This struct contains a RigidModel decoded in memory.
-#[derive(Clone, Debug, PartialEq, Eq, Getters, Setters, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Getters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", set = "pub")]
 pub struct RigidModel {
     data: Vec<u8>,
 }

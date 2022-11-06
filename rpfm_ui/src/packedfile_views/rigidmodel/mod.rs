@@ -24,15 +24,12 @@ use qt_core::QPtr;
 
 use std::sync::Arc;
 
-use rpfm_error::{Result, ErrorKind};
+use anyhow::Result;
 use getset::*;
 
-use rpfm_lib::packfile::packedfile::RFileInfo;
-use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::rigidmodel::RigidModel;
+use rpfm_lib::files::FileType;
+use rpfm_lib::files::rigidmodel::RigidModel;
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::*;
 use crate::ffi::*;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 
@@ -56,20 +53,11 @@ impl PackedFileRigidModelView {
     /// This function creates a new RigidModel View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-    ) -> Result<Option<RFileInfo>> {
-
-        // Get the decoded data from the backend.
-        let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(packed_file_view.get_path(), packed_file_view.get_data_source()));
-        let response = CentralCommand::recv(&receiver);
-        let (rigid_model, packed_file_info) = match response {
-            Response::RigidModelRFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
-            Response::Error(error) => return Err(error),
-            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        data: &RigidModel,
+    ) -> Result<()> {
 
         // Create the new view and populate it.
-        let data = QByteArray::from_slice(&rigid_model.data);
+        let data = QByteArray::from_slice(data.data());
         let editor = new_rigid_model_view_safe(&mut packed_file_view.get_mut_widget().as_ptr());
         set_rigid_model_view_safe(&mut editor.as_ptr(), &data.as_ptr())?;
 
@@ -80,24 +68,25 @@ impl PackedFileRigidModelView {
             editor,
         });
 
-        packed_file_view.packed_file_type = PackedFileType::RigidModel;
+        packed_file_view.packed_file_type = FileType::RigidModel;
         packed_file_view.view = ViewType::Internal(View::RigidModel(view));
 
-        Ok(Some(packed_file_info))
+        Ok(())
     }
 
     /// Function to save the view and encode it into a RigidModel struct.
     pub unsafe fn save_view(&self) -> Result<RigidModel> {
         let qdata = get_rigid_model_from_view_safe(&self.editor)?;
         let data = std::slice::from_raw_parts(qdata.data_mut() as *mut u8, qdata.length() as usize).to_vec();
-        Ok(RigidModel {
-            data
-        })
+
+        let mut rigidmodel = RigidModel::default();
+        rigidmodel.set_data(data);
+        Ok(rigidmodel)
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &RigidModel) -> Result<()> {
-        let byte_array = QByteArray::from_slice(&data.data);
+        let byte_array = QByteArray::from_slice(data.data());
         set_rigid_model_view_safe(&mut self.editor.as_ptr(), &byte_array.as_ptr())
     }
 }

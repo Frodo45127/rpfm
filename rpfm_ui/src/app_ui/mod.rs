@@ -2599,6 +2599,33 @@ impl AppUI {
                             }
                         }
 
+                        // If the file is a RigidModel PackedFile...
+                        #[cfg(feature = "support_rigidmodel")]
+                        Response::RigidModelRFileInfo(data, file_info) => {
+                            if setting_bool("enable_rigidmodel_editor") {
+                                match PackedFileRigidModelView::new_view(&mut tab, &data) {
+                                    Ok(_) => {
+
+                                       // Add the file to the 'Currently open' list and make it visible.
+                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+
+                                        // Fix the tips view.
+                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
+                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
+
+                                        let mut open_list = UI_STATE.set_open_packedfiles();
+                                        open_list.push(tab);
+
+                                        if data_source == DataSource::PackFile {
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), data_source);
+                                        }
+                                    },
+                                    Err(error) => return show_dialog(&app_ui.main_window, error, false),
+                                }
+                            }
+                        }
+
                         // If the file is a Text PackedFile...
                         Response::TextRFileInfo(data, file_info) => {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
@@ -2647,34 +2674,7 @@ impl AppUI {
 
 
 
-                        // If the file is a RigidModel PackedFile...
-                        #[cfg(feature = "support_rigidmodel")]
-                        FileType::RigidModel => {
-                            if setting_bool["enable_rigidmodel_editor"] {
-                                match PackedFileRigidModelView::new_view(&mut tab) {
-                                    Ok(packed_file_info) => {
 
-                                       // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-
-                                        // Fix the tips view.
-                                        let layout = tab.get_mut_widget().layout().static_downcast::<QGridLayout>();
-                                        layout.add_widget_5a(tab.get_tips_widget(), 0, 99, layout.row_count(), 1);
-
-                                        let mut open_list = UI_STATE.set_open_packedfiles();
-                                        open_list.push(tab);
-
-                                        if let Some(packed_file_info) = packed_file_info {
-                                            if data_source == DataSource::PackFile {
-                                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), data_source);
-                                            }
-                                        }
-                                    },
-                                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
-                                }
-                            }
-                        }
 
 
                         // If the file is a UI Component...
