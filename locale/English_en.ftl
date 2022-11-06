@@ -5,27 +5,25 @@
 title_only_for_the_brave = Only For The Brave
 message_only_for_the_brave = <p>This version has been marked as "Only For The Brave". This means its a beta version containing certain highly unstable/untested features that may cause issues for people using it. But… you can check features before anyone else.</p>
 
-    <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version.</p>
+    <p>If you don't want the risk, please change the update channel back to stable and check for updates. That should revert your RPFM installation back to the latest stable version. Also, you'll need to go to Preferences and clear the dependencies and schemas folders.</p>
 
     <p>So, in "Only For The Brave" versions, it's highly recommended that you make backups of your mods before using RPFM with them. Below are the list of unstable features of this version:</p>
     <ul>
-        <li>RigidModel Editor: it has been updated, but it barely received testing. If you're going to edit mods with RigidModels and don't want to edit them by accident, you can disable it in the settings.</li>
-        <li>ESF Editor: It has received only very limited testing. If you're going to edit mods with ESF/CCD/SAVE files and don't want to edit them by accident, you can disable it in the settings.</li>
+        <li>Backend Rewrite: the whole backend has been rewritten/restructured, making it faster, more maintainable, and removing a lot of hurdles caused by legacy code.</li>
+        <li>CLI Rewrite: the cli has been rewritten from scratch to ensure it actually works, unlike the old one.</li>
+        <li>UI cleanup: While getting the UI working with the new backend, a lot of UI code has been cleanup/optimized, resulting in general faster operations all over the place, specially when opening the program, opening packs, and changing the game selected.</li>
     </ul>
-
-    <p>Notes about the RigidModel Editor:</p>
+    <p>Currently in this beta, you need to be aware that some parts of the UI have not been yet updated for the new backend and do not work/crash the program. Known broken stuff is:</p>
     <ul>
-        <li>There are certain buttons that may look like they do nothing. They should work properly on a future update.</li>
+        <li>Tools: they do not work yet.</li>
+        <li>Dependencies Manager: it crashes.</li>
+        <li>Update table: untested.</li>
+        <li>Generate Loc Data: do not work yet.</li>
+        <li>AnimFragment/AnimsTables/MatchedCombat: they "may" work, but are pending a full rewrite to support the newer game variants of these files.</li>
+        <li>Tables/Patch Column: it doesn't work yet.</li>
+        <li>Tables/Rename References: it doesn't work yet.</li>
     </ul>
-
-    <p>Notes about the ESF Editor:</p>
-    <ul>
-        <li>It only supports one ESF format (may not open files too old).</li>
-        <li>It doesn't support importing/exporting.</li>
-        <li>It doesn't support editing compressed nodes.</li>
-        <li>The "Label" texts are placeholders. Ignore them.</li>
-        <li>Certain numeric fields may accept values higher than they should. It's only an UI issue. The backend already check for those and fix them.</li>
-    </ul>
+    <p>Everything else should work... in theory.</p>
 
 ## General Localization
 

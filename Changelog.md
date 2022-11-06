@@ -6,6 +6,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Add/Extract features now automatically add/extract tables as TSV.
+
+### Changed
+- Rewritten the whole rpfm_cli from scratch.
+- Rewritten the whole rpfm_lib from scratch.
+- Split rpfm_lib into rpfm_lib and rpfm_extensions.
+- Removed rpfm.exe, as it's no longer needed for program restarts.
+- Improved performance all over the place.
+- Reduced general RAM usage.
+- Updated schema format.
+- Min rust version updated to 1.64.
+- Updated dependencies.
+
 ## [3.0.16]
 ### Changed
 - Improved by more than 50% the time it takes to populate the dependencies and the pack treeviews.
