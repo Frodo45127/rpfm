@@ -55,7 +55,7 @@ pub const BASE_PATH: &str = "animations";
 /// Extension of AnimFragment PackedFiles.
 pub const EXTENSIONS: [&str; 2] = [".frg", ".bin"];
 
-#[cfg(test)] mod anim_fragment_test;
+//#[cfg(test)] mod anim_fragment_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

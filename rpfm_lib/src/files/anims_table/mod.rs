@@ -54,7 +54,7 @@ pub const EXTENSION: &str = "_tables.bin";
 /// Size of the header of a MatchedCombat PackedFile.
 pub const HEADER_SIZE: usize = 8;
 
-#[cfg(test)] mod anims_table_test;
+//#[cfg(test)] mod anims_table_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

@@ -21,7 +21,7 @@ use crate::utils::check_size_mismatch;
 /// Extension used by PortraitSettings.
 pub const EXTENSION: &str = ".bin";
 
-#[cfg(test)] mod portrait_settings_test;
+//#[cfg(test)] mod portrait_settings_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

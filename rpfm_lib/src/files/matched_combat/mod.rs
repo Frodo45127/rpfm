@@ -55,7 +55,7 @@ pub const EXTENSION: &str = ".bin";
 /// Size of the header of a MatchedCombat PackedFile.
 pub const HEADER_SIZE: usize = 8;
 
-#[cfg(test)] mod matched_combat_test;
+//#[cfg(test)] mod matched_combat_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
