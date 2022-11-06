@@ -16,7 +16,7 @@ support_tip_uploads = ["rpfm_lib/support_tip_uploads"]
 support_uic = ["rpfm_lib/support_uic"]
 only_for_the_brave = []
 
-default = []
+default = ["only_for_the_brave"]
 
 [dependencies]
 

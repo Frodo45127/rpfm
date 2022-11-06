@@ -296,7 +296,7 @@ dbg!(t.elapsed().unwrap());
                     &title,
                     &message,
                     QFlags::from(StandardButton::Ok),
-                    &app_ui.main_window,
+                    app_ui.main_window(),
                 ).exec();
 
                 // Set it so it doesn't popup again for this version.
