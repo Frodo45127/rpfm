@@ -49,9 +49,7 @@ jobs:
           cd C:\actions-runner\_work\rpfm\rpfm
 
           # First build every executable one by one, so we can speed up compilation.
-          cargo build --release --bin rpfm
           cargo build --release --bin rpfm_cli
-          cargo build --release --bin rpfm_mod_checker
           cargo build --release --features "support_rigidmodel support_modern_dds" --bin rpfm_ui
 
         shell: pwsh
@@ -65,7 +63,15 @@ jobs:
           mkdir rpfm-release-assets
           cd rpfm-release-assets
 
+          # Copy Breeze icons into the release.
+          mkdir -p data/icons
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
+          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
+
           # Here we copy all the dlls required by RPFM. Otherwise we'll have to manually update them on every freaking release, and for 2 months that's been a royal PITA.
+          mkdir designer
+          cp ${{ matrix.DDISK }}:\Craft\plugins\designer\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\designer\
+
           mkdir iconengines
           cp ${{ matrix.DDISK }}:\Craft\plugins\iconengines\KIconEnginePlugin.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\iconengines\
           cp ${{ matrix.DDISK }}:\Craft\plugins\iconengines\qsvgicon.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\iconengines\
@@ -74,8 +80,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\plugins\imageformats\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
           cp C:\actions-runner\_work\rpfm\rpfm/libs/qdds.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\imageformats\
 
-          mkdir designer
-          cp ${{ matrix.DDISK }}:\Craft\plugins\designer\*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\designer\
+          # TODO: Check if we have to copy the kf5 folder.
 
           mkdir platforms
           cp ${{ matrix.DDISK }}:\Craft\plugins\platforms\qwindows.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\platforms\
@@ -84,16 +89,19 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\plugins\styles\qwindowsvistastyle.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\styles\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\d3dcompiler_47.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\dbus-1-3.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\editorconfig.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\git2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\freetype.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          #cp ${{ matrix.DDISK }}:\Craft\bin\git2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\harfbuzz.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\iconv.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\icudt??.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\icuin??.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\icuuc??.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\intl.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\intl-8.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          cp ${{ matrix.DDISK }}:\Craft\bin\jpeg62.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Archive.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\KF5AuthCore.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Codecs.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5Completion.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5ConfigCore.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -122,6 +130,7 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5WindowSystem.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\KF5XmlGui.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
+          cp ${{ matrix.DDISK }}:\Craft\bin\libbzip2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libcrypto*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libEGL.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libGLESV2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
@@ -129,11 +138,12 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\libpng16.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\libssl*.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
+          # Are these still neccesary?
           cp ${{ matrix.DDISK }}:\Craft\bin\msvcp140.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\msvcp140_1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\msvcp140_2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
-          cp ${{ matrix.DDISK }}:\Craft\bin\pcre.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+          #cp ${{ matrix.DDISK }}:\Craft\bin\pcre.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\pcre2-8.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\pcre2-16.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
@@ -148,23 +158,17 @@ jobs:
           cp ${{ matrix.DDISK }}:\Craft\bin\Qt5Widgets.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\Qt5Xml.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
+          # Same as before. Still neccesary?
           cp ${{ matrix.DDISK }}:\Craft\bin\vcruntime140.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\vcruntime140_1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
+
+          cp ${{ matrix.DDISK }}:\Craft\bin\tiff.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\zlib1.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
           cp ${{ matrix.DDISK }}:\Craft\bin\zstd.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
 
-          # Required since this week it seems.
-          cp ${{ matrix.DDISK }}:\Craft\bin\freetype.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\jpeg62.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\harfbuzz.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-          cp ${{ matrix.DDISK }}:\Craft\bin\libbzip2.dll ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\
-
           # Here we copy files generated from the compilation.
-          cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm.exe ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
-          cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm.pdb ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_ui.exe ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_ui.pdb ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
-          cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_mod_checker.exe ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_cli.exe ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
           cp C:\actions-runner\_work\rpfm\rpfm/target/release/rpfm_cli.pdb ${{ matrix.DDISK }}:\deploy\rpfm-release-assets
 
@@ -177,11 +181,6 @@ jobs:
           cp C:\actions-runner\_work\rpfm\rpfm/icons/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\icons\
           cp C:\actions-runner\_work\rpfm\rpfm/locale/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\locale\
           cp C:\actions-runner\_work\rpfm\rpfm/rpfm_ui/ui_templates/* ${{ matrix.DDISK }}:\deploy\rpfm-release-assets\ui\
-
-          # Copy Breeze icons into the release.
-          mkdir -p data/icons
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
-          cp "${{ matrix.DDISK }}:\Craft\bin\data\icons\breeze-dark" "${{ matrix.DDISK }}:\deploy\rpfm-release-assets\data\icons\" -recurse
 
           # Execute windeployqt to add missing translations and the vcredist if needed.
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
