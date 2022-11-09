@@ -1,6 +1,6 @@
 # Maintainer: Frodo45127 <frodo_gv@hotmail.com>
 pkgname=('rpfm-git')
-pkgver=3.0.11.2595.g370a699e
+pkgver=3.99.106.2813.g3af6da7c
 pkgrel=1
 pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
 arch=('x86_64')
@@ -15,7 +15,7 @@ _programname=('rpfm')
 
 pkgver() {
     cd $_programname
-    echo "$(grep '^version =' $srcdir/$_programname/rpfm_ui/Cargo.toml|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    echo "$(grep '^version =' $srcdir/$_programname/Cargo.toml|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
 }
 
 build() {
