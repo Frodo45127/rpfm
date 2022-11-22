@@ -237,7 +237,7 @@ pub fn background_loop() {
                 let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
                 let extra_data = Some(EncodeableExtraData::default());
                 files.par_iter_mut().for_each(|file| {
-                    let _ = file.encode(&extra_data, false, true, false);
+                    let _ = file.encode(&extra_data, true, true, false);
                 });
 
                 dbg!(t.elapsed().unwrap());
