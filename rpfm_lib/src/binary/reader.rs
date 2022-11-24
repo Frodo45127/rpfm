@@ -11,7 +11,7 @@
 //! Module with the [`ReadBytes`] trait, to read bytes to known types.
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use encoding::{all::ISO_8859_1, Encoding, DecoderTrap};
+use encoding_rs::{ISO_8859_15, UTF_16LE};
 
 use std::{char::decode_utf16, io::{Read, Seek, SeekFrom}};
 
@@ -503,12 +503,9 @@ pub trait ReadBytes: Read + Seek {
         String::from_utf8(data).map_err(From::from)
     }
 
-    /// This function tries to read an ISO-8859-1 String value of the provided `size` from `self`.
+    /// This function tries to read an ISO-8859-15 String value of the provided `size` from `self`.
     ///
     /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
-    ///
-    /// If `replace_on_error` is false, it'll fail the moment it fails to decode a character. If it's
-    /// true, it'll replace said character with an invalid character symbol.
     ///
     /// ```rust
     /// use std::io::Cursor;
@@ -517,22 +514,16 @@ pub trait ReadBytes: Read + Seek {
     ///
     /// let data = vec![87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97];
     /// let mut cursor = Cursor::new(data);
-    /// let data = cursor.read_string_u8_iso_8859_1(11, false).unwrap();
+    /// let data = cursor.read_string_u8_iso_8859_15(11).unwrap();
     ///
     /// assert_eq!(data, "Wahaÿhahaha");
-    /// assert_eq!(cursor.read_string_u8_iso_8859_1(10, false).is_err(), true);
+    /// assert_eq!(cursor.read_string_u8_iso_8859_15(10).is_err(), true);
     /// ```
-    fn read_string_u8_iso_8859_1(&mut self, size: usize, replace_on_error: bool) -> Result<String> {
+    fn read_string_u8_iso_8859_15(&mut self, size: usize) -> Result<String> {
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let decoder_trap = if replace_on_error {
-            DecoderTrap::Replace
-        } else {
-            DecoderTrap::Strict
-        };
-
-        ISO_8859_1.decode(&data, decoder_trap).map_err(|error| RLibError::DecodeUTF8FromISO8859Error(error.to_string()))
+        Ok(ISO_8859_15.decode(&data).0.to_string())
     }
 
     /// This function tries to read a 00-Padded UTF-8 String value of the provided `size` from `self`.
@@ -707,11 +698,13 @@ pub trait ReadBytes: Read + Seek {
     /// assert_eq!(cursor.read_string_u16(12).is_err(), true);
     /// ```
     fn read_string_u16(&mut self, size: usize) -> Result<String> {
+        if size % 2 == 1 {
+            return Err(RLibError::DecodeUTF16UnevenInputError(size));
+        }
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let iter = (0..size.wrapping_div(2)).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
-        decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
+        Ok(UTF_16LE.decode(&data).0.to_string())
     }
 
     /// This function tries to read a 00-Padded UTF-16 String value of the provided `size` from `self`.
@@ -738,8 +731,7 @@ pub trait ReadBytes: Read + Seek {
         self.read_exact(&mut data)?;
 
         let size_no_zeros = (0..size.wrapping_div(2)).position(|x| data[x * 2] == 0).map_or(size.wrapping_div(2), |x| x);
-        let iter = (0..size_no_zeros).map(|x| u16::from_le_bytes([data[x * 2], data[(x * 2) + 1]]));
-        decode_utf16(iter).collect::<Result<String, _>>().map_err(From::from)
+        Ok(UTF_16LE.decode(&data[..size_no_zeros * 2]).0.to_string())
     }
 
     /// This function tries to read a Sized UTF-16 String value from `self`.

@@ -13,7 +13,7 @@
 //! [`Writer`]: std::io::Write
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use encoding::{all::ISO_8859_1, Encoding, EncoderTrap};
+use encoding_rs::{ISO_8859_15, Encoder};
 
 use std::io::Write;
 
@@ -369,8 +369,7 @@ pub trait WriteBytes: Write {
     /// assert_eq!(data, vec![87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]);
     /// ```
     fn write_string_u8_iso_8859_1(&mut self, string: &str) -> Result<()> {
-        let string = ISO_8859_1.encode(string, EncoderTrap::Replace)
-            .map_err(|error| RLibError::EncodeUTF8ToISO8859Error(error.to_string()))?;
+        let (string, _, _) = ISO_8859_15.encode(string);
         self.write_all(&string).map_err(From::from)
     }
 

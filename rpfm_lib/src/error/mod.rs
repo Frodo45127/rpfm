@@ -58,8 +58,8 @@ pub enum RLibError {
     #[error(transparent)]
     DecodeUTF16Error(#[from] std::string::FromUtf16Error),
 
-    #[error(transparent)]
-    DecodeCharUTF16Error(#[from] std::char::DecodeUtf16Error),
+    #[error("Error trying to decode an UTF-16 String. We expected an even amount of bytes, but instead we have {0} bytes.")]
+    DecodeUTF16UnevenInputError(usize),
 
     #[error("Error trying to convert an ISO8859-1 String to an UTF-8 String: {0}.")]
     DecodeUTF8FromISO8859Error(String),
@@ -72,9 +72,6 @@ pub enum RLibError {
 
     #[error("Error trying to read an 00-Terminated String: No byte 00 found.")]
     DecodingString0TeminatedNo0Error,
-
-    #[error("Error trying to convert an UTF-8 String to an ISO8859-1 String: {0}.")]
-    EncodeUTF8ToISO8859Error(String),
 
     #[error("Error trying to encode an {0}: \"{1}\" has a length of {2} chars, but his length should be less or equal than {3}.")]
     EncodingPaddedStringError(String, String, usize, usize),

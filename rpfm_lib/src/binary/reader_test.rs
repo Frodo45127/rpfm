@@ -248,15 +248,15 @@ fn read_string_u8() {
     assert_eq!(ReadBytes::read_string_u8(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]), 10).is_err(), true);
 }
 
-/// Test to `ReadBytes::read_string_u8_iso_8859_1()`.
+/// Test to `ReadBytes::read_string_u8_iso_8859_15()`.
 #[test]
-fn read_string_u8_iso_8859_1() {
+fn read_string_u8_iso_8859_15() {
 
     // Check the reader works for a proper encoded string.
-    assert_eq!(ReadBytes::read_string_u8_iso_8859_1(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97]), 10, false).unwrap(), "Wahahahaha");
+    assert_eq!(ReadBytes::read_string_u8_iso_8859_15(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97]), 10).unwrap(), "Wahahahaha");
 
     // Check the reader works mapping characters when an invalid UTF-8 character is detected.
-    assert_eq!(ReadBytes::read_string_u8_iso_8859_1(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]), 11, false).unwrap(), "Wahaÿhahaha");
+    assert_eq!(ReadBytes::read_string_u8_iso_8859_15(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]), 11).unwrap(), "Wahaÿhahaha");
 }
 
 /// Test to `ReadBytes::read_string_u8_0padded()`.
@@ -340,8 +340,8 @@ fn read_string_u16() {
     // Check the reader works for a proper encoded string.
     assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0]), 12).unwrap(), "Wahaha");
 
-    // Check the reader returns an error for a slice with non-UTF8 characters (216).
-    assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0]), 12).is_err(), true);
+    // Check the reader returns an error for a slice with uneven amount of bytes.
+    assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0, 1]), 13).is_err(), true);
 
     // Check the reader returns an error for a slice with the wrong size.
     assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0]), 14).is_err(), true);
@@ -376,9 +376,6 @@ fn read_sized_string_u16() {
 
     // Check the reader returns an error for a slice shorter than it's specified length.
     assert_eq!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 2])).is_err(), true);
-
-    // Check the reader returns an error for a slice with non-UTF16 characters (1, 216, DC01).
-    assert_eq!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 87, 0, 97, 0, 1, 216, 97, 0])).is_err(), true);
 }
 
 /// Test to `ReadBytes::read_optional_string_u16()`.
@@ -399,9 +396,6 @@ fn read_optional_string_u16() {
 
     // Check the reader returns an error for a slice shorter than it's specified length.
     assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 4, 0, 2])).is_err(), true);
-
-    // Check the reader returns an error for a slice with non-UTF16 characters (1, 216, DC01).
-    assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 4, 0, 87, 0, 97, 0, 1, 216, 97, 0])).is_err(), true);
 }
 
 /// Test to `ReadBytes::read_string_colour_rgb()`.
