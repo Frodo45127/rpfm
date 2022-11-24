@@ -1793,11 +1793,21 @@ fn sort_folders_before_files_alphabetically_file_infos(files: &mut Vec<RFileInfo
 }
 
 fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) -> Ordering {
-    let a_len = a_path.split('/').count() - 1;
-    let b_len = b_path.split('/').count() - 1;
+    let mut a_iter = a_path.rmatch_indices('/');
+    let mut b_iter = b_path.rmatch_indices('/');
 
-    let a_last_split = a_path.rfind('/').unwrap_or(0);
-    let b_last_split = b_path.rfind('/').unwrap_or(0);
+    let (a_last_split, a_len) = {
+        match a_iter.next() {
+            Some((index, _)) => (index, a_iter.count() + 1),
+            None => (0, 0),
+        }
+    };
+    let (b_last_split, b_len) = {
+        match b_iter.next() {
+            Some((index, _)) => (index, b_iter.count() + 1),
+            None => (0, 0),
+        }
+    };
 
     // Short-circuit cases: one or both files on root.
     if a_last_split == 0 && b_last_split == 0 {
