@@ -626,11 +626,15 @@ impl Table {
                 else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Colour RGB".to_string())) }
             }
             FieldType::StringU8 => {
-                if let Ok(data) = data.read_sized_string_u8() { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
+                if let Ok(mut data) = data.read_sized_string_u8() {
+                    Self::escape_special_chars(&mut data);
+                    Ok(DecodedData::StringU8(data)) }
                 else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-8 String".to_string())) }
             }
             FieldType::StringU16 => {
-                if let Ok(data) = data.read_sized_string_u16() { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
+                if let Ok(mut data) = data.read_sized_string_u16() {
+                    Self::escape_special_chars(&mut data);
+                    Ok(DecodedData::StringU16(data)) }
                 else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "UTF-16 String".to_string())) }
             }
             FieldType::OptionalI16 => {
@@ -647,11 +651,15 @@ impl Table {
             }
 
             FieldType::OptionalStringU8 => {
-                if let Ok(data) = data.read_optional_string_u8() { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
+                if let Ok(mut data) = data.read_optional_string_u8() {
+                    Self::escape_special_chars(&mut data);
+                    Ok(DecodedData::OptionalStringU8(data)) }
                 else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-8 String".to_string())) }
             }
             FieldType::OptionalStringU16 => {
-                if let Ok(data) = data.read_optional_string_u16() { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
+                if let Ok(mut data) = data.read_optional_string_u16() {
+                    Self::escape_special_chars(&mut data);
+                    Ok(DecodedData::OptionalStringU16(data)) }
                 else { Err(RLibError::DecodingTableFieldError(row + 1, column + 1, "Optional UTF-16 String".to_string())) }
             }
 
@@ -1541,20 +1549,25 @@ impl Table {
     //----------------------------------------------------------------//
 
     /// This function escapes certain characters of the provided string.
-    fn escape_special_chars(data: &str)-> String {
-         let mut output = Vec::with_capacity(data.len() + 10);
-         for c in data.as_bytes() {
-            match c {
-                b'\n' => output.extend_from_slice(b"\\\\n"),
-                b'\t' => output.extend_from_slice(b"\\\\t"),
-                _ => output.push(*c),
+    fn escape_special_chars(data: &mut String) {
+
+        // When performed on mass, this takes 25% of the time to decode a table. Only do it if we really have characters to replace.
+        if memchr::memchr(b'\n', data.as_bytes()).is_some() || memchr::memchr(b'\t', data.as_bytes()).is_some() {
+            let mut output = Vec::with_capacity(data.len() + 10);
+            for c in data.chars() {
+                match c {
+                    '\n' => output.extend_from_slice(b"\\\\n"),
+                    '\t' => output.extend_from_slice(b"\\\\t"),
+                    _ => output.push(c as u8),
+                }
             }
+
+            unsafe { *data.as_mut_vec() = output };
         }
-        unsafe { String::from_utf8_unchecked(output) }
     }
 
     /// This function unescapes certain characters of the provided string.
-    fn unescape_special_chars(data: &str)-> String {
-         data.replace("\\\\t", "\t").replace("\\\\n", "\n")
+    fn unescape_special_chars(data: &str) -> String {
+        data.replace("\\\\t", "\t").replace("\\\\n", "\n")
     }
 }
