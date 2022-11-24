@@ -12,22 +12,20 @@
 Module with all the code that can be considered "backend" of the UI, but should not be on the libs.
 !*/
 
-//-------------------------------------------------------------------------------//
-//                              Enums & Structs
-//-------------------------------------------------------------------------------//
-
+use rayon::prelude::*;
 use getset::Getters;
-
-use std::path::PathBuf;
 
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
-use rpfm_lib::files::{*, Container, FileType, RFile, animpack::*, pack::*, video::*};
+use rpfm_lib::files::{animpack::*, Container, db::*, FileType, pack::*, RFile, video::*};
 
 use crate::GAME_SELECTED;
-use crate::packedfile_views::DataSource;
+
+//-------------------------------------------------------------------------------//
+//                              Enums & Structs
+//-------------------------------------------------------------------------------//
 
 /// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
 ///
@@ -115,18 +113,21 @@ pub struct VideoInfo {
 }
 
 /// This struct contains the minimal data needed (mainly paths), to know what we have loaded in out dependencies.
+///
+/// NOTE: As this is intended to be a "Just use it and discard it" struct, we allow public members to make operations
+/// where we can move out of here faster.
 #[derive(Debug, Clone, Default, Getters)]
 #[getset(get = "pub")]
 pub struct DependenciesInfo {
 
     /// Full PackedFile-like paths of each asskit-only table.
-    asskit_tables: Vec<RFileInfo>,
+    pub asskit_tables: Vec<RFileInfo>,
 
     /// Full list of vanilla PackedFile paths.
-    vanilla_packed_files: Vec<RFileInfo>,
+    pub vanilla_packed_files: Vec<RFileInfo>,
 
     /// Full list of parent PackedFile paths.
-    parent_packed_files: Vec<RFileInfo>,
+    pub parent_packed_files: Vec<RFileInfo>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -202,17 +203,23 @@ impl From<&Video> for VideoInfo {
 impl From<&Dependencies> for DependenciesInfo {
     fn from(dependencies: &Dependencies) -> Self {
         let table_name_logic = GAME_SELECTED.read().unwrap().vanilla_db_table_name_logic();
-        Self {
-            asskit_tables: dependencies.asskit_only_db_tables().iter().map(|(_, table)| {
-                let table_name = match table_name_logic {
-                    VanillaDBTableNameLogic::DefaultName(ref name) => name.to_owned(),
-                    VanillaDBTableNameLogic::FolderName => table.table_name().to_owned(),
-                };
 
-                RFileInfo::from(&RFile::new_from_decoded(&RFileDecoded::DB(table.clone()), 0, &format!("db/{}/{}", table.table_name(), table_name)))
-            }).collect(),
-            vanilla_packed_files: dependencies.vanilla_files().values().map(From::from).collect(),
-            parent_packed_files: dependencies.parent_files().values().map(From::from).collect(),
+        let asskit_tables = dependencies.asskit_only_db_tables().iter().map(|(_, table)| {
+            let table_name = match table_name_logic {
+                VanillaDBTableNameLogic::DefaultName(ref name) => name,
+                VanillaDBTableNameLogic::FolderName => table.table_name(),
+            };
+
+            RFileInfo::from_db(table, table_name)
+        }).collect::<Vec<RFileInfo>>();
+
+        let vanilla_packed_files = dependencies.vanilla_files().par_iter().map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+        let parent_packed_files = dependencies.parent_files().par_iter().map(|(_, value)| From::from(value)).collect::<Vec<RFileInfo>>();
+
+        Self {
+            asskit_tables,
+            vanilla_packed_files,
+            parent_packed_files,
         }
     }
 }
@@ -239,6 +246,15 @@ impl RFileInfo {
             self.path().split('/').collect::<Vec<_>>().get(1).cloned()
         } else {
             None
+        }
+    }
+
+    pub fn from_db(db: &DB, table_file_name: &str) -> Self {
+        Self {
+            path: format!("db/{}/{}", db.table_name(), table_file_name),
+            packfile_name: table_file_name.to_owned(),
+            timestamp: None,
+            file_type: FileType::DB,
         }
     }
 }
