@@ -179,7 +179,7 @@ impl Text {
             }
 
             data.seek(SeekFrom::Start(0))?;
-            let iso_8859_1_string = data.read_string_u8_iso_8859_1(len as usize, false);
+            let iso_8859_1_string = data.read_string_u8_iso_8859_15(len as usize);
             if iso_8859_1_string.is_ok() {
                 data.seek(SeekFrom::Start(0))?;
                 return Ok(Encoding::Iso8859_1)
@@ -198,7 +198,7 @@ impl Decodeable for Text {
         let len = data.len()?;
         let encoding = Self::detect_encoding(data)?;
         let contents = match encoding {
-            Encoding::Iso8859_1 => data.read_string_u8_iso_8859_1(len as usize, false)
+            Encoding::Iso8859_1 => data.read_string_u8_iso_8859_15(len as usize)
                 .map_err(|_| RLibError::DecodingTextUnsupportedEncodingOrNotATextFile)?,
 
             Encoding::Utf8 |

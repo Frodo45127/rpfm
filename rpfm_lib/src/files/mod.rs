@@ -1306,7 +1306,7 @@ impl RFile {
                     Some(extra_data) => extra_data.clone(),
                     None => DecodeableExtraData::default(),
                 };
-                extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+                extra_data.file_name = self.file_name();
                 extra_data.data_size = data.len() as u64;
 
                 // Some types require extra data specific for them to be added to the extra data before decoding.
@@ -1369,7 +1369,8 @@ impl RFile {
                             Some(extra_data) => extra_data.clone(),
                             None => DecodeableExtraData::default(),
                         };
-                        extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+
+                        extra_data.file_name = self.file_name();
                         extra_data.data_size = raw_data.len() as u64;
 
                         // These are the easy types: just load the data to memory, and decode.
@@ -1414,7 +1415,7 @@ impl RFile {
                             None => DecodeableExtraData::default(),
                         };
                         extra_data.lazy_load = !extra_data.is_encrypted && extra_data.lazy_load;
-                        extra_data.file_name = Some(self.path.rsplit_terminator('/').collect::<Vec<_>>()[0]);
+                        extra_data.file_name = self.file_name();
                         extra_data.data_size = data.size as u64;
 
                         // If we're lazy-loading we also need extra data to read from disk on-demand.

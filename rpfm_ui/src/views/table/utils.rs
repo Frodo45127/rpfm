@@ -453,11 +453,17 @@ pub unsafe fn load_data(
         TableType::DependencyManager(_) => todo!(),
     };
 
+    // TODO: Optimize this. On big loc files this is slow as hell.
+    table_view_primary.set_updates_enabled(false);
+    table_view_frozen.set_updates_enabled(false);
+
+    // NOTE: We need the blocker because disabling only updates doesn't seem to work.
+    let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
     if !data.is_empty() {
+        let fields_processed = definition.fields_processed();
+        let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
 
         // Load the data, row by row.
-        let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
-        let keys = definition.fields_processed().iter().enumerate().filter_map(|(x, y)| if y.is_key() { Some(x as i32) } else { None }).collect::<Vec<i32>>();
         for (row, entry) in data.iter().enumerate() {
             let qlist = QListOfQStandardItem::new();
             for (column, field) in entry.iter().enumerate() {
@@ -469,9 +475,11 @@ pub unsafe fn load_data(
 
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
+
             if row == data.len() - 1 {
                 blocker.unblock();
             }
+
             table_model.append_row_q_list_of_q_standard_item(&qlist);
         }
     }
@@ -489,7 +497,10 @@ pub unsafe fn load_data(
         definition,
         &dependency_data.read().unwrap(),
         timer
-    )
+    );
+
+    table_view_primary.set_updates_enabled(true);
+    table_view_frozen.set_updates_enabled(true);
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
