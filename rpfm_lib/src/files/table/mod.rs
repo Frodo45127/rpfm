@@ -1554,11 +1554,11 @@ impl Table {
         // When performed on mass, this takes 25% of the time to decode a table. Only do it if we really have characters to replace.
         if memchr::memchr(b'\n', data.as_bytes()).is_some() || memchr::memchr(b'\t', data.as_bytes()).is_some() {
             let mut output = Vec::with_capacity(data.len() + 10);
-            for c in data.chars() {
+            for c in data.bytes() {
                 match c {
-                    '\n' => output.extend_from_slice(b"\\\\n"),
-                    '\t' => output.extend_from_slice(b"\\\\t"),
-                    _ => output.push(c as u8),
+                    b'\n' => output.extend_from_slice(b"\\\\n"),
+                    b'\t' => output.extend_from_slice(b"\\\\t"),
+                    _ => output.push(c),
                 }
             }
 
