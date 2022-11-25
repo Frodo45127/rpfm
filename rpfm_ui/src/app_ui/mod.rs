@@ -3508,6 +3508,14 @@ impl AppUI {
         //
         // The backend already differentiates between the two and acts accordingly.
         if rebuild_dependencies {
+
+            // If the game didn't change, we need to make sure we generate a receiver for this.
+            let receiver = if game_changed {
+                receiver
+            } else {
+                CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true))
+            };
+
             let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::DependenciesInfo(response) => {
