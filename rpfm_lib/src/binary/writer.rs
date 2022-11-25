@@ -13,7 +13,7 @@
 //! [`Writer`]: std::io::Write
 
 use byteorder::{LittleEndian, WriteBytesExt};
-use encoding_rs::{ISO_8859_15, Encoder};
+use encoding_rs::ISO_8859_15;
 
 use std::io::Write;
 

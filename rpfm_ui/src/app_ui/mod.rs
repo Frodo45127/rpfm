@@ -3443,17 +3443,20 @@ impl AppUI {
         GameSelectedIcons::set_game_selected_icon(app_ui);
     }
 
+    /// Function to change the game selected, changing schemas, dependencies, and all related stuff as needed.
     pub unsafe fn change_game_selected(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         rebuild_dependencies: bool
     ) {
-        let t = std::time::SystemTime::now();
-        dbg!(t.elapsed().unwrap());
+
+        // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
+        let was_window_disabled = !app_ui.main_window.is_enabled();
 
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
+        // Mutable because we reuse this variable to store the other receiver we need to generate down below.
+        let mut receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
         let response = CentralCommand::recv(&receiver);
         let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
@@ -3463,92 +3466,89 @@ impl AppUI {
         let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
         let mut game_changed = false;
 
-        // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
-        let was_window_disabled = !app_ui.main_window.is_enabled();
-dbg!(t.elapsed().unwrap());
-        // If the game changed, change the game selected.
+        // Due to how the backend is optimised, we need to back our files before triggering the proper game change.
+        let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
+
+        // If the game changed or we're initializing the program, change the game selected.
         if new_game_selected != GAME_SELECTED.read().unwrap().game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
-            FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
-            game_changed = true;
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
             if !was_window_disabled {
                 app_ui.main_window.set_enabled(false);
             }
 
-            // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
-            // We have to wait because we need the GameSelected update before updating the menus.
-            let receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected));
+            // Send the command to the background thread to set the new `Game Selected`.
+            receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected, rebuild_dependencies));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => {}
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
 
-            // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+            // If we have a pack open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+            // We do not really support changing game selected while keep treating a mymod as a mymod.
             if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
                 UI_STATE.set_operational_mode(app_ui, None);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
-            // Change the GameSelected Icon. Disabled until we find better icons.
+            // Change the GameSelected Icon.
             GameSelectedIcons::set_game_selected_icon(app_ui);
+
+            // Set this at the end, because the backend need to check if it's our first initialization or not first.
+            FIRST_GAME_CHANGE_DONE.store(true, Ordering::SeqCst);
+            game_changed = true;
         }
-dbg!(t.elapsed().unwrap());
+
         // Regardless if the game changed or not, if we are asked to rebuild data, prepare for a rebuild.
+        // Realistically, there are two reasons for calling this:
+        // - Game changed, requires full dependencies rebuild.
+        // - Pack changed, requires parent mod rebuild.
+        //
+        // The backend already differentiates between the two and acts accordingly.
         if rebuild_dependencies {
-
-            // Purge all views that depend on the dependencies.
-            let paths_to_close: Vec<(DataSource, String)> = UI_STATE.set_open_packedfiles().iter()
-                .filter_map(|x| if x.get_data_source() != DataSource::PackFile || x.get_data_source() != DataSource::ExternalFile { Some((x.get_data_source(), x.get_path()))} else { None })
-                .collect();
-
-            for (data_source, path) in paths_to_close {
-                if let Err(error) = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, &path, data_source, true) {
-                    show_dialog(&app_ui.main_window, error, false);
-                }
-            }
-dbg!(t.elapsed().unwrap());
-            // Request a rebuild. If the game changed, do a full rebuild. If not, only rebuild the parent's data.
-            let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(!game_changed));
             let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::DependenciesInfo(response) => {
                     let mut parent_build_data = BuildData::new();
                     parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
                     dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(parent_build_data), DataSource::ParentFiles);
-dbg!(t.elapsed().unwrap());
+
+                    // While the backend returns the data of the entire dependencies, game and asskit data only change on game change, so we don't need to
+                    // rebuild them the game didn't change.
                     if game_changed {
+
+                        // NOTE: We're MOVING, not copying nor referencing the RFileInfo. This info is big and moving it makes it faster.
                         let mut game_build_data = BuildData::new();
-                        game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files().to_vec()));
+                        game_build_data.data = Some((ContainerInfo::default(), response.vanilla_packed_files));
 
                         let mut asskit_build_data = BuildData::new();
-                        asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables().to_vec()));
-dbg!(t.elapsed().unwrap());
+                        asskit_build_data.data = Some((ContainerInfo::default(), response.asskit_tables));
                         dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles);
-dbg!(t.elapsed().unwrap());
                         dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles);
                     }
                 }
                 Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
-dbg!(t.elapsed().unwrap());
         }
 
-        // Reenable the main window once everything is reloaded.
+        // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
         if !was_window_disabled {
             app_ui.main_window.set_enabled(true);
         }
 
-        // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
+        // Disable the pack-related actions and, if we have a pack open, re-enable them.
         AppUI::enable_packfile_actions(app_ui, &pack_path, false);
         if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() != 0 {
             AppUI::enable_packfile_actions(app_ui, &pack_path, true);
         }
-dbg!(t.elapsed().unwrap());
-        let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
+
+        // If we have the setting enabled, ask the backend to generate the missing definition list.
+        if setting_bool("check_for_missing_table_definitions") {
+            let _ = CENTRAL_COMMAND.send_background(Command::GetMissingDefinitions);
+        }
     }
 
     /// This function creates a new PackFile and setups the UI for it.

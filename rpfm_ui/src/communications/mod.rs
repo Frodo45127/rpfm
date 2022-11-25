@@ -107,8 +107,8 @@ pub enum Command {
     /// This command is used when we want to perform a `Global Search`. It requires the search info.
     GlobalSearch(GlobalSearch),
 
-    /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select.
-    SetGameSelected(String),
+    /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select, and if we should rebuild the dependencies.
+    SetGameSelected(String, bool),
 
     /// This command is used when we want to change the `Type` of the currently open `PackFile`. It contains the new type.
     SetPackFileType(PFHFileType),

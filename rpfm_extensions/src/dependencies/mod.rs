@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
+use std::thread::{JoinHandle, spawn};
 
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
@@ -128,7 +129,8 @@ impl Dependencies {
     /// This function takes care of rebuilding the whole dependencies cache to be used with a new Pack.
     ///
     /// If a file path is passed, the dependencies cache at that path will be used, replacing the currently loaded dependencies cache.
-    pub fn rebuild(&mut self, schema: &Schema, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
+    /// If a schema is not passed, no tables/locs will be pre-decoded. Make sure to decode them later with [decode_tables].
+    pub fn rebuild(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path) -> Result<()> {
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
         if let Some(file_path) = file_path {
@@ -148,45 +150,9 @@ impl Dependencies {
 
         // Preload parent mods of the currently loaded Pack.
         self.load_parent_packs(parent_pack_names, game_info, game_path)?;
-
-        // Build the casing-related HashSets.
-        self.parent_folders = self.parent_files.par_iter().filter_map(|(path, _)| {
-            let file_path_split = path.split('/').collect::<Vec<&str>>();
-            let folder_path_len = file_path_split.len() - 1;
-            if folder_path_len == 0 {
-                None
-            } else {
-
-                let mut paths = Vec::with_capacity(folder_path_len);
-
-                for (index, folder) in file_path_split.iter().enumerate() {
-                    if index < path.len() - 1 && !folder.is_empty() {
-                        paths.push(file_path_split[0..=index].join("/"))
-                    }
-                }
-
-                Some(paths)
-            }
-        }).flatten().collect::<HashSet<String>>();
-
-        // Pre-decode all parent tables/locs to memory.
-        let mut decode_extra_data = DecodeableExtraData::default();
-        decode_extra_data.set_schema(Some(schema));
-        let extra_data = Some(decode_extra_data);
-
         self.parent_files.par_iter_mut().map(|(_, file)| file.guess_file_type()).collect::<Result<()>>()?;
 
-        // Ignore any errors related with decoded tables.
-        let _ = self.parent_files.par_iter_mut().try_for_each(|(_, file)| {
-            match file.file_type() {
-                FileType::DB |
-                FileType::Loc => file.decode(&extra_data, true, false).map(|_| ()),
-                _ => Ok(())
-            }
-        });
-
         // Then build the table/loc lists, for easy access.
-        // TODO: Merge these two iters.
         self.parent_files.iter()
             .filter(|(_, file)| matches!(file.file_type(), FileType::DB))
             .for_each(|(path, file)| {
@@ -207,13 +173,51 @@ impl Dependencies {
             }
         );
 
+        // Build the folder list.
+        self.parent_folders = self.parent_files.par_iter().filter_map(|(path, _)| {
+            let file_path_split = path.split('/').collect::<Vec<&str>>();
+            let folder_path_len = file_path_split.len() - 1;
+            if folder_path_len == 0 {
+                None
+            } else {
+
+                let mut paths = Vec::with_capacity(folder_path_len);
+
+                for (index, folder) in file_path_split.iter().enumerate() {
+                    if index < path.len() - 1 && !folder.is_empty() {
+                        paths.push(file_path_split[0..=index].join("/"))
+                    }
+                }
+
+                Some(paths)
+            }
+        }).flatten().collect::<HashSet<String>>();
+
+        // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
+        if let Some(schema) = schema {
+            let mut decode_extra_data = DecodeableExtraData::default();
+            decode_extra_data.set_schema(Some(schema));
+            let extra_data = Some(decode_extra_data);
+
+            let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
+                match self.parent_files.remove(path) {
+                    Some(file) => Some((path.to_owned(), file)),
+                    None => None,
+                }
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.parent_files.par_extend(files);
+        }
+
         Ok(())
     }
 
     /// This function generates the dependencies cache for the game provided and returns it.
     pub fn generate_dependencies_cache(game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>) -> Result<Self> {
-        let t = std::time::SystemTime::now();
-        dbg!(t.elapsed().unwrap());
         let mut cache = Self::default();
         cache.build_date = current_time()?;
         cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
@@ -230,7 +234,6 @@ impl Dependencies {
             })
             .collect::<Vec<&mut RFile>>();
 
-        dbg!(t.elapsed().unwrap());
         cacheable.iter()
             .for_each(|file| {
                 match file.file_type() {
@@ -249,8 +252,7 @@ impl Dependencies {
                 }
             }
         );
-        dbg!(t.elapsed().unwrap());
-        // 284 vs 308
+
         cache.vanilla_folders = cache.vanilla_files.par_iter().filter_map(|(path, _)| {
             let file_path_split = path.split('/').collect::<Vec<&str>>();
             let folder_path_len = file_path_split.len() - 1;
@@ -269,13 +271,11 @@ impl Dependencies {
                 Some(paths)
             }
         }).flatten().collect::<HashSet<String>>();
-        dbg!(t.elapsed().unwrap());
 
         // This one can fail, leaving the dependencies with only game data.
         if let Some(path) = asskit_path {
             let _ = cache.generate_asskit_only_db_tables(path, game_info.raw_db_version());
         }
-        dbg!(t.elapsed().unwrap());
 
         Ok(cache)
     }
@@ -350,37 +350,82 @@ impl Dependencies {
         }).collect::<HashMap<_, _>>()
     }
 
-    /// This function tries to load a dependencies file from the path provided.
-    pub fn load(file_path: &Path, schema: &Schema) -> Result<Self> {
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
-        file.read_to_end(&mut data)?;
+    /// This function tries to load dependencies from the path provided.
+    pub fn load(file_path: &Path, schema: &Option<Schema>) -> Result<Self> {
 
-        // Never deserialize directly from the file. It's bloody slow!!!
-        let mut dependencies: Self = bincode::deserialize(&data)?;
+        // Optimization: Instead of a big file, we split the dependencies in 3 files. Why?
+        // Because bincode is not multithreaded and, while reading 3 medium files is slower than a big one,
+        // deserializing 3 medium files in 3 separate threads is way faster than 1 big file in 1 thread.
+        let mut file_path_1 = file_path.to_path_buf();
+        let handle_1: JoinHandle<Result<(u64, Vec<RFile>)>> = spawn(move || {
+            file_path_1.set_extension("pak1");
+            let mut file = BufReader::new(File::open(&file_path_1)?);
+            let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+            file.read_to_end(&mut data)?;
 
-        // Pre-decode all tables/locs to memory.
-        let mut decode_extra_data = DecodeableExtraData::default();
-        decode_extra_data.set_schema(Some(schema));
-        let extra_data = Some(decode_extra_data);
-
-        // Ignore any errors related with decoded tables.
-        dependencies.vanilla_files.par_iter_mut().for_each(|(_, file)| {
-            match file.file_type() {
-                FileType::DB |
-                FileType::Loc => {
-                    let _ = file.decode(&extra_data, true, false);
-                },
-                _ => {}
-            }
+            // Never deserialize directly from the file. It's bloody slow!!!
+            bincode::deserialize(&data).map_err(From::from)
         });
 
-        // Build the casing-related HashSets.
-        //dependencies.vanilla_folders = LazyLoadedData::NotYetLoaded;
+        let mut file_path_2 = file_path.to_path_buf();
+        let handle_2: JoinHandle<Result<Vec<RFile>>> = spawn(move || {
+            file_path_2.set_extension("pak2");
+            let mut file = BufReader::new(File::open(&file_path_2)?);
+            let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+            file.read_to_end(&mut data)?;
 
-        //dependencies.vanilla_cached_packed_files_paths = LazyLoadedData::NotYetLoaded;
-        //dependencies.vanilla_cached_folders_cased = LazyLoadedData::NotYetLoaded;
-        //dependencies.vanilla_cached_folders_caseless = LazyLoadedData::NotYetLoaded;
+            // Never deserialize directly from the file. It's bloody slow!!!
+            bincode::deserialize(&data).map_err(From::from)
+        });
+
+        let mut file_path_3 = file_path.to_path_buf();
+        let handle_3: JoinHandle<Result<(HashMap<String, Vec<String>>, HashSet<String>, HashSet<String>, HashMap<String, DB>)>> = spawn(move || {
+            file_path_3.set_extension("pak3");
+            let mut file = BufReader::new(File::open(&file_path_3)?);
+            let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
+            file.read_to_end(&mut data)?;
+
+            // Never deserialize directly from the file. It's bloody slow!!!
+            bincode::deserialize(&data).map_err(From::from)
+        });
+
+        // Get the thread's data in reverse, as 1 and 2 are actually the slower to process.
+        let mut dependencies = Self::default();
+        let data_3 = handle_3.join().unwrap()?;
+        let data_2 = handle_2.join().unwrap()?;
+        let data_1 = handle_1.join().unwrap()?;
+
+        // The vanilla file list is stored in a Vec format instead of a hashmap, because a vec can be splited,
+        // and that list is more than 100mb long in some games. Here we turn it back to HashMap and merge it.
+        let mut vanilla_files: HashMap<_,_> = data_1.1.into_par_iter().map(|file| (file.path_in_container_raw().to_owned(), file)).collect();
+        vanilla_files.par_extend(data_2.into_par_iter().map(|file| (file.path_in_container_raw().to_owned(), file)));
+
+        dependencies.build_date = data_1.0;
+        dependencies.vanilla_files = vanilla_files;
+        dependencies.vanilla_tables = data_3.0;
+        dependencies.vanilla_locs = data_3.1;
+        dependencies.vanilla_folders = data_3.2;
+        dependencies.asskit_only_db_tables = data_3.3;
+
+        // Only decode the tables if we passed a schema. If not, it's responsability of the user to decode them later.
+        if let Some(schema) = schema {
+            let mut decode_extra_data = DecodeableExtraData::default();
+            decode_extra_data.set_schema(Some(schema));
+            let extra_data = Some(decode_extra_data);
+
+            let mut files = dependencies.vanilla_locs.iter().chain(dependencies.vanilla_tables.values().flatten()).filter_map(|path| {
+                match dependencies.vanilla_files.remove(path) {
+                    Some(file) => Some((path.to_owned(), file)),
+                    None => None,
+                }
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            dependencies.vanilla_files.par_extend(files);
+        }
 
         Ok(dependencies)
     }
@@ -391,10 +436,32 @@ impl Dependencies {
         folder_path.pop();
         DirBuilder::new().recursive(true).create(&folder_path)?;
 
+        let mut file_path_1 = file_path.to_path_buf();
+        let mut file_path_2 = file_path.to_path_buf();
+        let mut file_path_3 = file_path.to_path_buf();
+
+        file_path_1.set_extension("pak1");
+        file_path_2.set_extension("pak2");
+        file_path_3.set_extension("pak3");
+
+        let mut file_1 = File::create(&file_path_1)?;
+        let mut file_2 = File::create(&file_path_2)?;
+        let mut file_3 = File::create(&file_path_3)?;
+
+        // Split the vanilla file's list in half and turn it into a vec, so it's faster when loading.
+        // NOTE: While the HashMap -> Vec conversion only keeping values thing is slower to read
+        // than serializing/loading the keys directly, it saves about 40mb of data on disk.
+        let mut vanilla_files_1 = self.vanilla_files.par_iter().map(|(_, b)| b.clone()).collect::<Vec<RFile>>();
+        let vanilla_files_2 = vanilla_files_1.split_off(self.vanilla_files.len() / 2);
+
         // Never serialize directly into the file. It's bloody slow!!!
-        let mut file = File::create(&file_path)?;
-        let serialized: Vec<u8> = bincode::serialize(&self)?;
-        file.write_all(&serialized).map_err(From::from)
+        let serialized_1: Vec<u8> = bincode::serialize(&(&self.build_date, &vanilla_files_1))?;
+        let serialized_2: Vec<u8> = bincode::serialize(&vanilla_files_2)?;
+        let serialized_3: Vec<u8> = bincode::serialize(&(&self.vanilla_tables, &self.vanilla_locs, &self.vanilla_folders, &self.asskit_only_db_tables))?;
+
+        file_1.write_all(&serialized_1).map_err(RLibError::from)?;
+        file_2.write_all(&serialized_2).map_err(RLibError::from)?;
+        file_3.write_all(&serialized_3).map_err(From::from)
     }
 
     /// This function is used to check if the game files used to generate the dependencies cache have changed, requiring an update.
@@ -448,6 +515,46 @@ impl Dependencies {
                     self.parent_files.extend(pack.files().clone());
                 }
             }
+        }
+    }
+
+    /// Function to force-decode all tables/locs in the dependencies.
+    ///
+    /// Many operations require them to be decoded, so if you did not decoded them on load, make sure to call this to decode them after load.
+    pub fn decode_tables(&mut self, schema: &Option<Schema>) {
+        if let Some(schema) = schema {
+
+            let mut decode_extra_data = DecodeableExtraData::default();
+            decode_extra_data.set_schema(Some(schema));
+            let extra_data = Some(decode_extra_data);
+
+            // Vanilla files.
+            let mut files = self.vanilla_locs.iter().chain(self.vanilla_tables.values().flatten()).filter_map(|path| {
+                match self.vanilla_files.remove(path) {
+                    Some(file) => Some((path.to_owned(), file)),
+                    None => None,
+                }
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.vanilla_files.par_extend(files);
+
+            // Parent files.
+            let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
+                match self.parent_files.remove(path) {
+                    Some(file) => Some((path.to_owned(), file)),
+                    None => None,
+                }
+            }).collect::<Vec<_>>();
+
+            files.par_iter_mut().for_each(|(_, file)| {
+                let _ = file.decode(&extra_data, true, false);
+            });
+
+            self.parent_files.par_extend(files);
         }
     }
 

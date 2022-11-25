@@ -24,6 +24,7 @@ use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Cursor, Read, Write};
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::thread;
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -31,7 +32,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::optimizer::OptimizableContainer;
 
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, RFile, RFileDecoded, text::*};
-use rpfm_lib::games::{LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
+use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
@@ -40,6 +41,7 @@ use crate::app_ui::NewPackedFile;
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
 use crate::locale::tr;
 use crate::packedfile_views::DataSource;
@@ -227,45 +229,49 @@ pub fn background_loop() {
                 }
             }
 
-            // In case we want to change the current `Game Selected`...
-            Command::SetGameSelected(game_selected) => {
+            Command::SetGameSelected(game_selected, rebuild_dependencies) => {
+                let game_changed = GAME_SELECTED.read().unwrap().game_key_name() != game_selected || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst);
                 *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&game_selected).unwrap();
                 let game = GAME_SELECTED.read().unwrap();
-                let t = std::time::SystemTime::now();
-                dbg!(t.elapsed().unwrap());
-                // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUILD IT AFTERWARDS.
-                let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
-                let extra_data = Some(EncodeableExtraData::default());
-                files.par_iter_mut().for_each(|file| {
-                    let _ = file.encode(&extra_data, true, true, false);
-                });
 
-                dbg!(t.elapsed().unwrap());
-                // Load the new schema...
-                let schema_path = schemas_path().unwrap().join(game.schema_file_name());
-
-                // Quick fix so we can load old schemas. To be removed once 4.0 lands.
-                let _ = Schema::update(&schema_path, &PathBuf::from("schemas/patches.ron"), &game.game_key_name());
-                *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
-                dbg!(SCHEMA.write().unwrap().is_some());
-                dbg!(t.elapsed().unwrap());
-
-                // Then use it to re-decode the new files.
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    //schema.save_json(&schema_path);
-                    let mut extra_data = DecodeableExtraData::default();
-                    extra_data.set_schema(Some(schema));
-                    let extra_data = Some(extra_data);
-                    files.par_iter_mut().for_each(|file| {
-                        let _ = file.decode(&extra_data, true, false);
+                // Optimisation: If we know we need to rebuild the whole dependencies, load them in another thread
+                // while we load the schema. That way we can speed-up the entire game-switching process.
+                //
+                // While this is fast, the rust compiler doesn't like the fact that we're moving out the dependencies,
+                // then moving them back in an if, so we need two branches of code, depending on if rebuild is true or not.
+                //
+                // Branch 1: dependencies rebuilt.
+                if rebuild_dependencies {
+                    let pack_dependencies = pack_file_decoded.dependencies().to_vec();
+                    let handle = thread::spawn(move || {
+                        let game_selected = GAME_SELECTED.read().unwrap();
+                        let game_path = setting_path(&game_selected.game_key_name());
+                        let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
+                        let file_path = if game_changed { Some(&*file_path) } else { None };
+                        let _ = dependencies.rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path);
+                        dependencies
                     });
+
+                    // Load the new schemas.
+                    load_schemas(&sender, &mut pack_file_decoded, &game);
+
+                    // Get the dependencies that were loading in parallel and send their info to the UI.
+                    dependencies = handle.join().unwrap();
+                    let dependencies_info = DependenciesInfo::from(&dependencies);
+                    CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
+
+                    // Decode the dependencies tables while the UI does its own thing.
+                    dependencies.decode_tables(&*SCHEMA.read().unwrap());
                 }
-                dbg!(t.elapsed().unwrap());
 
-                // Send a response, so we can unlock the UI.
-                CentralCommand::send_back(&sender, Response::Success);
+                // Branch 2: no dependecies rebuild.
+                else {
 
-                // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
+                    // Load the new schemas.
+                    load_schemas(&sender, &mut pack_file_decoded, &game);
+                };
+
+                // If there is a Pack open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.disk_file_path().is_empty() {
                     let pfh_file_type = *pack_file_decoded.header().pfh_file_type();
                     pack_file_decoded.header_mut().set_pfh_version(game.pfh_version_by_file_type(pfh_file_type));
@@ -274,36 +280,31 @@ pub fn background_loop() {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
-                dbg!(t.elapsed().unwrap());
             }
 
             // In case we want to generate the dependencies cache for our Game Selected...
             Command::GenerateDependenciesCache => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let game_selected = GAME_SELECTED.read().unwrap();
-                    let game_path = setting_path(&game_selected.game_key_name());
-                    let asskit_path = assembly_kit_path().ok();
+                let game_selected = GAME_SELECTED.read().unwrap();
+                let game_path = setting_path(&game_selected.game_key_name());
+                let asskit_path = assembly_kit_path().ok();
 
-                    if game_path.is_dir() {
-                        match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path) {
-                            Ok(mut cache) => {
-                                let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
-                                match cache.save(&dependencies_path) {
-                                    Ok(_) => {
-                                        let _ = dependencies.rebuild(schema, pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
-                                        let dependencies_info = DependenciesInfo::from(&dependencies);
-                                        CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
-                                }
+                if game_path.is_dir() {
+                    match Dependencies::generate_dependencies_cache(&game_selected, &game_path, &asskit_path) {
+                        Ok(mut cache) => {
+                            let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
+                            match cache.save(&dependencies_path) {
+                                Ok(_) => {
+                                    let _ = dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
+                                    let dependencies_info = DependenciesInfo::from(&dependencies);
+                                    CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
+                                },
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                             }
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
-                    } else {
-                        CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.")));
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
                 } else {
-                    CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
+                    CentralCommand::send_back(&sender, Response::Error(anyhow!("Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.")));
                 }
             }
 
@@ -1058,14 +1059,17 @@ pub fn background_loop() {
                                     let mut extra_data = DecodeableExtraData::default();
                                     extra_data.set_schema(Some(schema));
                                     let extra_data = Some(extra_data);
-                                    tables.par_iter_mut().for_each(|x| { let _ = x.decode(&extra_data, true, false); });
+
+                                    tables.par_iter_mut().for_each(|x| {
+                                        let _ = x.decode(&extra_data, true, false);
+                                    });
 
                                     // Then rebuild the dependencies stuff.
                                     if dependencies.is_vanilla_data_loaded(false) {
                                         let game_path = setting_path(&game.game_key_name());
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
-                                        match dependencies.rebuild(schema, pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
+                                        match dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                             Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
@@ -1179,50 +1183,47 @@ pub fn background_loop() {
             Command::GetMissingDefinitions => {
 
                 // Test to see if every DB Table can be decoded. This is slow and only useful when
-                // a new patch lands and you want to know what tables you need to decode. So, unless you want
-                // to decode new tables, leave the setting as false.
-                if setting_bool("check_for_missing_table_definitions") {
-                    let mut counter = 0;
-                    let mut table_list = String::new();
-                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        let mut extra_data = DecodeableExtraData::default();
-                        extra_data.set_schema(Some(schema));
-                        let extra_data = Some(extra_data);
+                // a new patch lands and you want to know what tables you need to decode.
+                let mut counter = 0;
+                let mut table_list = String::new();
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let mut extra_data = DecodeableExtraData::default();
+                    extra_data.set_schema(Some(schema));
+                    let extra_data = Some(extra_data);
 
-                        for packed_file in pack_file_decoded.files_by_type_mut(&[FileType::DB]) {
-                            if packed_file.decode(&extra_data, false, false).is_err() && packed_file.load().is_ok() {
-                                if let Ok(raw_data) = packed_file.cached() {
-                                    let mut reader = Cursor::new(raw_data);
-                                    if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
-                                        if entry_count > 0 {
-                                            counter += 1;
-                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.path_in_container_raw()))
-                                        }
+                    for packed_file in pack_file_decoded.files_by_type_mut(&[FileType::DB]) {
+                        if packed_file.decode(&extra_data, false, false).is_err() && packed_file.load().is_ok() {
+                            if let Ok(raw_data) = packed_file.cached() {
+                                let mut reader = Cursor::new(raw_data);
+                                if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
+                                    if entry_count > 0 {
+                                        counter += 1;
+                                        table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.path_in_container_raw()))
                                     }
                                 }
                             }
                         }
                     }
+                }
 
-                    // Try to save the file. And I mean "try". Someone seems to love crashing here...
-                    let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
+                // Try to save the file. And I mean "try". Someone seems to love crashing here...
+                let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
 
-                    if let Ok(file) = File::create(path) {
-                        let mut file = BufWriter::new(file);
-                        let _ = file.write_all(table_list.as_bytes());
-                    }
+                if let Ok(file) = File::create(path) {
+                    let mut file = BufWriter::new(file);
+                    let _ = file.write_all(table_list.as_bytes());
                 }
             }
 
             // Ignore errors for now.
             Command::RebuildDependencies(rebuild_only_current_mod_dependencies) => {
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                if SCHEMA.read().unwrap().is_some() {
                     let game_selected = GAME_SELECTED.read().unwrap();
                     let game_path = setting_path(&game_selected.game_key_name());
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
 
-                    let _ = dependencies.rebuild(schema, pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
+                    let _ = dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
                     let dependencies_info = DependenciesInfo::from(&dependencies);
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {
@@ -1732,4 +1733,34 @@ pub fn background_loop() {
             _ => {}
         }
     }
+}
+
+/// Function to simplify logic for changing game selected.
+fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
+
+    // Before loading the schema, make sure we don't have tables with definitions from the current schema.
+    let mut files = pack.files_by_type_mut(&[FileType::DB]);
+    let extra_data = Some(EncodeableExtraData::default());
+    files.par_iter_mut().for_each(|file| {
+        let _ = file.encode(&extra_data, true, true, false);
+    });
+
+    // Load the new schema.
+    let schema_path = schemas_path().unwrap().join(game.schema_file_name());
+    let _ = Schema::update(&schema_path, &PathBuf::from("schemas/patches.ron"), &game.game_key_name());         // Quick fix so we can load old schemas. To be removed once 4.0 lands.
+    *SCHEMA.write().unwrap() = Schema::load(&schema_path).ok();
+
+    // Redecode all the tables in the open file.
+    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+        let extra_data = Some(extra_data);
+
+        files.par_iter_mut().for_each(|file| {
+            let _ = file.decode(&extra_data, true, false);
+        });
+    }
+
+    // Send a response, so the UI continues working while we finish things here.
+    CentralCommand::send_back(&sender, Response::Success);
 }

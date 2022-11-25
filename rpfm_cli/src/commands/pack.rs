@@ -275,7 +275,7 @@ pub fn diagnose(config: &Config, game_path: &Path, pak_path: &Path, schema_path:
 
             // Build the dependencies cache for the game and generate the references for our specific Pack.
             let mut dependencies = Dependencies::default();
-            dependencies.rebuild(&schema, pack.dependencies(), Some(pak_path), game_info, game_path)?;
+            dependencies.rebuild(&Some(schema.clone()), pack.dependencies(), Some(pak_path), game_info, game_path)?;
             dependencies.generate_local_db_references(&pack, &tables);
 
             // Trigger a diagnostics check.
