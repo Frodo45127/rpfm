@@ -1543,7 +1543,7 @@ pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
         </ul>",
         info.pfh_version(),
         info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA),
-        NaiveDateTime::from_timestamp(*info.timestamp() as i64, 0)
+        NaiveDateTime::from_timestamp_opt(*info.timestamp() as i64, 0).unwrap()
     )
 }
 

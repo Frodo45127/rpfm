@@ -452,7 +452,7 @@ pub trait Container {
                     container_path.remove(0);
                 }
 
-                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path.clone()));
+                let mut rfiles = self.files_by_path_mut(&ContainerPath::Folder(container_path.clone()), false);
                 for rfile in &mut rfiles {
                     let container_path = rfile.path_in_container_raw();
                     let destination_path = if keep_container_path_structure {
@@ -831,12 +831,19 @@ pub trait Container {
     ///
     /// An special situation is passing `ContainerPath::Folder("")`. This represents the root of the container,
     /// meaning passing this will return all RFiles within the container.
-    fn files_by_path_mut(&mut self, path: &ContainerPath) -> Vec<&mut RFile> {
+    fn files_by_path_mut(&mut self, path: &ContainerPath, case_insensitive: bool) -> Vec<&mut RFile> {
         match path {
             ContainerPath::File(path) => {
-                match self.files_mut().get_mut(path) {
-                    Some(file) => vec![file],
-                    None => vec![],
+                if case_insensitive {
+                    match self.files_mut().par_iter_mut().find_map_first(|(path_file, file)| if caseless::canonical_caseless_match_str(path, path_file) { Some(file) } else { None }) {
+                        Some(file) => vec![file],
+                        None => vec![],
+                    }
+                } else {
+                    match self.files_mut().get_mut(path) {
+                        Some(file) => vec![file],
+                        None => vec![],
+                    }
                 }
             },
             ContainerPath::Folder(path) => {
@@ -850,7 +857,13 @@ pub trait Container {
                 else {
                     self.files_mut().par_iter_mut()
                         .filter_map(|(key, file)|
-                            if key.starts_with(path) { Some(file) } else { None }
+                            if case_insensitive {
+                                if starts_with_case_insensitive(key, path) { Some(file) } else { None }
+                            } else if key.starts_with(path) {
+                                Some(file)
+                            } else {
+                                None
+                            }
                         ).collect::<Vec<&mut RFile>>()
                 }
             },
@@ -867,14 +880,26 @@ pub trait Container {
     /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath].
     ///
     /// Use this instead of [files_by_path_mut](Self::files_by_path_mut) if you need to get mutable references to multiple files on different [ContainerPath].
-    fn files_by_paths_mut(&mut self, paths: &[ContainerPath]) -> Vec<&mut RFile> {
+    fn files_by_paths_mut(&mut self, paths: &[ContainerPath], case_insensitive: bool) -> Vec<&mut RFile> {
         self.files_mut()
             .iter_mut()
             .filter(|(file_path, _)| {
                 paths.iter().any(|path| {
                     match path {
-                        ContainerPath::File(path) => file_path == &path,
-                        ContainerPath::Folder(path) => file_path.starts_with(path),
+                        ContainerPath::File(path) => {
+                            if case_insensitive {
+                                caseless::canonical_caseless_match_str(file_path, path)
+                            } else {
+                                file_path == &path
+                            }
+                        }
+                        ContainerPath::Folder(path) => {
+                            if case_insensitive {
+                                starts_with_case_insensitive(file_path, path)
+                            } else {
+                                file_path.starts_with(path)
+                            }
+                        }
                     }
                 })
             })
@@ -895,8 +920,8 @@ pub trait Container {
 
     /// This method returns a mutable reference to the RFiles inside the provided Container that match the provided [ContainerPath]
     /// and are of one of the provided [FileType].
-    fn files_by_type_and_paths_mut(&mut self, file_types: &[FileType], paths: &[ContainerPath]) -> Vec<&mut RFile> {
-        self.files_by_paths_mut(paths).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
+    fn files_by_type_and_paths_mut(&mut self, file_types: &[FileType], paths: &[ContainerPath], case_insensitive: bool) -> Vec<&mut RFile> {
+        self.files_by_paths_mut(paths, case_insensitive).into_iter().filter(|file| file_types.contains(&file.file_type())).collect()
     }
 
     /// This method returns the list of folders conntained within the Container.

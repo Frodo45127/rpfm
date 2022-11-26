@@ -855,7 +855,7 @@ impl Pack {
         let mut multiple_defensive_hill_hints = false;
 
         // We only need to change stuff inside the map folder, so we only check the maps in that folder.
-        for file in self.files_by_path_mut(&ContainerPath::Folder(TERRY_MAP_PATH.to_owned())) {
+        for file in self.files_by_path_mut(&ContainerPath::Folder(TERRY_MAP_PATH.to_owned()), true) {
             let path = file.path_in_container_raw();
             let name = &path[path.rfind('/').unwrap_or(0)..];
 

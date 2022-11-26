@@ -28,7 +28,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::git::GitResponse;
-use rpfm_lib::schema::{Definition, Schema};
+use rpfm_lib::schema::{Definition, Field, Schema};
 
 use crate::app_ui::NewPackedFile;
 use crate::backend::*;
@@ -288,8 +288,8 @@ pub enum Command {
     /// This command is used to rebuild the dependencies of a PackFile. The bool is for rebuilding the whole dependencies, or just the mod-specific ones.
     RebuildDependencies(bool),
 
-    // This command is used to trigger a cascade edition on all referenced data.
-    //CascadeEdition(CascadeEdition),
+    /// This command is used to trigger a cascade edition on all referenced data.
+    CascadeEdition(String, Definition, Vec<(Field, String, String)>),
 
     /// This command is used for the Go To Definition feature. Contains table, column, and value to search.
     GoToDefinition(String, String, String),
@@ -518,6 +518,7 @@ pub enum Response {
     HashSetString(HashSet<String>),
     StringHashSetString(String, HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
+    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>)
 }
 
 //-------------------------------------------------------------------------------//

@@ -13,7 +13,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use encoding_rs::{ISO_8859_15, UTF_16LE};
 
-use std::{char::decode_utf16, io::{Read, Seek, SeekFrom}};
+use std::io::{Read, Seek, SeekFrom};
 
 use crate::error::{Result, RLibError};
 

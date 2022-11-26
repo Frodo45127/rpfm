@@ -481,7 +481,7 @@ pub fn background_loop() {
                     decode_extra_data.set_schema(Some(schema));
                     let extra_data = Some(decode_extra_data);
 
-                    pack_file_decoded.files_by_paths_mut(&added_paths).par_iter_mut().for_each(|x| {
+                    pack_file_decoded.files_by_paths_mut(&added_paths, false).par_iter_mut().for_each(|x| {
                         let _ = x.decode(&extra_data, true, false);
                     });
                 }
@@ -920,7 +920,7 @@ pub fn background_loop() {
 
             // In case we want to clean the cache of one or more PackedFiles...
             Command::CleanCache(paths) => {
-                let mut files = pack_file_decoded.files_by_paths_mut(&paths);
+                let mut files = pack_file_decoded.files_by_paths_mut(&paths, false);
                 files.iter_mut().for_each(|file| {
                     let _ = file.encode(&None, true, true, false);
                 });
@@ -1230,13 +1230,15 @@ pub fn background_loop() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
                 }
             },
-            /*
-            Command::CascadeEdition(editions) => {
-                let edited_paths = DB::cascade_edition(&editions, &mut pack_file_decoded);
-                let edited_paths_2 = edited_paths.iter().map(|x| &**x).collect::<Vec<&[String]>>();
-                let packed_files_info = pack_file_decoded.get_ref_packed_files_by_paths(edited_paths_2).iter().map(|x| RFileInfo::from(*x)).collect::<Vec<RFileInfo>>();
-                CentralCommand::send_back(&sender, Response::VecVecStringVecRFileInfo(edited_paths, packed_files_info));
-            }*/
+
+            Command::CascadeEdition(table_name, definition, changes) => {
+                let edited_paths = changes.iter().map(|(field, value_before, value_after)| {
+                    DB::cascade_edition(&mut pack_file_decoded, &*SCHEMA.read().unwrap(), &table_name, &field, &definition, &value_before, &value_after)
+                }).flatten().collect::<Vec<_>>();
+
+                let packed_files_info = pack_file_decoded.files_by_paths(&edited_paths, false).into_par_iter().map(From::from).collect();
+                CentralCommand::send_back(&sender, Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info));
+            }
 
             Command::GoToDefinition(ref_table, ref_column, ref_data) => {
                 let table_name = format!("{}_tables", ref_table);

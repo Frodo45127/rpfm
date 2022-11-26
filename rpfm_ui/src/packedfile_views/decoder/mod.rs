@@ -53,7 +53,6 @@ use cpp_core::CppBox;
 
 use anyhow::{anyhow, Result};
 use getset::Getters;
-use rayon::prelude::*;
 
 use std::collections::BTreeMap;
 use std::io::{Cursor, Seek, SeekFrom};

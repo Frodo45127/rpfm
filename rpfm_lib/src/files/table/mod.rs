@@ -433,6 +433,16 @@ impl Table {
         &self.definition_patch
     }
 
+    /// This function returns a mutable reference to the data of the table.
+    ///
+    /// Note that using this makes you responsible of keeping the structure of the table "valid".
+    pub fn data_mut(&mut self) -> Result<&mut Vec<Vec<DecodedData>>> {
+        match &mut self.table_data {
+            TableData::Local(data) => Ok(data),
+            TableData::Sql(_) => unimplemented!(),
+        }
+    }
+
     /// This function returns the position of a column in a definition before sorting, or None if the column is not found.
     pub fn column_position_by_name(&self, column_name: &str) -> Option<usize> {
         self.definition().column_position_by_name(column_name)
@@ -1385,11 +1395,12 @@ impl Table {
         Ok(query)
     }*/
 
-    /// This function returns the list of table/columns that reference the provided columns, and if there may be a loc entry that changing our column may need a change.
+    /// This function returns the list of table/columns that reference the provided columns,
+    /// and if there may be a loc entry that changing our column may need a change.
     ///
     /// This supports more than one reference level, except for locs.
     /// TODO: Make loc editions be as deep as needed.
-    pub fn tables_and_columns_referencing_our_own(schema_option: &Option<Schema>, table_name: &str, column_name: &str, definition: &Definition) -> Option<(BTreeMap<String, Vec<String>>, bool)> {
+    pub fn tables_and_columns_referencing_our_own(schema_option: &Option<Schema>, table_name: &str, column_name: &str, fields: &[Field], localised_fields: &[Field]) -> Option<(BTreeMap<String, Vec<String>>, bool)> {
         if let Some(ref schema) = *schema_option {
 
             // Make sure the table name is correct.
@@ -1400,7 +1411,9 @@ impl Table {
             for (ref_table_name, ref_definition) in schema.definitions() {
                 let mut columns: Vec<String> = vec![];
                 for ref_version in ref_definition {
-                    for ref_field in ref_version.fields_processed() {
+                    let ref_fields = ref_version.fields_processed();
+                    let ref_fields_localised = ref_version.localised_fields();
+                    for ref_field in &ref_fields {
                         if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference() {
 
                             // As this applies to all versions of a table, skip repeated fields.
@@ -1408,7 +1421,7 @@ impl Table {
                                 columns.push(ref_field.name().to_owned());
 
                                 // If we find a referencing column, get recursion working to check if there is any column referencing this one that needs to be edited.
-                                if let Some((ref_of_ref, _)) = Self::tables_and_columns_referencing_our_own(schema_option, ref_table_name, ref_field.name(), ref_version) {
+                                if let Some((ref_of_ref, _)) = Self::tables_and_columns_referencing_our_own(schema_option, ref_table_name, ref_field.name(), &ref_fields, ref_fields_localised) {
                                     for refs in &ref_of_ref {
                                         match tables.get_mut(refs.0) {
                                             Some(columns) => for value in refs.1 {
@@ -1432,8 +1445,8 @@ impl Table {
             }
 
             // Also, check if we have to be careful about localised fields.
-            let has_loc_fields = if let Some(field) = definition.fields_processed().iter().find(|x| x.name() == column_name) {
-                (field.is_key() || field.name() == "key") && !definition.localised_fields().is_empty()
+            let has_loc_fields = if let Some(field) = fields.iter().find(|x| x.name() == column_name) {
+                (field.is_key() || field.name() == "key") && !localised_fields.is_empty()
             } else { false };
 
             Some((tables, has_loc_fields))

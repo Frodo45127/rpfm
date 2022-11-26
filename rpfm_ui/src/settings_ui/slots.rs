@@ -24,7 +24,6 @@ use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QBox;
-use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::SlotNoArgs;
 

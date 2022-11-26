@@ -255,7 +255,7 @@ impl GlobalSearch {
 
                 if self.search_on_texts {
                     let mut files = if !update_paths.is_empty() {
-                        pack.files_by_type_and_paths_mut(&[FileType::Text], &update_paths)
+                        pack.files_by_type_and_paths_mut(&[FileType::Text], &update_paths, false)
                     } else {
                         pack.files_by_type_mut(&[FileType::Text])
                     };
@@ -455,7 +455,7 @@ impl GlobalSearch {
             match match_file {
                 MatchHolder::Table(search_matches) => {
                     let container_path = ContainerPath::Folder(search_matches.path().to_string());
-                    let mut file = pack.files_by_path_mut(&container_path);
+                    let mut file = pack.files_by_path_mut(&container_path, false);
                     if let Some(file) = file.get_mut(0) {
                         if let Ok(decoded) = file.decoded_mut() {
                             let edited = match decoded {

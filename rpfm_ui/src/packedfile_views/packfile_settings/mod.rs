@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::{FileType, pack::PackSettings};
+use rpfm_lib::files::pack::PackSettings;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;

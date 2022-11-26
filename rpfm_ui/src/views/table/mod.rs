@@ -2389,7 +2389,7 @@ dbg!(t.elapsed().unwrap());
         self.timer_delayed_updates.stop();
 
         // We only want to do this for tables we can identify.
-        let edited_table_name = if let Some(table_name) = self.table_name() { table_name.to_lowercase() } else { return };
+        let table_name = if let Some(table_name) = self.table_name() { table_name.to_lowercase() } else { return };
 
         // Get the selected indexes.
         let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
@@ -2408,89 +2408,44 @@ dbg!(t.elapsed().unwrap());
 
             // Stop the timer again.
             self.timer_delayed_updates.stop();
-            /*
-            // Initialize our cascade editions.
-            let mut cascade_editions = CascadeEdition::default();
-            cascade_editions.set_edited_table_name(edited_table_name);
-            cascade_editions.set_edited_table_definition(self.get_ref_table_definition().clone());
-
-            // Get the tables/rows that need to be edited.
-            let schema = SCHEMA.read().unwrap();
-            let edited_fields_processed = cascade_editions.get_ref_edited_table_definition().fields_processed();
-            editions.into_iter().for_each(|(old_data, new_data, _, column)| {
-                match cascade_editions.get_ref_mut_data_changes().get_mut(&(column as u32)) {
-                    Some(data_changed) => data_changed.push((old_data, new_data)),
-                    None => {
-                        let data_changed = vec![(old_data, new_data)];
-                        cascade_editions.get_ref_mut_data_changes().insert(column as u32, data_changed);
-
-                        if let Some(field) = edited_fields_processed.get(column as usize) {
-                            if let Some(results) = Table::get_tables_and_columns_referencing_our_own(
-                                &schema,
-                                cascade_editions.get_ref_edited_table_name(),
-                                field.get_name(),
-                                cascade_editions.get_ref_edited_table_definition()
-                            ){
-                                cascade_editions.get_ref_mut_referenced_tables().insert(column as u32, results);
-                            }
-                        }
-                    },
-                }
-            });*/
 
             // Now that we know what to edit, save all views of referencing files, so we only have to deal with them in the background.
-            /*UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).for_each(|packed_file_view| {
+            let _ = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui);
 
-                // Check for tables.
-                if let Some(folder) = packed_file_view.get_path().get(0) {
-                    if folder.to_lowercase() == "db" {
-                        if let Some(table_name) = packed_file_view.get_path().get(1) {
-                            if cascade_editions.get_ref_referenced_tables().values().any(|x| x.0.contains_key(table_name)) {
-                                let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
-                            }
-                        }
-                    }
-                }
-
-                // Check for locs.
-                else if cascade_editions.get_ref_referenced_tables().values().any(|x| x.1) {
-                    if let Some(file) = packed_file_view.get_path().last() {
-                        if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
-                            let _ = packed_file_view.save(app_ui, pack_file_contents_ui);
-                        }
-                    }
-                }
-            });*/
-            /*
             // Then ask the backend to do the heavy work.
-            let receiver = CENTRAL_COMMAND.send_background(Command::CascadeEdition(cascade_editions));
+            let definition = self.table_definition().clone();
+            let fields_processed = definition.fields_processed();
+            let changes = editions.iter().map(|(value_before, value_after, _, column)|
+                (fields_processed[*column as usize].clone(), value_before.to_string(), value_after.to_string()))
+                .collect::<Vec<_>>();
+
+            let receiver = CENTRAL_COMMAND.send_background(Command::CascadeEdition(table_name, definition, changes));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::VecVecStringVecRFileInfo(edited_paths, packed_files_info) => {
+                Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info) => {
 
                     // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
-                    let edited_path_types = edited_paths.iter().map(|x| ContainerPath::File(x.to_vec())).collect::<Vec<ContainerPath>>();
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(edited_path_types.to_vec()), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_path_types), DataSource::PackFile);
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(edited_paths.to_vec()), DataSource::PackFile);
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
                     // Before finishing, reload all edited views.
                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                     edited_paths.iter().for_each(|path| {
-                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                            if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == path.path_raw() && x.get_data_source() == DataSource::PackFile) {
+                            if packed_file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
+                                let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
                             }
                         }
                     });
 
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.main_window().set_enabled(true);
 
                     // Now it's safe to trigger the timer.
                     self.start_delayed_updates_timer();
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }*/
+            }
         }
 
         // If we didn't do anything, but we cut a timer, continue it.

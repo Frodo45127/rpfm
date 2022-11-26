@@ -12,13 +12,11 @@
 This module contains the code to load the icons used in the `TreeView`.
 !*/
 
-use qt_gui::QStandardItem;
 use qt_gui::QIcon;
 
 use qt_core::QString;
 
 use cpp_core::Ref;
-use rpfm_lib::files::FileType;
 
 use std::sync::atomic::AtomicPtr;
 

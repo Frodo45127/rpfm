@@ -18,6 +18,11 @@
 //!
 //! # TODO: Write some examples.
 
+// Disabled `Clippy` linters, with the reasons why they were disabled.
+#![allow(
+    clippy::too_many_arguments              // Disabled because it gets annoying really quick.
+)]
+
 pub mod binary;
 pub mod compression;
 pub mod encryption;
