@@ -1131,7 +1131,7 @@ pub fn background_loop() {
             }
 
             // In case we want to perform a diagnostics check...
-            Command::DiagnosticsCheck => {
+            Command::DiagnosticsCheck(diagnostics_ignored) => {
                 let game_selected = GAME_SELECTED.read().unwrap().clone();
                 let game_path = setting_path(&game_selected.game_key_name());
                 let schema = SCHEMA.read().unwrap().clone();
@@ -1145,6 +1145,8 @@ pub fn background_loop() {
                         mut dependencies,
                         mut pack_file_decoded => move || {
                         let mut diagnostics = Diagnostics::default();
+                        *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
+
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
                             diagnostics.check(&pack_file_decoded, &mut dependencies, &game_selected, &game_path, &[], &schema);

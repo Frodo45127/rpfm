@@ -83,9 +83,6 @@ pub enum Command {
     /// This command is used when we want to save our currently open `PackFile` as another `PackFile`.
     SavePackFileAs(PathBuf),
 
-    /// This command is used when we want to save our settings to disk. It requires the settings to save.
-    //SetSettings(Settings),
-
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,
 
@@ -271,7 +268,7 @@ pub enum Command {
     TriggerBackupAutosave,
 
     /// This command is used to trigger a full diagnostics check over the open PackFile.
-    DiagnosticsCheck,
+    DiagnosticsCheck(Vec<String>),
 
     // This command is used to trigger a partial diagnostics check over the open PackFile.
     DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>),

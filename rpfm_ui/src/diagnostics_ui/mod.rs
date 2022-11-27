@@ -472,8 +472,8 @@ impl DiagnosticsUI {
         }
 
         app_ui.menu_bar_packfile().set_enabled(false);
-
-        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck);
+        let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
+        let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored));
         let response = CentralCommand::recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
 
@@ -500,7 +500,9 @@ impl DiagnosticsUI {
 
         app_ui.menu_bar_packfile().set_enabled(false);
 
-        let diagnostics = UI_STATE.get_diagnostics();
+        let mut diagnostics = UI_STATE.get_diagnostics();
+        *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
+
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
         let response = CentralCommand::recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
@@ -1507,5 +1509,87 @@ impl DiagnosticsUI {
         for item in items {
             item.set_tool_tip(&tool_tip);
         }
+    }
+
+    unsafe fn diagnostics_ignored(&self) -> Vec<String> {
+
+        let mut diagnostics_ignored = vec![];
+        if !self.checkbox_outdated_table.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::OutdatedTable.to_string());
+        }
+        if !self.checkbox_invalid_reference.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::InvalidReference(String::new(), String::new()).to_string());
+        }
+        if !self.checkbox_empty_row.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::EmptyRow.to_string());
+        }
+        if !self.checkbox_empty_key_field.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::EmptyKeyField(String::new()).to_string());
+        }
+        if !self.checkbox_empty_key_fields.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::EmptyKeyFields.to_string());
+        }
+        if !self.checkbox_duplicated_combined_keys.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::DuplicatedCombinedKeys(String::new()).to_string());
+        }
+        if !self.checkbox_no_reference_table_found.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableFound(String::new()).to_string());
+        }
+        if !self.checkbox_no_reference_table_nor_column_found_pak.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(String::new()).to_string());
+        }
+        if !self.checkbox_no_reference_table_nor_column_found_no_pak.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()).to_string());
+        }
+        if !self.checkbox_invalid_escape.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::InvalidEscape.to_string());
+        }
+        if !self.checkbox_duplicated_row.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::DuplicatedRow(String::new()).to_string());
+        }
+        if !self.checkbox_invalid_loc_key.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::InvalidLocKey.to_string());
+        }
+        if !self.checkbox_table_name_ends_in_number.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::TableNameEndsInNumber.to_string());
+        }
+        if !self.checkbox_table_name_has_space.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::TableNameHasSpace.to_string());
+        }
+        if !self.checkbox_table_is_datacoring.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::TableIsDataCoring.to_string());
+        }
+        if !self.checkbox_field_with_path_not_found.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::FieldWithPathNotFound(vec![]).to_string());
+        }
+        if !self.checkbox_banned_table.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::BannedTable.to_string());
+        }
+        if !self.checkbox_value_cannot_be_empty.is_checked() {
+            diagnostics_ignored.push(TableDiagnosticReportType::ValueCannotBeEmpty(String::new()).to_string());
+        }
+
+        if !self.checkbox_invalid_dependency_packfile.is_checked() {
+            diagnostics_ignored.push(DependencyDiagnosticReportType::InvalidDependencyPackName(String::new()).to_string());
+        }
+
+        if !self.checkbox_dependencies_cache_not_generated.is_checked() {
+            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheNotGenerated.to_string());
+        }
+        if !self.checkbox_dependencies_cache_outdated.is_checked() {
+            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheOutdated.to_string());
+        }
+        if !self.checkbox_dependencies_cache_could_not_be_loaded.is_checked() {
+            diagnostics_ignored.push(ConfigDiagnosticReportType::DependenciesCacheCouldNotBeLoaded(String::new()).to_string());
+        }
+        if !self.checkbox_incorrect_game_path.is_checked() {
+            diagnostics_ignored.push(ConfigDiagnosticReportType::IncorrectGamePath.to_string());
+        }
+
+        if !self.checkbox_invalid_packfile_name.is_checked() {
+            diagnostics_ignored.push(PackDiagnosticReportType::InvalidPackName(String::new()).to_string());
+        }
+
+        diagnostics_ignored
     }
 }

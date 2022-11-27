@@ -242,6 +242,7 @@ impl Diagnostics {
                     FileType::AnimFragment => Self::check_anim_fragment(
                         file,
                         dependencies,
+                        &self.diagnostics_ignored,
                         &ignored_fields,
                         &ignored_diagnostics,
                         &ignored_diagnostics_for_fields,
@@ -262,6 +263,7 @@ impl Diagnostics {
                         Self::check_db(
                             file,
                             dependencies,
+                            &self.diagnostics_ignored,
                             &ignored_fields,
                             &ignored_diagnostics,
                             &ignored_diagnostics_for_fields,
@@ -272,7 +274,7 @@ impl Diagnostics {
                             &table_references,
                         )
                     },
-                    FileType::Loc => Self::check_loc(file, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                    FileType::Loc => Self::check_loc(file, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
                     _ => None,
                 };
 
@@ -309,8 +311,9 @@ impl Diagnostics {
     fn check_db(
         file: &RFile,
         dependencies: &Dependencies,
+        global_ignored_diagnostics: &[String],
         ignored_fields: &[String],
-        ignored_diagnostics: &[String],
+        ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         game_info: &GameInfo,
         schema: &Schema,
@@ -322,7 +325,7 @@ impl Diagnostics {
             let mut diagnostic = TableDiagnostic::new(file.path_in_container_raw());
 
             // Before anything else, check if the table is outdated.
-            if !Self::ignore_diagnostic(None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("OutdatedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                 if Self::is_table_outdated(table.table_name(), *table.definition().version(), dependencies) {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::OutdatedTable, &[]);
                     diagnostic.results_mut().push(result);
@@ -330,7 +333,7 @@ impl Diagnostics {
             }
 
             // Check if it's one of the banned tables for the game selected.
-            if !Self::ignore_diagnostic(None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("BannedTable"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                 if game_info.is_file_banned(file.path_in_container_raw()) {
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::BannedTable, &[]);
                     diagnostic.results_mut().push(result);
@@ -339,7 +342,7 @@ impl Diagnostics {
 
             // Check if the table name has a number at the end, which causes very annoying bugs.
             if let Some(name) = file.file_name() {
-                if !Self::ignore_diagnostic(None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameEndsInNumber"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if name.ends_with('0') ||
                         name.ends_with('1') ||
                         name.ends_with('2') ||
@@ -356,14 +359,14 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(None, Some("TableNameHasSpace"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableNameHasSpace"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if name.contains(' ') {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::TableNameHasSpace, &[]);
                         diagnostic.results_mut().push(result);
                     }
                 }
 
-                if !Self::ignore_diagnostic(None, Some("TableIsDataCoring"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableIsDataCoring"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     match game_info.vanilla_db_table_name_logic() {
                         VanillaDBTableNameLogic::FolderName => {
                             if table.table_name_without_tables() == file.path_in_container_split()[2] {
@@ -384,6 +387,7 @@ impl Diagnostics {
 
             // Check all the columns with reference data.
             let fields_processed = table.definition().fields_processed();
+            let key_amount = fields_processed.iter().filter(|field| field.is_key()).count();
             let table_data = table.data(&None).ok()?;
             let mut columns_without_reference_table = vec![];
             let mut columns_with_reference_table_and_no_column = vec![];
@@ -399,7 +403,7 @@ impl Diagnostics {
                     let cell_data = cells[column].data_to_string();
 
                     // Path checks.
-                    if !Self::ignore_diagnostic(Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         if !cell_data.is_empty() {
                             if fields_processed[column].is_filename() {
                                 let mut path_found = false;
@@ -456,7 +460,7 @@ impl Diagnostics {
                     }
 
                     // Dependency checks.
-                    if !Self::ignore_diagnostic(Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), None, ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         if field.is_reference().is_some() {
                             match dependency_data.get(&(column as i32)) {
                                 Some(ref_data) => {
@@ -482,7 +486,7 @@ impl Diagnostics {
                                         // Numeric cells with 0 are "empty" references and should not be checked.
                                         let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64;
                                         let is_valid_reference = if is_number { cell_data != "0" } else { true };
-                                        if !Self::ignore_diagnostic(Some(field.name()), Some("InvalidReference"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && is_valid_reference {
+                                        if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidReference"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) && is_valid_reference {
                                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)]);
                                             diagnostic.results_mut().push(result);
                                         }
@@ -506,14 +510,14 @@ impl Diagnostics {
                         row_keys_are_empty = false;
                     }
 
-                    if !Self::ignore_diagnostic(Some(field.name()), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        if field.is_key() && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                        if field.is_key() && key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)]);
                             diagnostic.results_mut().push(result);
                         }
                     }
 
-                    if !Self::ignore_diagnostic(Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         if cell_data.is_empty() && field.cannot_be_empty(schema_patches) {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)]);
                             diagnostic.results_mut().push(result);
@@ -525,14 +529,14 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if row_is_empty {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
                         diagnostic.results_mut().push(result);
                     }
                 }
 
-                if !Self::ignore_diagnostic(None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if row_keys_are_empty {
                         let cells_affected = row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>();
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected);
@@ -540,7 +544,7 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(None, Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("DuplicatedCombinedKeys"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
 
                     // If this returns something, it means there is a duplicate.
                     let combined_keys = row_keys.values().join("| |");
@@ -567,7 +571,7 @@ impl Diagnostics {
             }
 
             // Checks that only need to be done once per table.
-            if !Self::ignore_diagnostic(None, Some("NoReferenceTableFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+            if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                 for column in &columns_without_reference_table {
                     let field_name = fields_processed[*column as usize].name().to_string();
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableFound(field_name), &[(-1, *column as i32)]);
@@ -576,13 +580,13 @@ impl Diagnostics {
             }
             for column in &columns_with_reference_table_and_no_column {
                 if !dependencies.is_asskit_data_loaded() {
-                    if !Self::ignore_diagnostic(None, Some("NoReferenceTableNorColumnFoundNoPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundNoPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         let field_name = fields_processed[*column as usize].name().to_string();
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name), &[(-1, *column as i32)]);
                         diagnostic.results_mut().push(result);
                     }
                 }
-                else if !Self::ignore_diagnostic(None, Some("NoReferenceTableNorColumnFoundPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                else if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     let field_name = fields_processed[*column as usize].name().to_string();
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name), &[(-1, *column as i32)]);
                     diagnostic.results_mut().push(result);
@@ -599,8 +603,9 @@ impl Diagnostics {
     fn check_anim_fragment(
         file: &RFile,
         dependencies: &Dependencies,
+        global_ignored_diagnostics: &[String],
         ignored_fields: &[String],
-        ignored_diagnostics: &[String],
+        ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
         local_path_list: &HashSet<&str>,
         local_folder_list: &HashSet<String>,
@@ -614,7 +619,7 @@ impl Diagnostics {
                 for (column, field) in fields_processed.iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
 
-                    if !Self::ignore_diagnostic(Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                    if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("FieldWithPathNotFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                         if !cell_data.is_empty() {
                             if fields_processed[column].is_filename() {
                                 let mut path_found = false;
@@ -664,8 +669,9 @@ impl Diagnostics {
     /// This function takes care of checking the loc tables of your mod for errors.
     fn check_loc(
         file: &RFile,
+        global_ignored_diagnostics: &[String],
         ignored_fields: &[String],
-        ignored_diagnostics: &[String],
+        ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
     ) ->Option<DiagnosticType> {
         if let Ok(RFileDecoded::Loc(table)) = file.decoded() {
@@ -682,7 +688,7 @@ impl Diagnostics {
                 let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
-                if !Self::ignore_diagnostic(Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if !key.is_empty() && (key.contains('\n') || key.contains('\t')) {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)]);
                         diagnostic.results_mut().push(result);
@@ -690,8 +696,8 @@ impl Diagnostics {
                 }
 
                 // Only in case none of the two columns are ignored, we perform these checks.
-                if !Self::ignore_diagnostic(Some(field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
-                    !Self::ignore_diagnostic(Some(field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) &&
+                    !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("EmptyRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
 
                     if key.is_empty() && data.is_empty() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)]);
@@ -699,7 +705,7 @@ impl Diagnostics {
                     }
                 }
 
-                if !Self::ignore_diagnostic(Some(field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyKeyField"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if key.is_empty() && !data.is_empty() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)]);
                         diagnostic.results_mut().push(result);
@@ -707,14 +713,14 @@ impl Diagnostics {
                 }
 
                 // Magic Regex. It works. Don't ask why.
-                if !Self::ignore_diagnostic(Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("InvalidEscape"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)]);
                         diagnostic.results_mut().push(result);
                     }
                 }
 
-                if !Self::ignore_diagnostic(Some(field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
+                if !Self::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("DuplicatedRow"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                     let mut row_keys: BTreeMap<i32, String> = BTreeMap::new();
                     row_keys.insert(0, key.to_owned());
                     row_keys.insert(1, data.to_owned());
@@ -815,18 +821,14 @@ impl Diagnostics {
             Some(DiagnosticType::Config(diagnostic))
         } else { None }
     }
-/*
-
-    /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.
-    pub fn get_update_paths_packed_file_info(&self, pack_file: &PackFile, paths: &[PathType]) -> Vec<PackedFileInfo> {
-        let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect();
-        let packed_files = pack_file.get_ref_packed_files_by_paths(paths);
-        packed_files.iter().map(|x| From::from(*x)).collect()
-    }*/
 
     /// Function to know if an specific field/diagnostic must be ignored.
-    fn ignore_diagnostic(field_name: Option<&str>, diagnostic: Option<&str>, ignored_fields: &[String], ignored_diagnostics: &[String], ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>) -> bool {
+    fn ignore_diagnostic(global_ignored_diagnostics: &[String], field_name: Option<&str>, diagnostic: Option<&str>, ignored_fields: &[String], ignored_diagnostics: &HashSet<String>, ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>) -> bool {
         let mut ignore_diagnostic = false;
+
+        if let Some(diagnostic) = diagnostic {
+            return global_ignored_diagnostics.iter().any(|x| x == diagnostic);
+        }
 
         // If we have a field, and it's in the ignored list, ignore it.
         if let Some(field_name) = field_name {
@@ -835,7 +837,7 @@ impl Diagnostics {
 
         // If we have a diagnostic, and it's in the ignored list, ignore it.
         else if let Some(diagnostic) = diagnostic {
-            ignore_diagnostic = ignored_diagnostics.iter().any(|x| x == diagnostic);
+            ignore_diagnostic = ignored_diagnostics.get(diagnostic).is_some();
         }
 
         // If we have not yet being ignored, check for specific diagnostics for specific fields.
@@ -853,9 +855,9 @@ impl Diagnostics {
     }
 
     /// Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
-    fn ignore_data_for_file(file: &RFile, files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>) -> Option<(Vec<String>, Vec<String>, HashMap<String, Vec<String>>)> {
+    fn ignore_data_for_file(file: &RFile, files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>) -> Option<(Vec<String>, HashSet<String>, HashMap<String, Vec<String>>)> {
         let mut ignored_fields = vec![];
-        let mut ignored_diagnostics = vec![];
+        let mut ignored_diagnostics = HashSet::new();
         let mut ignored_diagnostics_for_fields: HashMap<String, Vec<String>> = HashMap::new();
         if let Some(ref files_to_ignore) = files_to_ignore {
             for (path_to_ignore, fields, diags_to_ignore) in files_to_ignore {
@@ -884,7 +886,7 @@ impl Diagnostics {
                     }
 
                     else if !diags_to_ignore.is_empty() {
-                        ignored_diagnostics.append(&mut diags_to_ignore.to_vec());
+                        ignored_diagnostics.extend(diags_to_ignore.to_vec());
                     }
                 }
             }
