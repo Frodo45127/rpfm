@@ -325,7 +325,7 @@ impl DiagnosticsUI {
         checkbox_table_is_datacoring.set_checked(true);
         checkbox_dependencies_cache_outdated.set_checked(true);
         checkbox_dependencies_cache_could_not_be_loaded.set_checked(true);
-        checkbox_field_with_path_not_found.set_checked(true);
+        checkbox_field_with_path_not_found.set_checked(false);
         checkbox_incorrect_game_path.set_checked(true);
         checkbox_banned_table.set_checked(true);
         checkbox_value_cannot_be_empty.set_checked(true);
