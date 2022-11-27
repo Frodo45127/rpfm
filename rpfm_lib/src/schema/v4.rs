@@ -63,6 +63,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use rayon::prelude::*;
 use ron::de::from_bytes;
 use serde_derive::{Serialize, Deserialize};
 
@@ -228,6 +229,21 @@ impl SchemaV4 {
     pub fn update(schema_path: &Path, patches_path: &Path, game_name: &str) -> Result<()> {
         let schema_legacy = Self::load(schema_path)?;
         let mut schema = SchemaV5::from(&schema_legacy);
+
+        // Fix for empty dependencies, again.
+        schema.definitions.par_iter_mut().for_each(|(table_name, definitions)| {
+            definitions.iter_mut().for_each(|definition| {
+                definition.fields.iter_mut().for_each(|field| {
+                    if let Some((ref_table, ref_column)) = field.is_reference() {
+                        if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
+                            dbg!(&table_name);
+                            dbg!(field.name());
+                            field.is_reference = None;
+                        }
+                    }
+                })
+            })
+        });
 
         let schema_patches = SchemaPatches::load(patches_path);
         if let Ok(schema_patches) = schema_patches {

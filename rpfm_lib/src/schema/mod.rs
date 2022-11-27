@@ -348,8 +348,21 @@ impl Schema {
         let config = PrettyConfig::default();
 
         // Make sure all definitions are properly sorted by version number.
-        self.definitions.iter_mut().for_each(|(_, definitions)| {
+        self.definitions.iter_mut().for_each(|(table_name, definitions)| {
             definitions.sort_by(|a, b| b.version().cmp(a.version()));
+
+            // Fix for empty dependencies, again.
+            definitions.iter_mut().for_each(|definition| {
+                definition.fields.iter_mut().for_each(|field| {
+                    if let Some((ref_table, ref_column)) = field.is_reference() {
+                        if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
+                            dbg!(&table_name);
+                            dbg!(field.name());
+                            field.is_reference = None;
+                        }
+                    }
+                })
+            })
         });
 
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
