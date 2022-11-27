@@ -325,14 +325,15 @@ impl Dependencies {
         definition.fields_processed().into_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
+                    let ref_table = format!("{}_tables", ref_table);
 
                     // Get his lookup data if it has it.
                     let lookup_data = if let Some(ref data) = field.lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = TableReferences::default();
                     *references.field_name_mut() = field.name().to_owned();
 
-                    let fake_found = Self::db_reference_data_from_asskit_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
-                    let real_found = Self::db_reference_data_from_from_vanilla_and_modded_tables(self, &mut references, (ref_table, ref_column, &lookup_data));
+                    let fake_found = self.db_reference_data_from_asskit_tables(&mut references, (&ref_table, ref_column, &lookup_data));
+                    let real_found = self.db_reference_data_from_from_vanilla_and_modded_tables(&mut references, (&ref_table, ref_column, &lookup_data));
 
                     if fake_found && real_found.is_none() {
                         references.referenced_table_is_ak_only = true;
@@ -869,7 +870,7 @@ impl Dependencies {
     /// If reference data was found, the most recent definition of said data is returned.
     fn db_reference_data_from_from_vanilla_and_modded_tables(&self, references: &mut TableReferences, reference_info: (&str, &str, &[String])) -> Option<Definition> {
         let mut data_found: Option<Definition> = None;
-        let ref_table = format!("{}_tables", reference_info.0);
+        let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
