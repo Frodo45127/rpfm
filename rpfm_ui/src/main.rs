@@ -132,8 +132,10 @@ lazy_static! {
     static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
 
     /// Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
-    /// TODO: Fix this path with a settings abstraction.
-    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&PathBuf::from("."), true).unwrap()));
+    static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{
+        init_config_path().expect("Error while trying to initialize config path. We're fucked.");
+        error_path().unwrap_or(PathBuf::from("."))
+    }, true).unwrap()));
 
     /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
     /// (so we don't break debug builds). In Release mode, we take the `.exe` path.

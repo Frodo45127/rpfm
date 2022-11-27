@@ -300,6 +300,11 @@ pub fn config_path() -> Result<PathBuf> {
     }
 }
 
+/// This function returns the path where crash logs are stored.
+pub fn error_path() -> Result<PathBuf> {
+    Ok(config_path()?.join("error"))
+}
+
 /// This function returns the schema path.
 pub fn schemas_path() -> Result<PathBuf> {
     Ok(config_path()?.join(SCHEMA_FOLDER))
