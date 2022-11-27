@@ -20,9 +20,11 @@ If you're looking for the changes included in the latest beta (against the lates
 - Updated schema format.
 - Min rust version updated to 1.64.
 - Updated dependencies.
+- Disabled "Path invalid" diagnostic by default due to performance issues.
 
 ### Fixed
 - Fixed missing icons on text view and text settings.
+- Fixed schema having invalid reference values.
 
 ## [3.0.16]
 ### Changed

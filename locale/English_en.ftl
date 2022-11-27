@@ -21,7 +21,7 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
         <li>Generate Loc Data: do not work yet.</li>
         <li>AnimFragment/AnimsTables/MatchedCombat: they "may" work, but are pending a full rewrite to support the newer game variants of these files.</li>
         <li>Tables/Patch Column: it doesn't work yet.</li>
-        <li>Tables/Rename References: it doesn't work yet.</li>
+        <li>Tables/Rename References: works only for DBs.</li>
     </ul>
     <p>Everything else should work... in theory.</p>
 
