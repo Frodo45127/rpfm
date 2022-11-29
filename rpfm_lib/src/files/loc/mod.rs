@@ -249,7 +249,8 @@ impl Encodeable for Loc {
 
 /// Implementation to create a `Loc` from a `Table` directly.
 impl From<Table> for Loc {
-    fn from(table: Table) -> Self {
+    fn from(mut table: Table) -> Self {
+        table.set_table_name(TSV_NAME_LOC.to_owned());
         Self {
             table,
         }
