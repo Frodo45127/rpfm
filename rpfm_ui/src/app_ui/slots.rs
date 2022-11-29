@@ -647,7 +647,7 @@ impl AppUISlots {
 
                             // Prepare the settings to automatically ignore the .vscode, .git and sublime-project files.
                             let mut pack_settings = PackSettings::default();
-                            pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), format!(".vscode\n.git\n{}.sublime-project", mod_name));
+                            pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), format!(".luarc.json\n.vscode\n.git\n{}.sublime-project", mod_name));
 
                             let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
                             let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
