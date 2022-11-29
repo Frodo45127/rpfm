@@ -40,6 +40,8 @@ const XML: &str = "XML";
 const PLAIN: &str = "Normal";
 const MARKDOWN: &str = "Markdown";
 const JSON: &str = "JSON";
+const CSS: &str = "CSS";
+const JS: &str = "Javascript";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -75,6 +77,8 @@ impl PackedFileTextView {
             TextFormat::Plain => QString::from_std_str(PLAIN),
             TextFormat::Markdown => QString::from_std_str(MARKDOWN),
             TextFormat::Json => QString::from_std_str(JSON),
+            TextFormat::Css => QString::from_std_str(CSS),
+            TextFormat::Js => QString::from_std_str(JS),
         };
 
         let editor = new_text_editor_safe(&packed_file_view.get_mut_widget().static_upcast());
@@ -112,6 +116,8 @@ impl PackedFileTextView {
             TextFormat::Plain => QString::from_std_str(PLAIN),
             TextFormat::Markdown => QString::from_std_str(MARKDOWN),
             TextFormat::Json => QString::from_std_str(JSON),
+            TextFormat::Css => QString::from_std_str(CSS),
+            TextFormat::Js => QString::from_std_str(JS),
         };
 
         set_text_safe(&self.editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &highlighting_mode.as_ptr());

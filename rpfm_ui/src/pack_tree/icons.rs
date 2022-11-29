@@ -112,6 +112,8 @@ impl IconType {
                         TextFormat::Plain => &TREEVIEW_ICONS.text_txt,
                         TextFormat::Markdown => &TREEVIEW_ICONS.text_txt,
                         TextFormat::Json => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Css => &TREEVIEW_ICONS.text_txt,
+                        TextFormat::Js => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 

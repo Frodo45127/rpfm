@@ -11,7 +11,7 @@
 //! This is a module to read/write Text files.
 //!
 //! Text files are any kind of plain-text files, really. Encodings supported by this lib are:
-//! - `ISO-8859-1`
+//! - `ISO-8859-15`
 //! - `UTF-8`
 //! - `UTF-16` (LittleEndian)
 //!
@@ -28,18 +28,30 @@
 //! | `.bob`                   | `Plain`  | BoB settings file.                          |
 //! | `.cindyscene`            | `Xml`    | Cutscene editor data.                       |
 //! | `.cindyscenemanager`     | `Xml`    | Cutscene editor data.                       |
+//! | `.code-snippets`         | `Json`   | VSCode snippet file.                        |
+//! | `.code-workspace`        | `Json`   | VSCode workspace file.                      |
 //! | `.csv`                   | `Plain`  | Normal CSV file.                            |
+//! | `.css`                   | `Css`    | Normal CSS file.                            |
 //! | `.environment`           | `Xml`    |                                             |
 //! | `.htm`                   | `Html`   | Normal HTML file.                           |
 //! | `.html`                  | `Html`   | Normal HTML file.                           |
 //! | `.inl`                   | `Cpp`    |                                             |
 //! | `.json`                  | `Json`   | Normal JSON file.                           |
+//! | `.js`                    | `Js`     | Normal Javascript file.                     |
+//! | `.kfa`                   | `Xml`    | Battle Audio Event file.                    |
+//! | `.kfe`                   | `Xml`    | Battle Effect file.                         |
+//! | `.kfl`                   | `Xml`    | Battle Point Light file.                    |
+//! | `.kfsl`                  | `Xml`    | Battle Spot Light file.                     |
+//! | `.kfp`                   | `Xml`    | Battle Prop file.                           |
+//! | `.kfcs`                  | `Xml`    | Battle Composite Scene file.                |
 //! | `.lighting`              | `Xml`    |                                             |
 //! | `.lua`                   | `Lua`    | LUA Script file.                            |
+//! | `.material`              | `Xml`    |                                             |
 //! | `.tai`                   | `Plain`  |                                             |
 //! | `.technique`             | `Xml`    |                                             |
 //! | `.texture_array`         | `Plain`  | List of Campaign Map textures.              |
 //! | `.tsv`                   | `Plain`  | Normal TSV file.                            |
+//! | `.twui`                  | `Lua`    | TWui file, in lua format.                   |
 //! | `.txt`                   | `Plain`  | Plain TXT file.                             |
 //! | `.variantmeshdefinition` | `Xml`    |                                             |
 //! | `.wsmodel`               | `Xml`    |                                             |
@@ -65,30 +77,42 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions we recognize as `Text` files, with their respective known format.
-pub const EXTENSIONS: [(&str, TextFormat); 23] = [
+pub const EXTENSIONS: [(&str, TextFormat); 35] = [
     (".battle_speech_camera", TextFormat::Plain),
     (".benchmark", TextFormat::Xml),
     (".bob", TextFormat::Plain),
     (".cindyscene", TextFormat::Xml),
     (".cindyscenemanager", TextFormat::Xml),
+    (".code-snippets", TextFormat::Json),
+    (".code-workspace", TextFormat::Json),
+    (".css", TextFormat::Css),
     (".csv", TextFormat::Plain),
     (".environment", TextFormat::Xml),
     (".htm", TextFormat::Html),
     (".html", TextFormat::Html),
     (".inl", TextFormat::Cpp),
     (".json", TextFormat::Json),
+    (".js", TextFormat::Js),
+    (".kfa", TextFormat::Xml),
+    (".kfe", TextFormat::Xml),
+    (".kfl", TextFormat::Xml),
+    (".kfsl", TextFormat::Xml),
+    (".kfp", TextFormat::Xml),
+    (".kfcs", TextFormat::Xml),
     (".lighting", TextFormat::Xml),
     (".lua", TextFormat::Lua),
     (".tai", TextFormat::Plain),
     (".technique", TextFormat::Xml),
     (".texture_array", TextFormat::Plain),
     (".tsv", TextFormat::Plain),
+    (".twui", TextFormat::Lua),
     (".txt", TextFormat::Plain),
     (".variantmeshdefinition", TextFormat::Xml),
     (".wsmodel", TextFormat::Xml),
     (".xml", TextFormat::Xml),
     (".xml.shader", TextFormat::Xml),
     (".xml.material", TextFormat::Xml),
+    (".material", TextFormat::Xml),     // This has to be under xml.material
 ];
 
 #[cfg(test)] mod text_test;
@@ -127,6 +151,8 @@ pub enum TextFormat {
     Cpp,
     Html,
     Json,
+    Js,
+    Css,
     Lua,
     Markdown,
     Plain,
