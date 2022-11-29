@@ -62,6 +62,7 @@ const HEADER_SIZE: usize = 14;
 
 /// This is the name used in TSV-exported Loc files to identify them as Loc files.
 pub(crate) const TSV_NAME_LOC: &str = "Loc";
+pub(crate) const TSV_NAME_LOC_OLD: &str = "Loc PackedFile";
 
 /// Extension used by Loc files.
 pub const EXTENSION: &str = ".loc";

@@ -1795,7 +1795,7 @@ impl RFile {
 
         // Once we get the metadata, we know what kind of file we have. Create it and pass the records.
         let decoded = match &*table_type {
-            loc::TSV_NAME_LOC => {
+            loc::TSV_NAME_LOC | loc::TSV_NAME_LOC_OLD => {
                 let decoded = Loc::tsv_import(records, &field_order)?;
                 RFileDecoded::Loc(decoded)
             }
