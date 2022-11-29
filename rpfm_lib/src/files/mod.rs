@@ -1601,6 +1601,12 @@ impl RFile {
             },
         };
 
+        // Piece of code to find text files we do not support yet. Needs enabling the content_inspector crate.
+        #[cfg(feature = "enable_content_inspector")]
+        if self.file_type() == FileType::Unknown && content_inspector::inspect(&loaded).is_text() {
+            dbg!(self.path_in_container_raw());
+        }
+
         self.data = RFileInnerData::Cached(loaded);
         Ok(())
     }
