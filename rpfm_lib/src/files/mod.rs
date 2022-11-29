@@ -565,10 +565,10 @@ pub trait Container {
                         if extension.to_string_lossy() == "tsv" {
                             tsv_imported = true;
                             let rfile = RFile::tsv_import_from_path(source_path, schema);
-                            if let Err(error) = rfile {
+                            if let Err(_error) = rfile {
 
                                 #[cfg(feature = "integration_log")] {
-                                    warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), error);
+                                    warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), _error);
                                 }
 
                                 tsv_imported = false;
@@ -640,10 +640,10 @@ pub trait Container {
                             if extension.to_string_lossy() == "tsv" {
                                 tsv_imported = true;
                                 let rfile = RFile::tsv_import_from_path(&file_path, schema);
-                                if let Err(error) = rfile {
+                                if let Err(_error) = rfile {
 
                                     #[cfg(feature = "integration_log")] {
-                                        warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), error);
+                                        warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), _error);
                                     }
 
                                     tsv_imported = false;
