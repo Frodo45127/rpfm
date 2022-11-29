@@ -1556,7 +1556,7 @@ fn new_packed_file_tooltip(info: &RFileInfo) -> String {
     );
 
     if let Some(timestamp) = info.timestamp() {
-        string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", timestamp));
+        string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", NaiveDateTime::from_timestamp_opt(*timestamp as i64, 0).unwrap()));
     }
 
     string.push_str("</ul>");
