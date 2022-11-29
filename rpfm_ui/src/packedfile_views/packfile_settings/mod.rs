@@ -93,7 +93,7 @@ impl PackFileSettingsView {
         for (key, setting) in settings.settings_text() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
-            let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(&setting), pack_file_view.get_mut_widget());
+            let edit = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
             description_label.set_word_wrap(true);
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
@@ -108,7 +108,7 @@ impl PackFileSettingsView {
         for (key, setting) in settings.settings_string() {
             let label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_label", key)), pack_file_view.get_mut_widget());
             let _description_label = QLabel::from_q_string_q_widget(&qtr(&format!("pfs_{}_description_label", key)), pack_file_view.get_mut_widget());
-            let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&setting), pack_file_view.get_mut_widget());
+            let edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(setting), pack_file_view.get_mut_widget());
 
             layout.add_widget_5a(&label, row, 0, 1, 1);
             layout.add_widget_5a(&edit, row, 1, 1, 1);
@@ -171,7 +171,6 @@ impl PackFileSettingsView {
         );
 
         connections::set_connections(&pack_file_settings_view, &pack_file_settings_slots);
-        //pack_file_view.packed_file_type = FileType::PackFileSettings;
         pack_file_view.view = ViewType::Internal(View::PackSettings(pack_file_settings_view));
         Ok(())
     }

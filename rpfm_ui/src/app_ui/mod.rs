@@ -51,7 +51,7 @@ use qt_core::QVariant;
 
 use cpp_core::CppBox;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use getset::Getters;
 use self_update::cargo_crate_version;
 
@@ -3684,6 +3684,7 @@ impl AppUI {
                     let files_to_ignore = settings.setting_text("import_files_to_ignore").map(|files_to_ignore| {
                         if files_to_ignore.is_empty() { vec![] } else {
                             files_to_ignore.split('\n')
+                                .filter(|x| !x.is_empty())
                                 .map(|x| assets_folder.to_path_buf().join(x))
                                 .collect::<Vec<PathBuf>>()
                         }

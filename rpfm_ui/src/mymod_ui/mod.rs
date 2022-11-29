@@ -28,7 +28,6 @@ use qt_core::QPtr;
 
 use getset::Getters;
 
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
@@ -105,7 +104,7 @@ impl MyModUI {
         let game_selected = GAME_SELECTED.read().unwrap().game_key_name();
         for game in SUPPORTED_GAMES.games() {
             if game.supports_editing() {
-                mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name()));
+                mymod_game_combobox.add_item_q_string(&QString::from_std_str(game.display_name()));
 
                 if game.game_key_name() == game_selected {
                     selected_index = selected_index_counter
@@ -164,12 +163,11 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        let mod_path = setting_path(MYMOD_BASE_PATH);
+        let mut mod_path = setting_path(MYMOD_BASE_PATH);
         if mod_path.is_dir() {
 
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {
-                let mut mod_path = mod_path.clone();
                 mod_path.push(mod_game);
                 mod_path.push(format!("{}.pack", mod_name));
 
