@@ -70,9 +70,6 @@ pub const EXTENSION: &str = ".loc";
 /// Version used by Loc files. We've only seen version 1 so far, so we stick with that one.
 const VERSION: i32 = 1;
 
-/// Name of the internal table name, in case we use the SQL Backend.
-const SQL_TABLE_NAME: &str = "localisation";
-
 #[cfg(test)] mod loc_test;
 
 //---------------------------------------------------------------------------//
@@ -100,7 +97,7 @@ impl Loc {
         let definition = Self::new_definition();
 
         Self {
-            table: Table::new(&definition, None, SQL_TABLE_NAME, use_sql_backend),
+            table: Table::new(&definition, None, TSV_NAME_LOC, use_sql_backend),
         }
     }
 
@@ -203,7 +200,7 @@ impl Loc {
     /// This function imports a TSV file into a decoded Loc file.
     pub fn tsv_import(records: StringRecordsIter<File>, field_order: &HashMap<u32, String>) -> Result<Self> {
         let definition = Self::new_definition();
-        let table = Table::tsv_import(records, &definition, field_order, SQL_TABLE_NAME, None)?;
+        let table = Table::tsv_import(records, &definition, field_order, TSV_NAME_LOC, None)?;
         let loc = Loc::from(table);
         Ok(loc)
     }
@@ -213,7 +210,6 @@ impl Loc {
         self.table.tsv_export(writer, table_path)
     }
 }
-
 
 impl Decodeable for Loc {
 
