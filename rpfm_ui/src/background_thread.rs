@@ -452,7 +452,9 @@ pub fn background_loop() {
                     match destination_path {
                         ContainerPath::File(destination_path) => {
                             match pack_file_decoded.insert_file(source_path, destination_path, &schema) {
-                                Ok(path) => added_paths.push(path),
+                                Ok(path) => if let Some(path) = path {
+                                    added_paths.push(path);
+                                },
                                 Err(error) => it_broke = Some(error),
                             }
                         },
@@ -1458,7 +1460,9 @@ pub fn background_loop() {
                     for file in files.into_values() {
                         let mut file = file.clone();
                         let _ = file.guess_file_type();
-                        added_paths.push(pack_file_decoded.insert(file).unwrap());
+                        if let Ok(Some(path)) = pack_file_decoded.insert(file) {
+                            added_paths.push(path);
+                        }
                     }
                 }
 
@@ -1549,7 +1553,7 @@ pub fn background_loop() {
                         // Also, the UI is responsible for naming them in case they're new. Here we grab them and directly add them into the PackFile.
                         let mut added_paths = vec![];
                         for file in files {
-                            if let Ok(path) = pack_file_decoded.insert(file) {
+                            if let Ok(Some(path)) = pack_file_decoded.insert(file) {
                                 added_paths.push(path);
                             }
                         }

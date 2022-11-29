@@ -529,11 +529,11 @@ pub trait Container {
     /// with the same path, in case it already existed one.
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
-    fn insert(&mut self, file: RFile) -> Result<ContainerPath> {
+    fn insert(&mut self, file: RFile) -> Result<Option<ContainerPath>> {
         let path = file.path_in_container();
         let path_raw = file.path_in_container_raw();
         self.files_mut().insert(path_raw.to_owned(), file);
-        Ok(path)
+        Ok(Some(path))
     }
 
     /// This method allow us to insert a file from disk into an specific path within a Container,
@@ -543,7 +543,7 @@ pub trait Container {
     /// If it fails to convert a file, it'll import it as a normal file instead.
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
-    fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<ContainerPath> {
+    fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Option<ContainerPath>> {
         let mut container_path_folder = container_path_folder.to_owned();
         if container_path_folder.starts_with('/') {
             container_path_folder.remove(0);
@@ -565,10 +565,10 @@ pub trait Container {
                         if extension.to_string_lossy() == "tsv" {
                             tsv_imported = true;
                             let rfile = RFile::tsv_import_from_path(source_path, schema);
-                            if rfile.is_err() {
+                            if let Err(error) = rfile {
 
                                 #[cfg(feature = "integration_log")] {
-                                    warn!("File with path {} failed to import as TSV. Importing it as binary.", &source_path.to_string_lossy());
+                                    warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &source_path.to_string_lossy(), error);
                                 }
 
                                 tsv_imported = false;
@@ -640,10 +640,10 @@ pub trait Container {
                             if extension.to_string_lossy() == "tsv" {
                                 tsv_imported = true;
                                 let rfile = RFile::tsv_import_from_path(&file_path, schema);
-                                if rfile.is_err() {
+                                if let Err(error) = rfile {
 
                                     #[cfg(feature = "integration_log")] {
-                                        warn!("File with path {} failed to import as TSV. Importing it as binary.", &file_path.to_string_lossy());
+                                        warn!("File with path {} failed to import as TSV. Importing it as binary. Error was: {}", &file_path.to_string_lossy(), error);
                                     }
 
                                     tsv_imported = false;
@@ -669,7 +669,9 @@ pub trait Container {
                 rfile.set_path_in_container_raw(&file_container_path);
             }
 
-            inserted_paths.push(self.insert(rfile)?);
+            if let Some(path) = self.insert(rfile)? {
+                inserted_paths.push(path);
+            }
         }
 
         Ok(inserted_paths)
@@ -1073,7 +1075,10 @@ pub trait Container {
 
                     let mut moved = self.files_mut().remove(&source_path).ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
                     moved.set_path_in_container_raw(&destination_path);
-                    self.insert(moved).map(|x| vec![x; 1])
+                    self.insert(moved).map(|x| match x {
+                        Some(x) => vec![x; 1],
+                        None => Vec::with_capacity(0)
+                    })
                 },
                 ContainerPath::Folder(_) => unreachable!(),
             },
@@ -1093,7 +1098,9 @@ pub trait Container {
                     for mut moved in moved {
                         let path = moved.path_in_container_raw().replacen(&source_path, &destination_path, 1);
                         moved.set_path_in_container_raw(&path);
-                        new_paths.push(self.insert(moved)?);
+                        if let Some(path) = self.insert(moved)? {
+                            new_paths.push(path);
+                        }
                     }
 
                     Ok(new_paths)

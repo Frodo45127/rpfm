@@ -276,7 +276,7 @@ impl Container for Pack {
         Ok(())
     }
 
-    fn insert(&mut self, mut file: RFile) -> Result<ContainerPath> {
+    fn insert(&mut self, mut file: RFile) -> Result<Option<ContainerPath>> {
 
         // Filter out special files, so we only leave the normal files in.
         let path_container = file.path_in_container();
@@ -287,16 +287,18 @@ impl Container for Pack {
             if let Ok(data) = data.read_string_u8(data_len as usize) {
                 self.notes = data;
             }
+            Ok(None)
         } else if path == RESERVED_NAME_SETTINGS_EXTRACTED {
-            self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?
+            self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?;
+            Ok(None)
         }
 
         // If it's not filtered out, add it to the Pack.
         else {
             self.files.insert(path.to_owned(), file);
+            Ok(Some(path_container))
         }
 
-        Ok(path_container)
     }
 
     fn disk_file_path(&self) -> &str {
@@ -344,7 +346,10 @@ impl Container for Pack {
 
                     let mut moved = self.files_mut().remove(&source_path).ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
                     moved.set_path_in_container_raw(&destination_path);
-                    self.insert(moved).map(|x| vec![x; 1])
+                    self.insert(moved).map(|x| match x {
+                        Some(x) => vec![x; 1],
+                        None => Vec::with_capacity(0),
+                    })
                 },
                 ContainerPath::Folder(_) => unreachable!(),
             },
@@ -364,7 +369,9 @@ impl Container for Pack {
                     for mut moved in moved {
                         let path = moved.path_in_container_raw().replacen(&source_path, &destination_path, 1);
                         moved.set_path_in_container_raw(&path);
-                        new_paths.push(self.insert(moved)?);
+                        if let Some(path) = self.insert(moved)? {
+                            new_paths.push(path);
+                        }
                     }
 
                     Ok(new_paths)
@@ -834,7 +841,7 @@ impl Pack {
         let _ = missing_trads_file.set_data(&missing_trads_file_table_data);
         if !missing_trads_file_table_data.is_empty() {
             let packed_file = RFile::new_from_decoded(&RFileDecoded::Loc(missing_trads_file), 0,  "text/missing_locs.loc");
-            Ok(Some(self.insert(packed_file)?))
+            Ok(self.insert(packed_file)?)
         } else {
             Ok(None)
         }
