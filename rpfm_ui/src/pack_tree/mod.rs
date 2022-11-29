@@ -1107,7 +1107,7 @@ impl PackTree for QBox<QTreeView> {
                     }
                 }
 
-                // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
+                // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a file can slow this down to a crawl.
                 self.header().set_stretch_last_section(true);
                 model.append_row_q_standard_item(big_parent);
             },
@@ -1297,22 +1297,23 @@ impl PackTree for QBox<QTreeView> {
                 for path_type in paths {
                     let mut item = pack;
                     let path = path_type.path_raw();
-                    let count = path.split('/').count() - 1;
+                    let count = path.split('/').count();
                     let is_file = matches!(path_type, ContainerPath::File(_));
 
-                    // If path is empty, it's the Pack.
+                    // If path is empty, it's the Pack. In this case we just rebuild the TreeView.
                     if path.is_empty() {
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
                         self.update_treeview(true, TreeViewOperation::Build(build_data), source);
                     }
 
+                    // Otherwise, it's either a file or a folder.
                     else {
                         for (index, name) in path.split('/').enumerate() {
                             let name_q_string = QString::from_std_str(name);
 
-                            // If we reached the final element of the path, get it.
-                            if index == count {
+                            // If we reached the final element of the path, try to find it on the children of the current parent.
+                            if index == count - 1 {
                                 for row in 0..item.row_count() {
                                     let child = item.child_1a(row);
 
