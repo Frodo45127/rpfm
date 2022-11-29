@@ -1721,11 +1721,11 @@ impl RFile {
             self.file_type = FileType::MatchedCombat;
         }
 
-        else if path.starts_with(&anims_table::BASE_PATH) && path.ends_with(anims_table::EXTENSION) {
+        else if path.starts_with(anims_table::BASE_PATH) && path.ends_with(anims_table::EXTENSION) {
             self.file_type =  FileType::AnimsTable;
         }
 
-        else if path.starts_with(&anim_fragment::BASE_PATH) && anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
+        else if path.starts_with(anim_fragment::BASE_PATH) && anim_fragment::EXTENSIONS.iter().any(|x| path.ends_with(*x)) {
             self.file_type = FileType::AnimFragment;
         }
 
@@ -1755,7 +1755,7 @@ impl RFile {
             .quoting(false)
             .has_headers(true)
             .flexible(true)
-            .from_path(&path)?;
+            .from_path(path)?;
 
         // If we successfully load the TSV file into a reader, check the first line to get the column list and order.
         let field_order = reader.headers()?
