@@ -55,7 +55,7 @@
 #[cfg(feature = "integration_sqlite")] use r2d2::Pool;
 #[cfg(feature = "integration_sqlite")] use r2d2_sqlite::SqliteConnectionManager;
 
-use csv::{ReaderBuilder, WriterBuilder};
+use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
 use rayon::prelude::*;
 use regex::Regex;
@@ -1832,6 +1832,7 @@ impl RFile {
         // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
         let mut writer = WriterBuilder::new()
             .delimiter(b'\t')
+            .quote_style(QuoteStyle::Never)
             .has_headers(false)
             .flexible(true)
             .from_path(path)?;
