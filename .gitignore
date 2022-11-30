@@ -119,6 +119,8 @@ gh-token
 # Ignore files generated while building arch packages.
 /install/arch/src
 /install/arch/rpfm
+/install/arch/rpfm-*
+/install/arch/pkg
 
 # Ignore this one, as it causes issues when recompiling.
 /rpfm_ui/qt_subclasses/.qmake.stash
