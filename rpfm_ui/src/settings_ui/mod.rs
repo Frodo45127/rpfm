@@ -29,7 +29,7 @@ use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::{QPalette, q_palette::ColorRole};
 use qt_gui::QStandardItemModel;
 
-use qt_core::{AlignmentFlag, WidgetAttribute};
+use qt_core::AlignmentFlag;
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QString;
@@ -115,8 +115,6 @@ pub struct SettingsUI {
     extra_packfile_use_lazy_loading_label: QBox<QLabel>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
     extra_packfile_disable_file_previews_label: QBox<QLabel>,
-    extra_packfile_disable_mymod_automatic_git_repo_label: QBox<QLabel>,
-    extra_packfile_disable_mymod_automatic_configs_label: QBox<QLabel>,
     ui_global_use_dark_theme_label: QBox<QLabel>,
     ui_window_start_maximized_label: QBox<QLabel>,
     ui_window_hide_background_icon_label: QBox<QLabel>,
@@ -137,8 +135,6 @@ pub struct SettingsUI {
     extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
-    extra_packfile_disable_mymod_automatic_git_repo_checkbox: QBox<QCheckBox>,
-    extra_packfile_disable_mymod_automatic_configs_checkbox: QBox<QCheckBox>,
     ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
     ui_window_start_maximized_checkbox: QBox<QCheckBox>,
     ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
@@ -439,12 +435,6 @@ impl SettingsUI {
         let extra_packfile_disable_file_previews_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_file_previews"), &general_frame);
         let extra_packfile_disable_file_previews_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_disable_mymod_automatic_git_repo_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_mymod_automatic_git_repo"), &general_frame);
-        let extra_packfile_disable_mymod_automatic_git_repo_checkbox = QCheckBox::from_q_widget(&general_frame);
-
-        let extra_packfile_disable_mymod_automatic_configs_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_mymod_automatic_configs"), &general_frame);
-        let extra_packfile_disable_mymod_automatic_configs_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let ui_global_use_dark_theme_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_dark_theme"), &general_frame);
         let ui_global_use_dark_theme_checkbox = QCheckBox::from_q_widget(&general_frame);
 
@@ -498,12 +488,6 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 11, 0, 1, 1);
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 11, 1, 1, 1);
-
-        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_git_repo_label, 12, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_git_repo_checkbox, 12, 1, 1, 1);
-
-        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_configs_label, 13, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_mymod_automatic_configs_checkbox, 13, 1, 1, 1);
 
         general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 14, 0, 1, 1);
         general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 14, 1, 1, 1);
@@ -820,8 +804,6 @@ impl SettingsUI {
             extra_packfile_use_lazy_loading_label,
             extra_packfile_disable_uuid_regeneration_on_db_tables_label,
             extra_packfile_disable_file_previews_label,
-            extra_packfile_disable_mymod_automatic_git_repo_label,
-            extra_packfile_disable_mymod_automatic_configs_label,
             ui_global_use_dark_theme_label,
             ui_window_start_maximized_label,
             ui_window_hide_background_icon_label,
@@ -842,8 +824,6 @@ impl SettingsUI {
             extra_packfile_use_lazy_loading_checkbox,
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             extra_packfile_disable_file_previews_checkbox,
-            extra_packfile_disable_mymod_automatic_git_repo_checkbox,
-            extra_packfile_disable_mymod_automatic_configs_checkbox,
             ui_global_use_dark_theme_checkbox,
             ui_window_start_maximized_checkbox,
             ui_window_hide_background_icon_checkbox,
@@ -1001,8 +981,6 @@ impl SettingsUI {
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(setting_bool("use_lazy_loading"));
         self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(setting_bool("disable_uuid_regeneration_on_db_tables"));
         self.extra_packfile_disable_file_previews_checkbox.set_checked(setting_bool("disable_file_previews"));
-        self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.set_checked(setting_bool("disable_mymod_automatic_git_repo"));
-        self.extra_packfile_disable_mymod_automatic_configs_checkbox.set_checked(setting_bool("disable_mymod_automatic_configs"));
         self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(setting_bool("packfile_treeview_resize_to_fit"));
         self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(setting_bool("expand_treeview_when_adding_items"));
 
@@ -1136,8 +1114,6 @@ impl SettingsUI {
         set_setting_bool_to_q_setting(&q_settings, "use_lazy_loading", self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "disable_uuid_regeneration_on_db_tables", self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "disable_file_previews", self.extra_packfile_disable_file_previews_checkbox.is_checked());
-        set_setting_bool_to_q_setting(&q_settings, "disable_mymod_automatic_git_repo", self.extra_packfile_disable_mymod_automatic_git_repo_checkbox.is_checked());
-        set_setting_bool_to_q_setting(&q_settings, "disable_mymod_automatic_configs", self.extra_packfile_disable_mymod_automatic_configs_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "packfile_treeview_resize_to_fit", self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
         set_setting_bool_to_q_setting(&q_settings, "expand_treeview_when_adding_items", self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
 
