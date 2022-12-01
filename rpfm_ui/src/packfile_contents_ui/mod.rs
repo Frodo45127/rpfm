@@ -12,7 +12,6 @@
 Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::QDockWidget;
@@ -22,6 +21,7 @@ use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
+use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
@@ -29,7 +29,7 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
 use qt_core::CaseSensitivity;
-use qt_core::{ContextMenuPolicy, DockWidgetArea};
+use qt_core::DockWidgetArea;
 use qt_core::QObject;
 use qt_core::QPtr;
 use qt_core::QRegExp;
@@ -37,6 +37,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QTimer;
 
+use anyhow::Result;
 use getset::Getters;
 
 use std::path::PathBuf;
@@ -60,6 +61,10 @@ pub mod connections;
 pub mod slots;
 pub mod tips;
 
+/// Tool's ui template path.
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_dock_widget.ui";
+const VIEW_RELEASE: &str = "ui/filterable_tree_dock_widget.ui";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -72,14 +77,14 @@ pub struct PackFileContentsUI {
     //-------------------------------------------------------------------------------//
     // `PackFile Contents` Dock Widget.
     //-------------------------------------------------------------------------------//
-    packfile_contents_dock_widget: QBox<QDockWidget>,
+    packfile_contents_dock_widget: QPtr<QDockWidget>,
     //packfile_contents_pined_table: Ptr<QTableView>,
-    packfile_contents_tree_view: QBox<QTreeView>,
+    packfile_contents_tree_view: QPtr<QTreeView>,
     packfile_contents_tree_model_filter: QBox<QSortFilterProxyModel>,
     packfile_contents_tree_model: QBox<QStandardItemModel>,
-    filter_line_edit: QBox<QLineEdit>,
-    filter_autoexpand_matches_button: QBox<QPushButton>,
-    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_line_edit: QPtr<QLineEdit>,
+    filter_autoexpand_matches_button: QPtr<QToolButton>,
+    filter_case_sensitive_button: QPtr<QToolButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
 
     //-------------------------------------------------------------------------------//
@@ -124,35 +129,33 @@ pub struct PackFileContentsUI {
 impl PackFileContentsUI {
 
     /// This function creates an entire `PackFileContentsUI` struct.
-    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Self {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Result<Self> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), &template_path)?;
+
+        let packfile_contents_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
+        let packfile_contents_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
+        let packfile_contents_tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
+        let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
+        let filter_autoexpand_matches_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_autoexpand_matches_button")?;
+        let filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_case_sensitive_button")?;
 
         //-----------------------------------------------//
         // `PackFile Contents` DockWidget.
         //-----------------------------------------------//
 
-        // Create and configure the 'TreeView` Dock Widget and all his contents.
-        let packfile_contents_dock_widget = QDockWidget::from_q_widget(app_ui.main_window());
-        let packfile_contents_dock_inner_widget = QWidget::new_1a(&packfile_contents_dock_widget);
-        let packfile_contents_dock_layout = create_grid_layout(packfile_contents_dock_inner_widget.static_upcast());
-        packfile_contents_dock_widget.set_widget(&packfile_contents_dock_inner_widget);
         app_ui.main_window().add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &packfile_contents_dock_widget);
         packfile_contents_dock_widget.set_window_title(&qtr("gen_loc_packfile_contents"));
         packfile_contents_dock_widget.set_object_name(&QString::from_std_str("packfile_contents_dock"));
 
         // Create and configure the `TreeView` itself.
-        let packfile_contents_tree_view = QTreeView::new_1a(&packfile_contents_dock_inner_widget);
         let packfile_contents_tree_model = new_packed_file_model_safe();
         let packfile_contents_tree_model_filter = new_treeview_filter_safe(packfile_contents_tree_view.static_upcast());
         packfile_contents_tree_model_filter.set_source_model(&packfile_contents_tree_model);
         packfile_contents_tree_model.set_parent(&packfile_contents_tree_view);
         packfile_contents_tree_view.set_model(&packfile_contents_tree_model_filter);
-        packfile_contents_tree_view.set_header_hidden(true);
-        packfile_contents_tree_view.set_animated(true);
-        packfile_contents_tree_view.set_uniform_row_heights(true);
-        packfile_contents_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
-        packfile_contents_tree_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-        packfile_contents_tree_view.set_expands_on_double_click(true);
-        packfile_contents_tree_view.header().set_stretch_last_section(false);
 
         // Apply the view's delegate.
         new_tree_item_delegate_safe(&packfile_contents_tree_view.static_upcast::<QObject>().as_ptr(), true);
@@ -171,20 +174,8 @@ impl PackFileContentsUI {
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(&packfile_contents_dock_widget);
-        let filter_line_edit = QLineEdit::from_q_widget(&packfile_contents_dock_inner_widget);
-        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), &packfile_contents_dock_inner_widget);
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), &packfile_contents_dock_inner_widget);
         filter_timer_delayed_updates.set_single_shot(true);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_line_edit.set_clear_button_enabled(true);
-        filter_autoexpand_matches_button.set_checkable(true);
-        filter_case_sensitive_button.set_checkable(true);
-
-        // Add everything to the `TreeView`s Dock Layout.
-        packfile_contents_dock_layout.add_widget_5a(&packfile_contents_tree_view, 0, 0, 1, 2);
-        packfile_contents_dock_layout.add_widget_5a(&filter_line_edit, 1, 0, 1, 2);
-        packfile_contents_dock_layout.add_widget_5a(&filter_autoexpand_matches_button, 2, 0, 1, 1);
-        packfile_contents_dock_layout.add_widget_5a(&filter_case_sensitive_button, 2, 1, 1, 1);
 
         //-------------------------------------------------------------------------------//
         // Contextual menu for the PackFile Contents TreeView.
@@ -249,7 +240,7 @@ impl PackFileContentsUI {
         context_menu_open_notes.set_enabled(false);
 
         // Create ***Da monsta***.
-        Self {
+        Ok(Self {
 
             //-------------------------------------------------------------------------------//
             // `PackFile TreeView` Dock Widget.
@@ -301,7 +292,7 @@ impl PackFileContentsUI {
             //-------------------------------------------------------------------------------//
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
-        }
+        })
     }
 
 
@@ -427,7 +418,7 @@ impl PackFileContentsUI {
         // Get the currently selected paths (and visible) paths, or the ones received from the function.
         let items_to_extract = match paths_to_extract {
             Some(paths) => paths,
-            None => <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui),
+            None => <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui),
         };
 
         let extraction_path = match UI_STATE.get_operational_mode() {

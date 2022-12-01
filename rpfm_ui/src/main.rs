@@ -278,20 +278,36 @@ fn main() {
     // Create the application and start the loop.
     QApplication::init(|app| {
         let ui = unsafe { UI::new(app) };
+        match ui {
+            Ok(ui) => {
 
-        // If we closed the window BEFORE executing, exit the app.
-        let exit_code = if unsafe { ui.app_ui.main_window().is_visible() } {
-            unsafe { QApplication::exec() }
-        } else { 0 };
+                // If we closed the window BEFORE executing, exit the app.
+                let exit_code = if unsafe { ui.app_ui.main_window().is_visible() } {
+                    unsafe { QApplication::exec() }
+                } else { 0 };
 
-        // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
-        CENTRAL_COMMAND.send_background(Command::Exit);
-        CENTRAL_COMMAND.send_network(Command::Exit);
+                // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
+                CENTRAL_COMMAND.send_background(Command::Exit);
+                CENTRAL_COMMAND.send_network(Command::Exit);
 
-        let _ = bac_handle.join();
-        let _ = net_handle.join();
+                let _ = bac_handle.join();
+                let _ = net_handle.join();
 
-        exit_code
+                exit_code
+            }
+            Err(error) => {
+                error!("{}", error);
+
+                // Close and rejoin the threads on exit, so we don't leave a rogue thread running.
+                CENTRAL_COMMAND.send_background(Command::Exit);
+                CENTRAL_COMMAND.send_network(Command::Exit);
+
+                let _ = bac_handle.join();
+                let _ = net_handle.join();
+
+                55
+            }
+        }
     })
 }
 

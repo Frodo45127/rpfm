@@ -998,7 +998,7 @@ impl GlobalSearchUI {
             _ => return vec![],
         };
 
-        let items = tree_view.get_items_from_selection(true);
+        let items = tree_view.static_upcast::<QTreeView>().get_items_from_selection(true);
 
         // For each item we follow the following logic:
         // - If it's a parent, it's all the matches on a table.

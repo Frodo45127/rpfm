@@ -12,6 +12,11 @@
 Module with the slots for PackFile Views.
 !*/
 
+use qt_widgets::QTreeView;
+use qt_widgets::SlotOfQPoint;
+
+use qt_gui::QCursor;
+
 use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 use qt_core::QBox;
 
@@ -42,6 +47,7 @@ pub struct PackFileExtraViewSlots {
     pub filter_change_autoexpand_matches: QBox<SlotOfBool>,
     pub filter_change_case_sensitive: QBox<SlotOfBool>,
 
+    pub context_menu: QBox<SlotOfQPoint>,
     pub expand_all: QBox<SlotNoArgs>,
     pub collapse_all: QBox<SlotNoArgs>,
 }
@@ -94,30 +100,6 @@ impl PackFileExtraViewSlots {
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile);
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
-/*
-                            // Update the global search stuff, if needed.
-                            let paths = paths.iter().map(|x|
-                                match x {
-                                    ContainerPath::File(ref path) => path.to_vec(),
-                                    ContainerPath::Folder(ref path) => path.to_vec(),
-                                    ContainerPath::PackFile => vec![],
-                                    ContainerPath::None => unimplemented!(),
-                                }
-                            ).collect::<Vec<Vec<String>>>();
-                            global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
-                            unsafe { update_global_search_stuff.trigger(); }
-
-                            // For each file added, remove it from the data history if exists.
-                            for path in &paths {
-                                if table_state_data.borrow().get(path).is_some() {
-                                    table_state_data.borrow_mut().remove(path);
-                                }
-
-                                // Set it to not remove his color.
-                                let data = TableStateData::new_empty();
-                                table_state_data.borrow_mut().insert(path.to_vec(), data);
-                            }
-                            */
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -141,6 +123,12 @@ impl PackFileExtraViewSlots {
             PackFileExtraView::filter_files(&pack_file_view);
         }));
 
+        // Slot to show the Contextual Menu for the TreeView.
+        let context_menu = SlotOfQPoint::new(&pack_file_view.tree_view, clone!(
+            pack_file_view => move |_| {
+            pack_file_view.context_menu.exec_1a_mut(&QCursor::pos_0a());
+        }));
+
         // Actions without buttons for the TreeView.
         let expand_all = SlotNoArgs::new(&pack_file_view.tree_view, clone!(pack_file_view => move || { pack_file_view.tree_view.expand_all(); }));
         let collapse_all = SlotNoArgs::new(&pack_file_view.tree_view, clone!(pack_file_view => move || { pack_file_view.tree_view.collapse_all(); }));
@@ -153,6 +141,7 @@ impl PackFileExtraViewSlots {
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,
 
+            context_menu,
             expand_all,
             collapse_all,
         }

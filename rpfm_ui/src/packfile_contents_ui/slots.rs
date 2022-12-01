@@ -22,6 +22,7 @@ use qt_gui::QGuiApplication;
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 use qt_core::QObject;
+use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
 
@@ -182,7 +183,7 @@ impl PackFileContentsSlots {
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
-                let (contents, files, folders, _) = <QBox<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
+                let (contents, files, folders, _) = <QPtr<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
                 match contents {
 
                     // Only one or more files selected.
@@ -480,7 +481,7 @@ impl PackFileContentsSlots {
                                 else {
                                     let mut paths_packedfile: Vec<ContainerPath> = vec![];
                                     for path in &paths {
-                                        paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
+                                        paths_packedfile.append(&mut <QPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
                                     }
                                     paths_packedfile
                                 };
@@ -513,7 +514,7 @@ impl PackFileContentsSlots {
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<ContainerPath> = vec![];
                             for path in &paths {
-                                paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
+                                paths_packedfile.append(&mut <QPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
                             }
 
                             app_ui.main_window().set_enabled(false);
@@ -674,7 +675,7 @@ impl PackFileContentsSlots {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
                     info!("Triggering `Delete` By Slot");
 
-                    let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                    let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::DeletePackedFiles(selected_items));
                     let response = CentralCommand::recv(&receiver);
@@ -730,7 +731,7 @@ impl PackFileContentsSlots {
                 info!("Triggering `Rename` By Slot");
 
                 // First, check if it's yet another idiot trying to rename the db folders, and give him a warning.
-                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                 let mut are_you_seriously_trying_to_edit_the_damn_table_folder = false;
                 for item_type in &selected_items {
                     if let ContainerPath::Folder(ref path) = item_type {
@@ -1101,7 +1102,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
             info!("Triggering `Update Table` By Slot");
 
-            let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+            let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
                 ContainerPath::File(path) => {

@@ -35,6 +35,8 @@ use qt_core::WindowState;
 
 use cpp_core::Ptr;
 
+use anyhow::Result;
+
 use std::env::args;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -122,14 +124,14 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub unsafe fn new(app: Ptr<QApplication>) -> Self {
+    pub unsafe fn new(app: Ptr<QApplication>) -> Result<Self> {
         let t = std::time::SystemTime::now();
 
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window()));
-        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui));
+        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window()));
-        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui));
+        let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
         let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window()));
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
@@ -305,13 +307,13 @@ dbg!(t.elapsed().unwrap());
         }
 dbg!(t.elapsed().unwrap());
         info!("Initialization complete.");
-        Self {
+        Ok(Self {
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
             dependencies_ui
-        }
+        })
     }
 }
 

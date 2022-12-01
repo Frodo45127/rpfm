@@ -18,6 +18,7 @@ use qt_widgets::QDockWidget;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
+use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
@@ -32,7 +33,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use getset::Getters;
 
 use std::collections::BTreeMap;
@@ -55,6 +56,10 @@ pub mod connections;
 pub mod slots;
 pub mod tips;
 
+/// Tool's ui template path.
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_dock_widget.ui";
+const VIEW_RELEASE: &str = "ui/filterable_tree_dock_widget.ui";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -67,14 +72,14 @@ pub struct DependenciesUI {
     //-------------------------------------------------------------------------------//
     // `Dependencies` Dock Widget.
     //-------------------------------------------------------------------------------//
-    dependencies_dock_widget: QBox<QDockWidget>,
+    dependencies_dock_widget: QPtr<QDockWidget>,
     //dependencies_pined_table: Ptr<QTableView>,
-    dependencies_tree_view: QBox<QTreeView>,
+    dependencies_tree_view: QPtr<QTreeView>,
     dependencies_tree_model_filter: QBox<QSortFilterProxyModel>,
     dependencies_tree_model: QBox<QStandardItemModel>,
-    filter_line_edit: QBox<QLineEdit>,
-    filter_autoexpand_matches_button: QBox<QPushButton>,
-    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_line_edit: QPtr<QLineEdit>,
+    filter_autoexpand_matches_button: QPtr<QToolButton>,
+    filter_case_sensitive_button: QPtr<QToolButton>,
     filter_timer_delayed_updates: QBox<QTimer>,
 
     //-------------------------------------------------------------------------------//
@@ -99,55 +104,42 @@ pub struct DependenciesUI {
 impl DependenciesUI {
 
     /// This function creates an entire `DependenciesUI` struct.
-    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Self {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Result<Self> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), &template_path)?;
+
+        let dependencies_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
+        let dependencies_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
+        let dependencies_tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
+        let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
+        let filter_autoexpand_matches_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_autoexpand_matches_button")?;
+        let filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_case_sensitive_button")?;
 
         //-----------------------------------------------//
         // `PackFile Contents` DockWidget.
         //-----------------------------------------------//
 
         // Create and configure the 'TreeView` Dock Widget and all his contents.
-        let dependencies_dock_widget = QDockWidget::from_q_widget(app_ui.main_window());
-        let dependencies_dock_inner_widget = QWidget::new_1a(&dependencies_dock_widget);
-        let dependencies_dock_layout = create_grid_layout(dependencies_dock_inner_widget.static_upcast());
-        dependencies_dock_widget.set_widget(&dependencies_dock_inner_widget);
         app_ui.main_window().add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &dependencies_dock_widget);
         dependencies_dock_widget.set_window_title(&qtr("gen_loc_dependencies"));
         dependencies_dock_widget.set_object_name(&QString::from_std_str("dependencies_dock"));
 
         // Create and configure the `TreeView` itself.
-        let dependencies_tree_view = QTreeView::new_1a(&dependencies_dock_inner_widget);
         let dependencies_tree_model = new_packed_file_model_safe();
         let dependencies_tree_model_filter = new_treeview_filter_safe(dependencies_tree_view.static_upcast());
         dependencies_tree_model_filter.set_source_model(&dependencies_tree_model);
         dependencies_tree_model.set_parent(&dependencies_tree_view);
         dependencies_tree_view.set_model(&dependencies_tree_model_filter);
-        dependencies_tree_view.set_header_hidden(true);
-        dependencies_tree_view.set_animated(true);
-        dependencies_tree_view.set_uniform_row_heights(true);
-        dependencies_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
-        dependencies_tree_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-        dependencies_tree_view.set_expands_on_double_click(true);
-        dependencies_tree_view.header().set_stretch_last_section(false);
 
         // Apply the view's delegate.
         new_tree_item_delegate_safe(&dependencies_tree_view.static_upcast::<QObject>().as_ptr(), true);
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_timer_delayed_updates = QTimer::new_1a(&dependencies_dock_widget);
-        let filter_line_edit = QLineEdit::from_q_widget(&dependencies_dock_inner_widget);
-        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), &dependencies_dock_inner_widget);
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), &dependencies_dock_inner_widget);
         filter_timer_delayed_updates.set_single_shot(true);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_line_edit.set_clear_button_enabled(true);
-        filter_autoexpand_matches_button.set_checkable(true);
-        filter_case_sensitive_button.set_checkable(true);
-
-        // Add everything to the `TreeView`s Dock Layout.
-        dependencies_dock_layout.add_widget_5a(&dependencies_tree_view, 0, 0, 1, 2);
-        dependencies_dock_layout.add_widget_5a(&filter_line_edit, 1, 0, 1, 2);
-        dependencies_dock_layout.add_widget_5a(&filter_autoexpand_matches_button, 2, 0, 1, 1);
-        dependencies_dock_layout.add_widget_5a(&filter_case_sensitive_button, 2, 1, 1, 1);
 
         //-------------------------------------------------------------------------------//
         // Contextual menu for the Dependencies TreeView.
@@ -162,7 +154,7 @@ impl DependenciesUI {
         let dependencies_tree_view_collapse_all = add_action_to_menu(&dependencies_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "dependencies_context_menu", "collapsse_all", "treeview_collapse_all", Some(dependencies_dock_widget.static_upcast::<qt_widgets::QWidget>()));
 
         // Create ***Da monsta***.
-        Self {
+        Ok(Self {
 
             //-------------------------------------------------------------------------------//
             // `Dependencies` Dock Widget.
@@ -190,7 +182,7 @@ impl DependenciesUI {
             //-------------------------------------------------------------------------------//
             dependencies_tree_view_expand_all,
             dependencies_tree_view_collapse_all,
-        }
+        })
     }
 
     /// Function to filter the Dependencies TreeView.

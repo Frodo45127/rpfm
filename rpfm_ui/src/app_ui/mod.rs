@@ -3011,7 +3011,7 @@ impl AppUI {
     pub unsafe fn new_queek_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the currently selected path and, depending on the selected path, generate one packfile or another.
-        let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+        let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
         if selected_items.len() == 1 {
             let item = &selected_items[0];
 

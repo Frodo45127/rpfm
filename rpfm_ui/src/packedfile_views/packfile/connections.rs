@@ -29,6 +29,7 @@ pub unsafe fn set_connections(ui: &Arc<PackFileExtraView>, slots: &PackFileExtra
     ui.filter_autoexpand_matches_button().toggled().connect(&slots.filter_change_autoexpand_matches);
     ui.filter_case_sensitive_button().toggled().connect(&slots.filter_change_case_sensitive);
 
+    ui.tree_view().custom_context_menu_requested().connect(&slots.context_menu);
     ui.expand().triggered().connect(&slots.expand_all);
     ui.collapse().triggered().connect(&slots.collapse_all);
 }

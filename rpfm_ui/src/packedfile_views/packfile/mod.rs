@@ -15,12 +15,11 @@ This is here because we're going to treat it as another PackedFileView, though i
 But this allow us to integrate it into the main PackedFileView system, so it's ok.
 !*/
 
-use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
-use qt_widgets::QPushButton;
+use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 
 use qt_gui::QStandardItemModel;
@@ -53,6 +52,10 @@ use self::slots::PackFileExtraViewSlots;
 mod connections;
 pub mod slots;
 
+/// Tool's ui template path.
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_widget.ui";
+const VIEW_RELEASE: &str = "ui/filterable_tree_widget.ui";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -62,12 +65,12 @@ pub mod slots;
 #[getset(get = "pub")]
 pub struct PackFileExtraView {
     pack_file_path: Arc<RwLock<PathBuf>>,
-    tree_view: QBox<QTreeView>,
+    tree_view: QPtr<QTreeView>,
     tree_model_filter: QBox<QSortFilterProxyModel>,
 
-    filter_line_edit: QBox<QLineEdit>,
-    filter_autoexpand_matches_button: QBox<QPushButton>,
-    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_line_edit: QPtr<QLineEdit>,
+    filter_autoexpand_matches_button: QPtr<QToolButton>,
+    filter_case_sensitive_button: QPtr<QToolButton>,
 
     context_menu: QBox<QMenu>,
     expand: QPtr<QAction>,
@@ -100,44 +103,36 @@ impl PackFileExtraView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(pack_file_view.get_mut_widget(), &template_path)?;
+
+        // Add everything to the main widget's Layout.
+        let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
+        layout.add_widget_5a(&main_widget, 0, 0, 1, 1);
+
+        let tree_view: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "tree_view")?;
+        let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
+        let filter_autoexpand_matches_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_autoexpand_matches_button")?;
+        let filter_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "filter_case_sensitive_button")?;
+
         // Create and configure the `TreeView` itself.
-        let tree_view = QTreeView::new_1a(pack_file_view.get_mut_widget());
         let tree_model = QStandardItemModel::new_1a(pack_file_view.get_mut_widget());
         let tree_model_filter = new_treeview_filter_safe(pack_file_view.get_mut_widget().static_upcast());
         tree_model_filter.set_source_model(&tree_model);
         tree_view.set_model(&tree_model_filter);
-        tree_view.set_header_hidden(true);
-        tree_view.set_animated(true);
-        tree_view.set_uniform_row_heights(true);
-        tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         tree_view.set_expands_on_double_click(false);
-        //tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        //
+        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+
         let mut build_data = BuildData::new();
         build_data.path = Some(pack_file_path.clone());
         build_data.editable = false;
         tree_view.update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
 
-        // Create and configure the widgets to control the `TreeView`s filter.
-        let filter_line_edit = QLineEdit::from_q_widget(pack_file_view.get_mut_widget());
-        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), pack_file_view.get_mut_widget());
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), pack_file_view.get_mut_widget());
-        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_line_edit.set_clear_button_enabled(true);
-        filter_autoexpand_matches_button.set_checkable(true);
-        filter_case_sensitive_button.set_checkable(true);
-
         // Create the extra actions for the TreeView.
         let context_menu = QMenu::from_q_widget(pack_file_view.get_mut_widget());
         let expand = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "secondary_pack_tree_context_menu", "expand", "treeview_expand_all", Some(pack_file_view.get_mut_widget().static_upcast::<qt_widgets::QWidget>()));
         let collapse = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "secondary_pack_tree_context_menu", "collapse", "treeview_collapse_all", Some(pack_file_view.get_mut_widget().static_upcast::<qt_widgets::QWidget>()));
-
-        // Add everything to the main widget's Layout.
-        let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
-        layout.add_widget_5a(&tree_view, 0, 0, 1, 3);
-        layout.add_widget_5a(&filter_line_edit, 1, 0, 1, 1);
-        layout.add_widget_5a(&filter_autoexpand_matches_button, 1, 1, 1, 1);
-        layout.add_widget_5a(&filter_case_sensitive_button, 1, 2, 1, 1);
 
         // Build the slots and set up the shortcuts/connections/tip.
         let view = Arc::new(PackFileExtraView{

@@ -240,7 +240,7 @@ pub struct BuildData {
 //-------------------------------------------------------------------------------//
 
 /// Implementation of `PackTree` for `QPtr<QTreeView>.
-impl PackTree for QBox<QTreeView> {
+impl PackTree for QPtr<QTreeView> {
 
     unsafe fn add_row_to_path(row: Ptr<QListOfQStandardItem>, model: &QPtr<QStandardItemModel>, path: &str, packed_file_info: &RFileInfo) {
 
@@ -510,7 +510,7 @@ impl PackTree for QBox<QTreeView> {
             match item_type {
                  ContainerPath::File(_) => item_types.push(item_type.clone()),
                  ContainerPath::Folder(_) => {
-                    let item = <QBox<QTreeView> as PackTree>::get_item_from_type(item_type, &model);
+                    let item = <QPtr<QTreeView> as PackTree>::get_item_from_type(item_type, &model);
                     get_visible_children_of_item(&item, self, &filter, &model, &mut item_types);
                  }
             }
@@ -1596,7 +1596,7 @@ unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTree
                 get_visible_children_of_item(&child, tree_view, filter, model, item_types);
             }
             else {
-                item_types.push(<QBox<QTreeView> as PackTree>::get_type_from_item(child, model));
+                item_types.push(<QPtr<QTreeView> as PackTree>::get_type_from_item(child, model));
             }
         }
     }
@@ -1630,13 +1630,13 @@ unsafe fn sort_item_in_tree_view(
     // Get the type of the previous item on the list.
     let item_type_prev: Option<ContainerPath> = if item_index_prev.is_valid() {
         let item_sibling = model.item_from_index(&item_index_prev);
-        Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
+        Some(<QPtr<QTreeView>>::get_type_from_item(item_sibling, model))
     } else { None };
 
     // Get the type of the next item on the list.
     let item_type_next: Option<ContainerPath> = if item_index_next.is_valid() {
         let item_sibling = model.item_from_index(&item_index_next);
-        Some(<QBox<QTreeView>>::get_type_from_item(item_sibling, model))
+        Some(<QPtr<QTreeView>>::get_type_from_item(item_sibling, model))
     } else { None };
 
     // We get the boolean to determinate the direction to move (true -> up, false -> down).
@@ -1686,7 +1686,7 @@ unsafe fn sort_item_in_tree_view(
 
             // Get the Item sibling to our current Item.
             let item_sibling = parent.child_1a(item_sibling_index.row());
-            let item_sibling_type = <QBox<QTreeView>>::get_type_from_item(item_sibling, model);
+            let item_sibling_type = <QPtr<QTreeView>>::get_type_from_item(item_sibling, model);
 
             // If both are of the same type...
             if item_type.is_file() == item_sibling_type.is_file() || item_type.is_folder() == item_sibling_type.is_folder() {
