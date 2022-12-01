@@ -14,6 +14,8 @@ Module with all the code to connect `MyModUI` signals with their corresponding s
 This module is, and should stay, private, as it's only glue between the `MyModUI` and `MyModSlots` structs.
 !*/
 
+use qt_widgets::q_dialog_button_box::StandardButton;
+
 use super::{MyModUI, slots::MyModUISlots};
 
 /// This function connects all the actions from the provided `MyModUI` with their slots in `MyModSlots`.
@@ -21,8 +23,11 @@ use super::{MyModUI, slots::MyModUISlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &MyModUI, slots: &MyModUISlots) {
-    ui.mymod_name_line_edit().text_changed().connect(&slots.mymod_name_change);
-    ui.mymod_game_combobox().current_text_changed().connect(&slots.mymod_game_change);
-    ui.mymod_cancel_button().released().connect(ui.mymod_dialog.slot_close());
-    ui.mymod_accept_button().released().connect(ui.mymod_dialog.slot_accept());
+    ui.name_line_edit().text_changed().connect(&slots.mymod_update_dialog);
+    ui.game_combobox().current_text_changed().connect(&slots.mymod_update_dialog);
+
+    ui.gitignore_same_as_files_ignored_on_import_checkbox().state_changed().connect(&slots.mymod_update_dialog);
+
+    ui.button_box().button(StandardButton::Cancel).released().connect(ui.dialog.slot_close());
+    ui.button_box().button(StandardButton::Ok).released().connect(ui.dialog.slot_accept());
 }

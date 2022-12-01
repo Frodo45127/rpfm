@@ -97,6 +97,11 @@ pub fn background_loop() {
                 let pack_version = game_selected.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
 
+                let pack_settings = pack_file_decoded.settings_mut();
+                pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+                pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
+                pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
+
                 if let Some(version_number) = game_selected.game_version_number(&setting_path(&game_selected.game_key_name())) {
                     pack_file_decoded.set_game_version(version_number);
                 }
@@ -1623,7 +1628,7 @@ pub fn background_loop() {
             }
 
             // Initialize the folder for a MyMod, including the folder structure it needs.
-            Command::InitializeMyModFolder(mod_name, mod_game)  => {
+            Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support)  => {
                 let mut mymod_path = setting_path(MYMOD_BASE_PATH);
                 if !mymod_path.is_dir() {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("MyMod path is not configured. Configure it in the settings and try again.")));
@@ -1646,47 +1651,69 @@ pub fn background_loop() {
                 };
 
                 // Create a repo inside the MyMod's folder.
-                if !setting_bool("disable_mymod_automatic_git_repo") {
+                if let Some(gitignore) = git_support {
                     let git_integration = GitIntegration::new(&mymod_path, "", "", "");
                     if let Err(error) = git_integration.init() {
+                        CentralCommand::send_back(&sender, Response::Error(From::from(error)));
+                        continue
+                    }
+
+                    if let Err(error) = git_integration.add_gitignore(&gitignore) {
                         CentralCommand::send_back(&sender, Response::Error(From::from(error)));
                         continue
                     }
                 }
 
                 // If the tw_autogen supports the game, create the vscode and sublime configs for lua mods.
-                if !setting_bool("disable_mymod_automatic_configs") {
+                if sublime_support || vscode_support {
                     if let Ok(lua_autogen_folder) = lua_autogen_game_path(&GAME_SELECTED.read().unwrap()) {
                         let lua_autogen_folder = lua_autogen_folder.to_string_lossy().to_string().replace('\\', "/");
 
-                        let mut vscode_config_path = mymod_path.to_owned();
-                        vscode_config_path.push(".vscode");
+                        // VSCode support.
+                        if vscode_support {
+                            let mut vscode_config_path = mymod_path.to_owned();
+                            vscode_config_path.push(".vscode");
 
-                        if let Err(error) = DirBuilder::new().recursive(true).create(&vscode_config_path) {
-                            CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the VSCode Config folder: {}.", error.to_string())));
-                            continue;
-                        };
+                            if let Err(error) = DirBuilder::new().recursive(true).create(&vscode_config_path) {
+                                CentralCommand::send_back(&sender, Response::Error(anyhow!("Error while creating the VSCode Config folder: {}.", error.to_string())));
+                                continue;
+                            };
 
-                        // Prepare both config files.
-                        let mut sublime_config_path = mymod_path.to_owned();
-                        sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
-
-                        let mut vscode_extensions_path_file = vscode_config_path.to_owned();
-                        vscode_extensions_path_file.push("extensions.json");
-
-                        let mut luarc_config_path = mymod_path.to_owned();
-                        luarc_config_path.push(".luarc.json");
-
-                        if let Ok(file) = File::create(vscode_extensions_path_file) {
-                            let mut file = BufWriter::new(file);
-                            let _ = file.write_all("
+                            let mut vscode_extensions_path_file = vscode_config_path.to_owned();
+                            vscode_extensions_path_file.push("extensions.json");
+                            if let Ok(file) = File::create(vscode_extensions_path_file) {
+                                let mut file = BufWriter::new(file);
+                                let _ = file.write_all("
 {
     \"recommendations\": [
         \"sumneko.lua\",
         \"formulahendry.code-runner\"
     ],
 }".as_bytes());
+                            }
                         }
+
+                        // Sublime support.
+                        if sublime_support {
+                            let mut sublime_config_path = mymod_path.to_owned();
+                            sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
+                            if let Ok(file) = File::create(sublime_config_path) {
+                                let mut file = BufWriter::new(file);
+                                let _ = file.write_all(format!("
+{{
+    \"folders\":
+    [
+        {{
+            \"path\": \".\"
+        }}
+    ]
+}}").as_bytes());
+                            }
+                        }
+
+                        // Generic lua support.
+                        let mut luarc_config_path = mymod_path.to_owned();
+                        luarc_config_path.push(".luarc.json");
 
                         if let Ok(file) = File::create(luarc_config_path) {
                             let mut file = BufWriter::new(file);
@@ -1714,19 +1741,6 @@ pub fn background_loop() {
         \".git\"
     ]
 }}", folder = lua_autogen_folder).as_bytes());
-                        }
-
-                        if let Ok(file) = File::create(sublime_config_path) {
-                            let mut file = BufWriter::new(file);
-                            let _ = file.write_all(format!("
-{{
-    \"folders\":
-    [
-        {{
-            \"path\": \".\"
-        }}
-    ]
-}}").as_bytes());
                         }
                     }
                 }

@@ -25,8 +25,7 @@ use crate::mymod_ui::MyModUI;
 
 /// This struct contains all the slots we need to respond to signals of the New MyMod Dialog.
 pub struct MyModUISlots {
-    pub mymod_name_change: QBox<SlotNoArgs>,
-    pub mymod_game_change: QBox<SlotNoArgs>,
+    pub mymod_update_dialog: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -38,23 +37,13 @@ impl MyModUISlots {
 
     /// This function creates an entire `MyModUISlots` struct.
     pub unsafe fn new(mymod_ui: &Rc<MyModUI>) -> Self {
-
-        // What happens when we change the name of the MyMod.
-        let mymod_name_change = SlotNoArgs::new(&mymod_ui.mymod_dialog, clone!(
+        let mymod_update_dialog = SlotNoArgs::new(&mymod_ui.dialog, clone!(
             mymod_ui => move || {
-            mymod_ui.check_my_mod_validity();
+            mymod_ui.update_dialog();
         }));
 
-        // What happens when we change the game the Mymod is for.
-        let mymod_game_change = SlotNoArgs::new(&mymod_ui.mymod_dialog, clone!(
-            mymod_ui => move || {
-            mymod_ui.check_my_mod_validity();
-        }));
-
-        // And here... we return all the slots.
         Self {
-            mymod_name_change,
-            mymod_game_change,
+            mymod_update_dialog,
         }
     }
 }

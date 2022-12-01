@@ -352,7 +352,7 @@ pub enum Command {
     UpdateLuaAutogen,
 
     /// This command is used to initialize a MyMod Folder.
-    InitializeMyModFolder(String, String),
+    InitializeMyModFolder(String, String, bool, bool, Option<String>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

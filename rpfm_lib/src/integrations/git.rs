@@ -12,7 +12,8 @@
 
 use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 
-use std::fs::DirBuilder;
+use std::fs::{DirBuilder, File};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command as SystemCommand;
 
@@ -67,6 +68,14 @@ impl GitIntegration {
     /// This function tries to initializes a git repo.
     pub fn init(&self) -> Result<Repository> {
         Repository::init(&self.local_path).map_err(From::from)
+    }
+
+    /// This function generates a gitignore file for the git repo.
+    ///
+    /// If it already exists, it'll replace the existing file.
+    pub fn add_gitignore(&self, contents: &str) -> Result<()> {
+        let mut file = BufWriter::new(File::create(self.local_path.join(".gitignore"))?);
+        file.write_all(contents.as_bytes()).map_err(From::from)
     }
 
     /// This function checks if there is a new update for the current repo.

@@ -86,8 +86,8 @@ change_packfile_type_data_is_compressed = Data Is &Compressed
 
 ## MyMod Menu
 
-mymod_new = &New MyMod
-mymod_delete_selected = &Delete Selected MyMod
+mymod_new = New MyMod
+mymod_delete_selected = Delete Selected MyMod
 mymod_import = Import
 mymod_export = Export
 
@@ -1230,3 +1230,20 @@ tt_about_check_lua_autogen_updates = Checks if there is any update available for
 update_lua_autogen_checker = Update TW Autogen Checker
 settings_disable_mymod_automatic_git_repo = Disable initial Git Repo on MyMods:
 settings_disable_mymod_automatic_configs = Disable initial editor configs on MyMods:
+new_mymod_instructions = <p>Things to take into account before creating a new mod:</p>
+    <ul>
+    <li> Select the game you'll make the mod for.</li>
+    <li> Pick an simple name (it shouldn't end in *.pack).</li>
+    <li> If you want to use multiple words, use "_" instead of " ".</li>
+    <li> You can't create a mod for a game that has no path set in the settings.</li>
+    <li> Depending on the options selected when creating the MyMod,<br/> some extra files may be automatically added to the ignored lists.</li>
+    </ul>
+
+new_mymod_lua_support = Lua Support
+new_mymod_git_support = Create Git Repository With GitIgnore
+new_mymod_sublime_support = Create Sublime Text Project
+new_mymod_vscode_support = Create VSCode Project
+new_mymod_gitignore_contents = GitIgnore Contents:
+new_mymod_pack_import_ignore_contents = Files Ignored on Import:
+new_mymod_gitignore_same_as_files_ignored_on_import = Same as files ignored on import
+mymod_error_spaces_on_name = Error: Mod name cannot contain spaces.

@@ -605,81 +605,95 @@ impl AppUISlots {
                 info!("Triggering `New MyMod` By Slot");
 
                 // Trigger the `New MyMod` Dialog, and get the result.
-                if let Some((mod_name, mod_game)) = MyModUI::new(&app_ui) {
-                    let full_mod_name = format!("{}.pack", mod_name);
+                match MyModUI::new(&app_ui) {
+                    Ok(dialog) => {
+                        if let Some((mod_name, mod_game, sublime_support, vscode_support, paths_ignore_on_import, git_support)) = dialog {
+                            let full_mod_name = format!("{}.pack", mod_name);
 
-                    // Change the Game Selected to match the one we chose for the new "MyMod".
-                    // NOTE: Arena should not be on this list.
-                    match &*mod_game {
-                        KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
-                        KEY_TROY => app_ui.game_selected_troy.trigger(),
-                        KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
-                        KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
-                        KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
-                        KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
-                        KEY_ATTILA => app_ui.game_selected_attila.trigger(),
-                        KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
-                        KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
-                        KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
-                        KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
-                        _ => unimplemented!()
-                    }
-
-                    // Disable the main window.
-                    app_ui.main_window.set_enabled(false);
-
-                    // Initialize the folder structure of the MyMod.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game));
-                    let response = CentralCommand::recv_try(&receiver);
-                    match response {
-                        Response::PathBuf(mymod_pack_path) => {
-
-                            // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                            let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
-                            GlobalSearchUI::clear(&global_search_ui);
-
-                            // Reset the autosave timer.
-                            let timer = setting_int("autosave_interval");
-                            if timer > 0 {
-                                app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                                app_ui.timer_backup_autosave.start_0a();
+                            // Change the Game Selected to match the one we chose for the new "MyMod".
+                            // NOTE: Arena should not be on this list.
+                            match &*mod_game {
+                                KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3.trigger(),
+                                KEY_TROY => app_ui.game_selected_troy.trigger(),
+                                KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
+                                KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
+                                KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
+                                KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
+                                KEY_ATTILA => app_ui.game_selected_attila.trigger(),
+                                KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
+                                KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
+                                KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
+                                KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
+                                _ => unimplemented!()
                             }
 
-                            // Prepare the settings to automatically ignore the .vscode, .git and sublime-project files.
-                            let mut pack_settings = PackSettings::default();
-                            pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), format!(".luarc.json\n.vscode\n.git\n{}.sublime-project\n{}.sublime-workspace", mod_name, mod_name));
+                            // Disable the main window.
+                            app_ui.main_window.set_enabled(false);
 
-                            let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
-                            let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
-                            let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
+                            // Initialize the folder structure of the MyMod.
+                            let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
                             let response = CentralCommand::recv_try(&receiver);
                             match response {
-                                Response::ContainerInfo(pack_file_info) => {
+                                Response::PathBuf(mymod_pack_path) => {
 
-                                    let mut build_data = BuildData::new();
-                                    build_data.editable = true;
-                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
-                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
-                                    packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                    packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+                                    // Destroy whatever it's in the file's views and clear the global search UI.
+                                    let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
+                                    GlobalSearchUI::clear(&global_search_ui);
 
-                                    // Set the UI to the state it should be in.
-                                    app_ui.change_packfile_type_mod.set_checked(true);
-                                    app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
-                                    app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
-                                    app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
-                                    app_ui.change_packfile_type_header_is_extended.set_checked(false);
-                                    app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+                                    // Reset the autosave timer.
+                                    let timer = setting_int("autosave_interval");
+                                    if timer > 0 {
+                                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                                        app_ui.timer_backup_autosave.start_0a();
+                                    }
 
-                                    AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
+                                    // Prepare the settings depending on what we choose to ignore.
+                                    // TODO: Fix this, as it's easy to forget to add stuff here.
+                                    let mut pack_settings = PackSettings::default();
+                                    pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+                                    pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
+                                    pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
 
-                                    UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
-                                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                                    let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
+                                    let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
+                                    let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
+                                    let response = CentralCommand::recv_try(&receiver);
+                                    match response {
+                                        Response::ContainerInfo(pack_file_info) => {
 
-                                    AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
-                                    app_ui.main_window.set_enabled(true);
+                                            let mut build_data = BuildData::new();
+                                            build_data.editable = true;
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
+                                            let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                                            packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                            packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+
+                                            // Set the UI to the state it should be in.
+                                            app_ui.change_packfile_type_mod.set_checked(true);
+                                            app_ui.change_packfile_type_data_is_encrypted.set_checked(false);
+                                            app_ui.change_packfile_type_index_includes_timestamp.set_checked(false);
+                                            app_ui.change_packfile_type_index_is_encrypted.set_checked(false);
+                                            app_ui.change_packfile_type_header_is_extended.set_checked(false);
+                                            app_ui.change_packfile_type_data_is_compressed.set_checked(false);
+
+                                            AppUI::enable_packfile_actions(&app_ui, &PathBuf::from(pack_file_info.file_path()), true);
+
+                                            UI_STATE.set_operational_mode(&app_ui, Some(&mymod_pack_path));
+                                            UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                                            app_ui.main_window.set_enabled(true);
+                                        }
+
+                                        Response::Error(error) => {
+                                            app_ui.main_window.set_enabled(true);
+                                            show_dialog(&app_ui.main_window, error, false);
+                                        }
+
+                                        // In ANY other situation, it's a message problem.
+                                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                    }
                                 }
-
                                 Response::Error(error) => {
                                     app_ui.main_window.set_enabled(true);
                                     show_dialog(&app_ui.main_window, error, false);
@@ -689,14 +703,8 @@ impl AppUISlots {
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
                         }
-                        Response::Error(error) => {
-                            app_ui.main_window.set_enabled(true);
-                            show_dialog(&app_ui.main_window, error, false);
-                        }
-
-                        // In ANY other situation, it's a message problem.
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
