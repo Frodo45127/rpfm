@@ -25,6 +25,7 @@ use qt_widgets::QMainWindow;
 use qt_widgets::QPushButton;
 use qt_widgets::QRadioButton;
 use qt_widgets::QTabWidget;
+use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
@@ -47,6 +48,7 @@ use qt_core::QVariant;
 
 use cpp_core::Ptr;
 
+use anyhow::Result;
 use getset::Getters;
 
 use std::rc::Rc;
@@ -64,12 +66,16 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::references_ui::ReferencesUI;
-use crate::utils::{create_grid_layout, show_dialog};
+use crate::utils::*;
 use crate::UI_STATE;
 
 pub mod connections;
 pub mod slots;
 pub mod tips;
+
+/// Tool's ui template path.
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/global_search_dock_widget.ui";
+const VIEW_RELEASE: &str = "ui/global_search_dock_widget.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -79,60 +85,60 @@ pub mod tips;
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct GlobalSearchUI {
-    global_search_dock_widget: QBox<QDockWidget>,
-    global_search_search_combobox: QBox<QComboBox>,
-    global_search_search_button: QBox<QPushButton>,
+    dock_widget: QPtr<QDockWidget>,
 
-    global_search_replace_line_edit: QBox<QLineEdit>,
-    global_search_replace_button: QBox<QPushButton>,
-    global_search_replace_all_button: QBox<QPushButton>,
+    search_combobox: QPtr<QComboBox>,
+    search_button: QPtr<QToolButton>,
+    clear_button: QPtr<QToolButton>,
+    case_sensitive_checkbox: QPtr<QToolButton>,
 
-    global_search_clear_button: QBox<QPushButton>,
-    global_search_case_sensitive_checkbox: QBox<QCheckBox>,
-    global_search_use_regex_checkbox: QBox<QCheckBox>,
+    replace_line_edit: QPtr<QLineEdit>,
+    replace_button: QPtr<QToolButton>,
+    replace_all_button: QPtr<QToolButton>,
+    use_regex_checkbox: QPtr<QToolButton>,
 
-    global_search_search_source_packfile: QBox<QRadioButton>,
-    global_search_search_source_parent: QBox<QRadioButton>,
-    global_search_search_source_game: QBox<QRadioButton>,
-    global_search_search_source_asskit: QBox<QRadioButton>,
+    search_source_packfile: QPtr<QRadioButton>,
+    search_source_parent: QPtr<QRadioButton>,
+    search_source_game: QPtr<QRadioButton>,
+    search_source_asskit: QPtr<QRadioButton>,
 
-    global_search_search_on_all_checkbox: QBox<QCheckBox>,
-    global_search_search_on_dbs_checkbox: QBox<QCheckBox>,
-    global_search_search_on_locs_checkbox: QBox<QCheckBox>,
-    global_search_search_on_texts_checkbox: QBox<QCheckBox>,
-    global_search_search_on_schemas_checkbox: QBox<QCheckBox>,
+    search_on_all_checkbox: QPtr<QCheckBox>,
+    search_on_dbs_checkbox: QPtr<QCheckBox>,
+    search_on_locs_checkbox: QPtr<QCheckBox>,
+    search_on_texts_checkbox: QPtr<QCheckBox>,
+    search_on_schemas_checkbox: QPtr<QCheckBox>,
 
-    global_search_matches_tab_widget: QBox<QTabWidget>,
+    matches_tab_widget: QPtr<QTabWidget>,
 
-    global_search_matches_db_tree_view: QBox<QTreeView>,
-    global_search_matches_loc_tree_view: QBox<QTreeView>,
-    global_search_matches_text_tree_view: QBox<QTreeView>,
-    global_search_matches_schema_tree_view: QBox<QTreeView>,
+    matches_db_tree_view: QPtr<QTreeView>,
+    matches_loc_tree_view: QPtr<QTreeView>,
+    matches_text_tree_view: QPtr<QTreeView>,
+    matches_schema_tree_view: QPtr<QTreeView>,
 
-    global_search_matches_db_tree_filter: QBox<QSortFilterProxyModel>,
-    global_search_matches_loc_tree_filter: QBox<QSortFilterProxyModel>,
-    global_search_matches_text_tree_filter: QBox<QSortFilterProxyModel>,
-    global_search_matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
+    matches_db_tree_filter: QBox<QSortFilterProxyModel>,
+    matches_loc_tree_filter: QBox<QSortFilterProxyModel>,
+    matches_text_tree_filter: QBox<QSortFilterProxyModel>,
+    matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
 
-    global_search_matches_db_tree_model: QBox<QStandardItemModel>,
-    global_search_matches_loc_tree_model: QBox<QStandardItemModel>,
-    global_search_matches_text_tree_model: QBox<QStandardItemModel>,
-    global_search_matches_schema_tree_model: QBox<QStandardItemModel>,
+    matches_db_tree_model: QBox<QStandardItemModel>,
+    matches_loc_tree_model: QBox<QStandardItemModel>,
+    matches_text_tree_model: QBox<QStandardItemModel>,
+    matches_schema_tree_model: QBox<QStandardItemModel>,
 
-    global_search_matches_filter_db_line_edit: QBox<QLineEdit>,
-    global_search_matches_filter_loc_line_edit: QBox<QLineEdit>,
-    global_search_matches_filter_text_line_edit: QBox<QLineEdit>,
-    global_search_matches_filter_schema_line_edit: QBox<QLineEdit>,
+    matches_filter_db_line_edit: QPtr<QLineEdit>,
+    matches_filter_loc_line_edit: QPtr<QLineEdit>,
+    matches_filter_text_line_edit: QPtr<QLineEdit>,
+    matches_filter_schema_line_edit: QPtr<QLineEdit>,
 
-    global_search_matches_case_sensitive_db_button: QBox<QPushButton>,
-    global_search_matches_case_sensitive_loc_button: QBox<QPushButton>,
-    global_search_matches_case_sensitive_text_button: QBox<QPushButton>,
-    global_search_matches_case_sensitive_schema_button: QBox<QPushButton>,
+    matches_case_sensitive_db_button: QPtr<QToolButton>,
+    matches_case_sensitive_loc_button: QPtr<QToolButton>,
+    matches_case_sensitive_text_button: QPtr<QToolButton>,
+    matches_case_sensitive_schema_button: QPtr<QToolButton>,
 
-    global_search_matches_column_selector_db_combobox: QBox<QComboBox>,
-    global_search_matches_column_selector_loc_combobox: QBox<QComboBox>,
-    global_search_matches_column_selector_text_combobox: QBox<QComboBox>,
-    global_search_matches_column_selector_schema_combobox: QBox<QComboBox>,
+    matches_column_selector_db_combobox: QPtr<QComboBox>,
+    matches_column_selector_loc_combobox: QPtr<QComboBox>,
+    matches_column_selector_text_combobox: QPtr<QComboBox>,
+    matches_column_selector_schema_combobox: QPtr<QComboBox>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -143,340 +149,262 @@ pub struct GlobalSearchUI {
 impl GlobalSearchUI {
 
     /// This function creates an entire `GlobalSearchUI` struct.
-    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
+    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
+
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(main_window, &template_path)?;
+
+        let dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
 
         // Create and configure the 'Global Search` Dock Widget and all his contents.
-        let global_search_dock_widget = QDockWidget::from_q_widget(main_window);
-        let global_search_dock_inner_widget = QWidget::new_1a(&global_search_dock_widget);
-        let global_search_dock_layout = create_grid_layout(global_search_dock_inner_widget.static_upcast());
-        global_search_dock_widget.set_widget(&global_search_dock_inner_widget);
-        main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, &global_search_dock_widget);
-        global_search_dock_widget.set_window_title(&qtr("global_search"));
-        global_search_dock_widget.set_object_name(&QString::from_std_str("global_search_dock"));
+        main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, &dock_widget);
+        dock_widget.set_window_title(&qtr("global_search"));
+        dock_widget.set_object_name(&QString::from_std_str("global_search_dock"));
 
         // Create the search & replace section.
-        let global_search_search_frame = QGroupBox::from_q_string_q_widget(&qtr("global_search_info"), &global_search_dock_inner_widget);
-        let global_search_search_grid = create_grid_layout(global_search_search_frame.static_upcast());
+        let search_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "seach_combobox")?;
+        let search_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "search_button")?;
+        let clear_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "clear_button")?;
+        let case_sensitive_checkbox: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_search_button")?;
+        search_button.set_tool_tip(&qtr("global_search_search"));
+        clear_button.set_tool_tip(&qtr("global_search_clear"));
+        case_sensitive_checkbox.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        let global_search_search_combobox = QComboBox::new_1a(&global_search_search_frame);
-        let global_search_search_button = QPushButton::from_q_string_q_widget(&qtr("global_search_search"), &global_search_search_frame);
-        global_search_search_combobox.set_editable(true);
+        let replace_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "replace_line_edit")?;
+        let replace_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "replace_button")?;
+        let replace_all_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "replace_all_button")?;
+        let use_regex_checkbox: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "regex_button")?;
+        replace_line_edit.set_placeholder_text(&qtr("global_search_replace_placeholder"));
+        replace_button.set_tool_tip(&qtr("global_search_replace"));
+        replace_all_button.set_tool_tip(&qtr("global_search_replace_all"));
+        use_regex_checkbox.set_tool_tip(&qtr("global_search_use_regex"));
 
-        let global_search_replace_line_edit = QLineEdit::from_q_widget(&global_search_search_frame);
-        let global_search_replace_button = QPushButton::from_q_string_q_widget(&qtr("global_search_replace"), &global_search_search_frame);
-        let global_search_replace_all_button = QPushButton::from_q_string_q_widget(&qtr("global_search_replace_all"), &global_search_search_frame);
+        let search_on_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_on_groupbox")?;
+        search_on_group_box.set_title(&qtr("global_search_search_on"));
 
-        let global_search_clear_button = QPushButton::from_q_string_q_widget(&qtr("global_search_clear"), &global_search_search_frame);
-        let global_search_case_sensitive_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &global_search_search_frame);
-        let global_search_use_regex_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_use_regex"), &global_search_search_frame);
+        let search_source_packfile: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_packfile")?;
+        let search_source_parent: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_parent")?;
+        let search_source_game: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_game")?;
+        let search_source_asskit: QPtr<QRadioButton> = find_widget(&main_widget.static_upcast(), "source_asskit")?;
+        search_source_packfile.set_text(&qtr("global_search_source_packfile"));
+        search_source_parent.set_text(&qtr("global_search_source_parent"));
+        search_source_game.set_text(&qtr("global_search_source_game"));
+        search_source_asskit.set_text(&qtr("global_search_source_asskit"));
 
-        let global_search_search_source_group_box = QGroupBox::from_q_string_q_widget(&qtr("global_search_search_source"), &global_search_search_frame);
-        let global_search_search_source_grid = create_grid_layout(global_search_search_source_group_box.static_upcast());
+        let search_source_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_source_groupbox")?;
+        search_source_group_box.set_title(&qtr("global_search_search_source"));
 
-        let global_search_search_source_packfile = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_packfile"), &global_search_search_source_group_box);
-        let global_search_search_source_parent = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_parent"), &global_search_search_source_group_box);
-        let global_search_search_source_game = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_game"), &global_search_search_source_group_box);
-        let global_search_search_source_asskit = QRadioButton::from_q_string_q_widget(&qtr("global_search_source_asskit"), &global_search_search_source_group_box);
-        global_search_search_source_packfile.set_checked(true);
-
-        let global_search_search_on_group_box = QGroupBox::from_q_string_q_widget(&qtr("global_search_search_on"), &global_search_search_frame);
-        let global_search_search_on_grid = create_grid_layout(global_search_search_on_group_box.static_upcast());
-
-        let global_search_search_on_all_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_all"), &global_search_search_on_group_box);
-        let global_search_search_on_dbs_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_db"), &global_search_search_on_group_box);
-        let global_search_search_on_locs_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_loc"), &global_search_search_on_group_box);
-        let global_search_search_on_texts_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_txt"), &global_search_search_on_group_box);
-        let global_search_search_on_schemas_checkbox = QCheckBox::from_q_string_q_widget(&qtr("global_search_schemas"), &global_search_search_on_group_box);
-        global_search_search_on_all_checkbox.set_checked(true);
-        global_search_search_on_dbs_checkbox.set_disabled(true);
-        global_search_search_on_locs_checkbox.set_disabled(true);
-        global_search_search_on_texts_checkbox.set_disabled(true);
-        global_search_search_on_schemas_checkbox.set_disabled(true);
-
-        global_search_search_grid.set_column_stretch(0, 10);
-
-        // Add everything to the Matches's Dock Layout.
-        global_search_search_grid.add_widget_5a(&global_search_search_combobox, 0, 0, 1, 2);
-        global_search_search_grid.add_widget_5a(&global_search_replace_line_edit, 1, 0, 1, 2);
-        global_search_search_grid.add_widget_5a(&global_search_search_button, 0, 2, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_replace_button, 1, 2, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_replace_all_button, 1, 3, 1, 1);
-
-        global_search_search_grid.add_widget_5a(&global_search_clear_button, 0, 3, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_case_sensitive_checkbox, 0, 4, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_use_regex_checkbox, 1, 4, 1, 1);
-        global_search_search_grid.add_widget_5a(&global_search_search_source_group_box, 2, 0, 1, 10);
-        global_search_search_grid.add_widget_5a(&global_search_search_on_group_box, 3, 0, 1, 10);
-
-        global_search_search_source_grid.add_widget_5a(&global_search_search_source_packfile, 0, 0, 1, 1);
-        global_search_search_source_grid.add_widget_5a(&global_search_search_source_parent, 0, 1, 1, 1);
-        global_search_search_source_grid.add_widget_5a(&global_search_search_source_game, 0, 2, 1, 1);
-        global_search_search_source_grid.add_widget_5a(&global_search_search_source_asskit, 0, 3, 1, 1);
-
-        global_search_search_on_grid.add_widget_5a(&global_search_search_on_all_checkbox, 0, 0, 1, 1);
-        global_search_search_on_grid.add_widget_5a(&global_search_search_on_dbs_checkbox, 0, 1, 1, 1);
-        global_search_search_on_grid.add_widget_5a(&global_search_search_on_locs_checkbox, 0, 2, 1, 1);
-        global_search_search_on_grid.add_widget_5a(&global_search_search_on_texts_checkbox, 0, 3, 1, 1);
-        global_search_search_on_grid.add_widget_5a(&global_search_search_on_schemas_checkbox, 0, 4, 1, 1);
+        let search_on_all_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all")?;
+        let search_on_dbs_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_db")?;
+        let search_on_locs_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_loc")?;
+        let search_on_texts_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_txt")?;
+        let search_on_schemas_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_schemas")?;
+        search_on_all_checkbox.set_text(&qtr("global_search_all"));
+        search_on_dbs_checkbox.set_text(&qtr("global_search_db"));
+        search_on_locs_checkbox.set_text(&qtr("global_search_loc"));
+        search_on_texts_checkbox.set_text(&qtr("global_search_txt"));
+        search_on_schemas_checkbox.set_text(&qtr("global_search_schemas"));
 
         // Create the frames for the matches tables.
-        let global_search_matches_tab_widget = QTabWidget::new_1a(&global_search_dock_inner_widget);
+        let matches_tab_widget: QPtr<QTabWidget> = find_widget(&main_widget.static_upcast(), "results_tab_widget")?;
 
-        let db_matches_widget = QWidget::new_1a(&global_search_matches_tab_widget);
-        let db_matches_grid = create_grid_layout(db_matches_widget.static_upcast());
-
-        let loc_matches_widget = QWidget::new_1a(&global_search_matches_tab_widget);
-        let loc_matches_grid = create_grid_layout(loc_matches_widget.static_upcast());
-
-        let text_matches_widget = QWidget::new_1a(&global_search_matches_tab_widget);
-        let text_matches_grid = create_grid_layout(text_matches_widget.static_upcast());
-
-        let schema_matches_widget = QWidget::new_1a(&global_search_matches_tab_widget);
-        let schema_matches_grid = create_grid_layout(schema_matches_widget.static_upcast());
-
-        // `TreeView`s with all the matches.
-        let tree_view_matches_db = QTreeView::new_1a(&db_matches_widget);
-        let tree_view_matches_loc = QTreeView::new_1a(&loc_matches_widget);
-        let tree_view_matches_text = QTreeView::new_1a(&text_matches_widget);
-        let tree_view_matches_schema = QTreeView::new_1a(&schema_matches_widget);
-
-        let filter_model_matches_db = new_treeview_filter_safe(tree_view_matches_db.static_upcast());
-        let filter_model_matches_loc = new_treeview_filter_safe(tree_view_matches_loc.static_upcast());
-        let filter_model_matches_text = new_treeview_filter_safe(tree_view_matches_text.static_upcast());
-        let filter_model_matches_schema = new_treeview_filter_safe(tree_view_matches_schema.static_upcast());
-
-        let model_matches_db = QStandardItemModel::new_1a(&tree_view_matches_db);
-        let model_matches_loc = QStandardItemModel::new_1a(&tree_view_matches_loc);
-        let model_matches_text = QStandardItemModel::new_1a(&tree_view_matches_text);
-        let model_matches_schema = QStandardItemModel::new_1a(&tree_view_matches_schema);
-
-        tree_view_matches_db.set_model(&filter_model_matches_db);
-        tree_view_matches_loc.set_model(&filter_model_matches_loc);
-        tree_view_matches_text.set_model(&filter_model_matches_text);
-        tree_view_matches_schema.set_model(&filter_model_matches_schema);
-
-        filter_model_matches_db.set_source_model(&model_matches_db);
-        filter_model_matches_loc.set_source_model(&model_matches_loc);
-        filter_model_matches_text.set_source_model(&model_matches_text);
-        filter_model_matches_schema.set_source_model(&model_matches_schema);
-
-        tree_view_matches_db.set_horizontal_scroll_mode(ScrollMode::ScrollPerPixel);
-        tree_view_matches_db.set_sorting_enabled(true);
-        tree_view_matches_db.header().set_visible(true);
-        tree_view_matches_db.header().set_stretch_last_section(true);
-
-        tree_view_matches_loc.set_horizontal_scroll_mode(ScrollMode::ScrollPerPixel);
-        tree_view_matches_loc.set_sorting_enabled(true);
-        tree_view_matches_loc.header().set_visible(true);
-        tree_view_matches_loc.header().set_stretch_last_section(true);
-
-        tree_view_matches_text.set_horizontal_scroll_mode(ScrollMode::ScrollPerPixel);
-        tree_view_matches_text.set_sorting_enabled(true);
-        tree_view_matches_text.header().set_visible(true);
-        tree_view_matches_text.header().set_stretch_last_section(true);
-
-        tree_view_matches_schema.set_horizontal_scroll_mode(ScrollMode::ScrollPerPixel);
-        tree_view_matches_schema.set_sorting_enabled(true);
-        tree_view_matches_schema.header().set_visible(true);
-        tree_view_matches_schema.header().set_stretch_last_section(true);
-
-        // Filters for the matches `TreeViews`.
-        let filter_matches_db_line_edit = QLineEdit::from_q_widget(&db_matches_widget);
-        let filter_matches_db_column_selector = QComboBox::new_1a(&db_matches_widget);
-        let filter_matches_db_column_list = QStandardItemModel::new_1a(&db_matches_widget);
-        let filter_matches_db_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &db_matches_widget);
-
+        // DB
+        let matches_widget_db: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_db")?;
+        let tree_view_matches_db: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "db_tree_view")?;
+        let filter_matches_db_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "db_filter_line_edit")?;
+        let filter_matches_db_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "db_filter_case_sensitive_button")?;
+        let filter_matches_db_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "db_column_combo_box")?;
+        let filter_matches_db_column_list = QStandardItemModel::new_1a(&matches_widget_db);
         filter_matches_db_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_matches_db_column_selector.set_model(&filter_matches_db_column_list);
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_row"));
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_db_case_sensitive_button.set_checkable(true);
+        filter_matches_db_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        let filter_matches_loc_line_edit = QLineEdit::from_q_widget(&loc_matches_widget);
-        let filter_matches_loc_column_selector = QComboBox::new_1a(&loc_matches_widget);
-        let filter_matches_loc_column_list = QStandardItemModel::new_1a(&loc_matches_widget);
-        let filter_matches_loc_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &loc_matches_widget);
+        let matches_db_tree_filter = new_treeview_filter_safe(tree_view_matches_db.static_upcast());
+        let matches_db_tree_model = QStandardItemModel::new_1a(&tree_view_matches_db);
+        tree_view_matches_db.set_model(&matches_db_tree_filter);
+        matches_db_tree_filter.set_source_model(&matches_db_tree_model);
 
+        // Loc
+        let matches_widget_loc: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_loc")?;
+        let tree_view_matches_loc: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "loc_tree_view")?;
+        let filter_matches_loc_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "loc_filter_line_edit")?;
+        let filter_matches_loc_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "loc_filter_case_sensitive_button")?;
+        let filter_matches_loc_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "loc_column_combo_box")?;
+        let filter_matches_loc_column_list = QStandardItemModel::new_1a(&matches_widget_loc);
         filter_matches_loc_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_matches_loc_column_selector.set_model(&filter_matches_loc_column_list);
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_row"));
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_loc_case_sensitive_button.set_checkable(true);
+        filter_matches_loc_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        let filter_matches_text_line_edit = QLineEdit::from_q_widget(&text_matches_widget);
-        let filter_matches_text_column_selector = QComboBox::new_1a(&text_matches_widget);
-        let filter_matches_text_column_list = QStandardItemModel::new_1a(&text_matches_widget);
-        let filter_matches_text_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &text_matches_widget);
+        let matches_loc_tree_filter = new_treeview_filter_safe(tree_view_matches_loc.static_upcast());
+        let matches_loc_tree_model = QStandardItemModel::new_1a(&tree_view_matches_loc);
+        tree_view_matches_loc.set_model(&matches_loc_tree_filter);
+        matches_loc_tree_filter.set_source_model(&matches_loc_tree_model);
 
+        // Text
+        let matches_widget_text: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_text")?;
+        let tree_view_matches_text: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "text_tree_view")?;
+        let filter_matches_text_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "text_filter_line_edit")?;
+        let filter_matches_text_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "text_filter_case_sensitive_button")?;
+        let filter_matches_text_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "text_column_combo_box")?;
+        let filter_matches_text_column_list = QStandardItemModel::new_1a(&matches_widget_text);
         filter_matches_text_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_matches_text_column_selector.set_model(&filter_matches_text_column_list);
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_row"));
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_text_case_sensitive_button.set_checkable(true);
+        filter_matches_text_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        let filter_matches_schema_line_edit = QLineEdit::from_q_widget(&schema_matches_widget);
-        let filter_matches_schema_column_selector = QComboBox::new_1a(&schema_matches_widget);
-        let filter_matches_schema_column_list = QStandardItemModel::new_1a(&schema_matches_widget);
-        let filter_matches_schema_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("global_search_case_sensitive"), &schema_matches_widget);
+        let matches_text_tree_filter = new_treeview_filter_safe(tree_view_matches_text.static_upcast());
+        let matches_text_tree_model = QStandardItemModel::new_1a(&tree_view_matches_text);
+        tree_view_matches_text.set_model(&matches_text_tree_filter);
+        matches_text_tree_filter.set_source_model(&matches_text_tree_model);
 
+        // Schema
+        let matches_widget_schema: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_schema")?;
+        let tree_view_matches_schema: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "schema_tree_view")?;
+        let filter_matches_schema_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "schema_filter_line_edit")?;
+        let filter_matches_schema_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "schema_filter_case_sensitive_button")?;
+        let filter_matches_schema_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "schema_column_combo_box")?;
+        let filter_matches_schema_column_list = QStandardItemModel::new_1a(&matches_widget_schema);
         filter_matches_schema_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_matches_schema_column_selector.set_model(&filter_matches_schema_column_list);
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_row"));
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_schema_case_sensitive_button.set_checkable(true);
+        filter_matches_schema_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        // Add everything to the Matches's Dock Layout.
-        db_matches_grid.add_widget_5a(&tree_view_matches_db, 0, 0, 1, 3);
-        loc_matches_grid.add_widget_5a(&tree_view_matches_loc, 0, 0, 1, 3);
-        text_matches_grid.add_widget_5a(&tree_view_matches_text, 0, 0, 1, 3);
-        schema_matches_grid.add_widget_5a(&tree_view_matches_schema, 0, 0, 1, 3);
+        let matches_schema_tree_filter = new_treeview_filter_safe(tree_view_matches_schema.static_upcast());
+        let matches_schema_tree_model = QStandardItemModel::new_1a(&tree_view_matches_schema);
+        tree_view_matches_schema.set_model(&matches_schema_tree_filter);
+        matches_schema_tree_filter.set_source_model(&matches_schema_tree_model);
 
-        db_matches_grid.add_widget_5a(&filter_matches_db_line_edit, 1, 0, 1, 1);
-        db_matches_grid.add_widget_5a(&filter_matches_db_case_sensitive_button, 1, 1, 1, 1);
-        db_matches_grid.add_widget_5a(&filter_matches_db_column_selector, 1, 2, 1, 1);
-
-        loc_matches_grid.add_widget_5a(&filter_matches_loc_line_edit, 1, 0, 1, 1);
-        loc_matches_grid.add_widget_5a(&filter_matches_loc_case_sensitive_button, 1, 1, 1, 1);
-        loc_matches_grid.add_widget_5a(&filter_matches_loc_column_selector, 1, 2, 1, 1);
-
-        text_matches_grid.add_widget_5a(&filter_matches_text_line_edit, 1, 0, 1, 1);
-        text_matches_grid.add_widget_5a(&filter_matches_text_case_sensitive_button, 1, 1, 1, 1);
-        text_matches_grid.add_widget_5a(&filter_matches_text_column_selector, 1, 2, 1, 1);
-
-        schema_matches_grid.add_widget_5a(&filter_matches_schema_line_edit, 1, 0, 1, 1);
-        schema_matches_grid.add_widget_5a(&filter_matches_schema_case_sensitive_button, 1, 1, 1, 1);
-        schema_matches_grid.add_widget_5a(&filter_matches_schema_column_selector, 1, 2, 1, 1);
-
-        global_search_matches_tab_widget.add_tab_2a(&db_matches_widget, &qtr("global_search_db_matches"));
-        global_search_matches_tab_widget.add_tab_2a(&loc_matches_widget, &qtr("global_search_loc_matches"));
-        global_search_matches_tab_widget.add_tab_2a(&text_matches_widget, &qtr("global_search_txt_matches"));
-        global_search_matches_tab_widget.add_tab_2a(&schema_matches_widget, &qtr("global_search_schema_matches"));
-
-        global_search_dock_layout.add_widget_5a(&global_search_search_frame, 0, 0, 1, 3);
-        global_search_dock_layout.add_widget_5a(&global_search_matches_tab_widget, 1, 0, 1, 3);
+        matches_tab_widget.set_tab_text(0, &qtr("global_search_db_matches"));
+        matches_tab_widget.set_tab_text(1, &qtr("global_search_loc_matches"));
+        matches_tab_widget.set_tab_text(2, &qtr("global_search_txt_matches"));
+        matches_tab_widget.set_tab_text(3, &qtr("global_search_schema_matches"));
 
         // Hide this widget by default.
-        global_search_dock_widget.hide();
+        dock_widget.hide();
 
         // Create ***Da monsta***.
-        Self {
-            global_search_dock_widget,
-            global_search_search_combobox,
-            global_search_search_button,
+        Ok(Self {
+            dock_widget,
+            search_combobox,
+            search_button,
 
-            global_search_replace_line_edit,
-            global_search_replace_button,
-            global_search_replace_all_button,
+            replace_line_edit,
+            replace_button,
+            replace_all_button,
 
-            global_search_clear_button,
-            global_search_case_sensitive_checkbox,
-            global_search_use_regex_checkbox,
+            clear_button,
+            case_sensitive_checkbox,
+            use_regex_checkbox,
 
-            global_search_search_source_packfile,
-            global_search_search_source_parent,
-            global_search_search_source_game,
-            global_search_search_source_asskit,
+            search_source_packfile,
+            search_source_parent,
+            search_source_game,
+            search_source_asskit,
 
-            global_search_search_on_all_checkbox,
-            global_search_search_on_dbs_checkbox,
-            global_search_search_on_locs_checkbox,
-            global_search_search_on_texts_checkbox,
-            global_search_search_on_schemas_checkbox,
+            search_on_all_checkbox,
+            search_on_dbs_checkbox,
+            search_on_locs_checkbox,
+            search_on_texts_checkbox,
+            search_on_schemas_checkbox,
 
-            global_search_matches_tab_widget,
+            matches_tab_widget,
 
-            global_search_matches_db_tree_view: tree_view_matches_db,
-            global_search_matches_loc_tree_view: tree_view_matches_loc,
-            global_search_matches_text_tree_view: tree_view_matches_text,
-            global_search_matches_schema_tree_view: tree_view_matches_schema,
+            matches_db_tree_view: tree_view_matches_db,
+            matches_loc_tree_view: tree_view_matches_loc,
+            matches_text_tree_view: tree_view_matches_text,
+            matches_schema_tree_view: tree_view_matches_schema,
 
-            global_search_matches_db_tree_filter: filter_model_matches_db,
-            global_search_matches_loc_tree_filter: filter_model_matches_loc,
-            global_search_matches_text_tree_filter: filter_model_matches_text,
-            global_search_matches_schema_tree_filter: filter_model_matches_schema,
+            matches_db_tree_filter,
+            matches_loc_tree_filter,
+            matches_text_tree_filter,
+            matches_schema_tree_filter,
 
-            global_search_matches_db_tree_model: model_matches_db,
-            global_search_matches_loc_tree_model: model_matches_loc,
-            global_search_matches_text_tree_model: model_matches_text,
-            global_search_matches_schema_tree_model: model_matches_schema,
+            matches_db_tree_model,
+            matches_loc_tree_model,
+            matches_text_tree_model,
+            matches_schema_tree_model,
 
-            global_search_matches_filter_db_line_edit: filter_matches_db_line_edit,
-            global_search_matches_filter_loc_line_edit: filter_matches_loc_line_edit,
-            global_search_matches_filter_text_line_edit: filter_matches_text_line_edit,
-            global_search_matches_filter_schema_line_edit: filter_matches_schema_line_edit,
+            matches_filter_db_line_edit: filter_matches_db_line_edit,
+            matches_filter_loc_line_edit: filter_matches_loc_line_edit,
+            matches_filter_text_line_edit: filter_matches_text_line_edit,
+            matches_filter_schema_line_edit: filter_matches_schema_line_edit,
 
-            global_search_matches_case_sensitive_db_button: filter_matches_db_case_sensitive_button,
-            global_search_matches_case_sensitive_loc_button: filter_matches_loc_case_sensitive_button,
-            global_search_matches_case_sensitive_text_button: filter_matches_text_case_sensitive_button,
-            global_search_matches_case_sensitive_schema_button: filter_matches_schema_case_sensitive_button,
+            matches_case_sensitive_db_button: filter_matches_db_case_sensitive_button,
+            matches_case_sensitive_loc_button: filter_matches_loc_case_sensitive_button,
+            matches_case_sensitive_text_button: filter_matches_text_case_sensitive_button,
+            matches_case_sensitive_schema_button: filter_matches_schema_case_sensitive_button,
 
-            global_search_matches_column_selector_db_combobox: filter_matches_db_column_selector,
-            global_search_matches_column_selector_loc_combobox: filter_matches_loc_column_selector,
-            global_search_matches_column_selector_text_combobox: filter_matches_text_column_selector,
-            global_search_matches_column_selector_schema_combobox: filter_matches_schema_column_selector,
-        }
+            matches_column_selector_db_combobox: filter_matches_db_column_selector,
+            matches_column_selector_loc_combobox: filter_matches_loc_column_selector,
+            matches_column_selector_text_combobox: filter_matches_text_column_selector,
+            matches_column_selector_schema_combobox: filter_matches_schema_column_selector,
+        })
     }
 
     /// This function is used to search the entire PackFile, using the data in Self for the search.
-    pub unsafe fn search(
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<Self>,
-    ) {
+    pub unsafe fn search(&self, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Create the global search and populate it with all the settings for the search.
         let mut global_search = GlobalSearch {
-            pattern: global_search_ui.global_search_search_combobox.current_text().to_std_string(),
-            case_sensitive: global_search_ui.global_search_case_sensitive_checkbox.is_checked(),
-            use_regex: global_search_ui.global_search_use_regex_checkbox.is_checked(),
+            pattern: self.search_combobox.current_text().to_std_string(),
+            case_sensitive: self.case_sensitive_checkbox.is_checked(),
+            use_regex: self.use_regex_checkbox.is_checked(),
             ..Default::default()
         };
 
         // If we don't have text to search, return.
         if global_search.pattern.is_empty() { return; }
 
-        if global_search_ui.global_search_search_source_packfile.is_checked() {
+        if self.search_source_packfile.is_checked() {
             global_search.source = SearchSource::Pack;
-        } else if global_search_ui.global_search_search_source_parent.is_checked() {
+        } else if self.search_source_parent.is_checked() {
             global_search.source = SearchSource::ParentFiles;
-        } else if global_search_ui.global_search_search_source_game.is_checked() {
+        } else if self.search_source_game.is_checked() {
             global_search.source = SearchSource::GameFiles;
-        } else if global_search_ui.global_search_search_source_asskit.is_checked() {
+        } else if self.search_source_asskit.is_checked() {
             global_search.source = SearchSource::AssKitFiles;
         }
 
-        if global_search_ui.global_search_search_on_all_checkbox.is_checked() {
+        if self.search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
             global_search.search_on_texts = true;
             global_search.search_on_schema = true;
         }
         else {
-            global_search.search_on_dbs = global_search_ui.global_search_search_on_dbs_checkbox.is_checked();
-            global_search.search_on_locs = global_search_ui.global_search_search_on_locs_checkbox.is_checked();
-            global_search.search_on_texts = global_search_ui.global_search_search_on_texts_checkbox.is_checked();
-            global_search.search_on_schema = global_search_ui.global_search_search_on_schemas_checkbox.is_checked();
+            global_search.search_on_dbs = self.search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = self.search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = self.search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = self.search_on_schemas_checkbox.is_checked();
         }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearch(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let tree_view_db = &global_search_ui.global_search_matches_db_tree_view;
-        let tree_view_loc = &global_search_ui.global_search_matches_loc_tree_view;
-        let tree_view_text = &global_search_ui.global_search_matches_text_tree_view;
-        let tree_view_schema = &global_search_ui.global_search_matches_schema_tree_view;
+        let tree_view_db = &self.matches_db_tree_view;
+        let tree_view_loc = &self.matches_loc_tree_view;
+        let tree_view_text = &self.matches_text_tree_view;
+        let tree_view_schema = &self.matches_schema_tree_view;
 
-        let model_db = &global_search_ui.global_search_matches_db_tree_model;
-        let model_loc = &global_search_ui.global_search_matches_loc_tree_model;
-        let model_text = &global_search_ui.global_search_matches_text_tree_model;
-        let model_schema = &global_search_ui.global_search_matches_schema_tree_model;
+        let model_db = &self.matches_db_tree_model;
+        let model_loc = &self.matches_loc_tree_model;
+        let model_text = &self.matches_text_tree_model;
+        let model_schema = &self.matches_schema_tree_model;
 
         model_db.clear();
         model_loc.clear();
@@ -491,6 +419,22 @@ impl GlobalSearchUI {
                 Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
                 Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
 
+                if !global_search.matches_db.is_empty() {
+                    self.matches_tab_widget().set_current_index(0);
+                }
+
+                else if !global_search.matches_loc.is_empty() {
+                    self.matches_tab_widget().set_current_index(1);
+                }
+
+                else if !global_search.matches_text.is_empty() {
+                    self.matches_tab_widget().set_current_index(2);
+                }
+
+                else if !global_search.matches_schema.matches().is_empty() {
+                    self.matches_tab_widget().set_current_index(3);
+                }
+
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
@@ -499,15 +443,13 @@ impl GlobalSearchUI {
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
-    pub unsafe fn clear(
-        global_search_ui: &Rc<Self>
-    ) {
+    pub unsafe fn clear(&self) {
         UI_STATE.set_global_search(&GlobalSearch::default());
 
-        global_search_ui.global_search_matches_db_tree_model.clear();
-        global_search_ui.global_search_matches_loc_tree_model.clear();
-        global_search_ui.global_search_matches_text_tree_model.clear();
-        global_search_ui.global_search_matches_schema_tree_model.clear();
+        self.matches_db_tree_model.clear();
+        self.matches_loc_tree_model.clear();
+        self.matches_text_tree_model.clear();
+        self.matches_schema_tree_model.clear();
     }
 
     /// This function replace the currently selected match with the provided text.
@@ -519,36 +461,36 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
-        global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
-        global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
-        global_search.use_regex = global_search_ui.global_search_use_regex_checkbox.is_checked();
+        global_search.pattern = global_search_ui.search_combobox.current_text().to_std_string();
+        global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
+        global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
+        global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
 
-        if global_search_ui.global_search_search_on_all_checkbox.is_checked() {
+        if global_search_ui.search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
             global_search.search_on_texts = true;
             global_search.search_on_schema = true;
         }
         else {
-            global_search.search_on_dbs = global_search_ui.global_search_search_on_dbs_checkbox.is_checked();
-            global_search.search_on_locs = global_search_ui.global_search_search_on_locs_checkbox.is_checked();
-            global_search.search_on_texts = global_search_ui.global_search_search_on_texts_checkbox.is_checked();
-            global_search.search_on_schema = global_search_ui.global_search_search_on_schemas_checkbox.is_checked();
+            global_search.search_on_dbs = global_search_ui.search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = global_search_ui.search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = global_search_ui.search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = global_search_ui.search_on_schemas_checkbox.is_checked();
         }
 
         let matches = Self::get_matches_from_selection(global_search_ui);
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
 
         // While we wait for an answer, we need to clear the current results panels.
-        global_search_ui.global_search_matches_db_tree_model.clear();
-        global_search_ui.global_search_matches_loc_tree_model.clear();
-        global_search_ui.global_search_matches_text_tree_model.clear();
+        global_search_ui.matches_db_tree_model.clear();
+        global_search_ui.matches_loc_tree_model.clear();
+        global_search_ui.matches_text_tree_model.clear();
 
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
-                Self::search(pack_file_contents_ui, global_search_ui);
+                global_search_ui.search(pack_file_contents_ui);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
 
                 // Update the views of the updated PackedFiles.
@@ -584,7 +526,7 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), error, false);
         }
 
-        Self::search(pack_file_contents_ui, global_search_ui);
+        global_search_ui.search(pack_file_contents_ui);
 
         let mut global_search = UI_STATE.get_global_search();
 
@@ -592,30 +534,30 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.global_search_search_combobox.current_text().to_std_string();
-        global_search.replace_text = global_search_ui.global_search_replace_line_edit.text().to_std_string();
-        global_search.case_sensitive = global_search_ui.global_search_case_sensitive_checkbox.is_checked();
-        global_search.use_regex = global_search_ui.global_search_use_regex_checkbox.is_checked();
+        global_search.pattern = global_search_ui.search_combobox.current_text().to_std_string();
+        global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
+        global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
+        global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
 
-        if global_search_ui.global_search_search_on_all_checkbox.is_checked() {
+        if global_search_ui.search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
             global_search.search_on_texts = true;
             global_search.search_on_schema = true;
         }
         else {
-            global_search.search_on_dbs = global_search_ui.global_search_search_on_dbs_checkbox.is_checked();
-            global_search.search_on_locs = global_search_ui.global_search_search_on_locs_checkbox.is_checked();
-            global_search.search_on_texts = global_search_ui.global_search_search_on_texts_checkbox.is_checked();
-            global_search.search_on_schema = global_search_ui.global_search_search_on_schemas_checkbox.is_checked();
+            global_search.search_on_dbs = global_search_ui.search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = global_search_ui.search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = global_search_ui.search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = global_search_ui.search_on_schemas_checkbox.is_checked();
         }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceAll(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let model_db = &global_search_ui.global_search_matches_db_tree_model;
-        let model_loc = &global_search_ui.global_search_matches_loc_tree_model;
-        let model_text = &global_search_ui.global_search_matches_text_tree_model;
+        let model_db = &global_search_ui.matches_db_tree_model;
+        let model_loc = &global_search_ui.matches_loc_tree_model;
+        let model_text = &global_search_ui.matches_text_tree_model;
 
         model_db.clear();
         model_loc.clear();
@@ -624,7 +566,7 @@ impl GlobalSearchUI {
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
-                Self::search(pack_file_contents_ui, global_search_ui);
+                global_search_ui.search(pack_file_contents_ui);
 
                 for path in packed_files_info.iter().map(|x| x.path()) {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
@@ -972,10 +914,10 @@ impl GlobalSearchUI {
 
     /// Function to filter the PackFile Contents TreeView.
     pub unsafe fn filter_results(
-        view: &QBox<QTreeView>,
-        line_edit: &QBox<QLineEdit>,
-        column_combobox: &QBox<QComboBox>,
-        case_sensitive_button: &QBox<QPushButton>,
+        view: &QPtr<QTreeView>,
+        line_edit: &QPtr<QLineEdit>,
+        column_combobox: &QPtr<QComboBox>,
+        case_sensitive_button: &QPtr<QToolButton>,
     ) {
 
         let pattern = QRegExp::new_1a(&line_edit.text());
@@ -990,15 +932,15 @@ impl GlobalSearchUI {
     }
 
     /// Function to get all the selected matches in the visible selection.
-    unsafe fn get_matches_from_selection(global_search_ui: &Rc<Self>) -> Vec<MatchHolder> {
+    unsafe fn get_matches_from_selection(&self) -> Vec<MatchHolder> {
 
-        let tree_view = match global_search_ui.global_search_matches_tab_widget.current_index() {
-            0 => &global_search_ui.global_search_matches_db_tree_view,
-            1 => &global_search_ui.global_search_matches_loc_tree_view,
+        let tree_view = match self.matches_tab_widget.current_index() {
+            0 => &self.matches_db_tree_view,
+            1 => &self.matches_loc_tree_view,
             _ => return vec![],
         };
 
-        let items = tree_view.static_upcast::<QTreeView>().get_items_from_selection(true);
+        let items = tree_view.get_items_from_selection(true);
 
         // For each item we follow the following logic:
         // - If it's a parent, it's all the matches on a table.

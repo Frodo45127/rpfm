@@ -128,7 +128,7 @@ impl UI {
         let t = std::time::SystemTime::now();
 
         let app_ui = Rc::new(AppUI::new());
-        let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window()));
+        let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window()));
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);

@@ -812,7 +812,7 @@ impl AppUISlots {
             dependencies_ui,
             references_ui => move || {
                 app_ui.view_toggle_packfile_contents.set_checked(pack_file_contents_ui.packfile_contents_dock_widget().is_visible());
-                app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.global_search_dock_widget().is_visible());
+                app_ui.view_toggle_global_search_panel.set_checked(global_search_ui.dock_widget().is_visible());
                 app_ui.view_toggle_diagnostics_panel.set_checked(diagnostics_ui.diagnostics_dock_widget().is_visible());
                 app_ui.view_toggle_dependencies_panel.set_checked(dependencies_ui.dependencies_dock_widget().is_visible());
                 app_ui.view_toggle_references_panel.set_checked(references_ui.references_dock_widget().is_visible());
@@ -826,10 +826,10 @@ impl AppUISlots {
 
         let view_toggle_global_search_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             global_search_ui => move |state| {
-            if !state { global_search_ui.global_search_dock_widget().hide(); }
+            if !state { global_search_ui.dock_widget().hide(); }
             else {
-                global_search_ui.global_search_dock_widget().show();
-                global_search_ui.global_search_search_combobox().set_focus_0a()
+                global_search_ui.dock_widget().show();
+                global_search_ui.search_combobox().set_focus_0a()
             }
         }));
 
