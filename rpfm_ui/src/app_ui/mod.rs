@@ -3556,8 +3556,10 @@ impl AppUI {
 
             // If the game didn't change, we need to make sure we generate a receiver for this.
             let receiver = if game_changed {
+                info!("Reusing receiver.");
                 receiver
             } else {
+                info!("New receiver.");
                 CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true))
             };
 

@@ -81,6 +81,7 @@ pub fn background_loop() {
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
         let (sender, response): (Sender<Response>, Command) = CENTRAL_COMMAND.recv_background();
+        info!("Command received: {:?}.", response);
         match response {
 
             // Command to close the thread.
@@ -232,6 +233,7 @@ pub fn background_loop() {
             }
 
             Command::SetGameSelected(game_selected, rebuild_dependencies) => {
+                info!("Setting game selected.");
                 let game_changed = GAME_SELECTED.read().unwrap().game_key_name() != game_selected || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst);
                 *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&game_selected).unwrap();
                 let game = GAME_SELECTED.read().unwrap();
@@ -244,6 +246,7 @@ pub fn background_loop() {
                 //
                 // Branch 1: dependencies rebuilt.
                 if rebuild_dependencies {
+                info!("Branch 1.");
                     let pack_dependencies = pack_file_decoded.dependencies().to_vec();
                     let handle = thread::spawn(move || {
                         let game_selected = GAME_SELECTED.read().unwrap();
@@ -260,6 +263,7 @@ pub fn background_loop() {
                     // Get the dependencies that were loading in parallel and send their info to the UI.
                     dependencies = handle.join().unwrap();
                     let dependencies_info = DependenciesInfo::from(&dependencies);
+                    info!("Sending dependencies info after game selected change.");
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
 
                     // Decode the dependencies tables while the UI does its own thing.
@@ -268,6 +272,7 @@ pub fn background_loop() {
 
                 // Branch 2: no dependecies rebuild.
                 else {
+                info!("Branch 2.");
 
                     // Load the new schemas.
                     load_schemas(&sender, &mut pack_file_decoded, &game);
@@ -282,6 +287,7 @@ pub fn background_loop() {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
+                info!("Switching game selected done.");
             }
 
             // In case we want to generate the dependencies cache for our Game Selected...
@@ -1136,6 +1142,7 @@ pub fn background_loop() {
 
             // In case we want to perform a diagnostics check...
             Command::DiagnosticsCheck(diagnostics_ignored) => {
+                info!("Checking diagnostics.");
                 let game_selected = GAME_SELECTED.read().unwrap().clone();
                 let game_path = setting_path(&game_selected.game_key_name());
                 let schema = SCHEMA.read().unwrap().clone();
@@ -1155,6 +1162,7 @@ pub fn background_loop() {
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
                             diagnostics.check(&pack_file_decoded, &mut dependencies, &game_selected, &game_path, &[], &schema);
                         }
+                        info!("Checking diagnostics: done.");
                         CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
                     }));
                 }
@@ -1781,5 +1789,6 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
     }
 
     // Send a response, so the UI continues working while we finish things here.
+    info!("Sending success after game selected change.");
     CentralCommand::send_back(&sender, Response::Success);
 }

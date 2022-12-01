@@ -54,6 +54,7 @@ use rpfm_extensions::diagnostics::{*, anim_fragment::*, config::*, dependency::*
 
 use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::supported_games::*;
+use rpfm_lib::integrations::log::info;
 
 use crate::app_ui::AppUI;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -473,6 +474,7 @@ impl DiagnosticsUI {
 
         app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
+        info!("Triggering check.");
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored));
         let response = CentralCommand::recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();

@@ -231,6 +231,7 @@ impl AppUISlots {
             global_search_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
+                info!("Triggering `Open PackFile` By Slot?");
                 if AppUI::are_you_sure(&app_ui, false) {
                     info!("Triggering `Open PackFile` By Slot");
 
