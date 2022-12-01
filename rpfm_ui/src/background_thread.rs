@@ -38,7 +38,7 @@ use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
 
 use crate::app_ui::NewPackedFile;
-use crate::backend::*;
+use crate::{backend::*, SENTRY_GUARD};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
@@ -1609,21 +1609,27 @@ pub fn background_loop() {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
-            }
+            }*/
 
-            Command::UploadSchemaPatch(patch) => {
-                match patch.upload() {
+            Command::UploadSchemaPatch(table_name, patch) => {
+                let filename = "definitionpatch.json";
+                let data = serde_json::to_string_pretty(&patch).unwrap();
+                dbg!(&data);
+                match Logger::send_event(&SENTRY_GUARD.read().unwrap(), Level::Info, &format!("Schema patch for game: {}, table: {}", GAME_SELECTED.read().unwrap().display_name(), table_name), Some((filename, data.as_bytes()))) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                 }
             }
 
             Command::ImportSchemaPatch(patch) => {
-                match SCHEMA_PATCHES.write().unwrap().import(patch) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
+                match *SCHEMA.write().unwrap() {
+                    Some(ref mut schema) => {
+                        schema.add_patch(patch);
+                        CentralCommand::send_back(&sender, Response::Success);
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))),
                 }
-            }*/
+            }
 
             Command::GenerateMissingLocData => {
                 match pack_file_decoded.generate_missing_loc_data() {

@@ -18,7 +18,7 @@ use qt_core::SlotNoArgs;
 use std::sync::Arc;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::tr;
 use crate::utils::{show_dialog, log_to_status_bar};
 use crate::views::debug::DebugView;

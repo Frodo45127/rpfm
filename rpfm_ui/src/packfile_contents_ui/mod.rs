@@ -15,7 +15,7 @@ Module with all the code related to the main `PackFileContentsUI`.
 use qt_widgets::QAction;
 use qt_widgets::QDialog;
 use qt_widgets::QDockWidget;
-use qt_widgets::{QFileDialog};
+use qt_widgets::QFileDialog;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;

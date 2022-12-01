@@ -12,7 +12,6 @@
 Module with the slots for PackFile Views.
 !*/
 
-use qt_widgets::QTreeView;
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;

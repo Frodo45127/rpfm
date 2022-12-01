@@ -144,6 +144,7 @@ pub fn settings() -> QBox<QSettings> {
     unsafe { QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME)) }
 }
 
+#[allow(dead_code)]
 pub fn setting_path(setting: &str) -> PathBuf {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -151,6 +152,7 @@ pub fn setting_path(setting: &str) -> PathBuf {
     }
 }
 
+#[allow(dead_code)]
 pub fn setting_string(setting: &str) -> String {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -158,6 +160,7 @@ pub fn setting_string(setting: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn setting_int(setting: &str) -> i32 {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -165,6 +168,7 @@ pub fn setting_int(setting: &str) -> i32 {
     }
 }
 
+#[allow(dead_code)]
 pub fn setting_bool(setting: &str) -> bool {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -172,10 +176,12 @@ pub fn setting_bool(setting: &str) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_path(setting: &str, value: &Path) {
     set_setting_string(setting, &value.to_string_lossy())
 }
 
+#[allow(dead_code)]
 pub fn set_setting_string(setting: &str, value: &str) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -184,6 +190,7 @@ pub fn set_setting_string(setting: &str, value: &str) {
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_int(setting: &str, value: i32) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -192,6 +199,7 @@ pub fn set_setting_int(setting: &str, value: i32) {
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_bool(setting: &str, value: bool) {
     unsafe {
         let q_settings = QSettings::from_2_q_string(&QString::from_std_str(ORGANISATION), &QString::from_std_str(PROGRAM_NAME));
@@ -200,32 +208,38 @@ pub fn set_setting_bool(setting: &str, value: bool) {
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_path_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
     set_setting_string_to_q_setting(q_settings, setting, &value.to_string_lossy())
 }
 
+#[allow(dead_code)]
 pub fn set_setting_string_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_q_string(&QString::from_std_str(value)));
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_int_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_int(value));
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_bool_to_q_setting(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         q_settings.set_value(&QString::from_std_str(setting), &QVariant::from_bool(value));
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_if_new_path(q_settings: &QBox<QSettings>, setting: &str, value: &Path) {
     set_setting_if_new_string(q_settings, setting, &value.to_string_lossy())
 }
 
+#[allow(dead_code)]
 pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, value: &str) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
@@ -234,6 +248,7 @@ pub fn set_setting_if_new_string(q_settings: &QBox<QSettings>, setting: &str, va
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value: i32) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {
@@ -242,6 +257,7 @@ pub fn set_setting_if_new_int(q_settings: &QBox<QSettings>, setting: &str, value
     }
 }
 
+#[allow(dead_code)]
 pub fn set_setting_if_new_bool(q_settings: &QBox<QSettings>, setting: &str, value: bool) {
     unsafe {
         if !q_settings.value_1a(&QString::from_std_str(setting)).is_valid() {

@@ -18,7 +18,6 @@ use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 use qt_gui::QListOfQStandardItem;
 
-use qt_core::QBox;
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;

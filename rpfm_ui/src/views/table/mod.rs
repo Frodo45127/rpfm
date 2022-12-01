@@ -2496,7 +2496,7 @@ dbg!(t.elapsed().unwrap());
     }
 
     /// This function creates the "Patch Column" dialog and submits a patch of accepted.
-    pub unsafe fn patch_column(&self, definition_patches: Option<&DefinitionPatch>) -> Result<()> {
+    pub unsafe fn patch_column(&self) -> Result<()> {
 
         // We only want to do this for tables we can identify.
         let edited_table_name = match self.table_name() {
@@ -2549,11 +2549,11 @@ dbg!(t.elapsed().unwrap());
         explanation_text_edit.set_placeholder_text(&qtr("explanation_placeholder_text"));
 
         // Setup data.
-        if let Some(default_value) = field.default_value(definition_patches) {
+        if let Some(default_value) = field.default_value(Some(&self.patches())) {
             default_value_line_edit.set_text(&QString::from_std_str(&default_value));
         }
-        not_empty_checkbox.set_checked(field.cannot_be_empty(definition_patches));
-        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(definition_patches)));
+        not_empty_checkbox.set_checked(field.cannot_be_empty(Some(&self.patches())));
+        explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(&self.patches()))));
 
         // Launch.
         if dialog.exec() == 1 {
@@ -2563,19 +2563,18 @@ dbg!(t.elapsed().unwrap());
             column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
             column_data.insert("explanation".to_owned(), explanation_text_edit.to_plain_text().to_std_string());
 
+            let mut patch = HashMap::new();
             let mut table_data = HashMap::new();
             table_data.insert(field.name().to_owned(), column_data);
-            /*
-            let mut schema_patch = SchemaPatch::default();
-            schema_patch.get_ref_mut_tables().insert(edited_table_name.to_owned(), table_data);
+            patch.insert(edited_table_name.to_owned(), table_data);
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::UploadSchemaPatch(schema_patch));
+            let receiver = CENTRAL_COMMAND.send_background(Command::UploadSchemaPatch(edited_table_name, patch));
             let response = CentralCommand::recv(&receiver);
             match response {
                 Response::Success => show_dialog(&self.table_view_primary, tr("schema_patch_submitted_correctly"), true),
                 Response::Error(error) => return Err(error),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }*/
+            }
         }
 
         Ok(())

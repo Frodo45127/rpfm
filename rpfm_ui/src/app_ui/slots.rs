@@ -13,9 +13,12 @@ Module with all the code related to the main `AppUISlot`.
 !*/
 
 use qt_widgets::QAction;
+use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::QGridLayout;
 use qt_widgets::{QMessageBox, q_message_box};
+use qt_widgets::QPushButton;
+use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
@@ -29,9 +32,6 @@ use qt_core::QString;
 use qt_core::QUrl;
 use qt_core::WidgetAttribute;
 
-use rpfm_lib::integrations::log::*;
-use rpfm_lib::files::pack::PackSettings;
-
 use std::collections::BTreeMap;
 use std::fs::{copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
@@ -39,6 +39,7 @@ use std::rc::Rc;
 
 use rpfm_lib::files::ContainerPath;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
+use rpfm_lib::integrations::log::*;
 
 use crate::app_ui::AppUI;
 use crate::backend::*;
@@ -1278,7 +1279,7 @@ impl AppUISlots {
         let debug_import_schema_patch = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 info!("Triggering `Import Schema Patch` By Slot");
-                /*
+
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
 
@@ -1298,15 +1299,19 @@ impl AppUISlots {
                 dialog.resize_2a(1000, 600);
 
                 if dialog.exec() == 1 {
-                    let schema_patch = SchemaPatch::load_from_str(&patch_text_edit.to_plain_text().to_std_string()).unwrap();
-                    let receiver = CENTRAL_COMMAND.send_background(Command::ImportSchemaPatch(schema_patch));
-                    let response = CENTRAL_COMMAND.recv_try(&receiver);
-                    match response {
-                        Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
-                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    match serde_json::from_str(&patch_text_edit.to_plain_text().to_std_string()) {
+                        Ok(patch) => {
+                            let receiver = CENTRAL_COMMAND.send_background(Command::ImportSchemaPatch(patch));
+                            let response = CENTRAL_COMMAND.recv_try(&receiver);
+                            match response {
+                                Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
+                                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            }
+                        },
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
                     }
-                }*/
+                }
 
                 app_ui.toggle_main_window(true);
             }

@@ -57,7 +57,7 @@ use rpfm_lib::games::supported_games::*;
 use rpfm_lib::integrations::log::info;
 
 use crate::app_ui::AppUI;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};

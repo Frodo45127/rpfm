@@ -29,7 +29,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
-use rpfm_lib::schema::{Definition, Field, Schema};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
 use crate::app_ui::NewPackedFile;
 use crate::backend::*;
@@ -340,10 +340,10 @@ pub enum Command {
     PublishTipById(u64),
 
     /// This command is used to upload a schema patch.
-    //UploadSchemaPatch(SchemaPatch),
+    UploadSchemaPatch(String, HashMap<String, DefinitionPatch>),
 
     /// This command is used to import a schema patch in the local schema patches.
-    //ImportSchemaPatch(SchemaPatch),
+    ImportSchemaPatch(HashMap<String, DefinitionPatch>),
 
     /// This command is used to generate all missing loc entries for the currently open PackFile.
     GenerateMissingLocData,

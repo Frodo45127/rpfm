@@ -609,9 +609,9 @@ impl TableViewSlots {
         let patch_column = SlotNoArgs::new(&view.table_view_primary, clone!(
             view => move || {
                 info!("Triggering `Patch Column` By Slot");
-                //if let Err(error) = view.patch_column() {
-                //    show_dialog(&view.table_view_primary, error, false);
-                //}
+                if let Err(error) = view.patch_column() {
+                    show_dialog(&view.table_view_primary, error, false);
+                }
             }
         ));
 

@@ -14,7 +14,7 @@ Module with all the code related to the `GlobalSearchSlots`.
 This module contains all the code needed to initialize the Global Search Panel.
 !*/
 
-use qt_widgets::q_abstract_item_view::{ScrollHint, ScrollMode};
+use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
@@ -22,7 +22,6 @@ use qt_widgets::QGroupBox;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
-use qt_widgets::QPushButton;
 use qt_widgets::QRadioButton;
 use qt_widgets::QTabWidget;
 use qt_widgets::QToolButton;

@@ -379,7 +379,6 @@ impl PackedFileView {
 
                                         // If this crashes, it's a bug somewhere else.
                                         let table_name = view.get_ref_table().table_name().as_ref().unwrap();
-                                        let table_uuid = view.get_ref_table().table_uuid().as_ref().map(|x| &**x);
                                         let mut table = DB::new(&view.get_ref_table().table_definition(), None, table_name, false);
                                         table.set_data(None, &new_table.data(&None)?)?;
                                         RFileDecoded::DB(table)

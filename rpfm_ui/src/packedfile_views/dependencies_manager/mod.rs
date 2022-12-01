@@ -18,7 +18,7 @@ use std::rc::Rc;
 
 use anyhow::Result;
 
-use rpfm_lib::files::{FileType, table::DecodedData};
+use rpfm_lib::files::table::DecodedData;
 use crate::backend::RFileInfo;
 
 use crate::app_ui::AppUI;
@@ -85,7 +85,6 @@ impl DependenciesManagerView {
         };
 
         packed_file_view.view = ViewType::Internal(View::DependenciesManager(Arc::new(dependencies_manager_view)));
-        //packed_file_view.packed_file_type = PackedFileType::DependencyPackFilesList;
 
         // Return success.
         Ok(None)
