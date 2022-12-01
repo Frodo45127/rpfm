@@ -43,6 +43,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::FIRST_GAME_CHANGE_DONE;
 use crate::GAME_SELECTED;
+use crate::initialize_pack_settings;
 use crate::locale::tr;
 use crate::packedfile_views::DataSource;
 use crate::RPFM_PATH;
@@ -96,11 +97,7 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let pack_version = game_selected.pfh_version_by_file_type(PFHFileType::Mod);
                 pack_file_decoded = Pack::new_with_name_and_version("unknown.pack", pack_version);
-
-                let pack_settings = pack_file_decoded.settings_mut();
-                pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
-                pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
-                pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
+                pack_file_decoded.set_settings(initialize_pack_settings());
 
                 if let Some(version_number) = game_selected.game_version_number(&setting_path(&game_selected.game_key_name())) {
                     pack_file_decoded.set_game_version(version_number);

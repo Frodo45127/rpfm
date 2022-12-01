@@ -648,11 +648,8 @@ impl AppUISlots {
                                     }
 
                                     // Prepare the settings depending on what we choose to ignore.
-                                    // TODO: Fix this, as it's easy to forget to add stuff here.
-                                    let mut pack_settings = PackSettings::default();
-                                    pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+                                    let mut pack_settings = initialize_pack_settings();
                                     pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
-                                    pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
 
                                     let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
                                     let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));

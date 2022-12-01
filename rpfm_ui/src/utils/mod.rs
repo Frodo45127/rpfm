@@ -45,6 +45,7 @@ use cpp_core::StaticUpcast;
 use anyhow::{anyhow, Result};
 use regex::Regex;
 
+use rpfm_lib::files::pack::PackSettings;
 use rpfm_lib::integrations::log::*;
 
 use std::convert::AsRef;
@@ -529,4 +530,12 @@ pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> 
     let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
 
     Ok(main_widget)
+}
+
+pub fn initialize_pack_settings() -> PackSettings {
+    let mut pack_settings = PackSettings::default();
+    pack_settings.settings_text_mut().insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+    pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), "".to_owned());
+    pack_settings.settings_bool_mut().insert("disable_autosaves".to_owned(), false);
+    pack_settings
 }

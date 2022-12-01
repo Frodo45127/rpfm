@@ -24,10 +24,8 @@ use qt_widgets::QWidget;
 
 use qt_gui::QStandardItemModel;
 
-use qt_core::QBox;
 use qt_core::QString;
 use qt_core::QPtr;
-use qt_core::WidgetAttribute;
 
 use anyhow::Result;
 use getset::Getters;
