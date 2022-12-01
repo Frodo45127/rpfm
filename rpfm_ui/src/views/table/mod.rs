@@ -2396,7 +2396,7 @@ dbg!(t.elapsed().unwrap());
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
-            app_ui.main_window().set_enabled(false);
+            app_ui.toggle_main_window(false);
 
             // Trigger editions in our own table.
             let real_cells = editions.iter()
@@ -2439,7 +2439,7 @@ dbg!(t.elapsed().unwrap());
                         }
                     });
 
-                    app_ui.main_window().set_enabled(true);
+                    app_ui.toggle_main_window(true);
 
                     // Now it's safe to trigger the timer.
                     self.start_delayed_updates_timer();

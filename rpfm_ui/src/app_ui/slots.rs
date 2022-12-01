@@ -422,7 +422,7 @@ impl AppUISlots {
                 }
 
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
 
                 // Destroy whatever it's in the PackedFile's views and clear the global search UI.
                 GlobalSearchUI::clear(&global_search_ui);
@@ -482,7 +482,7 @@ impl AppUISlots {
                 }
 
                 // Always reenable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         }));
 
@@ -628,7 +628,7 @@ impl AppUISlots {
                             }
 
                             // Disable the main window.
-                            app_ui.main_window.set_enabled(false);
+                            app_ui.toggle_main_window(false);
 
                             // Initialize the folder structure of the MyMod.
                             let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
@@ -679,11 +679,11 @@ impl AppUISlots {
                                             UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                                             AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
-                                            app_ui.main_window.set_enabled(true);
+                                            app_ui.toggle_main_window(true);
                                         }
 
                                         Response::Error(error) => {
-                                            app_ui.main_window.set_enabled(true);
+                                            app_ui.toggle_main_window(true);
                                             show_dialog(&app_ui.main_window, error, false);
                                         }
 
@@ -692,7 +692,7 @@ impl AppUISlots {
                                     }
                                 }
                                 Response::Error(error) => {
-                                    app_ui.main_window.set_enabled(true);
+                                    app_ui.toggle_main_window(true);
                                     show_dialog(&app_ui.main_window, error, false);
                                 }
 
@@ -923,7 +923,7 @@ impl AppUISlots {
                     }
 
                     // If there is no problem, ere we go.
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.toggle_main_window(false);
 
                     let wait_dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
                         q_message_box::Icon::Information,
@@ -966,7 +966,7 @@ impl AppUISlots {
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.toggle_main_window(true);
                 }
             }
         ));
@@ -981,7 +981,7 @@ impl AppUISlots {
                     info!("Triggering `Optimize PackFile` By Slot");
 
                     // If there is no problem, ere we go.
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.toggle_main_window(false);
 
                     if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
                         return show_dialog(&app_ui.main_window, error, false);
@@ -1003,7 +1003,7 @@ impl AppUISlots {
                     }
 
                     // Re-enable the Main Window.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.toggle_main_window(true);
                 }
             }
         ));
@@ -1016,7 +1016,7 @@ impl AppUISlots {
                 info!("Triggering `Patch SiegeAI` By Slot");
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
 
                 if let Err(error) = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, true) {
                     return show_dialog(&app_ui.main_window, error, false);
@@ -1038,7 +1038,7 @@ impl AppUISlots {
                 }
 
                 // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         ));
 
@@ -1049,7 +1049,7 @@ impl AppUISlots {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
                     info!("Triggering `Rescue PackFile` By Slot");
 
-                    app_ui.main_window.set_enabled(false);
+                    app_ui.toggle_main_window(false);
 
                     // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
                     if let Err(error) = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
@@ -1094,7 +1094,7 @@ impl AppUISlots {
                     }
 
                     // Then we re-enable the main Window and return whatever we've received.
-                    app_ui.main_window.set_enabled(true);
+                    app_ui.toggle_main_window(true);
                 }
             }
         ));
@@ -1111,11 +1111,11 @@ impl AppUISlots {
             dependencies_ui => move || {
                 info!("Triggering `Faction Painter Tool` By Slot");
                 /*
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
                 if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }*/
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         ));
 
@@ -1127,11 +1127,11 @@ impl AppUISlots {
             dependencies_ui => move || {
                 info!("Triggering `Unit Editor Tool` By Slot");
                 /*
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
                 if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }*/
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         ));
 
@@ -1259,7 +1259,7 @@ impl AppUISlots {
                 info!("Triggering `Update Current Schema from AssKit` By Slot");
 
                 // If there is no problem, ere we go.
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit);
                 let response = CentralCommand::recv_try(&receiver);
@@ -1269,7 +1269,7 @@ impl AppUISlots {
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         ));
 
@@ -1279,7 +1279,7 @@ impl AppUISlots {
                 info!("Triggering `Import Schema Patch` By Slot");
                 /*
                 // If there is no problem, ere we go.
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
 
                 let dialog = QDialog::new_1a(&app_ui.main_window);
                 dialog.set_window_title(&qtr("import_schema_patch_title"));
@@ -1307,7 +1307,7 @@ impl AppUISlots {
                     }
                 }*/
 
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
         ));
 

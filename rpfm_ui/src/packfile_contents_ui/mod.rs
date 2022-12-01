@@ -306,7 +306,7 @@ impl PackFileContentsUI {
     ) {
         let window_was_disabled = !app_ui.main_window().is_enabled();
         if !window_was_disabled {
-            app_ui.main_window().set_enabled(false);
+            app_ui.toggle_main_window(false);
         }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFiles(paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore));
@@ -345,7 +345,7 @@ impl PackFileContentsUI {
 
         // Re-enable the Main Window.
         if !window_was_disabled {
-            app_ui.main_window().set_enabled(true);
+            app_ui.toggle_main_window(true);
         }
     }
 
@@ -470,14 +470,14 @@ impl PackFileContentsUI {
 
         else {
             let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
-            app_ui.main_window().set_enabled(false);
+            app_ui.toggle_main_window(false);
             let response = CentralCommand::recv_try(&receiver);
             match response {
                 Response::String(result) => show_dialog(app_ui.main_window(), result, true),
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
-            app_ui.main_window().set_enabled(true);
+            app_ui.toggle_main_window(true);
         }
     }
 

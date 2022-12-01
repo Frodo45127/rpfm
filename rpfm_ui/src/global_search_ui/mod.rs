@@ -278,10 +278,10 @@ impl GlobalSearchUI {
         let filter_matches_schema_column_list = QStandardItemModel::new_1a(&matches_widget_schema);
         filter_matches_schema_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_matches_schema_column_selector.set_model(&filter_matches_schema_column_list);
-        filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
-        filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_column"));
-        filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_row"));
-        filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_match"));
+        filter_matches_schema_column_selector.add_item_q_string(&qtr("global_search_table_name"));
+        filter_matches_schema_column_selector.add_item_q_string(&qtr("global_search_version"));
+        filter_matches_schema_column_selector.add_item_q_string(&qtr("global_search_column_name"));
+        filter_matches_schema_column_selector.add_item_q_string(&qtr("global_search_column"));
         filter_matches_schema_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
         let matches_schema_tree_filter = new_treeview_filter_safe(tree_view_matches_schema.static_upcast());

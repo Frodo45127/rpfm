@@ -78,7 +78,7 @@ impl PackFileExtraViewSlots {
                     let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the Background Thread to move the files, and send him the path.
-                    app_ui.main_window().set_enabled(false);
+                    app_ui.toggle_main_window(false);
                     let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromPackFile(((&pack_file_view.pack_file_path.read().unwrap()).to_path_buf(), item_types)));
                     let response = CentralCommand::recv(&receiver);
                     match response {
@@ -106,7 +106,7 @@ impl PackFileExtraViewSlots {
                     }
 
                     // Re-enable the Main Window.
-                    app_ui.main_window().set_enabled(true);
+                    app_ui.toggle_main_window(true);
                     pack_file_view.tree_view.set_focus_0a();
                 }
             }

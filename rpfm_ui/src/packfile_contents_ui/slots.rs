@@ -486,9 +486,9 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                app_ui.main_window().set_enabled(false);
+                                app_ui.toggle_main_window(false);
                                 PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
-                                app_ui.main_window().set_enabled(true);
+                                app_ui.toggle_main_window(true);
                             }
                         }
 
@@ -517,9 +517,9 @@ impl PackFileContentsSlots {
                                 paths_packedfile.append(&mut <QPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, path, true).iter().map(|x| ContainerPath::File(x.to_string())).collect());
                             }
 
-                            app_ui.main_window().set_enabled(false);
+                            app_ui.toggle_main_window(false);
                             PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
-                            app_ui.main_window().set_enabled(true);
+                            app_ui.toggle_main_window(true);
                         }
                     }
                 }
@@ -587,9 +587,9 @@ impl PackFileContentsSlots {
 
                                     // Otherwise, they are added like normal files.
                                     else if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
-                                        app_ui.main_window().set_enabled(false);
+                                        app_ui.toggle_main_window(false);
                                         PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
-                                        app_ui.main_window().set_enabled(true);
+                                        app_ui.toggle_main_window(true);
                                     }
                                 }
                             }
@@ -617,9 +617,9 @@ impl PackFileContentsSlots {
                             // Get the Paths of the files inside the folders we want to add.
                             if let Some(selection) = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection().get(0) {
 
-                                app_ui.main_window().set_enabled(false);
+                                app_ui.toggle_main_window(false);
                                 PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &[ContainerPath::Folder(selection.to_string())], None);
-                                app_ui.main_window().set_enabled(true);
+                                app_ui.toggle_main_window(true);
                             }
                         }
                     }
@@ -660,10 +660,10 @@ impl PackFileContentsSlots {
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
-                    app_ui.main_window().set_enabled(false);
+                    app_ui.toggle_main_window(false);
                     AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Pack(path_str));
 
-                    app_ui.main_window().set_enabled(true);
+                    app_ui.toggle_main_window(true);
                 }
             }
         ));

@@ -12,19 +12,17 @@
 Module with all the code related to the main `DependenciesUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
-use qt_widgets::QPushButton;
 use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
 use qt_gui::QStandardItemModel;
 
-use qt_core::{CaseSensitivity, ContextMenuPolicy, DockWidgetArea};
+use qt_core::{CaseSensitivity, DockWidgetArea};
 use qt_core::QBox;
 use qt_core::QObject;
 use qt_core::QPtr;
@@ -212,7 +210,7 @@ impl DependenciesUI {
 
     /// This function is used to import dependencies into our own PackFile.
     pub unsafe fn import_dependencies(&self, paths_by_source: BTreeMap<DataSource, Vec<ContainerPath>>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
-        app_ui.main_window().set_enabled(false);
+        app_ui.toggle_main_window(false);
 
         let receiver = CENTRAL_COMMAND.send_background(Command::ImportDependenciesToOpenPackFile(paths_by_source));
         let response1 = CentralCommand::recv(&receiver);
@@ -252,6 +250,6 @@ impl DependenciesUI {
         }
 
         // Re-enable the Main Window.
-        app_ui.main_window().set_enabled(true);
+        app_ui.toggle_main_window(true);
     }
 }

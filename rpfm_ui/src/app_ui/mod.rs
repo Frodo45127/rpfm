@@ -62,7 +62,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
-use std::sync::atomic::Ordering;
+use std::sync::{atomic::Ordering, RwLock};
 
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::*, pfh_version::*, supported_games::*};
@@ -319,6 +319,9 @@ pub struct AppUI {
     tab_bar_packed_file_next: QPtr<QAction>,
     tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
     tab_bar_packed_file_toggle_tips: QPtr<QAction>,
+
+    focused_widget: Rc<RwLock<Option<QPtr<QWidget>>>>,
+    disabled_counter: Rc<RwLock<u32>>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -903,7 +906,49 @@ impl AppUI {
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
-            tab_bar_packed_file_toggle_tips
+            tab_bar_packed_file_toggle_tips,
+
+            focused_widget: Rc::new(RwLock::new(None)),
+            disabled_counter: Rc::new(RwLock::new(0)),
+        }
+    }
+
+    /// Function to toggle the main window on and off, while keeping the stupid focus from breaking.
+    pub unsafe fn toggle_main_window(&self, enable: bool) {
+        if enable {
+            if *self.disabled_counter.read().unwrap() == 0 {
+                error!("Bug: disabled counter broke. Needs investigation.")
+            }
+
+            if *self.disabled_counter.read().unwrap() > 0 {
+                *self.disabled_counter.write().unwrap() -= 1;
+            }
+
+            if *self.disabled_counter.read().unwrap() == 0 {
+                if !self.main_window().is_enabled() {
+                    self.main_window().set_enabled(true);
+                    if let Some(focus_widget) = &*self.focused_widget.read().unwrap() {
+                        if !focus_widget.is_null() && focus_widget.is_visible() && focus_widget.is_enabled() {
+                            focus_widget.set_focus_0a();
+                        }
+                    }
+
+                    *self.focused_widget.write().unwrap() = None;
+                }
+            }
+        }
+
+        // Disabling, so store the focused widget. Do nothing if the window was already disabled.
+        else {
+            *self.disabled_counter.write().unwrap() += 1;
+            if self.main_window().is_enabled() {
+                let focus_widget = QApplication::focus_widget();
+                if !focus_widget.is_null() {
+                    *self.focused_widget.write().unwrap() = Some(focus_widget);
+                }
+
+                self.main_window().set_enabled(false);
+            }
         }
     }
 
@@ -1085,7 +1130,7 @@ impl AppUI {
         let _ = Self::purge_them_all(app_ui, pack_file_contents_ui, false);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
-        app_ui.main_window.set_enabled(false);
+        app_ui.toggle_main_window(false);
         let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
         // If it's only one packfile, store it in the recent file list.
@@ -1265,12 +1310,12 @@ impl AppUI {
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
 
                 // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
             }
 
             // If we got an error...
             Response::Error(error) => {
-                app_ui.main_window.set_enabled(true);
+                app_ui.toggle_main_window(true);
                 return Err(error)
             }
 
@@ -1294,7 +1339,7 @@ impl AppUI {
     ) -> Result<()> {
 
         let mut result = Ok(());
-        app_ui.main_window.set_enabled(false);
+        app_ui.toggle_main_window(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
@@ -1376,7 +1421,7 @@ impl AppUI {
         }
 
         // Then we re-enable the main Window and return whatever we've received.
-        app_ui.main_window.set_enabled(true);
+        app_ui.toggle_main_window(true);
         result
     }
 
@@ -1974,7 +2019,7 @@ impl AppUI {
                         // Make sure we close both threads and the window. In windows the main window doesn't get closed for some reason.
                         CENTRAL_COMMAND.send_background(Command::Exit);
                         CENTRAL_COMMAND.send_network(Command::Exit);
-                        qt_widgets::QApplication::close_all_windows();
+                        QApplication::close_all_windows();
 
                         let rpfm_exe_path = current_exe().unwrap();
                         SystemCommand::new(&rpfm_exe_path).spawn().unwrap();
@@ -3474,7 +3519,7 @@ impl AppUI {
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
             if !was_window_disabled {
-                app_ui.main_window.set_enabled(false);
+                app_ui.toggle_main_window(false);
             }
 
             // Send the command to the background thread to set the new `Game Selected`.
@@ -3544,7 +3589,7 @@ impl AppUI {
 
         // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
         if !was_window_disabled {
-            app_ui.main_window.set_enabled(true);
+            app_ui.toggle_main_window(true);
         }
 
         // Disable the pack-related actions and, if we have a pack open, re-enable them.
@@ -3581,7 +3626,7 @@ impl AppUI {
         // Disable the main window, so the user can't interrupt the process or interfere with it.
         let window_was_disabled = app_ui.main_window.is_enabled();
         if !window_was_disabled {
-            app_ui.main_window.set_enabled(false);
+            app_ui.toggle_main_window(false);
         }
 
         // Close any open PackedFile and clear the global search panel.
@@ -3628,7 +3673,7 @@ impl AppUI {
 
         // Re-enable the Main Window.
         if !window_was_disabled {
-            app_ui.main_window.set_enabled(true);
+            app_ui.toggle_main_window(true);
         }
     }
 
@@ -3637,7 +3682,7 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) {
-        app_ui.main_window.set_enabled(false);
+        app_ui.toggle_main_window(false);
 
         match UI_STATE.get_operational_mode() {
 
@@ -3662,7 +3707,7 @@ impl AppUI {
                     let paths: Vec<PathBuf> = match files_from_subdir(&assets_folder, true) {
                         Ok(paths) => paths,
                         Err(error) => {
-                            app_ui.main_window.set_enabled(true);
+                            app_ui.toggle_main_window(true);
                             return show_dialog(&app_ui.main_window, error, false);
                         }
                     };
@@ -3699,7 +3744,7 @@ impl AppUI {
             OperationalMode::Normal => show_dialog(&app_ui.main_window, "This action is only available for MyMods.", false),
         }
 
-        app_ui.main_window.set_enabled(true);
+        app_ui.toggle_main_window(true);
     }
 
     /// This function is used to perform MyḾod exports.
