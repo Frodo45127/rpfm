@@ -8,6 +8,11 @@ extern "C" void kmessage_widget_close(QWidget* widget) {
     kmessagewidget->hide();
 }
 
+extern "C" bool kmessage_widget_is_closed(QWidget* widget) {
+    KMessageWidget* kmessagewidget = dynamic_cast<KMessageWidget*>(widget);
+    return kmessagewidget->isHidden();
+}
+
 extern "C" void kmessage_widget_set_error(QWidget* widget, QString const text) {
     KMessageWidget* kmessagewidget = dynamic_cast<KMessageWidget*>(widget);
     kmessagewidget->hide();

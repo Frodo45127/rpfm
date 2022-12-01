@@ -33,7 +33,7 @@ use getset::Getters;
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
-use crate::ffi::kmessage_widget_close_safe;
+use crate::ffi::*;
 use crate::GAME_SELECTED;
 use crate::locale::{qtr, tr};
 use crate::settings_ui::backend::*;
@@ -121,6 +121,8 @@ impl MyModUI {
         pack_import_ignore_contents_label.set_text(&qtr("new_mymod_pack_import_ignore_contents"));
         name_line_edit.set_placeholder_text(&qtr("mymod_name_default"));
         name_label.set_text(&qtr("mymod_name"));
+        pack_import_ignore_contents_textedit.set_placeholder_text(&qtr("new_mymod_pack_import_ignore_contents_placeholder"));
+        gitignore_contents_textedit.set_placeholder_text(&qtr("new_mymod_gitignore_contents_placeholder"));
 
         let game_model = QStandardItemModel::new_0a();
         game_combobox.set_model(&game_model);
@@ -224,6 +226,14 @@ impl MyModUI {
         let mut mod_path = setting_path(MYMOD_BASE_PATH);
         if mod_path.is_dir() {
 
+            if mod_name.contains(' ') {
+                if kmessage_widget_is_closed_safe(&self.message_widget().as_ptr()) {
+                    show_message_error(self.message_widget(), tr("mymod_error_spaces_on_name"));
+                }
+            } else {
+                kmessage_widget_close_safe(&self.message_widget().as_ptr());
+            }
+
             // If there is text and it doesn't have whitespace...
             if !mod_name.is_empty() && !mod_name.contains(' ') {
                 mod_path.push(mod_game);
@@ -236,9 +246,6 @@ impl MyModUI {
             // If name is empty or contains spaces, disable the button. Also, if it contains spaces throw a warning.
             else {
                 self.button_box().button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);
-                if mod_name.contains(' ') {
-                    show_message_error(self.message_widget(), tr("mymod_error_spaces_on_name"));
-                }
             }
         }
 

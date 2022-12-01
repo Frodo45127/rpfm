@@ -11,6 +11,7 @@
 #include <QString>
 
 extern "C" void kmessage_widget_close(QWidget* widget = nullptr);
+extern "C" bool kmessage_widget_is_closed(QWidget* widget = nullptr);
 extern "C" void kmessage_widget_set_error(QWidget* widget = nullptr, QString const text = "");
 extern "C" void kmessage_widget_set_warning(QWidget* widget = nullptr, QString const text = "");
 extern "C" void kmessage_widget_set_info(QWidget* widget = nullptr, QString const text = "");

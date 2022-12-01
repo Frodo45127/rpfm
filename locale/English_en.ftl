@@ -1245,3 +1245,5 @@ new_mymod_gitignore_contents = GitIgnore Contents:
 new_mymod_pack_import_ignore_contents = Files Ignored on Import:
 new_mymod_gitignore_same_as_files_ignored_on_import = Same as files ignored on import
 mymod_error_spaces_on_name = Error: Mod name cannot contain spaces.
+new_mymod_pack_import_ignore_contents_placeholder = Relative paths, one per line.
+new_mymod_gitignore_contents_placeholder = Paths ignored by git, one per line.

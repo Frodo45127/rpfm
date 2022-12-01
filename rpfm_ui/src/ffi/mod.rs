@@ -285,6 +285,12 @@ pub fn kmessage_widget_close_safe(widget: &Ptr<QWidget>) {
     unsafe { kmessage_widget_close(widget.as_mut_raw_ptr()) }
 }
 
+// This function allow us to check if a KMessageWidget is closed.
+extern "C" { fn kmessage_widget_is_closed(widget: *mut QWidget) -> bool; }
+pub fn kmessage_widget_is_closed_safe(widget: &Ptr<QWidget>) -> bool {
+    unsafe { kmessage_widget_is_closed(widget.as_mut_raw_ptr()) }
+}
+
 // This function allow us to set the text of the provided KMessageWidget, and se its type to Error.
 #[allow(dead_code)]
 extern "C" { fn kmessage_widget_set_error(widget: *mut QWidget, text: *const QString); }
