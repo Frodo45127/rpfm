@@ -417,7 +417,7 @@ impl PackedFileView {
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
                         let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(self.get_path(), data));
-                        let response = CentralCommand::recv_try(&receiver);
+                        let response = CENTRAL_COMMAND.recv_try(&receiver);
                         match response {
                             Response::Success => {
                                 Ok(())
@@ -429,7 +429,7 @@ impl PackedFileView {
                     },
                     ViewType::External(view) => {
                         let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromExternalView(self.get_path(), view.get_external_path()));
-                        let response = CentralCommand::recv_try(&receiver);
+                        let response = CENTRAL_COMMAND.recv_try(&receiver);
                         match response {
                             Response::Success => {},
                             Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false),

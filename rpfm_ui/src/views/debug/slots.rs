@@ -50,7 +50,7 @@ impl DebugViewSlots {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
                     let receiver = CENTRAL_COMMAND.send_background(Command::SavePackedFileFromView(view.get_path(), decoded_packed_file));
-                    let response = CentralCommand::recv_try(&receiver);
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
                         Response::Success => log_to_status_bar(&tr("debug_view_save_success")),
                         Response::Error(error) => show_dialog(&view.editor, error, false),

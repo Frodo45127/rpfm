@@ -457,7 +457,7 @@ impl TableViewSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                         let receiver = CENTRAL_COMMAND.send_background(Command::ImportTSV(packed_file_path.read().unwrap().to_owned(), path));
-                        let response = CentralCommand::recv_try(&receiver);
+                        let response = CENTRAL_COMMAND.recv_try(&receiver);
                         match response {
                             Response::RFileDecoded(data) => {
                                 let data = match data {
@@ -546,7 +546,7 @@ impl TableViewSlots {
                             }
 
                             let receiver = CENTRAL_COMMAND.send_background(Command::ExportTSV(packed_file_path.read().unwrap().to_string(), path));
-                            let response = CentralCommand::recv_try(&receiver);
+                            let response = CENTRAL_COMMAND.recv_try(&receiver);
                             match response {
                                 Response::Success => (),
                                 Response::Error(error) => show_dialog(&view.table_view_primary, error, false),
@@ -634,7 +634,7 @@ impl TableViewSlots {
 
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 let receiver = CENTRAL_COMMAND.send_background(Command::SearchReferences(reference_data.clone(), selected_value));
-                                let response = CentralCommand::recv_try(&receiver);
+                                let response = CENTRAL_COMMAND.recv_try(&receiver);
                                 match response {
                                     Response::VecDataSourceStringStringUsizeUsize(data) => {
                                         references_ui.load_references_to_ui(data);

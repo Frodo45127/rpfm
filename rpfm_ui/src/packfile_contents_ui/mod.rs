@@ -471,7 +471,7 @@ impl PackFileContentsUI {
         else {
             let receiver = CENTRAL_COMMAND.send_background(Command::ExtractPackedFiles(items_to_extract, extraction_path, extract_tables_as_tsv));
             app_ui.toggle_main_window(false);
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::String(result) => show_dialog(app_ui.main_window(), result, true),
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),

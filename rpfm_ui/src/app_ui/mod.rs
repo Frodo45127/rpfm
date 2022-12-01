@@ -1163,7 +1163,7 @@ impl AppUI {
         }
 
         // Check what response we got.
-        let response = CentralCommand::recv_try(&receiver);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
         match response {
 
             // If it's success...
@@ -1377,7 +1377,7 @@ impl AppUI {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(path));
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::ContainerInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -1398,7 +1398,7 @@ impl AppUI {
 
         else {
             let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFile);
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::ContainerInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
@@ -1960,7 +1960,7 @@ impl AppUI {
             dialog.show();
         }
 
-        let response = CentralCommand::recv_try(&receiver);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
         let message = match response {
             Response::APIResponse(response) => {
                 match response {
@@ -2003,7 +2003,7 @@ impl AppUI {
             update_button.set_enabled(false);
             close_button.set_enabled(false);
 
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Success => {
                     let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
@@ -2060,7 +2060,7 @@ impl AppUI {
         }
 
         // When we get a response, act depending on the kind of response we got.
-        let response_thread = CentralCommand::recv_try(&receiver);
+        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
         let message = match response_thread {
             Response::APIResponseGit(ref response) => {
                 match response {
@@ -2097,7 +2097,7 @@ impl AppUI {
             update_button.set_enabled(false);
             close_button.set_enabled(false);
 
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Success => {
                     dialog.set_text(&qtr("schema_update_success"));
@@ -2137,7 +2137,7 @@ impl AppUI {
         }
 
         // When we get a response, act depending on the kind of response we got.
-        let response_thread = CentralCommand::recv_try(&receiver);
+        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
         let message = match response_thread {
             Response::APIResponseGit(ref response) => {
                 match response {
@@ -2175,7 +2175,7 @@ impl AppUI {
                 update_button.set_enabled(false);
                 close_button.set_enabled(false);
 
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::Success => {
                         dialog.set_text(&qtr("messages_update_success"));
@@ -2190,7 +2190,7 @@ impl AppUI {
             }
         } else {
             let receiver = CENTRAL_COMMAND.send_background(Command::UpdateMessages);
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Success => log_to_status_bar("messages_update_success"),
                 Response::Error(error) => log_to_status_bar(&error.to_string()),
@@ -2224,7 +2224,7 @@ impl AppUI {
         }
 
         // When we get a response, act depending on the kind of response we got.
-        let response_thread = CentralCommand::recv_try(&receiver);
+        let response_thread = CENTRAL_COMMAND.recv_try(&receiver);
         let message = match response_thread {
             Response::APIResponseGit(ref response) => {
                 match response {
@@ -2261,7 +2261,7 @@ impl AppUI {
             update_button.set_enabled(false);
             close_button.set_enabled(false);
 
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::Success => {
                     dialog.set_text(&qtr("lua_autogen_update_success"));
@@ -3568,7 +3568,7 @@ impl AppUI {
                 CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true))
             };
 
-            let response = CentralCommand::recv_try(&receiver);
+            let response = CENTRAL_COMMAND.recv_try(&receiver);
             match response {
                 Response::DependenciesInfo(response) => {
                     let mut parent_build_data = BuildData::new();
@@ -3667,7 +3667,7 @@ impl AppUI {
 
         // Force a dependency rebuild.
         let receiver = CENTRAL_COMMAND.send_background(Command::RebuildDependencies(true));
-        let response = CentralCommand::recv_try(&receiver);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
         match response {
             Response::DependenciesInfo(response) => {
                 let mut parent_build_data = BuildData::new();

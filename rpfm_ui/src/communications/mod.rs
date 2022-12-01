@@ -20,6 +20,7 @@ use crossbeam::channel::{Receiver, Sender, unbounded};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
@@ -27,7 +28,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
-use rpfm_lib::integrations::git::GitResponse;
+use rpfm_lib::integrations::{git::GitResponse, log::info};
 use rpfm_lib::schema::{Definition, Field, Schema};
 
 use crate::app_ui::NewPackedFile;
@@ -53,6 +54,8 @@ pub struct CentralCommand<T: Send + Sync + Debug> {
 
     receiver_background: Receiver<(Sender<T>, Command)>,
     receiver_network:  Receiver<(Sender<T>, Command)>,
+
+    try_lock: AtomicBool,
 }
 
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
@@ -527,11 +530,13 @@ impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
     fn default() -> Self {
         let (sender_background, receiver_background) = unbounded();
         let (sender_network, receiver_network) = unbounded();
+        let try_lock = AtomicBool::new(false);
         Self {
             sender_background,
             sender_network,
             receiver_background,
             receiver_network,
+            try_lock,
         }
     }
 }
@@ -610,19 +615,34 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     ///
     /// NOTE: Beware of other events triggering when this keeps the UI enabled. It can lead to crashes.
-    pub fn recv_try(receiver: &Receiver<T>) -> T {
+    pub fn recv_try(&self, receiver: &Receiver<T>) -> T {
         let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
 
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = receiver.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+        // Lock this function after the first execution, until it gets freed again.
+        if !self.try_lock.load(Ordering::SeqCst) {
+            self.try_lock.store(true, Ordering::SeqCst);
+
+            loop {
+
+                // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+                let response = receiver.try_recv();
+                match response {
+                    Ok(data) => {
+                        self.try_lock.store(false, Ordering::SeqCst);
+                        return data
+                    },
+                    Err(error) => if error.is_disconnected() {
+                        panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+                    }
                 }
+                unsafe { event_loop.process_events_0a(); }
             }
-            unsafe { event_loop.process_events_0a(); }
+        }
+
+        // If we're locked due to another execution, use recv instead.
+        else {
+            info!("Race condition avoided? Two items calling recv_try on the same execution crashes.");
+            Self::recv(receiver)
         }
     }
 }

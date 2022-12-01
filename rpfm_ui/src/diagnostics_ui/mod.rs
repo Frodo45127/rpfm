@@ -476,7 +476,7 @@ impl DiagnosticsUI {
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         info!("Triggering check.");
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsCheck(diagnostics_ignored));
-        let response = CentralCommand::recv_try(&receiver);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
 
         match response {
@@ -506,7 +506,7 @@ impl DiagnosticsUI {
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
 
         let receiver = CENTRAL_COMMAND.send_background(Command::DiagnosticsUpdate(diagnostics, paths));
-        let response = CentralCommand::recv_try(&receiver);
+        let response = CENTRAL_COMMAND.recv_try(&receiver);
         diagnostics_ui.diagnostics_table_model.clear();
 
         match response {

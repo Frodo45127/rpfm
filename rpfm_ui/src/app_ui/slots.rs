@@ -430,7 +430,7 @@ impl AppUISlots {
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::LoadAllCAPackFiles);
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
 
                     // If it's success....
@@ -633,7 +633,7 @@ impl AppUISlots {
 
                             // Initialize the folder structure of the MyMod.
                             let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
-                            let response = CentralCommand::recv_try(&receiver);
+                            let response = CENTRAL_COMMAND.recv_try(&receiver);
                             match response {
                                 Response::PathBuf(mymod_pack_path) => {
 
@@ -655,7 +655,7 @@ impl AppUISlots {
                                     let _ = CENTRAL_COMMAND.send_background(Command::NewPackFile);
                                     let _ = CENTRAL_COMMAND.send_background(Command::SetPackSettings(pack_settings));
                                     let receiver = CENTRAL_COMMAND.send_background(Command::SavePackFileAs(mymod_pack_path.clone()));
-                                    let response = CentralCommand::recv_try(&receiver);
+                                    let response = CENTRAL_COMMAND.recv_try(&receiver);
                                     match response {
                                         Response::ContainerInfo(pack_file_info) => {
 
@@ -940,7 +940,7 @@ impl AppUISlots {
                     wait_dialog.show();
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::GenerateDependenciesCache);
-                    let response = CentralCommand::recv_try(&receiver);
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
 
                     match response {
                         Response::DependenciesInfo(response) => {
@@ -991,7 +991,7 @@ impl AppUISlots {
                     GlobalSearchUI::clear(&global_search_ui);
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::OptimizePackFile);
-                    let response = CentralCommand::recv_try(&receiver);
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
                         Response::HashSetString(response) => {
                             let response = response.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
@@ -1026,7 +1026,7 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::PatchSiegeAI);
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::StringVecContainerPath(message, paths) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
@@ -1072,7 +1072,7 @@ impl AppUISlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                         let receiver = CENTRAL_COMMAND.send_background(Command::CleanAndSavePackFileAs(path));
-                        let response = CentralCommand::recv_try(&receiver);
+                        let response = CENTRAL_COMMAND.recv_try(&receiver);
                         match response {
                             Response::ContainerInfo(pack_file_info) => {
                                 let mut build_data = BuildData::new();
@@ -1263,7 +1263,7 @@ impl AppUISlots {
                 app_ui.toggle_main_window(false);
 
                 let receiver = CENTRAL_COMMAND.send_background(Command::UpdateCurrentSchemaFromAssKit);
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
                     Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
@@ -1300,7 +1300,7 @@ impl AppUISlots {
                 if dialog.exec() == 1 {
                     let schema_patch = SchemaPatch::load_from_str(&patch_text_edit.to_plain_text().to_std_string()).unwrap();
                     let receiver = CENTRAL_COMMAND.send_background(Command::ImportSchemaPatch(schema_patch));
-                    let response = CentralCommand::recv_try(&receiver);
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
                         Response::Success => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
                         Response::Error(error) => show_dialog(&app_ui.main_window, error, false),

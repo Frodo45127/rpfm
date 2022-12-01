@@ -2614,7 +2614,7 @@ dbg!(t.elapsed().unwrap());
                     let index_row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
-                    let response = CentralCommand::recv_try(&receiver);
+                    let response = CENTRAL_COMMAND.recv_try(&receiver);
                     match response {
                         Response::OptionStringStringString(response) => response,
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2635,7 +2635,7 @@ dbg!(t.elapsed().unwrap());
 
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToDefinition(ref_table, ref_column, ref_data));
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
@@ -2747,7 +2747,7 @@ dbg!(t.elapsed().unwrap());
 
                 // Then ask the backend to do the heavy work.
                 let receiver = CENTRAL_COMMAND.send_background(Command::GoToLoc(loc_key));
-                let response = CentralCommand::recv_try(&receiver);
+                let response = CENTRAL_COMMAND.recv_try(&receiver);
                 match response {
 
                     // We receive a path/column/row, so we know what to open/select.
