@@ -43,7 +43,8 @@
        <string/>
       </property>
       <property name="icon">
-       <iconset theme="format-text-uppercase"/>
+       <iconset theme="format-text-uppercase">
+        <normaloff>.</normaloff>.</iconset>
       </property>
       <property name="checkable">
        <bool>true</bool>
@@ -56,7 +57,8 @@
        <string>...</string>
       </property>
       <property name="icon">
-       <iconset theme="expand-all-symbolic"/>
+       <iconset theme="expand-all-symbolic">
+        <normaloff>.</normaloff>.</iconset>
       </property>
       <property name="checkable">
        <bool>true</bool>
@@ -75,6 +77,9 @@
        <enum>QAbstractItemView::SelectItems</enum>
       </property>
       <property name="uniformRowHeights">
+       <bool>true</bool>
+      </property>
+      <property name="animated">
        <bool>true</bool>
       </property>
       <property name="headerHidden">
