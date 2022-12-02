@@ -917,7 +917,7 @@ impl AppUI {
     pub unsafe fn toggle_main_window(&self, enable: bool) {
         if enable {
             if *self.disabled_counter.read().unwrap() == 0 {
-                error!("Bug: disabled counter broke. Needs investigation.")
+                error!("Bug: disabled counter broke. Needs investigation.");
             }
 
             if *self.disabled_counter.read().unwrap() > 0 {
@@ -3523,9 +3523,7 @@ impl AppUI {
         if new_game_selected != GAME_SELECTED.read().unwrap().game_key_name() || !FIRST_GAME_CHANGE_DONE.load(Ordering::SeqCst) {
 
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
-            if !was_window_disabled {
-                app_ui.toggle_main_window(false);
-            }
+            app_ui.toggle_main_window(false);
 
             // Send the command to the background thread to set the new `Game Selected`.
             receiver = CENTRAL_COMMAND.send_background(Command::SetGameSelected(new_game_selected, rebuild_dependencies));
@@ -3595,7 +3593,7 @@ impl AppUI {
         }
 
         // Reenable the main window once everything is reloaded, regardless of if we disabled it here or not.
-        if !was_window_disabled {
+        if game_changed {
             app_ui.toggle_main_window(true);
         }
 
