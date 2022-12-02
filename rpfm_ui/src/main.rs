@@ -135,7 +135,7 @@ lazy_static! {
     static ref SENTRY_GUARD: Arc<RwLock<ClientInitGuard>> = Arc::new(RwLock::new(Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or(PathBuf::from("."))
-    }, true).unwrap()));
+    }, true, true).unwrap()));
 
     /// Path were the stuff used by RPFM (settings, schemas,...) is. In debug mode, we just take the current path
     /// (so we don't break debug builds). In Release mode, we take the `.exe` path.

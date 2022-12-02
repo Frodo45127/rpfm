@@ -39,7 +39,7 @@ fn main() {
     }
 
     // Initialize the logging stuff here. This can fail depending on a lot of things, so trigger a console message if it fails.
-    let logger = Logger::init(&PathBuf::from("."), cli.verbose);
+    let logger = Logger::init(&PathBuf::from("."), cli.verbose, true);
     if logger.is_err() && cli.verbose {
         warn!("Logging initialization has failed. No logs will be saved.");
     }

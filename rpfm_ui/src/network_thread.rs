@@ -16,6 +16,8 @@ Basically, this does the network checks of the program.
 
 use crossbeam::channel::Sender;
 
+use std::path::PathBuf;
+
 use rpfm_lib::integrations::git::*;
 use rpfm_lib::integrations::log::*;
 
@@ -33,6 +35,9 @@ use crate::updater;
 ///
 /// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
 pub fn network_loop() {
+
+    // Initalize background sentry guard. This should, in theory, register crashes on the background thread.
+    let _sentry_guard = Logger::init(&error_path().unwrap_or(PathBuf::from(".")), true, false);
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...

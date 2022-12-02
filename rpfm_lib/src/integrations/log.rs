@@ -79,7 +79,7 @@ impl Logger {
     /// - Log CTD to files.
     /// - Log CTD to sentry (release only)
     /// - Log execution steps to file/sentry.
-    pub fn init(logging_path: &Path, verbose: bool) -> Result<ClientInitGuard> {
+    pub fn init(logging_path: &Path, verbose: bool, set_logger: bool) -> Result<ClientInitGuard> {
 
         // Make sure the provided folder exists.
         if let Some(parent_folder) = logging_path.parent() {
@@ -92,16 +92,19 @@ impl Logger {
             LevelFilter::Warn
         };
 
-        // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
-        //
-        // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
-        let loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(log_level, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
-        let combined_logger = CombinedLogger::new(loggers);
+        if set_logger {
 
-        // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
-        let logger = SentryLogger::with_dest(combined_logger);
-        log::set_max_level(log_level);
-        log::set_boxed_logger(Box::new(logger))?;
+            // Initialize the combined logger, with a term logger (for runtime logging) and a write logger (for storing on a log file).
+            //
+            // So, fun fact: this thing has a tendency to crash on boot for no reason. So instead of leaving it crashing, we'll make it optional.
+            let loggers: Vec<Box<dyn SharedLogger + 'static>> = vec![TermLogger::new(log_level, simplelog::Config::default(), TerminalMode::Mixed, ColorChoice::Auto)];
+            let combined_logger = CombinedLogger::new(loggers);
+
+            // Initialize Sentry's logger, so anything logged goes to the breadcrumbs too.
+            let logger = SentryLogger::with_dest(combined_logger);
+            log::set_max_level(log_level);
+            log::set_boxed_logger(Box::new(logger))?;
+        }
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = if cfg!(debug_assertions) { "" } else { SENTRY_DSN };
