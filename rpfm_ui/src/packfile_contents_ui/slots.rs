@@ -1147,9 +1147,11 @@ impl PackFileContentsSlots {
             let receiver = CENTRAL_COMMAND.send_background(Command::GenerateMissingLocData);
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::String(path_to_add) => {
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile);
-                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                Response::OptionContainerPath(path_to_add) => {
+                    if let Some(path_to_add) = path_to_add {
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![path_to_add; 1]), DataSource::PackFile);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    }
                 }
 
                 Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
