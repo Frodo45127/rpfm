@@ -50,10 +50,10 @@ pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Se
 /// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand<T: Send + Sync + Debug> {
     sender_background: Sender<(Sender<T>, Command)>,
-    sender_network:  Sender<(Sender<T>, Command)>,
+    sender_network: Sender<(Sender<T>, Command)>,
 
     receiver_background: Receiver<(Sender<T>, Command)>,
-    receiver_network:  Receiver<(Sender<T>, Command)>,
+    receiver_network: Receiver<(Sender<T>, Command)>,
 
     try_lock: AtomicBool,
 }

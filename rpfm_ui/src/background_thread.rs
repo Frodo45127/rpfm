@@ -24,7 +24,7 @@ use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Cursor, Read, Write};
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
+use std::sync::{Arc, atomic::Ordering, RwLock};
 use std::thread;
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -67,7 +67,7 @@ pub fn background_loop() {
     let mut pack_files_decoded_extra = BTreeMap::new();
 
     // Preload the default game's dependencies.
-    let mut dependencies = Dependencies::default();
+    let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
 
     // Load all the tips we have.
     //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
@@ -224,7 +224,7 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 match *SCHEMA.read().unwrap() {
                     Some(ref schema) => {
-                        global_search.search(&game_selected, schema, &mut pack_file_decoded, &mut dependencies, &[]);
+                        global_search.search(&game_selected, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &[]);
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
                         CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, packed_files_info));
                     }
@@ -253,7 +253,7 @@ pub fn background_loop() {
                         let game_path = setting_path(&game_selected.game_key_name());
                         let file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                         let file_path = if game_changed { Some(&*file_path) } else { None };
-                        let _ = dependencies.rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path);
+                        let _ = dependencies.write().unwrap().rebuild(&None, &pack_dependencies, file_path, &game_selected, &game_path);
                         dependencies
                     });
 
@@ -262,12 +262,12 @@ pub fn background_loop() {
 
                     // Get the dependencies that were loading in parallel and send their info to the UI.
                     dependencies = handle.join().unwrap();
-                    let dependencies_info = DependenciesInfo::from(&dependencies);
+                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     info!("Sending dependencies info after game selected change.");
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
 
                     // Decode the dependencies tables while the UI does its own thing.
-                    dependencies.decode_tables(&*SCHEMA.read().unwrap());
+                    dependencies.write().unwrap().decode_tables(&*SCHEMA.read().unwrap());
                 }
 
                 // Branch 2: no dependecies rebuild.
@@ -302,8 +302,8 @@ pub fn background_loop() {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
-                                    let _ = dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
-                                    let dependencies_info = DependenciesInfo::from(&dependencies);
+                                    let _ = dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
+                                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },
                                 Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
@@ -322,8 +322,8 @@ pub fn background_loop() {
                     let game_selected = GAME_SELECTED.read().unwrap();
                     let asskit_path = setting_path(&format!("{}_assembly_kit", game_selected.game_key_name()));
                     let schema_path = schemas_path().unwrap().join(game_selected.schema_file_name());
-                    let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
 
+                    let dependencies = dependencies.read().unwrap();
                     if let Ok(tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
 
                         // Split the tables to check by table name.
@@ -341,7 +341,8 @@ pub fn background_loop() {
                             }
                         }
 
-                        match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &*tables_to_skip, &tables_to_check_split) {
+                        let tables_to_skip = dependencies.vanilla_tables().keys().map(|x| &**x).collect::<Vec<_>>();
+                        match update_schema_from_raw_files(schema, &game_selected, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
@@ -354,7 +355,7 @@ pub fn background_loop() {
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match pack_file_decoded.optimize(&mut dependencies, schema, setting_bool("optimize_not_renamed_packedfiles")) {
+                    match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, setting_bool("optimize_not_renamed_packedfiles")) {
                         Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::HashSetString(paths_to_delete)),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                     }
@@ -395,7 +396,7 @@ pub fn background_loop() {
 
             // In case we want to check if there is a Dependency Database loaded...
             Command::IsThereADependencyDatabase(include_asskit) => {
-                let are_dependencies_loaded = dependencies.is_vanilla_data_loaded(include_asskit);
+                let are_dependencies_loaded = dependencies.read().unwrap().is_vanilla_data_loaded(include_asskit);
                 CentralCommand::send_back(&sender, Response::Bool(are_dependencies_loaded))
             },
 
@@ -673,7 +674,7 @@ pub fn background_loop() {
                     }
 
                     DataSource::ParentFiles => {
-                        match dependencies.file_mut(&path, false, true) {
+                        match dependencies.write().unwrap().file_mut(&path, false, true) {
                             Ok(file) => {
                                 let mut extra_data = DecodeableExtraData::default();
                                 extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
@@ -706,7 +707,7 @@ pub fn background_loop() {
                     }
 
                     DataSource::GameFiles => {
-                        match dependencies.file_mut(&path, true, false) {
+                        match dependencies.write().unwrap().file_mut(&path, true, false) {
                             Ok(file) => {
                                 let mut extra_data = DecodeableExtraData::default();
                                 extra_data.set_lazy_load(setting_bool("use_lazy_loading"));
@@ -741,7 +742,7 @@ pub fn background_loop() {
                     DataSource::AssKitFiles => {
                         let path_split = path.split('/').collect::<Vec<_>>();
                         if path_split.len() > 2 {
-                            match dependencies.asskit_only_db_tables().get(path_split[1]) {
+                            match dependencies.read().unwrap().asskit_only_db_tables().get(path_split[1]) {
                                 Some(db) => CentralCommand::send_back(&sender, Response::DBRFileInfo(db.clone(), RFileInfo::default())),
                                 None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table {} not found on Assembly Kit files.", path))),
                             }
@@ -810,12 +811,12 @@ pub fn background_loop() {
             }
 
             // In case we want to get the list of tables in the dependency database...
-            Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.vanilla_tables().keys().map(|x| x.to_owned()).collect())),
+            Command::GetTableListFromDependencyPackFile => CentralCommand::send_back(&sender, Response::VecString(dependencies.read().unwrap().vanilla_tables().keys().map(|x| x.to_owned()).collect())),
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
-                if dependencies.is_vanilla_data_loaded(false) {
-                    match dependencies.db_version(&table_name) {
+                if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
+                    match dependencies.read().unwrap().db_version(&table_name) {
                         Some(version) => CentralCommand::send_back(&sender, Response::I32(version)),
                         None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files."))),
                     }
@@ -856,7 +857,7 @@ pub fn background_loop() {
                 let path = path.path_raw();
                 if let Some(rfile) = pack_file_decoded.file_mut(path) {
                     if let Ok(decoded) = rfile.decoded_mut() {
-                        dependencies.update_db(decoded);
+                        dependencies.write().unwrap().update_db(decoded);
                     } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
                 } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
             }
@@ -865,7 +866,7 @@ pub fn background_loop() {
             Command::GlobalSearchReplaceMatches(mut global_search, matches) => {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let paths = global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies, &matches);
+                    let paths = global_search.replace(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap(), &matches);
                     let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
@@ -878,7 +879,7 @@ pub fn background_loop() {
             Command::GlobalSearchReplaceAll(mut global_search) => {
                 let game_info = GAME_SELECTED.read().unwrap();
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies);
+                    let paths = global_search.replace_all(&game_info, schema, &mut pack_file_decoded, &mut dependencies.write().unwrap());
                     let files_info = paths.iter().flat_map(|path| pack_file_decoded.files_by_path(path, false).iter().map(|file| RFileInfo::from(*file)).collect::<Vec<RFileInfo>>()).collect();
 
                     CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, files_info));
@@ -891,8 +892,8 @@ pub fn background_loop() {
             Command::GetReferenceDataFromDefinition(table_name, definition) => {
 
                 // TODO: move this to pack opening.
-                dependencies.generate_local_definition_references(&table_name, &definition);
-                let reference_data = dependencies.db_reference_data(&pack_file_decoded, &table_name, &definition);
+                dependencies.write().unwrap().generate_local_definition_references(&table_name, &definition);
+                let reference_data = dependencies.read().unwrap().db_reference_data(&pack_file_decoded, &table_name, &definition);
                 CentralCommand::send_back(&sender, Response::HashMapI32TableReferences(reference_data));
             }
 
@@ -1075,11 +1076,11 @@ pub fn background_loop() {
                                     });
 
                                     // Then rebuild the dependencies stuff.
-                                    if dependencies.is_vanilla_data_loaded(false) {
+                                    if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
                                         let game_path = setting_path(&game.game_key_name());
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
-                                        match dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
+                                        match dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                             Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
@@ -1160,7 +1161,7 @@ pub fn background_loop() {
 
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies, &game_selected, &game_path, &[], &schema);
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
                         }
                         info!("Checking diagnostics: done.");
                         CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
@@ -1183,7 +1184,7 @@ pub fn background_loop() {
                         mut pack_file_decoded => move || {
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies, &game_selected, &game_path, &path_types, &schema);
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, &schema);
                         }
                         CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
                     }));
@@ -1237,8 +1238,8 @@ pub fn background_loop() {
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
 
-                    let _ = dependencies.rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
-                    let dependencies_info = DependenciesInfo::from(&dependencies);
+                    let _ = dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
+                    let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.")));
@@ -1270,7 +1271,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    if let Ok(packed_files) = dependencies.db_data(&table_name, false, true) {
+                    if let Ok(packed_files) = dependencies.read().unwrap().db_data(&table_name, false, true) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
                                 if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data) {
@@ -1284,7 +1285,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    if let Ok(packed_files) = dependencies.db_data(&table_name, true, false) {
+                    if let Ok(packed_files) = dependencies.read().unwrap().db_data(&table_name, true, false) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
                                 if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data) {
@@ -1298,6 +1299,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
+                    let dependencies = dependencies.read().unwrap();
                     let tables = dependencies.asskit_only_db_tables();
                     for (table_name, table) in tables {
                         if table.table_name() == table_name {
@@ -1341,7 +1343,7 @@ pub fn background_loop() {
 
                 // Pass for parent tables.
                 for (table_name, columns) in &reference_map {
-                        if let Ok(tables) = dependencies.db_data(table_name, false, true) {
+                        if let Ok(tables) = dependencies.read().unwrap().db_data(table_name, false, true) {
                         references.append(&mut tables.par_iter().map(|table| {
                             let mut references = vec![];
                             if let Ok(RFileDecoded::DB(data)) = table.decoded() {
@@ -1361,7 +1363,7 @@ pub fn background_loop() {
 
                 // Pass for vanilla tables.
                 for (table_name, columns) in &reference_map {
-                    if let Ok(tables) = dependencies.db_data(table_name, true, false) {
+                    if let Ok(tables) = dependencies.read().unwrap().db_data(table_name, true, false) {
                         references.append(&mut tables.par_iter().map(|table| {
                             let mut references = vec![];
                             if let Ok(RFileDecoded::DB(data)) = table.decoded() {
@@ -1396,7 +1398,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    if let Ok(packed_files) = dependencies.loc_data(false, true) {
+                    if let Ok(packed_files) = dependencies.read().unwrap().loc_data(false, true) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::Loc(data)) = packed_file.decoded() {
                                 if let Some((column_index, row_index)) = data.table().rows_containing_data("key", &loc_key) {
@@ -1410,7 +1412,7 @@ pub fn background_loop() {
                 }
 
                 if !found {
-                    if let Ok(packed_files) = dependencies.loc_data(true, false) {
+                    if let Ok(packed_files) = dependencies.read().unwrap().loc_data(true, false) {
                         for packed_file in &packed_files {
                             if let Ok(RFileDecoded::Loc(data)) = packed_file.decoded() {
                                 if let Some((column_index, row_index)) = data.table().rows_containing_data("key", &loc_key) {
@@ -1428,7 +1430,7 @@ pub fn background_loop() {
                 }
             },
 
-            Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringString(dependencies.loc_key_source(&loc_key))),
+            Command::GetSourceDataFromLocKey(loc_key) => CentralCommand::send_back(&sender, Response::OptionStringStringString(dependencies.read().unwrap().loc_key_source(&loc_key))),
             Command::GetPackFileName => CentralCommand::send_back(&sender, Response::String(pack_file_decoded.disk_file_name())),
             Command::GetPackedFileRawData(path) => {
                 match pack_file_decoded.files_mut().get_mut(&path) {
@@ -1455,6 +1457,7 @@ pub fn background_loop() {
             Command::ImportDependenciesToOpenPackFile(paths_by_data_source) => {
                 let mut added_paths = vec![];
 
+                let dependencies = dependencies.read().unwrap();
                 for (data_source, paths) in &paths_by_data_source {
                     let files = match data_source {
                         DataSource::GameFiles => dependencies.files_by_path(paths, true, false, false),
@@ -1485,13 +1488,13 @@ pub fn background_loop() {
 
                 // Get PackedFiles requested from the Parent Files.
                 let mut packed_files_parent = HashMap::new();
-                for (path, file) in dependencies.files_by_path(&paths, false, true, true) {
+                for (path, file) in dependencies.read().unwrap().files_by_path(&paths, false, true, true) {
                     packed_files_parent.insert(path, file.clone());
                 }
 
                 // Get PackedFiles requested from the Game Files.
                 let mut packed_files_game = HashMap::new();
-                for (path, file) in dependencies.files_by_path(&paths, true, false, true) {
+                for (path, file) in dependencies.read().unwrap().files_by_path(&paths, true, false, true) {
                     packed_files_game.insert(path, file.clone());
                 }
 
@@ -1573,7 +1576,7 @@ pub fn background_loop() {
                         added_paths.dedup();
 
                         // Then, optimize the PackFile. This should remove any non-edited rows/files.
-                        match pack_file_decoded.optimize(&mut dependencies, schema, false) {
+                        match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, false) {
                             Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathHashSetString(added_paths, paths_to_delete)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
