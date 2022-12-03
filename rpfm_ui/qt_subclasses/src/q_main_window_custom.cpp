@@ -17,43 +17,46 @@ QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (Q
     dark_theme_enabled = is_dark_theme_enabled;
     busyIndicator = new KBusyIndicatorWidget(this);
 
-    // Initialize the icon theme. Holy shit this took way too much research to find how it works.
-    const QString iconThemeName = QStringLiteral("breeze");
+    #ifdef _WIN32
 
-    const QString iconThemeRccFallback = qApp->applicationDirPath() + QStringLiteral("/data/icons/breeze/breeze-icons.rcc");
-    const QString iconThemeRccDark = qApp->applicationDirPath() + QStringLiteral("/data/icons/breeze-dark/breeze-icons-dark.rcc");
+        // Initialize the icon theme. Holy shit this took way too much research to find how it works.
+        const QString iconThemeName = QStringLiteral("breeze");
 
-    qWarning() << "Rcc file for Dark theme" << iconThemeRccDark;
-    qWarning() << "Rcc file for Light theme" << iconThemeRccFallback;
+        const QString iconThemeRccFallback = qApp->applicationDirPath() + QStringLiteral("/data/icons/breeze/breeze-icons.rcc");
+        const QString iconThemeRccDark = qApp->applicationDirPath() + QStringLiteral("/data/icons/breeze-dark/breeze-icons-dark.rcc");
 
-    if (!iconThemeRccDark.isEmpty() && !iconThemeRccFallback.isEmpty()) {
-        const QString iconSubdir = QStringLiteral("/icons/") + iconThemeName;
-        bool load_fallback = QResource::registerResource(iconThemeRccFallback, iconSubdir);
+        qWarning() << "Rcc file for Dark theme" << iconThemeRccDark;
+        qWarning() << "Rcc file for Light theme" << iconThemeRccFallback;
 
-        // Only load the dark theme resources if needed.
-        bool load_dark = false;
-        if (dark_theme_enabled) {
-            load_dark = QResource::registerResource(iconThemeRccDark, iconSubdir);
-        }
+        if (!iconThemeRccDark.isEmpty() && !iconThemeRccFallback.isEmpty()) {
+            const QString iconSubdir = QStringLiteral("/icons/") + iconThemeName;
+            bool load_fallback = QResource::registerResource(iconThemeRccFallback, iconSubdir);
 
-        // If nothing failed, set the themes.
-        if (load_fallback && (load_dark || !dark_theme_enabled)) {
-            if (QFileInfo::exists(QLatin1Char(':') + iconSubdir + QStringLiteral("/index.theme"))) {
-                QIcon::setThemeName(iconThemeName);
-                QIcon::setFallbackThemeName(QStringLiteral("breeze"));
+            // Only load the dark theme resources if needed.
+            bool load_dark = false;
+            if (dark_theme_enabled) {
+                load_dark = QResource::registerResource(iconThemeRccDark, iconSubdir);
+            }
+
+            // If nothing failed, set the themes.
+            if (load_fallback && (load_dark || !dark_theme_enabled)) {
+                if (QFileInfo::exists(QLatin1Char(':') + iconSubdir + QStringLiteral("/index.theme"))) {
+                    QIcon::setThemeName(iconThemeName);
+                    QIcon::setFallbackThemeName(QStringLiteral("breeze"));
+                } else {
+                    qWarning() << "No index.theme found in" << iconThemeRccDark;
+                    qWarning() << "No index.theme found in" << iconThemeRccFallback;
+                    QResource::unregisterResource(iconThemeRccDark, iconSubdir);
+                    QResource::unregisterResource(iconThemeRccFallback, iconSubdir);
+                }
             } else {
-                qWarning() << "No index.theme found in" << iconThemeRccDark;
-                qWarning() << "No index.theme found in" << iconThemeRccFallback;
-                QResource::unregisterResource(iconThemeRccDark, iconSubdir);
-                QResource::unregisterResource(iconThemeRccFallback, iconSubdir);
+                qWarning() << "Invalid rcc file" << iconThemeRccFallback;
             }
         } else {
-            qWarning() << "Invalid rcc file" << iconThemeRccFallback;
+            qWarning() << "Empty rcc file" << iconThemeRccDark;
+            qWarning() << "Empty rcc file" << iconThemeRccFallback;
         }
-    } else {
-        qWarning() << "Empty rcc file" << iconThemeRccDark;
-        qWarning() << "Empty rcc file" << iconThemeRccFallback;
-    }
+    #endif
 }
 
 // Overload of the close event so we can put a dialog there.
