@@ -19,6 +19,7 @@
 //! - `.tga`
 //! - `.png`
 //! - `.dds`
+//! - `.gif`
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -28,12 +29,13 @@ use crate::error::Result;
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
 
 /// Extensions used by Images.
-pub const EXTENSIONS: [&str; 5] = [
+pub const EXTENSIONS: [&str; 6] = [
     ".jpg",
     ".jpeg",
     ".tga",
     ".dds",
     ".png",
+    ".gif"
 ];
 
 //---------------------------------------------------------------------------//

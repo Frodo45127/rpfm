@@ -879,7 +879,7 @@ impl PackTree for QPtr<QTreeView> {
 
                         // Second, we set as the big_parent, the base for the folders of the TreeView, a fake folder
                         // with the name of the PackFile. All big things start with a lie.
-                        let big_parent = QStandardItem::from_q_string(&QString::from_std_str(&pack_file_data.file_name()));
+                        let big_parent = QStandardItem::from_q_string(&QString::from_std_str(pack_file_data.file_name()));
                         let tooltip = new_pack_file_tooltip(&pack_file_data);
                         big_parent.set_tool_tip(&QString::from_std_str(tooltip));
                         big_parent.set_editable(false);
@@ -892,7 +892,7 @@ impl PackTree for QPtr<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_NON_EDITABLE_PACKFILE), ROOT_NODE_TYPE);
                         }
 
-                        set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
+                        TREEVIEW_ICONS.set_standard_item_icon(&big_parent, Some(&FileType::Pack));
 
                         // For PackFiles, we only allow one per view.
                         model.clear();
@@ -925,7 +925,7 @@ impl PackTree for QPtr<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_PARENT_DATA), ROOT_NODE_TYPE);
 
-                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
+                            TREEVIEW_ICONS.set_standard_item_icon(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
@@ -959,7 +959,7 @@ impl PackTree for QPtr<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_GAME_DATA), ROOT_NODE_TYPE);
 
-                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
+                            TREEVIEW_ICONS.set_standard_item_icon(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
@@ -993,7 +993,7 @@ impl PackTree for QPtr<QTreeView> {
                             big_parent.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             big_parent.set_data_2a(&QVariant::from_int(ROOT_NODE_TYPE_ASSKIT), ROOT_NODE_TYPE);
 
-                            set_icon_for_file_type(&big_parent, Some(&FileType::Pack));
+                            TREEVIEW_ICONS.set_standard_item_icon(&big_parent, Some(&FileType::Pack));
 
                             (big_parent.into_ptr(), packed_files_data)
                         } else {
@@ -1025,7 +1025,7 @@ impl PackTree for QPtr<QTreeView> {
                 base_folder_item.set_editable(false);
                 base_folder_item.set_data_2a(&variant_type_folder, ITEM_TYPE);
                 base_folder_item.set_data_2a(&variant_status_pristine, ITEM_STATUS);
-                set_icon_for_file_type(&base_folder_item, None);
+                TREEVIEW_ICONS.set_standard_item_icon(&base_folder_item, None);
 
                 // Once we get the entire path list sorted, we add the paths to the model one by one,
                 // skipping duplicate entries.
@@ -1045,7 +1045,7 @@ impl PackTree for QPtr<QTreeView> {
                             file.set_text(&name);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
 
-                            set_icon_for_file_type(&file, Some(packed_file.file_type()));
+                            TREEVIEW_ICONS.set_standard_item_icon(&file, Some(packed_file.file_type()));
 
                             parent.append_row_q_standard_item(file);
                         }
@@ -1202,7 +1202,7 @@ impl PackTree for QPtr<QTreeView> {
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
 
                                     if let Some(file_info) = files_info.par_iter().find_first(|x| x.path() == item_type.path_raw()) {
-                                        set_icon_for_file_type(&item, Some(file_info.file_type()));
+                                        TREEVIEW_ICONS.set_standard_item_icon(&item, Some(file_info.file_type()));
                                         let tooltip = new_packed_file_tooltip(file_info);
                                         item.set_tool_tip(&QString::from_std_str(tooltip));
                                     }
@@ -1210,7 +1210,7 @@ impl PackTree for QPtr<QTreeView> {
 
                                 else {
                                     item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                    set_icon_for_file_type(&item, None);
+                                    TREEVIEW_ICONS.set_standard_item_icon(&item, None);
                                 }
 
                                 item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1270,7 +1270,7 @@ impl PackTree for QPtr<QTreeView> {
                                 folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
                                 folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_ADDED), ITEM_STATUS);
                                 folder.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                                set_icon_for_file_type(&folder, None);
+                                TREEVIEW_ICONS.set_standard_item_icon(&folder, None);
 
                                 parent.append_row_q_standard_item(folder);
 
@@ -1832,30 +1832,6 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
     } else {
         a_path.cmp(b_path)
     }
-}
-
-pub unsafe fn set_icon_for_file_type(item: &QStandardItem, file_type: Option<&FileType>) {
-     let icon = ref_from_atomic_ref(
-        match file_type {
-            Some(file_type) => match file_type {
-                FileType::Pack => {
-                    if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
-                        &TREEVIEW_ICONS.packfile_editable
-                    } else {
-                        &TREEVIEW_ICONS.packfile_locked
-                    }
-                },
-                FileType::DB |
-                FileType::Loc => &TREEVIEW_ICONS.table,
-                FileType::RigidModel => &TREEVIEW_ICONS.rigid_model,
-                FileType::Text => &TREEVIEW_ICONS.text_generic,
-                FileType::Image => &TREEVIEW_ICONS.image_generic,
-                _ => &TREEVIEW_ICONS.file,
-            },
-            None => &TREEVIEW_ICONS.folder,
-        }
-    );
-    item.set_icon(icon);
 }
 
 pub unsafe fn get_color_correct() -> String {

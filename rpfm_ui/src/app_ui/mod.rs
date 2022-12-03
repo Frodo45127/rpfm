@@ -89,6 +89,7 @@ use crate::SCHEMA;
 use crate::settings_ui::backend::*;
 use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
+use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
@@ -2353,7 +2354,7 @@ impl AppUI {
 
                         if index == -1 {
                             let icon_type = IconType::File(path.to_owned());
-                            let icon = icon_type.get_icon_from_path();
+                            let icon = TREEVIEW_ICONS.icon(icon_type);
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
                         }
 
@@ -2389,11 +2390,12 @@ impl AppUI {
                 tab.set_data_source(data_source);
 
                 if !is_external {
+                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.get_data_source()));
+
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_owned());
-                    let icon = icon_type.get_icon_from_path();
+                    let icon = TREEVIEW_ICONS.icon(icon_type);
 
-                    let receiver = CENTRAL_COMMAND.send_background(Command::DecodePackedFile(path.to_string(), tab.get_data_source()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
 
@@ -2775,7 +2777,7 @@ impl AppUI {
                 // If it's external, we just create a view with just one button: "Stop Watching External File".
                 else {
                     let icon_type = IconType::File(path.to_owned());
-                    let icon = icon_type.get_icon_from_path();
+                    let icon = TREEVIEW_ICONS.icon(icon_type);
 
                     let receiver = CENTRAL_COMMAND.send_background(Command::OpenPackedFileInExternalProgram(DataSource::PackFile, ContainerPath::File(path.to_owned())));
                     let path = Rc::new(RefCell::new(path.to_owned()));
@@ -2852,8 +2854,8 @@ impl AppUI {
                 let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
-                    let icon_type = IconType::PackFile(true);
-                    let icon = icon_type.get_icon_from_path();
+                    let icon_type = IconType::Pack(true);
+                    let icon = TREEVIEW_ICONS.icon(icon_type);
                     app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
                 }
 
@@ -2866,8 +2868,8 @@ impl AppUI {
             tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
             tab.set_path(&path);
-            let icon_type = IconType::PackFile(true);
-            let icon = icon_type.get_icon_from_path();
+            let icon_type = IconType::Pack(true);
+            let icon = TREEVIEW_ICONS.icon(icon_type);
 
             match view_type {
                 SpecialView::Decoder(_) => {
