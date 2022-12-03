@@ -54,7 +54,6 @@ pub mod connections;
 pub mod slots;
 pub mod tips;
 
-/// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/filterable_tree_dock_widget.ui";
 

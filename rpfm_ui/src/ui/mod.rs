@@ -130,7 +130,7 @@ impl UI {
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
-        let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window()));
+        let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window())?);
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
         let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window()));
 

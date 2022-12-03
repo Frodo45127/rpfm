@@ -12,17 +12,15 @@
 Module with all the code related to the `DiagnosticsUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::{ScrollHint, SelectionMode};
-use qt_widgets::QCheckBox;
+use qt_widgets::q_abstract_item_view::ScrollHint;
+use qt_widgets::{QCheckBox, QVBoxLayout};
 use qt_widgets::QDockWidget;
-use qt_widgets::{QFrame, q_frame::{Shadow, Shape}};
-use qt_widgets::QGroupBox;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLabel;
 use qt_widgets::QMainWindow;
-use qt_widgets::QPushButton;
 use qt_widgets::QScrollArea;
 use qt_widgets::QTableView;
+use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
 use qt_gui::QBrush;
@@ -31,7 +29,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
+use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -46,6 +44,7 @@ use qt_core::QSignalBlocker;
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
+use anyhow::Result;
 use getset::Getters;
 
 use std::rc::Rc;
@@ -70,11 +69,14 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
-use crate::utils::create_grid_layout;
+use crate::utils::*;
 use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO};
 
 pub mod connections;
 pub mod slots;
+
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/diagnostics_dock_widget.ui";
+const VIEW_RELEASE: &str = "ui/diagnostics_dock_widget.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -88,23 +90,23 @@ pub struct DiagnosticsUI {
     //-------------------------------------------------------------------------------//
     // `Diagnostics` Dock Widget.
     //-------------------------------------------------------------------------------//
-    diagnostics_dock_widget: QBox<QDockWidget>,
-    diagnostics_table_view: QBox<QTableView>,
+    diagnostics_dock_widget: QPtr<QDockWidget>,
+    diagnostics_table_view: QPtr<QTableView>,
     diagnostics_table_filter: QBox<QSortFilterProxyModel>,
     diagnostics_table_model: QBox<QStandardItemModel>,
 
     //-------------------------------------------------------------------------------//
     // Filters section.
     //-------------------------------------------------------------------------------//
-    diagnostics_button_check_packfile: QBox<QPushButton>,
-    diagnostics_button_check_current_packed_file: QBox<QPushButton>,
-    diagnostics_button_error: QBox<QPushButton>,
-    diagnostics_button_warning: QBox<QPushButton>,
-    diagnostics_button_info: QBox<QPushButton>,
-    diagnostics_button_only_current_packed_file: QBox<QPushButton>,
-    diagnostics_button_show_more_filters: QBox<QPushButton>,
+    diagnostics_button_check_packfile: QPtr<QToolButton>,
+    diagnostics_button_check_current_packed_file: QPtr<QToolButton>,
+    diagnostics_button_error: QPtr<QToolButton>,
+    diagnostics_button_warning: QPtr<QToolButton>,
+    diagnostics_button_info: QPtr<QToolButton>,
+    diagnostics_button_only_current_packed_file: QPtr<QToolButton>,
+    diagnostics_button_show_more_filters: QPtr<QToolButton>,
 
-    sidebar_scroll_area: QBox<QScrollArea>,
+    sidebar_scroll_area: QPtr<QScrollArea>,
     checkbox_all: QBox<QCheckBox>,
     checkbox_outdated_table: QBox<QCheckBox>,
     checkbox_invalid_reference: QBox<QCheckBox>,
@@ -140,42 +142,41 @@ pub struct DiagnosticsUI {
 impl DiagnosticsUI {
 
     /// This function creates an entire `DiagnosticsUI` struct.
-    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
+    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
 
-        //-----------------------------------------------//
-        // `DiagnosticsUI` DockWidget.
-        //-----------------------------------------------//
-        let diagnostics_dock_widget = QDockWidget::from_q_widget(main_window);
-        let diagnostics_dock_inner_widget = QWidget::new_1a(&diagnostics_dock_widget);
-        let diagnostics_dock_layout = create_grid_layout(diagnostics_dock_inner_widget.static_upcast());
-        diagnostics_dock_widget.set_widget(&diagnostics_dock_inner_widget);
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(main_window, template_path)?;
+
+        let diagnostics_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
+        let diagnostics_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
+        let diagnostics_table_view: QPtr<QTableView> = find_widget(&main_widget.static_upcast(), "results_table_view")?;
+
+        let diagnostics_button_check_packfile: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_full_button")?;
+        let diagnostics_button_check_current_packed_file: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "check_open_button")?;
+        let diagnostics_button_error: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "error_button")?;
+        let diagnostics_button_warning: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "warning_button")?;
+        let diagnostics_button_info: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "info_button")?;
+        let diagnostics_button_only_current_packed_file: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "only_open_button")?;
+        let diagnostics_button_show_more_filters: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "more_filters_button")?;
+
+        diagnostics_button_check_packfile.set_tool_tip(&qtr("diagnostics_button_check_packfile"));
+        diagnostics_button_check_current_packed_file.set_tool_tip(&qtr("diagnostics_button_check_current_packed_file"));
+        diagnostics_button_error.set_tool_tip(&qtr("diagnostics_button_error"));
+        diagnostics_button_warning.set_tool_tip(&qtr("diagnostics_button_warning"));
+        diagnostics_button_info.set_tool_tip(&qtr("diagnostics_button_info"));
+        diagnostics_button_only_current_packed_file.set_tool_tip(&qtr("diagnostics_button_only_current_packed_file"));
+        diagnostics_button_show_more_filters.set_tool_tip(&qtr("diagnostics_button_show_more_filters"));
+
+        let sidebar_scroll_area: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "more_filters_scroll")?;
+        let header_column: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "diagnostics_label")?;
+        sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
+        sidebar_scroll_area.hide();
+        header_column.set_text(&qtr("diagnostic_type"));
+
         main_window.add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, diagnostics_dock_widget.as_ptr());
         diagnostics_dock_widget.set_window_title(&qtr("gen_loc_diagnostics"));
         diagnostics_dock_widget.set_object_name(&QString::from_std_str("diagnostics_dock"));
-
-        // Create and configure the filters section.
-        let filter_frame = QGroupBox::from_q_widget(&diagnostics_dock_inner_widget);
-        let filter_grid = create_grid_layout(filter_frame.static_upcast());
-        filter_grid.set_contents_margins_4a(4, 0, 4, 0);
-
-        let diagnostics_button_check_packfile = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_check_packfile"), &filter_frame);
-        let diagnostics_button_check_current_packed_file = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_check_current_packed_file"), &filter_frame);
-        let diagnostics_button_error = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_error"), &filter_frame);
-        let diagnostics_button_warning = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_warning"), &filter_frame);
-        let diagnostics_button_info = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_info"), &filter_frame);
-        let diagnostics_button_only_current_packed_file = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_only_current_packed_file"), &filter_frame);
-        let diagnostics_button_show_more_filters = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_show_more_filters"), &filter_frame);
-
-        let line_separator = QFrame::new_1a(&filter_frame);
-        line_separator.set_frame_shape(Shape::VLine);
-        line_separator.set_frame_shadow(Shadow::Sunken);
-
-        diagnostics_button_error.set_checkable(true);
-        diagnostics_button_warning.set_checkable(true);
-        diagnostics_button_info.set_checkable(true);
-        diagnostics_button_only_current_packed_file.set_checkable(true);
-        diagnostics_button_show_more_filters.set_checkable(true);
-        diagnostics_button_error.set_checked(true);
 
         diagnostics_button_info.set_style_sheet(&QString::from_std_str(&format!("
         QPushButton {{
@@ -201,31 +202,16 @@ impl DiagnosticsUI {
             background-color: {}
         }}", get_color_error(), get_color_error_pressed())));
 
-        filter_grid.add_widget_5a(&diagnostics_button_check_packfile, 0, 0, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_check_current_packed_file, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(&line_separator, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 3, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 4, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 5, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 6, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 7, 1, 1);
-
-        let diagnostics_table_view = QTableView::new_1a(&diagnostics_dock_inner_widget);
         let diagnostics_table_filter = new_tableview_filter_safe(diagnostics_dock_inner_widget.static_upcast());
         let diagnostics_table_model = QStandardItemModel::new_1a(&diagnostics_dock_inner_widget);
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
-        diagnostics_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
-        diagnostics_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
         if setting_bool("tight_table_mode") {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);
         }
-
-        diagnostics_dock_layout.add_widget_5a(&filter_frame, 0, 0, 1, 1);
-        diagnostics_dock_layout.add_widget_5a(&diagnostics_table_view, 1, 0, 1, 1);
 
         main_window.set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
         main_window.set_corner(qt_core::Corner::BottomRightCorner, qt_core::DockWidgetArea::RightDockWidgetArea);
@@ -235,75 +221,34 @@ impl DiagnosticsUI {
         //-------------------------------------------------------------------------------//
 
         // Create the search and hide/show/freeze widgets.
-        let sidebar_scroll_area = QScrollArea::new_1a(&diagnostics_dock_inner_widget);
-        let sidebar_widget = QWidget::new_1a(&sidebar_scroll_area);
-        let sidebar_grid = create_grid_layout(sidebar_widget.static_upcast());
-        sidebar_scroll_area.set_widget(&sidebar_widget);
-        sidebar_scroll_area.set_widget_resizable(true);
-        sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
-        sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
-        sidebar_grid.set_spacing(4);
+        let sidebar_widget = sidebar_scroll_area.widget();
+        let sidebar_grid: QPtr<QVBoxLayout> = sidebar_widget.layout().static_downcast();
 
-        let header_column = QLabel::from_q_string_q_widget(&qtr("diagnostic_type"), &sidebar_scroll_area);
-        let header_hidden = QLabel::from_q_string_q_widget(&qtr("diagnostic_show"), &sidebar_scroll_area);
-
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_column, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
-
-        sidebar_grid.add_widget_5a(&header_column, 0, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
-
-        let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_scroll_area);
-        let label_outdated_table = QLabel::from_q_string_q_widget(&qtr("label_outdated_table"), &sidebar_scroll_area);
-        let label_invalid_reference = QLabel::from_q_string_q_widget(&qtr("label_invalid_reference"), &sidebar_scroll_area);
-        let label_empty_row = QLabel::from_q_string_q_widget(&qtr("label_empty_row"), &sidebar_scroll_area);
-        let label_empty_key_field = QLabel::from_q_string_q_widget(&qtr("label_empty_key_field"), &sidebar_scroll_area);
-        let label_empty_key_fields = QLabel::from_q_string_q_widget(&qtr("label_empty_key_fields"), &sidebar_scroll_area);
-        let label_duplicated_combined_keys = QLabel::from_q_string_q_widget(&qtr("label_duplicated_combined_keys"), &sidebar_scroll_area);
-        let label_no_reference_table_found = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_found"), &sidebar_scroll_area);
-        let label_no_reference_table_nor_column_found_pak = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_pak"), &sidebar_scroll_area);
-        let label_no_reference_table_nor_column_found_no_pak = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_no_pak"), &sidebar_scroll_area);
-        let label_invalid_escape = QLabel::from_q_string_q_widget(&qtr("label_invalid_escape"), &sidebar_scroll_area);
-        let label_duplicated_row = QLabel::from_q_string_q_widget(&qtr("label_duplicated_row"), &sidebar_scroll_area);
-        let label_invalid_dependency_packfile = QLabel::from_q_string_q_widget(&qtr("label_invalid_dependency_packfile"), &sidebar_scroll_area);
-        let label_invalid_loc_key = QLabel::from_q_string_q_widget(&qtr("label_invalid_loc_key"), &sidebar_scroll_area);
-        let label_dependencies_cache_not_generated = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_not_generated"), &sidebar_scroll_area);
-        let label_invalid_packfile_name = QLabel::from_q_string_q_widget(&qtr("label_invalid_packfile_name"), &sidebar_scroll_area);
-        let label_table_name_ends_in_number = QLabel::from_q_string_q_widget(&qtr("label_table_name_ends_in_number"), &sidebar_scroll_area);
-        let label_table_name_has_space = QLabel::from_q_string_q_widget(&qtr("label_table_name_has_space"), &sidebar_scroll_area);
-        let label_table_is_datacoring = QLabel::from_q_string_q_widget(&qtr("label_table_is_datacoring"), &sidebar_scroll_area);
-        let label_dependencies_cache_outdated = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_outdated"), &sidebar_scroll_area);
-        let label_dependencies_cache_could_not_be_loaded = QLabel::from_q_string_q_widget(&qtr("label_dependencies_cache_could_not_be_loaded"), &sidebar_scroll_area);
-        let label_field_with_path_not_found = QLabel::from_q_string_q_widget(&qtr("label_field_with_path_not_found"), &sidebar_scroll_area);
-        let label_incorrect_game_path = QLabel::from_q_string_q_widget(&qtr("label_incorrect_game_path"), &sidebar_scroll_area);
-        let label_banned_table = QLabel::from_q_string_q_widget(&qtr("label_banned_table"), &sidebar_scroll_area);
-        let label_value_cannot_be_empty = QLabel::from_q_string_q_widget(&qtr("label_value_cannot_be_empty"), &sidebar_scroll_area);
-
-        let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_invalid_reference = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_empty_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_empty_key_field = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_empty_key_fields = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_duplicated_combined_keys = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_no_reference_table_found = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_no_reference_table_nor_column_found_pak = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_no_reference_table_nor_column_found_no_pak = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_invalid_escape = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_duplicated_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_invalid_dependency_packfile = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_invalid_loc_key = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_dependencies_cache_not_generated = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_invalid_packfile_name = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_table_name_ends_in_number = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_table_name_has_space = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_table_is_datacoring = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_dependencies_cache_outdated = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_dependencies_cache_could_not_be_loaded = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_field_with_path_not_found = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_incorrect_game_path = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_banned_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
-        let checkbox_value_cannot_be_empty = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_all = QCheckBox::from_q_string_q_widget(&qtr("all"), &sidebar_scroll_area);
+        let checkbox_outdated_table = QCheckBox::from_q_string_q_widget(&qtr("label_outdated_table"), &sidebar_scroll_area);
+        let checkbox_invalid_reference = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_reference"), &sidebar_scroll_area);
+        let checkbox_empty_row = QCheckBox::from_q_string_q_widget(&qtr("label_empty_row"), &sidebar_scroll_area);
+        let checkbox_empty_key_field = QCheckBox::from_q_string_q_widget(&qtr("label_empty_key_field"), &sidebar_scroll_area);
+        let checkbox_empty_key_fields = QCheckBox::from_q_string_q_widget(&qtr("label_empty_key_fields"), &sidebar_scroll_area);
+        let checkbox_duplicated_combined_keys = QCheckBox::from_q_string_q_widget(&qtr("label_duplicated_combined_keys"), &sidebar_scroll_area);
+        let checkbox_no_reference_table_found = QCheckBox::from_q_string_q_widget(&qtr("label_no_reference_table_found"), &sidebar_scroll_area);
+        let checkbox_no_reference_table_nor_column_found_pak = QCheckBox::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_pak"), &sidebar_scroll_area);
+        let checkbox_no_reference_table_nor_column_found_no_pak = QCheckBox::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_no_pak"), &sidebar_scroll_area);
+        let checkbox_invalid_escape = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_escape"), &sidebar_scroll_area);
+        let checkbox_duplicated_row = QCheckBox::from_q_string_q_widget(&qtr("label_duplicated_row"), &sidebar_scroll_area);
+        let checkbox_invalid_dependency_packfile = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_dependency_packfile"), &sidebar_scroll_area);
+        let checkbox_invalid_loc_key = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_loc_key"), &sidebar_scroll_area);
+        let checkbox_dependencies_cache_not_generated = QCheckBox::from_q_string_q_widget(&qtr("label_dependencies_cache_not_generated"), &sidebar_scroll_area);
+        let checkbox_invalid_packfile_name = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_packfile_name"), &sidebar_scroll_area);
+        let checkbox_table_name_ends_in_number = QCheckBox::from_q_string_q_widget(&qtr("label_table_name_ends_in_number"), &sidebar_scroll_area);
+        let checkbox_table_name_has_space = QCheckBox::from_q_string_q_widget(&qtr("label_table_name_has_space"), &sidebar_scroll_area);
+        let checkbox_table_is_datacoring = QCheckBox::from_q_string_q_widget(&qtr("label_table_is_datacoring"), &sidebar_scroll_area);
+        let checkbox_dependencies_cache_outdated = QCheckBox::from_q_string_q_widget(&qtr("label_dependencies_cache_outdated"), &sidebar_scroll_area);
+        let checkbox_dependencies_cache_could_not_be_loaded = QCheckBox::from_q_string_q_widget(&qtr("label_dependencies_cache_could_not_be_loaded"), &sidebar_scroll_area);
+        let checkbox_field_with_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_field_with_path_not_found"), &sidebar_scroll_area);
+        let checkbox_incorrect_game_path = QCheckBox::from_q_string_q_widget(&qtr("label_incorrect_game_path"), &sidebar_scroll_area);
+        let checkbox_banned_table = QCheckBox::from_q_string_q_widget(&qtr("label_banned_table"), &sidebar_scroll_area);
+        let checkbox_value_cannot_be_empty = QCheckBox::from_q_string_q_widget(&qtr("label_value_cannot_be_empty"), &sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -331,90 +276,33 @@ impl DiagnosticsUI {
         checkbox_banned_table.set_checked(true);
         checkbox_value_cannot_be_empty.set_checked(true);
 
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_all, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_outdated_table, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_reference, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_empty_row, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_empty_key_field, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_empty_key_fields, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_duplicated_combined_keys, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_no_reference_table_found, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_no_reference_table_nor_column_found_pak, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_no_reference_table_nor_column_found_no_pak, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_escape, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_duplicated_row, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_dependency_packfile, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_loc_key, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_not_generated, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_invalid_packfile_name, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_table_name_ends_in_number, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_table_name_has_space, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_table_is_datacoring, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_outdated, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_dependencies_cache_could_not_be_loaded, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_field_with_path_not_found, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_incorrect_game_path, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_banned_table, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&checkbox_value_cannot_be_empty, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.add_widget_1a(&checkbox_all);
+        sidebar_grid.add_widget_1a(&checkbox_outdated_table);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_reference);
+        sidebar_grid.add_widget_1a(&checkbox_empty_row);
+        sidebar_grid.add_widget_1a(&checkbox_empty_key_field);
+        sidebar_grid.add_widget_1a(&checkbox_empty_key_fields);
+        sidebar_grid.add_widget_1a(&checkbox_duplicated_combined_keys);
+        sidebar_grid.add_widget_1a(&checkbox_no_reference_table_found);
+        sidebar_grid.add_widget_1a(&checkbox_no_reference_table_nor_column_found_pak);
+        sidebar_grid.add_widget_1a(&checkbox_no_reference_table_nor_column_found_no_pak);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_escape);
+        sidebar_grid.add_widget_1a(&checkbox_duplicated_row);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_dependency_packfile);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_loc_key);
+        sidebar_grid.add_widget_1a(&checkbox_dependencies_cache_not_generated);
+        sidebar_grid.add_widget_1a(&checkbox_invalid_packfile_name);
+        sidebar_grid.add_widget_1a(&checkbox_table_name_ends_in_number);
+        sidebar_grid.add_widget_1a(&checkbox_table_name_has_space);
+        sidebar_grid.add_widget_1a(&checkbox_table_is_datacoring);
+        sidebar_grid.add_widget_1a(&checkbox_dependencies_cache_outdated);
+        sidebar_grid.add_widget_1a(&checkbox_dependencies_cache_could_not_be_loaded);
+        sidebar_grid.add_widget_1a(&checkbox_field_with_path_not_found);
+        sidebar_grid.add_widget_1a(&checkbox_incorrect_game_path);
+        sidebar_grid.add_widget_1a(&checkbox_banned_table);
+        sidebar_grid.add_widget_1a(&checkbox_value_cannot_be_empty);
 
-        sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_outdated_table, 2, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_invalid_reference, 3, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_empty_row, 4, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_empty_key_field, 5, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_empty_key_fields, 6, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_duplicated_combined_keys, 7, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_no_reference_table_found, 8, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_no_reference_table_nor_column_found_pak, 9, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_no_reference_table_nor_column_found_no_pak, 10, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_invalid_escape, 11, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_duplicated_row, 12, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_invalid_dependency_packfile, 13, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_invalid_loc_key, 14, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_dependencies_cache_not_generated, 15, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_invalid_packfile_name, 16, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_table_name_ends_in_number, 17, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_table_name_has_space, 18, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_table_is_datacoring, 19, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_dependencies_cache_outdated, 20, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_dependencies_cache_could_not_be_loaded, 21, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_field_with_path_not_found, 22, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_incorrect_game_path, 23, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_banned_table, 24, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&label_value_cannot_be_empty, 25, 0, 1, 1);
-
-        sidebar_grid.add_widget_5a(&checkbox_all, 1, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_outdated_table, 2, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_invalid_reference, 3, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_empty_row, 4, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_empty_key_field, 5, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_empty_key_fields, 6, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_duplicated_combined_keys, 7, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_no_reference_table_found, 8, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_no_reference_table_nor_column_found_pak, 9, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_no_reference_table_nor_column_found_no_pak, 10, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_invalid_escape, 11, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_duplicated_row, 12, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_invalid_dependency_packfile, 13, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_invalid_loc_key, 14, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_not_generated, 15, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_invalid_packfile_name, 16, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_table_name_ends_in_number, 17, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_table_name_has_space, 18, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_table_is_datacoring, 19, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_outdated, 20, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_dependencies_cache_could_not_be_loaded, 21, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_field_with_path_not_found, 22, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_incorrect_game_path, 23, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_banned_table, 24, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&checkbox_value_cannot_be_empty, 25, 1, 1, 1);
-
-        // Add all the stuff to the main grid and hide the search widget.
-        diagnostics_dock_layout.add_widget_5a(&sidebar_scroll_area, 0, 1, 2, 1);
-        diagnostics_dock_layout.set_column_stretch(0, 10);
-        sidebar_scroll_area.hide();
-
-        Self {
+        Ok(Self {
 
             //-------------------------------------------------------------------------------//
             // `Diagnostics` Dock Widget.
@@ -461,7 +349,7 @@ impl DiagnosticsUI {
             checkbox_incorrect_game_path,
             checkbox_banned_table,
             checkbox_value_cannot_be_empty
-        }
+        })
     }
 
     /// This function takes care of checking the entire PackFile for errors.
@@ -559,7 +447,7 @@ impl DiagnosticsUI {
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(&result.message()));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
@@ -607,7 +495,7 @@ impl DiagnosticsUI {
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(&result.message()));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
@@ -700,7 +588,7 @@ impl DiagnosticsUI {
                             level.set_text(&QString::from_std_str(result_type));
                             diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                            path.set_text(&QString::from_std_str(&diagnostic.path()));
+                            path.set_text(&QString::from_std_str(diagnostic.path()));
                             message.set_text(&QString::from_std_str(&result.message()));
                             report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
 
@@ -792,7 +680,9 @@ impl DiagnosticsUI {
             diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
 
             diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
-            diagnostics_ui.diagnostics_table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+            diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
+            diagnostics_ui.diagnostics_table_view.horizontal_header().set_default_section_size(70);
+            diagnostics_ui.diagnostics_table_view.resize_column_to_contents(3);
         }
     }
 
