@@ -12,7 +12,7 @@
 Module with all the code related to the `ReferencesUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::{ScrollHint, SelectionMode};
+use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QDockWidget;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QMainWindow;
@@ -23,7 +23,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
+use qt_core::{DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QModelIndex;
@@ -37,6 +37,7 @@ use qt_core::q_item_selection_model::SelectionFlag;
 
 use cpp_core::Ptr;
 
+use anyhow::Result;
 use getset::Getters;
 
 use std::rc::Rc;
@@ -51,11 +52,14 @@ use crate::pack_tree::PackTree;
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
-use crate::utils::create_grid_layout;
+use crate::utils::*;
 use crate::UI_STATE;
 
 pub mod connections;
 pub mod slots;
+
+const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/references_dock_widget.ui";
+const VIEW_RELEASE: &str = "ui/references_dock_widget.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -69,8 +73,8 @@ pub struct ReferencesUI {
     //-------------------------------------------------------------------------------//
     // `References` Dock Widget.
     //-------------------------------------------------------------------------------//
-    references_dock_widget: QBox<QDockWidget>,
-    references_table_view: QBox<QTableView>,
+    references_dock_widget: QPtr<QDockWidget>,
+    references_table_view: QPtr<QTableView>,
     references_table_filter: QBox<QSortFilterProxyModel>,
     references_table_model: QBox<QStandardItemModel>,
 }
@@ -79,30 +83,27 @@ pub struct ReferencesUI {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `ReferencesUI`.
 impl ReferencesUI {
 
     /// This function creates an entire `ReferencesUI` struct.
-    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
+    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
 
-        //-----------------------------------------------//
-        // `ReferencesUI` DockWidget.
-        //-----------------------------------------------//
-        let references_dock_widget = QDockWidget::from_q_widget(main_window);
-        let references_dock_inner_widget = QWidget::new_1a(&references_dock_widget);
-        let references_dock_layout = create_grid_layout(references_dock_inner_widget.static_upcast());
-        references_dock_widget.set_widget(&references_dock_inner_widget);
+        // Load the UI Template.
+        let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
+        let main_widget = load_template(main_window, template_path)?;
+
+        let references_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
+        let references_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
+        let references_table_view: QPtr<QTableView> = find_widget(&main_widget.static_upcast(), "results_table_view")?;
+
         main_window.add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, references_dock_widget.as_ptr());
         references_dock_widget.set_window_title(&qtr("gen_loc_references"));
         references_dock_widget.set_object_name(&QString::from_std_str("references_dock"));
 
-        let references_table_view = QTableView::new_1a(&references_dock_inner_widget);
         let references_table_filter = new_tableview_filter_safe(references_dock_inner_widget.static_upcast());
         let references_table_model = QStandardItemModel::new_1a(&references_dock_inner_widget);
         references_table_filter.set_source_model(&references_table_model);
         references_table_view.set_model(&references_table_filter);
-        references_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
-        references_table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
         if setting_bool("tight_table_mode") {
             references_table_view.vertical_header().set_minimum_section_size(22);
@@ -110,12 +111,7 @@ impl ReferencesUI {
             references_table_view.vertical_header().set_default_section_size(22);
         }
 
-        references_dock_layout.add_widget_5a(&references_table_view, 0, 0, 1, 1);
-
-        main_window.set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
-        main_window.set_corner(qt_core::Corner::BottomRightCorner, qt_core::DockWidgetArea::RightDockWidgetArea);
-
-        Self {
+        Ok(Self {
 
             //-------------------------------------------------------------------------------//
             // `References` Dock Widget.
@@ -124,7 +120,7 @@ impl ReferencesUI {
             references_table_view,
             references_table_filter,
             references_table_model,
-        }
+        })
     }
 
     /// This function takes care of loading the results of a reference search into the table.

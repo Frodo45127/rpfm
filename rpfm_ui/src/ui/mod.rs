@@ -132,7 +132,7 @@ impl UI {
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window())?);
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
-        let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window()));
+        let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window())?);
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
