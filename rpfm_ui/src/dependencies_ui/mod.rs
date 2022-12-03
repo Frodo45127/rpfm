@@ -105,7 +105,7 @@ impl DependenciesUI {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(app_ui.main_window(), &template_path)?;
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
 
         let dependencies_dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
         let dependencies_dock_inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;

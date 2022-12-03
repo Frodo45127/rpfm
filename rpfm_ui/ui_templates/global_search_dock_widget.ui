@@ -213,7 +213,14 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="edit-find"/>
+          <iconset theme="edit-find">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -223,7 +230,14 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="nextfuzzyuntrans"/>
+          <iconset theme="nextfuzzyuntrans">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
          <property name="checkable">
           <bool>true</bool>
@@ -231,7 +245,14 @@
         </widget>
        </item>
        <item row="1" column="0">
-        <widget class="QLineEdit" name="replace_line_edit"/>
+        <widget class="QLineEdit" name="replace_line_edit">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
        </item>
        <item row="0" column="4">
         <widget class="QToolButton" name="case_sensitive_search_button">
@@ -239,7 +260,14 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset theme="format-text-uppercase"/>
+          <iconset theme="format-text-uppercase">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
          <property name="checkable">
           <bool>true</bool>
@@ -252,7 +280,14 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="document-replace"/>
+          <iconset theme="document-replace">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -262,7 +297,14 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="edit-find-replace"/>
+          <iconset theme="edit-find-replace">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -272,12 +314,25 @@
           <string/>
          </property>
          <property name="icon">
-          <iconset theme="edit-clear-all"/>
+          <iconset theme="edit-clear-all">
+           <normaloff>.</normaloff>.</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>22</width>
+           <height>22</height>
+          </size>
          </property>
         </widget>
        </item>
        <item row="0" column="0">
         <widget class="KComboBox" name="seach_combobox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="editable">
           <bool>true</bool>
          </property>
@@ -319,6 +374,12 @@
         </property>
         <item row="1" column="0">
          <widget class="KLineEdit" name="db_filter_line_edit">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="clearButtonEnabled">
            <bool>true</bool>
           </property>
@@ -361,13 +422,26 @@
            <iconset theme="format-text-uppercase">
             <normaloff>../../../../</normaloff>../../../../</iconset>
           </property>
+          <property name="iconSize">
+           <size>
+            <width>22</width>
+            <height>22</height>
+           </size>
+          </property>
           <property name="checkable">
            <bool>true</bool>
           </property>
          </widget>
         </item>
         <item row="1" column="3">
-         <widget class="QComboBox" name="db_column_combo_box"/>
+         <widget class="QComboBox" name="db_column_combo_box">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>

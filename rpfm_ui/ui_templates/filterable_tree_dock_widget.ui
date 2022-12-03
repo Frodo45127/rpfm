@@ -32,6 +32,12 @@
     </property>
     <item row="1" column="0">
      <widget class="KLineEdit" name="filter_line_edit">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="clearButtonEnabled">
        <bool>true</bool>
       </property>
@@ -46,6 +52,12 @@
        <iconset theme="format-text-uppercase">
         <normaloff>.</normaloff>.</iconset>
       </property>
+      <property name="iconSize">
+       <size>
+        <width>22</width>
+        <height>22</height>
+       </size>
+      </property>
       <property name="checkable">
        <bool>true</bool>
       </property>
@@ -59,6 +71,12 @@
       <property name="icon">
        <iconset theme="expand-all-symbolic">
         <normaloff>.</normaloff>.</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>22</width>
+        <height>22</height>
+       </size>
       </property>
       <property name="checkable">
        <bool>true</bool>
