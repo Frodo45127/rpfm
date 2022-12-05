@@ -840,91 +840,91 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::Unknown26(values) => if let DataType::Unknown26(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::BoolArray(values) => if let DataType::BoolArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::Boolean(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I8Array(values) => if let DataType::I8Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as i8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I16Array(values) => if let DataType::I16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I32Array(values) => if let DataType::I32Array((table_view, _)) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values.value_mut() = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::I64Array(values) => if let DataType::I64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U8Array(values) => if let DataType::U8Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u8) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U16Array(values) => if let DataType::U16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value as u16) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U32Array(values) => if let DataType::U32Array((table_view, _)) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values.value_mut() = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I32(value) = &x[0] { Some(*value as u32) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::U64Array(values) => if let DataType::U64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I64(value) = &x[0] { Some(*value as u64) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::F32Array(values) => if let DataType::F32Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::F64Array(values) => if let DataType::F64Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::F32(value) = &x[0] { Some(*value as f64) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::Coord2dArray(values) => if let DataType::Coord2dArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|row|
@@ -939,7 +939,7 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::Coord3dArray(values) => if let DataType::Coord3dArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|row|
@@ -957,14 +957,14 @@ impl ESFDetailedView {
                             index += 1;
                         },
                         NodeType::Utf16Array(values) => if let DataType::Utf16Array(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
                             index += 1;
                         },
                         NodeType::AsciiArray(values) => if let DataType::AsciiArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::StringU8(value) = &x[0] { Some(value.to_owned()) } else { None }).collect();
@@ -972,7 +972,7 @@ impl ESFDetailedView {
                         },
 
                         NodeType::AngleArray(values) => if let DataType::AngleArray(table_view) = &self.data_types[index] {
-                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_primary_ptr().model().static_downcast();
+                            let filter: QPtr<QSortFilterProxyModel> = table_view.table_view_ptr().model().static_downcast();
                             let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
                             let data = get_table_from_view(&table_model, &table_view.table_definition()).unwrap();
                             *values = data.data(&None).unwrap().iter().filter_map(|x| if let DecodedData::I16(value) = &x[0] { Some(*value) } else { None }).collect();

@@ -14,24 +14,25 @@ public:
     QTableViewFrozen(QWidget* parent);
     ~QTableViewFrozen() override;
 
-    void setDataModel(QAbstractItemModel * model);
+    void setModel(QAbstractItemModel * model) override;
+    void setUpdatesEnabled(bool enable);
     QTableView *tableViewFrozen;
 
 protected:
-    //void resizeEvent(QResizeEvent *event) override;
-    //QModelIndex moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) override;
-    //void scrollTo (const QModelIndex & index, ScrollHint hint = EnsureVisible) override;
+    void resizeEvent(QResizeEvent *event) override;
+    QModelIndex moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) override;
+    void scrollTo (const QModelIndex & index, ScrollHint hint = EnsureVisible) override;
 
 private:
     QList<int> frozenColumns;
     void init();
-    //void updateFrozenTableGeometry();
+    void updateFrozenTableGeometry();
 
 public slots:
     void toggleFreezer(int column = 0);
 
 private slots:
-    //void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
-    //void updateSectionHeight(int logicalIndex, int oldSize, int newSize);
+    void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
+    void updateSectionHeight(int logicalIndex, int oldSize, int newSize);
 };
 #endif // TABLEVIEW_FROZEN_H

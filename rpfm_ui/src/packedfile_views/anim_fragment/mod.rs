@@ -220,7 +220,7 @@ impl PackedFileAnimFragmentView {
         let i1 = DecodedData::I32(self.integer_1.text().to_std_string().parse::<i32>()?);
         let i2 = DecodedData::I32(self.integer_2.text().to_std_string().parse::<i32>()?);
 
-        let filter: QPtr<QSortFilterProxyModel> = self.table_view.table_view_primary_ptr().model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = self.table_view.table_view_ptr().model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let data_1 = get_table_from_view(&table_model, &self.table_view.table_definition())?;
 

@@ -24,7 +24,7 @@ use qt_gui::SlotOfQStandardItem;
 use qt_core::QBox;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
-use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
+use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
 
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -42,7 +42,7 @@ use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::references_ui::ReferencesUI;
-use crate::utils::{check_regex, log_to_status_bar, show_dialog};
+use crate::utils::{log_to_status_bar, show_dialog};
 use crate::UI_STATE;
 use super::utils::*;
 use super::*;
@@ -91,27 +91,7 @@ pub struct TableViewSlots {
     pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
     pub freeze_columns_all: QBox<SlotOfInt>,
-    pub search_search: QBox<SlotNoArgs>,
-    pub search_prev_match: QBox<SlotNoArgs>,
-    pub search_next_match: QBox<SlotNoArgs>,
-    pub search_replace_current: QBox<SlotNoArgs>,
-    pub search_replace_all: QBox<SlotNoArgs>,
-    pub search_close: QBox<SlotNoArgs>,
-    pub search_check_regex: QBox<SlotOfQString>,
     pub open_subtable: QBox<SlotOfQModelIndex>,
-}
-
-/// This struct contains the slots of the view of a table filter.
-pub struct FilterViewSlots {
-    pub filter_line_edit: QBox<SlotOfQString>,
-    pub filter_match_group_selector: QBox<SlotNoArgs>,
-    pub filter_column_selector: QBox<SlotOfInt>,
-    pub filter_case_sensitive_button: QBox<SlotNoArgs>,
-    pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
-    pub filter_trigger: QBox<SlotNoArgs>,
-    pub filter_check_regex: QBox<SlotOfQString>,
-    pub filter_add: QBox<SlotNoArgs>,
-    pub filter_remove: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -134,7 +114,7 @@ impl TableViewSlots {
     ) -> Self {
 
         // When we want to update the diagnostic/global search data of this table.
-        let delayed_updates = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let delayed_updates = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui,
@@ -147,18 +127,16 @@ impl TableViewSlots {
                     let mut paths_to_check = vec![];
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
-                            show_dialog(&view.table_view_primary, error, false);
+                            show_dialog(&view.table_view, error, false);
                         } else if let Some(path) = view.get_packed_file_path() {
                             paths_to_check.push(path);
                         }
                     }
 
-                    if setting_bool("diagnostics_trigger_on_table_edit") {
-                        if diagnostics_ui.diagnostics_dock_widget().is_visible() {
-                            for path in &paths_to_check {
-                                let path_types = vec![ContainerPath::File(path.to_owned())];
-                                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
-                            }
+                    if setting_bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
+                        for path in &paths_to_check {
+                            let path_types = vec![ContainerPath::File(path.to_owned())];
+                            DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
                         }
                     }
                 }
@@ -166,33 +144,33 @@ impl TableViewSlots {
         }));
 
         // When we want to toggle the lookups on and off.
-        let toggle_lookups = SlotOfBool::new(&view.table_view_primary, clone!(
+        let toggle_lookups = SlotOfBool::new(&view.table_view, clone!(
             view => move |_| {
             view.toggle_lookups();
         }));
 
-        let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view_primary, clone!(
+        let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view, clone!(
             view => move |column, _| {
                 info!("Triggering `Sort Order` By Slot");
-                sort_column(&view.table_view_primary_ptr(), column, view.column_sort_state.clone());
+                sort_column(&view.table_view_ptr(), column, view.column_sort_state.clone());
             }
         ));
 
         // When we want to show the context menu.
-        let show_context_menu = SlotOfQPoint::new(&view.table_view_primary, clone!(
+        let show_context_menu = SlotOfQPoint::new(&view.table_view, clone!(
             view => move |_| {
             view.context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
         // When we want to trigger the context menu update function.
-        let context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view_primary, clone!(
+        let context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view, clone!(
             view => move |_,_| {
             info!("Triggering `Update Context Menu for Table` By Slot");
             view.context_menu_update();
         }));
 
         // When we want to respond to a change in one item in the model.
-        let item_changed = SlotOfQStandardItem::new(&view.table_view_primary, clone!(
+        let item_changed = SlotOfQStandardItem::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move |item| {
@@ -222,7 +200,10 @@ impl TableViewSlots {
                             update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
-                                TableSearch::update_search(&view);
+                                if let Some(search_view) = &*view.search_view() {
+                                    search_view.update_search(&view);
+                                }
+
                                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                                 }
@@ -232,7 +213,7 @@ impl TableViewSlots {
                 }
 
                 if setting_bool("table_resize_on_edit") {
-                    view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+                    view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
                 view.start_delayed_updates_timer();
@@ -240,7 +221,7 @@ impl TableViewSlots {
         ));
 
         // When you want to append a row to the table...
-        let add_rows = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let add_rows = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -255,7 +236,7 @@ impl TableViewSlots {
         ));
 
         // When you want to insert a row in a specific position of the table...
-        let insert_rows = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let insert_rows = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -270,7 +251,7 @@ impl TableViewSlots {
         ));
 
         // When you want to delete one or more rows...
-        let delete_rows = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let delete_rows = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -280,7 +261,7 @@ impl TableViewSlots {
         ));
 
         // When you want to delete all rows not in the current filter...
-        let delete_rows_not_in_filter = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let delete_rows_not_in_filter = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -292,7 +273,7 @@ impl TableViewSlots {
         ));
 
         // When you want to clone and insert one or more rows.
-        let clone_and_append = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let clone_and_append = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -306,7 +287,7 @@ impl TableViewSlots {
         }));
 
         // When you want to clone and append one or more rows.
-        let clone_and_insert = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let clone_and_insert = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -320,28 +301,28 @@ impl TableViewSlots {
         }));
 
         // When you want to copy one or more cells.
-        let copy = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let copy = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
             info!("Triggering `Copy` By Slot");
             view.copy_selection();
         }));
 
         // When you want to copy a table as a lua table.
-        let copy_as_lua_table = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let copy_as_lua_table = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
             info!("Triggering `Copy as Lua Table` By Slot");
             view.copy_selection_as_lua_table();
         }));
 
         // When you want to copy a table to a filter string.
-        let copy_to_filter_value = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let copy_to_filter_value = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
             info!("Triggering `Copy selection to filter` By Slot");
             view.copy_selection_to_filter();
         }));
 
         // When you want to copy one or more cells.
-        let paste = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let paste = SlotNoArgs::new(&view.table_view, clone!(
             view,
             app_ui,
             pack_file_contents_ui => move || {
@@ -350,7 +331,7 @@ impl TableViewSlots {
         }));
 
         // When you want to paste a row at the end of the table...
-        let paste_as_new_row = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let paste_as_new_row = SlotNoArgs::new(&view.table_view, clone!(
             view,
             app_ui,
             pack_file_contents_ui => move || {
@@ -360,13 +341,13 @@ impl TableViewSlots {
         ));
 
         // When we want to invert the selection of the table.
-        let invert_selection = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let invert_selection = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             info!("Triggering `Invert Selection` By Slot");
             let rows = view.table_filter.row_count_0a();
             let columns = view.table_filter.column_count_0a();
             if rows > 0 && columns > 0 {
-                let selection_model = view.table_view_primary.selection_model();
+                let selection_model = view.table_view.selection_model();
                 let first_item = view.table_filter.index_2a(0, 0);
                 let last_item = view.table_filter.index_2a(rows - 1, columns - 1);
                 let selection = QItemSelection::new_2a(&first_item, &last_item);
@@ -375,13 +356,13 @@ impl TableViewSlots {
         }));
 
         // When we want to reset the selected items of the table to their original value.
-        let reset_selection = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let reset_selection = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             view.reset_selection();
         }));
 
         // When we want to rewrite the selected items using a formula.
-        let rewrite_selection = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let rewrite_selection = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -390,7 +371,7 @@ impl TableViewSlots {
         }));
 
         // When we want to rewrite the selected items using a formula.
-        let generate_ids = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let generate_ids = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -399,7 +380,7 @@ impl TableViewSlots {
         }));
 
         // When we want to undo the last action.
-        let undo = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let undo = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -418,7 +399,7 @@ impl TableViewSlots {
         ));
 
         // When we want to redo the last undone action.
-        let redo = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let redo = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -435,7 +416,7 @@ impl TableViewSlots {
         ));
 
         // When we want to import a TSV file.
-        let import_tsv = SlotOfBool::new(&view.table_view_primary, clone!(
+        let import_tsv = SlotOfBool::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
@@ -446,7 +427,7 @@ impl TableViewSlots {
 
                     // Create a File Chooser to get the destination path and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
-                        &view.table_view_primary,
+                        &view.table_view,
                         &qtr("tsv_select_title"),
                     );
 
@@ -469,8 +450,7 @@ impl TableViewSlots {
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
                                 load_data(
-                                    &view.table_view_primary_ptr(),
-                                    &view.table_view_frozen_ptr(),
+                                    &view.table_view_ptr(),
                                     &view.table_definition(),
                                     &view.dependency_data,
                                     &data,
@@ -488,8 +468,7 @@ impl TableViewSlots {
                                 };
 
                                 build_columns(
-                                    &view.table_view_primary_ptr(),
-                                    Some(&view.table_view_frozen_ptr()),
+                                    &view.table_view_ptr(),
                                     &view.table_definition(),
                                     table_name.as_deref()
                                 );
@@ -504,7 +483,7 @@ impl TableViewSlots {
                                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                                 }
                             },
-                            Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),
+                            Response::Error(error) => return show_dialog(&view.table_view, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
 
@@ -516,7 +495,7 @@ impl TableViewSlots {
         ));
 
         // When we want to export the table as a TSV File.
-        let export_tsv = SlotOfBool::new(&view.table_view_primary, clone!(
+        let export_tsv = SlotOfBool::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
@@ -526,7 +505,7 @@ impl TableViewSlots {
 
                         // Create a File Chooser to get the destination path and configure it.
                         let file_dialog = QFileDialog::from_q_widget_q_string(
-                            &view.table_view_primary,
+                            &view.table_view,
                             &qtr("tsv_export_title")
                         );
 
@@ -541,7 +520,7 @@ impl TableViewSlots {
                             let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                             if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                                 if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
-                                    return show_dialog(&view.table_view_primary, error, false);
+                                    return show_dialog(&view.table_view, error, false);
                                 }
                             }
 
@@ -549,7 +528,7 @@ impl TableViewSlots {
                             let response = CENTRAL_COMMAND.recv_try(&receiver);
                             match response {
                                 Response::Success => (),
-                                Response::Error(error) => show_dialog(&view.table_view_primary, error, false),
+                                Response::Error(error) => show_dialog(&view.table_view, error, false),
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
                         }
@@ -559,16 +538,16 @@ impl TableViewSlots {
         ));
 
         // When we want to resize the columns depending on their contents...
-        let resize_columns = SlotNoArgs::new(&view.table_view_primary, clone!(view => move || {
-            view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+        let resize_columns = SlotNoArgs::new(&view.table_view, clone!(view => move || {
+            view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
             if setting_bool("extend_last_column_on_tables") {
-                view.table_view_primary.horizontal_header().set_stretch_last_section(false);
-                view.table_view_primary.horizontal_header().set_stretch_last_section(true);
+                view.table_view.horizontal_header().set_stretch_last_section(false);
+                view.table_view.horizontal_header().set_stretch_last_section(true);
             }
         }));
 
         // When you want to use the "Smart Delete" feature...
-        let smart_delete = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let smart_delete = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             view => move || {
@@ -577,7 +556,7 @@ impl TableViewSlots {
             }
         ));
 
-        let sidebar = SlotOfBool::new(&view.table_view_primary, clone!(
+        let sidebar = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
             match view.sidebar_scroll_area.is_visible() {
                 true => view.sidebar_scroll_area.hide(),
@@ -585,19 +564,21 @@ impl TableViewSlots {
             }
         }));
 
-        let search = SlotOfBool::new(&view.table_view_primary, clone!(
+        let search = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
             info!("Triggering `Search` By Slot");
-            match view.search_widget.is_visible() {
-                true => view.search_widget.hide(),
-                false => {
-                    view.search_widget.show();
-                    view.search_search_line_edit.set_focus_0a();
+            if let Some(search_view) = &*view.search_view() {
+                match search_view.main_widget().is_visible() {
+                    true => search_view.main_widget().hide(),
+                    false => {
+                        search_view.main_widget().show();
+                        search_view.search_line_edit().set_focus_0a();
+                    }
                 }
             }
         }));
 
-        let cascade_edition = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let cascade_edition = SlotNoArgs::new(&view.table_view, clone!(
             view,
             app_ui,
             pack_file_contents_ui => move || {
@@ -606,20 +587,20 @@ impl TableViewSlots {
             }
         ));
 
-        let patch_column = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let patch_column = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
                 info!("Triggering `Patch Column` By Slot");
                 if let Err(error) = view.patch_column() {
-                    show_dialog(&view.table_view_primary, error, false);
+                    show_dialog(&view.table_view, error, false);
                 }
             }
         ));
 
-        let find_references = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let find_references = SlotNoArgs::new(&view.table_view, clone!(
             references_ui,
             view => move || {
 
-            let selection = view.table_view_primary.selection_model().selection();
+            let selection = view.table_view.selection_model().selection();
             if selection.count_0a() == 1 {
                 let filter_index = selection.take_at(0).indexes().take_at(0);
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
@@ -651,7 +632,7 @@ impl TableViewSlots {
             }
         }));
 
-        let go_to_definition = SlotNoArgs::new(&view.table_view_primary, clone!(
+        let go_to_definition = SlotNoArgs::new(&view.table_view, clone!(
             view,
             app_ui,
             pack_file_contents_ui,
@@ -670,7 +651,7 @@ impl TableViewSlots {
 
         for field in view.table_definition().localised_fields() {
             let field_name = field.name().to_owned();
-            let slot = SlotNoArgs::new(&view.table_view_primary, clone!(
+            let slot = SlotNoArgs::new(&view.table_view, clone!(
                 view,
                 app_ui,
                 pack_file_contents_ui,
@@ -695,16 +676,16 @@ impl TableViewSlots {
         let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
             if let Some(index) = fields_processed.iter().position(|x| x == field) {
-                let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
+                let hide_show_slot = SlotOfInt::new(&view.table_view, clone!(
                     mut view => move |state| {
                         let state = state == 2;
-                        view.table_view_primary.set_column_hidden(index as i32, state);
+                        view.table_view.set_column_hidden(index as i32, state);
                     }
                 ));
 
-                let freeze_slot = SlotOfInt::new(&view.table_view_primary, clone!(
+                let freeze_slot = SlotOfInt::new(&view.table_view, clone!(
                     mut view => move |_| {
-                        toggle_freezer_safe(&view.table_view_primary, index as i32);
+                        toggle_freezer_safe(&view.table_view, index as i32);
                     }
                 ));
 
@@ -713,73 +694,21 @@ impl TableViewSlots {
             }
         }
 
-        let hide_show_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
+        let hide_show_columns_all = SlotOfInt::new(&view.table_view, clone!(
             mut view => move |state| {
                 let state = state == 2;
                 view.sidebar_hide_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
-        let freeze_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
+        let freeze_columns_all = SlotOfInt::new(&view.table_view, clone!(
             mut view => move |state| {
                 let state = state == 2;
                 view.sidebar_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
             }
         ));
 
-        //------------------------------------------------------//
-        // Slots related with the search panel.
-        //------------------------------------------------------//
-
-        let search_search = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                info!("Triggering `Local Search` By Slot");
-                TableSearch::search(&view);
-            }
-        ));
-
-        let search_prev_match = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                info!("Triggering `Local Prev Match` By Slot");
-                TableSearch::prev_match(&view);
-            }
-        ));
-
-        let search_next_match = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                info!("Triggering `Local Next Match` By Slot");
-                TableSearch::next_match(&view);
-            }
-        ));
-
-        let search_replace_current = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                info!("Triggering `Local Replace Current` By Slot");
-                TableSearch::replace_current(&view);
-            }
-        ));
-
-        let search_replace_all = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                info!("Triggering `Local Replace All` By Slot");
-                TableSearch::replace_all(&view);
-            }
-        ));
-
-        let search_close = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                view.search_widget.hide();
-                view.table_view_primary.set_focus_0a();
-            }
-        ));
-
-        // What happens when we trigger the "Check Regex" action.
-        let search_check_regex = SlotOfQString::new(&view.table_view_primary, clone!(
-            mut view => move |string| {
-            check_regex(&string.to_std_string(), view.search_search_line_edit.static_upcast());
-        }));
-
-        let open_subtable = SlotOfQModelIndex::new(&view.table_view_primary, clone!(
+        let open_subtable = SlotOfQModelIndex::new(&view.table_view, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -799,7 +728,7 @@ impl TableViewSlots {
                         _ => unimplemented!("You forgot to implement subtables for this kind of packedfile"),
                     };
                     if let Some(new_data) = open_subtable(
-                        view.table_view_primary.static_upcast(),
+                        view.table_view.static_upcast(),
                         &app_ui,
                         &global_search_ui,
                         &pack_file_contents_ui,
@@ -859,90 +788,8 @@ impl TableViewSlots {
             hide_show_columns_all,
             freeze_columns,
             freeze_columns_all,
-            search_search,
-            search_prev_match,
-            search_next_match,
-            search_replace_current,
-            search_replace_all,
-            search_close,
-            search_check_regex,
             open_subtable,
         }
     }
 }
 
-
-/// Implementation for `FilterViewSlots`.
-impl FilterViewSlots {
-    pub unsafe fn new(
-        view: &Arc<FilterView>,
-        parent_view: &Arc<TableView>,
-    ) -> Self {
-
-        // When we want to filter the table...
-        let filter_line_edit = SlotOfQString::new(&view.filter_widget, clone!(
-            view => move |_| {
-            FilterView::start_delayed_updates_timer(&view);
-        }));
-
-        let filter_match_group_selector = SlotNoArgs::new(&view.filter_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_column_selector = SlotOfInt::new(&view.filter_widget, clone!(
-            parent_view => move |_| {
-            parent_view.filter_table();
-        }));
-
-        let filter_case_sensitive_button = SlotNoArgs::new(&view.filter_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_show_blank_cells_button = SlotNoArgs::new(&view.filter_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        // Function triggered by the filter timer.
-        let filter_trigger = SlotNoArgs::new(&view.filter_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        // What happens when we trigger the "Check Regex" action.
-        let filter_check_regex = SlotOfQString::new(&view.filter_widget, clone!(
-            view => move |string| {
-            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast());
-        }));
-
-        let filter_add = SlotNoArgs::new(&view.filter_widget, clone!(
-            parent_view => move || {
-            FilterView::new(&parent_view);
-            FilterView::add_filter_group(&parent_view);
-        }));
-
-        let filter_remove = SlotNoArgs::new(&view.filter_widget, clone!(
-            view,
-            parent_view => move || {
-            if parent_view.filters().len() > 1 {
-                parent_view.filter_base_widget.layout().remove_widget(view.filter_widget.as_ptr());
-                parent_view.filters_mut().pop();
-                parent_view.filter_table();
-            }
-        }));
-
-        Self {
-            filter_line_edit,
-            filter_match_group_selector,
-            filter_column_selector,
-            filter_case_sensitive_button,
-            filter_show_blank_cells_button,
-            filter_trigger,
-            filter_check_regex,
-            filter_add,
-            filter_remove,
-        }
-    }
-}

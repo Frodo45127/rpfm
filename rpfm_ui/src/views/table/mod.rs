@@ -40,9 +40,7 @@ use qt_gui::QStandardItemModel;
 use qt_core::AlignmentFlag;
 use qt_core::CaseSensitivity;
 use qt_core::CheckState;
-use qt_core::MatchFlag;
 use qt_core::Orientation;
-use qt_core::QAbstractItemModel;
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -79,7 +77,6 @@ use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, FileType, db::DB, loc::Loc, matched_combat::MatchedCombat, table::*};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType, Schema};
-use rpfm_lib::utils::parse_str_as_bool;
 
 use crate::ASSETS_PATH;
 use crate::app_ui::AppUI;
@@ -100,10 +97,14 @@ use crate::SCHEMA;
 use crate::UI_STATE;
 use crate::utils::*;
 
+use self::filter::*;
+use self::search::*;
 use self::slots::*;
 use self::utils::*;
 
 mod connections;
+mod filter;
+mod search;
 pub mod slots;
 pub mod utils;
 
@@ -163,34 +164,11 @@ pub enum TableOperations {
     Carolina(Vec<TableOperations>),
 }
 
-/// This struct contains all the stuff needed to perform a table search. There is one per table, integrated in the view.
-#[derive(Clone)]
-pub struct TableSearch {
-    pattern: Ptr<QString>,
-    replace: Ptr<QString>,
-    regex: bool,
-    case_sensitive: bool,
-    column: Option<i32>,
-
-    /// This one contains the QModelIndex of the model and the QModelIndex of the filter, if exists.
-    matches: Vec<(Ptr<QModelIndex>, Option<Ptr<QModelIndex>>)>,
-    current_item: Option<u64>,
-}
-
-/// This enum defines the operation to be done when updating something related to the TableSearch.
-pub enum TableSearchUpdate {
-    Update,
-    Search,
-    PrevMatch,
-    NextMatch,
-}
-
 /// This struct contains pointers to all the widgets in a Table View.
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct TableView {
-    table_view_primary: QBox<QTableView>,
-    table_view_frozen: QBox<QTableView>,
+    table_view: QBox<QTableView>,
     table_filter: QBox<QSortFilterProxyModel>,
     table_model: QBox<QStandardItemModel>,
 
@@ -234,30 +212,17 @@ pub struct TableView {
     context_menu_go_to_loc: Vec<QPtr<QAction>>,
 
     sidebar_scroll_area: QBox<QScrollArea>,
-    search_widget: QBox<QWidget>,
 
     sidebar_hide_checkboxes: Vec<QBox<QCheckBox>>,
     sidebar_hide_checkboxes_all: QBox<QCheckBox>,
     sidebar_freeze_checkboxes: Vec<QBox<QCheckBox>>,
     sidebar_freeze_checkboxes_all: QBox<QCheckBox>,
 
-    search_search_line_edit: QBox<QLineEdit>,
-    search_replace_line_edit: QBox<QLineEdit>,
-    search_search_button: QBox<QPushButton>,
-    search_replace_current_button: QBox<QPushButton>,
-    search_replace_all_button: QBox<QPushButton>,
-    search_close_button: QBox<QPushButton>,
-    search_prev_match_button: QBox<QPushButton>,
-    search_next_match_button: QBox<QPushButton>,
-    search_matches_label: QBox<QLabel>,
-    search_column_selector: QBox<QComboBox>,
-    search_case_sensitive_button: QBox<QPushButton>,
-
-    #[getset(skip)]
-    search_data: Arc<RwLock<TableSearch>>,
-
     _table_status_bar: QBox<QWidget>,
     table_status_bar_line_counter_label: QBox<QLabel>,
+
+    #[getset(skip)]
+    search_view: Arc<RwLock<Option<Arc<SearchView>>>>,
 
     table_name: Option<String>,
     table_uuid: Option<String>,
@@ -292,19 +257,6 @@ pub struct TableView {
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 
     timer_delayed_updates: QBox<QTimer>,
-}
-
-/// This struct contains the stuff needed for a filter row.
-pub struct FilterView {
-    filter_widget: QBox<QWidget>,
-    filter_match_group_selector: QBox<QComboBox>,
-    filter_case_sensitive_button: QBox<QPushButton>,
-    filter_column_selector: QBox<QComboBox>,
-    filter_show_blank_cells_button: QBox<QPushButton>,
-    filter_timer_delayed_updates: QBox<QTimer>,
-    filter_line_edit: QBox<QLineEdit>,
-    filter_add: QBox<QPushButton>,
-    filter_remove: QBox<QPushButton>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -358,30 +310,24 @@ impl TableView {
         let save_lock = Arc::new(AtomicBool::new(false));
 
         // Prepare the Table and its model.
+        let table_view = new_tableview_frozen_safe(&parent.as_ptr());
         let table_filter = new_tableview_filter_safe(parent.static_upcast());
         let table_model = QStandardItemModel::new_1a(parent);
         let undo_model = QStandardItemModel::new_1a(parent);
         table_filter.set_source_model(&table_model);
-        let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&parent.as_ptr());
-        set_frozen_data_model_safe(&table_view_primary.as_ptr(), &table_filter.static_upcast::<QAbstractItemModel>().as_ptr());
+        table_view.set_model(&table_filter);
 
         // Make the last column fill all the available space, if the setting says so.
         if setting_bool("extend_last_column_on_tables") {
-            table_view_primary.horizontal_header().set_stretch_last_section(true);
-            table_view_frozen.horizontal_header().set_stretch_last_section(true);
+            table_view.horizontal_header().set_stretch_last_section(true);
         }
 
         // Setup tight mode if the setting is enabled.
         if setting_bool("tight_table_mode") {
-            table_view_primary.vertical_header().set_minimum_section_size(22);
-            table_view_primary.vertical_header().set_maximum_section_size(22);
-            table_view_primary.vertical_header().set_default_section_size(22);
-
-            table_view_frozen.vertical_header().set_minimum_section_size(22);
-            table_view_frozen.vertical_header().set_maximum_section_size(22);
-            table_view_frozen.vertical_header().set_default_section_size(22);
+            table_view.vertical_header().set_minimum_section_size(22);
+            table_view.vertical_header().set_maximum_section_size(22);
+            table_view.vertical_header().set_default_section_size(22);
         }
-
 
         // Create the filter's widgets.
         let filter_base_widget = QWidget::new_1a(parent);
@@ -408,44 +354,44 @@ impl TableView {
         let table_status_bar_line_counter_label = QLabel::from_q_string_q_widget(&qtre("line_counter", &["0", "0"]), &table_status_bar);
         table_status_bar_grid.add_widget_5a(&table_status_bar_line_counter_label, 0, 0, 1, 1);
 
-        layout.add_widget_5a(&table_view_primary, 1, 0, 1, 1);
+        layout.add_widget_5a(&table_view, 1, 0, 1, 1);
         layout.add_widget_5a(&table_status_bar, 2, 0, 1, 2);
         layout.add_widget_5a(&filter_base_widget, 4, 0, 1, 2);
 
         // Action to make the delete button delete contents.
-        let context_menu_smart_delete = QAction::from_q_object(&table_view_primary);
+        let context_menu_smart_delete = QAction::from_q_object(&table_view);
 
         // Create the Contextual Menu for the TableView.
-        let context_menu = QMenu::from_q_widget(&table_view_primary);
-        let context_menu_add_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "add_row", "context_menu_add_rows", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_insert_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "insert_row", "context_menu_insert_rows", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_delete_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_row", "context_menu_delete_rows", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_delete_rows_not_in_filter = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_filtered_out_row", "context_menu_delete_filtered_out_rows", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_clone_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_clone_submenu"), &table_view_primary);
-        let context_menu_clone_and_insert = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_insert_row", "context_menu_clone_and_insert", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_clone_and_append = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_append_row", "context_menu_clone_and_append", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view_primary);
-        let context_menu_copy = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy", "context_menu_copy", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_copy_as_lua_table = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_lua_table", "context_menu_copy_as_lua_table", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_copy_to_filter_value = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_filter_value", "context_menu_copy_to_filter_value", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_paste = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste", "context_menu_paste", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_paste_as_new_row = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste_as_new_row", "context_menu_paste_as_new_row", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_generate_ids = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "generate_ids", "context_menu_generate_ids", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_rewrite_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rewrite_selection", "context_menu_rewrite_selection", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_invert_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "invert_selection", "context_menu_invert_selection", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_reset_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "reset_selected_values", "context_menu_reset_selection", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_resize_columns = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "resize_columns", "context_menu_resize_columns", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_import_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "import_tsv", "context_menu_import_tsv", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_export_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "export_tsv", "context_menu_export_tsv", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_search = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "search", "context_menu_search", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_sidebar = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "sidebar", "context_menu_sidebar", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_find_references = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "find_references", "context_menu_find_references", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_cascade_edition = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rename_references", "context_menu_cascade_edition", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_patch_column = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "patch_columns", "context_menu_patch_column", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_undo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "undo", "context_menu_undo", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_redo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "redo", "context_menu_redo", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view_primary);
-        let context_menu_go_to_definition = add_action_to_menu(&context_menu_go_to.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "go_to_definition", "context_menu_go_to_definition", Some(table_view_primary.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu = QMenu::from_q_widget(&table_view);
+        let context_menu_add_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "add_row", "context_menu_add_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_insert_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "insert_row", "context_menu_insert_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_delete_rows = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_row", "context_menu_delete_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_delete_rows_not_in_filter = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "delete_filtered_out_row", "context_menu_delete_filtered_out_rows", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_clone_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_clone_submenu"), &table_view);
+        let context_menu_clone_and_insert = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_insert_row", "context_menu_clone_and_insert", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_clone_and_append = add_action_to_menu(&context_menu_clone_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "clone_and_append_row", "context_menu_clone_and_append", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view);
+        let context_menu_copy = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy", "context_menu_copy", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_copy_as_lua_table = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_lua_table", "context_menu_copy_as_lua_table", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_copy_to_filter_value = add_action_to_menu(&context_menu_copy_submenu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "copy_as_filter_value", "context_menu_copy_to_filter_value", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_paste = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste", "context_menu_paste", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_paste_as_new_row = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "paste_as_new_row", "context_menu_paste_as_new_row", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_generate_ids = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "generate_ids", "context_menu_generate_ids", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_rewrite_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rewrite_selection", "context_menu_rewrite_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_invert_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "invert_selection", "context_menu_invert_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_reset_selection = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "reset_selected_values", "context_menu_reset_selection", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_resize_columns = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "resize_columns", "context_menu_resize_columns", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_import_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "import_tsv", "context_menu_import_tsv", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_export_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "export_tsv", "context_menu_export_tsv", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_search = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "search", "context_menu_search", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_sidebar = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "sidebar", "context_menu_sidebar", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_find_references = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "find_references", "context_menu_find_references", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_cascade_edition = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rename_references", "context_menu_cascade_edition", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_patch_column = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "patch_columns", "context_menu_patch_column", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_undo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "undo", "context_menu_undo", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_redo = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "redo", "context_menu_redo", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_go_to = QMenu::from_q_string_q_widget(&qtr("context_menu_go_to"), &table_view);
+        let context_menu_go_to_definition = add_action_to_menu(&context_menu_go_to.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "go_to_definition", "context_menu_go_to_definition", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let mut context_menu_go_to_loc = vec![];
 
         for (index, loc_column) in table_definition.localised_fields().iter().enumerate() {
@@ -552,7 +498,7 @@ impl TableView {
         let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_widget);
         let sidebar_hide_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
         let sidebar_freeze_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
-        sidebar_freeze_checkboxes_all.set_enabled(false);
+        //sidebar_freeze_checkboxes_all.set_enabled(false);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_hide_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_freeze_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -567,7 +513,7 @@ impl TableView {
             let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(column.name())), &sidebar_widget);
             let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
-            freeze_unfreeze_checkbox.set_enabled(false);
+            //freeze_unfreeze_checkbox.set_enabled(false);
 
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -600,9 +546,8 @@ dbg!(t.elapsed().unwrap());
         };
 dbg!(t.elapsed().unwrap());
         // Create the raw Struct and begin
-        let packed_file_table_view = Arc::new(TableView {
-            table_view_primary,
-            table_view_frozen,
+        let mut packed_file_table_view = Arc::new(TableView {
+            table_view,
             table_filter,
             table_model,
             //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
@@ -642,29 +587,17 @@ dbg!(t.elapsed().unwrap());
             context_menu_go_to_definition,
             context_menu_go_to_loc,
 
-            search_search_line_edit,
-            search_replace_line_edit,
-            search_search_button,
-            search_replace_current_button,
-            search_replace_all_button,
-            search_close_button,
-            search_prev_match_button,
-            search_next_match_button,
-            search_matches_label,
-            search_column_selector,
-            search_case_sensitive_button,
-            search_data: Arc::new(RwLock::new(TableSearch::default())),
-
             sidebar_hide_checkboxes,
             sidebar_hide_checkboxes_all,
             sidebar_freeze_checkboxes,
             sidebar_freeze_checkboxes_all,
 
             sidebar_scroll_area,
-            search_widget,
 
             _table_status_bar: table_status_bar,
             table_status_bar_line_counter_label,
+
+            search_view: Arc::new(RwLock::new(None)),
 
             table_name: table_name.map(|x| x.to_owned()),
             table_uuid: table_uuid.map(|x| x.to_owned()),
@@ -699,13 +632,13 @@ dbg!(t.elapsed().unwrap());
         );
 dbg!(t.elapsed().unwrap());
         // Build the first filter.
-        FilterView::new(&packed_file_table_view);
+        FilterView::new(&packed_file_table_view)?;
+        SearchView::new(&packed_file_table_view)?;
 dbg!(t.elapsed().unwrap());
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
-            &packed_file_table_view.table_view_primary_ptr(),
-            &packed_file_table_view.table_view_frozen_ptr(),
+            &packed_file_table_view.table_view_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
             &packed_file_table_view.dependency_data,
             &table_data,
@@ -718,8 +651,7 @@ dbg!(t.elapsed().unwrap());
 dbg!(t.elapsed().unwrap());
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         build_columns(
-            &packed_file_table_view.table_view_primary_ptr(),
-            Some(&packed_file_table_view.table_view_frozen_ptr()),
+            &packed_file_table_view.table_view_ptr(),
             &packed_file_table_view.table_definition.read().unwrap(),
             packed_file_table_view.table_name.as_deref()
         );
@@ -741,11 +673,10 @@ dbg!(t.elapsed().unwrap());
     ///
     /// NOTE: This allows for a table to change it's definition on-the-fly, so be careful with that!
     pub unsafe fn reload_view(&self, data: TableType) {
-        let table_view_primary = &self.table_view_primary_ptr();
-        let table_view_frozen = &self.table_view_frozen_ptr();
+        let table_view = &self.table_view_ptr();
         let undo_model = &self.undo_model_ptr();
 
-        let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
         // Update the stored definition.
@@ -764,8 +695,7 @@ dbg!(t.elapsed().unwrap());
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be resetted to 1, 2, 3,... so we do this here.
         load_data(
-            table_view_primary,
-            table_view_frozen,
+            table_view,
             &self.table_definition(),
             &self.dependency_data,
             &data,
@@ -784,8 +714,7 @@ dbg!(t.elapsed().unwrap());
 
         // Rebuild the column's stuff.
         build_columns(
-            table_view_primary,
-            Some(table_view_frozen),
+            table_view,
             &self.table_definition(),
             self.table_name.as_deref()
         );
@@ -793,25 +722,21 @@ dbg!(t.elapsed().unwrap());
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
         // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
         for filter in self.filters_mut().iter() {
-            let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
-            filter.filter_column_selector.clear();
+            let _filter_blocker = QSignalBlocker::from_q_object(filter.column_combobox().static_upcast::<QObject>());
+            filter.column_combobox().clear();
             for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
                 let name = QString::from_std_str(&utils::clean_column_names(column.name()));
-                filter.filter_column_selector.add_item_q_string(&name);
+                filter.column_combobox().add_item_q_string(&name);
             }
         }
 
-        let search_column_selector = &self.search_column_selector;
-        search_column_selector.clear();
-        search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
-            let name = QString::from_std_str(&utils::clean_column_names(column.name()));
-            search_column_selector.add_item_q_string(&name);
+        if let Some(search_view) = &*self.search_view() {
+            search_view.reload(self);
         }
 
         // Reset this setting so the last column gets resized properly.
-        table_view_primary.horizontal_header().set_stretch_last_section(!setting_bool("extend_last_column_on_tables"));
-        table_view_primary.horizontal_header().set_stretch_last_section(setting_bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(!setting_bool("extend_last_column_on_tables"));
+        table_view.horizontal_header().set_stretch_last_section(setting_bool("extend_last_column_on_tables"));
     }
 
     /// This function returns a reference to the StandardItemModel widget.
@@ -820,13 +745,8 @@ dbg!(t.elapsed().unwrap());
     }
 
     /// This function returns a pointer to the Primary TableView widget.
-    pub unsafe fn table_view_primary_ptr(&self) -> QPtr<QTableView> {
-        self.table_view_primary.static_upcast()
-    }
-
-    /// This function returns a pointer to the Frozen TableView widget.
-    pub unsafe fn table_view_frozen_ptr(&self) -> QPtr<QTableView> {
-        self.table_view_frozen.static_upcast()
+    pub unsafe fn table_view_ptr(&self) -> QPtr<QTableView> {
+        self.table_view.static_upcast()
     }
 
     pub unsafe fn table_view_filter_ptr(&self) -> QPtr<QSortFilterProxyModel> {
@@ -849,6 +769,10 @@ dbg!(t.elapsed().unwrap());
     /// This function returns a reference to the definition of this table.
     pub fn table_definition(&self) -> RwLockReadGuard<Definition> {
         self.table_definition.read().unwrap()
+    }
+
+    pub fn search_view(&self) -> RwLockReadGuard<Option<Arc<SearchView>>> {
+        self.search_view.read().unwrap()
     }
 
     pub fn patches(&self) -> RwLockReadGuard<DefinitionPatch> {
@@ -916,7 +840,7 @@ dbg!(t.elapsed().unwrap());
         self.context_menu_smart_delete.set_enabled(false);
 
         // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselves.
-        let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
+        let indexes = self.table_filter.map_selection_to_source(&self.table_view.selection_model().selection()).indexes();
 
         // If we have something selected, enable these actions.
         if indexes.count_0a() > 0 {
@@ -988,9 +912,9 @@ dbg!(t.elapsed().unwrap());
         for filter in filters.iter() {
 
             // Ignore empty filters.
-            if !filter.filter_line_edit.text().to_std_string().is_empty() {
+            if !filter.filter_line_edit().text().to_std_string().is_empty() {
 
-                let column_name = filter.filter_column_selector.current_text();
+                let column_name = filter.column_combobox().current_text();
                 for column in 0..self.table_model.column_count_0a() {
                     if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
                         columns.push(column);
@@ -999,15 +923,15 @@ dbg!(t.elapsed().unwrap());
                 }
 
                 // Check if the filter should be "Case Sensitive".
-                let case_sensitive = filter.filter_case_sensitive_button.is_checked();
+                let case_sensitive = filter.case_sensitive_button().is_checked();
                 if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
                 else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
 
                 // Check if we should filter out blank cells or not.
-                show_blank_cells.push(filter.filter_show_blank_cells_button.is_checked());
+                show_blank_cells.push(filter.show_blank_cells_button().is_checked());
 
-                patterns.push(filter.filter_line_edit.text().into_ptr());
-                match_groups.push(filter.filter_match_group_selector.current_index());
+                patterns.push(filter.filter_line_edit().text().into_ptr());
+                match_groups.push(filter.group_combobox().current_index());
             }
         }
 
@@ -1028,7 +952,7 @@ dbg!(t.elapsed().unwrap());
                     let mut list = QStringList::new(());
                     data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
                     let list: *mut QStringList = &mut list;
-                    unsafe { new_combobox_item_delegate_safe(self.table_view_primary as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
+                    unsafe { new_combobox_item_delegate_safe(self.table_view as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
                     unsafe { new_combobox_item_delegate_safe(self.table_view_frozen as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
                 }
             }
@@ -1039,7 +963,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn reset_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
@@ -1084,11 +1008,11 @@ dbg!(t.elapsed().unwrap());
     /// This function rewrite the currently selected cells using the provided formula.
     pub unsafe fn rewrite_selection(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         if let Some((is_math_operation, value)) = self.create_rewrite_selection_dialog() {
-            let horizontal_header = self.table_view_primary.horizontal_header();
+            let horizontal_header = self.table_view.horizontal_header();
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-            let indexes = self.table_view_primary.selection_model().selection().indexes();
-            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
+            let indexes = self.table_view.selection_model().selection().indexes();
+            let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_ptr());
 
             let mut real_cells = vec![];
             let mut values = vec![];
@@ -1159,8 +1083,8 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn generate_ids(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
+        let indexes = self.table_view.selection_model().selection().indexes();
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_ptr());
 
         // Get the initial value of the dialog.
         let initial_value = if let Some(first) = indexes_sorted.first() {
@@ -1197,7 +1121,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn copy_selection(&self) {
 
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -1243,7 +1167,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn copy_selection_as_lua_table(&self) {
 
         // Get the selection sorted visually.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
         let fields_processed = self.table_definition().fields_processed();
 
         // Check if the table has duplicated keys, and filter out invalid indexes.
@@ -1290,7 +1214,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn copy_selection_to_filter(&self) {
 
         // Get the selection sorted visually.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
 
         // Check if the table has duplicated keys, and filter out invalid indexes.
         let mut string = String::new();
@@ -1337,8 +1261,8 @@ dbg!(t.elapsed().unwrap());
         let rows = rows.iter().map(|x| x.split('\t').collect::<Vec<&str>>()).collect::<Vec<Vec<&str>>>();
 
         // Get the current selection and his, visually speaking, first item (top-left).
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
-        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_primary_ptr());
+        let indexes = self.table_view.selection_model().selection().indexes();
+        let indexes_sorted = get_visible_selection_sorted(&indexes, &self.table_view_ptr());
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -1426,8 +1350,8 @@ dbg!(t.elapsed().unwrap());
         // We're going to try and check in square mode. That means, start in the selected cell, then right
         // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
         // a test pass first and get all the real AND VALID indexes, then try to paste on them.
-        let horizontal_header = self.table_view_primary.horizontal_header();
-        let vertical_header = self.table_view_primary.vertical_header();
+        let horizontal_header = self.table_view.horizontal_header();
+        let vertical_header = self.table_view.vertical_header();
 
         // Get the base index of the square. If no index is being provided, we assume we have to paste all in new rows.
         let (base_index_visual, mut visual_row) = if !indexes.is_empty() {
@@ -1521,7 +1445,7 @@ dbg!(t.elapsed().unwrap());
         undo: bool,
         mut repeat_x_times: usize,
     ) {
-        let filter: QPtr<QSortFilterProxyModel> = self.table_view_primary.model().static_downcast();
+        let filter: QPtr<QSortFilterProxyModel> = self.table_view.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let mut is_carolina = false;
 
@@ -1556,7 +1480,7 @@ dbg!(t.elapsed().unwrap());
                     }
 
                     // Select all the edited items.
-                    let selection_model = self.table_view_primary.selection_model();
+                    let selection_model = self.table_view.selection_model();
                     selection_model.clear();
 
                     // TODO: This is still very slow. We need some kind of range optimization.
@@ -1615,7 +1539,7 @@ dbg!(t.elapsed().unwrap());
 
                     // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets,
                     // the slower it gets. And it gets very slow on high amounts of lines.
-                    let selection_model = self.table_view_primary.selection_model();
+                    let selection_model = self.table_view.selection_model();
                     selection_model.clear();
                     for (index, row_pack) in &rows {
                         let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
@@ -1838,7 +1762,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn append_rows(&self, clone: bool) {
 
         // Get the indexes ready for battle.
-        let selection = self.table_view_primary.selection_model().selection();
+        let selection = self.table_view.selection_model().selection();
         let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
@@ -1871,7 +1795,7 @@ dbg!(t.elapsed().unwrap());
             vec![row]
         };
 
-        let selection_model = self.table_view_primary.selection_model();
+        let selection_model = self.table_view.selection_model();
         selection_model.clear();
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
@@ -1884,7 +1808,7 @@ dbg!(t.elapsed().unwrap());
                     SelectionFlag::Select | SelectionFlag::Rows
                 );
 
-                self.table_view_primary.scroll_to_2a(
+                self.table_view.scroll_to_2a(
                     model_index_filtered.as_ref(),
                     ScrollHint::EnsureVisible
                 );
@@ -1908,7 +1832,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn insert_rows(&self, clone: bool) {
 
         // Get the indexes ready for battle.
-        let selection = self.table_view_primary.selection_model().selection();
+        let selection = self.table_view.selection_model().selection();
         let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
@@ -1925,7 +1849,7 @@ dbg!(t.elapsed().unwrap());
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
 
-        let selection_model = self.table_view_primary.selection_model();
+        let selection_model = self.table_view.selection_model();
         selection_model.clear();
 
         for index in indexes_sorted.iter().rev() {
@@ -1988,7 +1912,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn create_rewrite_selection_dialog(&self) -> Option<(bool, String)> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(&self.table_view_primary);
+        let dialog = QDialog::new_1a(&self.table_view);
         dialog.set_window_title(&qtr("rewrite_selection_title"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
@@ -2022,7 +1946,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn create_generate_ids_dialog(&self, initial_value: i32) -> Option<i32> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(&self.table_view_primary);
+        let dialog = QDialog::new_1a(&self.table_view);
         dialog.set_window_title(&qtr("generate_ids_title"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
@@ -2054,7 +1978,7 @@ dbg!(t.elapsed().unwrap());
     /// This function takes care of the "Delete filtered-out rows" feature for tables.
     pub unsafe fn delete_filtered_out_rows(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
-        let visible_columns = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view_primary.is_column_hidden(*index)).collect::<Vec<i32>>();
+        let visible_columns = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view.is_column_hidden(*index)).collect::<Vec<i32>>();
 
         // If it's empty, it means everything is hidden, so we delete everything.
         let mut rows_to_delete = vec![];
@@ -2079,7 +2003,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn smart_delete(&self, delete_all_rows: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
-        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
         let fields_processed = self.table_definition().fields_processed();
 
         if delete_all_rows {
@@ -2107,7 +2031,7 @@ dbg!(t.elapsed().unwrap());
                 }
             }
 
-            let visible_column_count = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view_primary.is_column_hidden(*index)).count();
+            let visible_column_count = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view.is_column_hidden(*index)).count();
             let full_rows = cells.iter()
                 .filter(|(_, y)| y.len() >= visible_column_count)
                 .map(|(x, _)| *x)
@@ -2267,12 +2191,10 @@ dbg!(t.elapsed().unwrap());
                     },
 
                     FieldType::ColourRGB => {
-                        if u32::from_str_radix(text, 16).is_ok() {
-                            if current_value != *text {
-                                self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
-                                changed_cells += 1;
-                                self.process_edition(self.table_model.item_from_index(real_cell));
-                            }
+                        if u32::from_str_radix(text, 16).is_ok() && current_value != *text {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
                         }
                     }
 
@@ -2336,7 +2258,7 @@ dbg!(t.elapsed().unwrap());
         }
 
         // Trick to properly update the view.
-        self.table_view_primary.viewport().repaint();
+        self.table_view.viewport().repaint();
 
         self.start_delayed_updates_timer();
     }
@@ -2361,14 +2283,16 @@ dbg!(t.elapsed().unwrap());
         update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         self.context_menu_update();
         if let Some(ref packed_file_path) = self.packed_file_path {
-            TableSearch::update_search(self);
+            if let Some(search_view) = &*self.search_view() {
+                search_view.update_search(self);
+            }
             if let DataSource::PackFile = *self.data_source.read().unwrap() {
                 set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
             }
         }
 
         if setting_bool("table_resize_on_edit") {
-            self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+            self.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
 
         // Re-sort and re-filter the table, as it's not automatically done.
@@ -2378,7 +2302,7 @@ dbg!(t.elapsed().unwrap());
         self.table_filter.invalidate();
         self.filter_table();
 
-        self.table_view_primary.viewport().repaint();
+        self.table_view.viewport().repaint();
     }
 
     /// This function triggers a cascade edition through the entire program of the selected cells.
@@ -2392,7 +2316,7 @@ dbg!(t.elapsed().unwrap());
         let table_name = if let Some(table_name) = self.table_name() { table_name.to_lowercase() } else { return };
 
         // Get the selected indexes.
-        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
 
         // Ask the dialog to get the data needed for the replacing.
         if let Some(editions) = self.cascade_edition_dialog(&indexes) {
@@ -2460,7 +2384,7 @@ dbg!(t.elapsed().unwrap());
     pub unsafe fn cascade_edition_dialog(&self, indexes: &[CppBox<QModelIndex>]) -> Option<Vec<(String, String, i32, i32)>> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(&self.table_view_primary);
+        let dialog = QDialog::new_1a(&self.table_view);
         dialog.set_window_title(&qtr("cascade_edition_dialog"));
         dialog.set_modal(true);
         dialog.resize_2a(800, 50);
@@ -2505,7 +2429,7 @@ dbg!(t.elapsed().unwrap());
         };
 
         // Get the selected indexes.
-        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_primary_ptr(), &self.table_view_filter_ptr());
+        let indexes = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
 
         // Only works with a column selected.
         let columns: Vec<i32> = indexes.iter().map(|x| x.column()).sorted().dedup().collect();
@@ -2524,7 +2448,7 @@ dbg!(t.elapsed().unwrap());
         file.read_to_end(&mut data)?;
 
         let ui_loader = QUiLoader::new_0a();
-        let main_widget = ui_loader.load_bytes_with_parent(&data, &self.table_view_primary);
+        let main_widget = ui_loader.load_bytes_with_parent(&data, &self.table_view);
 
         let schema_patch_instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "schema_patch_instructions_label")?;
         let default_value_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "default_value_label")?;
@@ -2571,7 +2495,7 @@ dbg!(t.elapsed().unwrap());
             let receiver = CENTRAL_COMMAND.send_background(Command::UploadSchemaPatch(edited_table_name, patch));
             let response = CentralCommand::recv(&receiver);
             match response {
-                Response::Success => show_dialog(&self.table_view_primary, tr("schema_patch_submitted_correctly"), true),
+                Response::Success => show_dialog(&self.table_view, tr("schema_patch_submitted_correctly"), true),
                 Response::Error(error) => return Err(error),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
@@ -2594,13 +2518,13 @@ dbg!(t.elapsed().unwrap());
     ) -> Option<String> {
 
         let mut error_message = String::new();
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let indexes = self.table_view.selection_model().selection().indexes();
         if indexes.count_0a() > 0 {
             let ref_info = match *self.packed_file_type {
 
                 // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
                 FileType::DB => {
-                    let index = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0));
+                    let index = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0));
                     if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
                         if let Some((ref_table, ref_column)) = field.is_reference() {
                             Some((ref_table.to_owned(), ref_column.to_owned(), index.data_0a().to_string().to_std_string()))
@@ -2610,7 +2534,7 @@ dbg!(t.elapsed().unwrap());
 
                 // For Locs, we use the column 0 of the row with the selected item.
                 FileType::Loc => {
-                    let index_row = self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row();
+                    let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
                     let receiver = CENTRAL_COMMAND.send_background(Command::GetSourceDataFromLocKey(key));
                     let response = CENTRAL_COMMAND.recv_try(&receiver);
@@ -2677,7 +2601,7 @@ dbg!(t.elapsed().unwrap());
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
-                                let table_view = table_view.table_view_primary_ptr();
+                                let table_view = table_view.table_view_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                                 let table_selection_model = table_view.selection_model();
@@ -2720,7 +2644,7 @@ dbg!(t.elapsed().unwrap());
     ) -> Option<String> {
 
         // This is only for DB Tables, and we need to have something selected.
-        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let indexes = self.table_view.selection_model().selection().indexes();
         let mut error_message = String::new();
         if indexes.count_0a() > 0 {
             if let FileType::DB = *self.packed_file_type {
@@ -2741,7 +2665,7 @@ dbg!(t.elapsed().unwrap());
                 let key_field_names = table_definition.fields().iter().filter_map(|field| if field.is_key() { Some(field.name()) } else { None }).collect::<Vec<&str>>();
                 let key_field_positions = key_field_names.iter().filter_map(|name| table_definition.fields_processed().iter().position(|field| field.name() == *name)).collect::<Vec<usize>>();
 
-                let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view_primary.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
+                let key = key_field_positions.iter().map(|column| self.table_model.index_2a(self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row(), *column as i32).data_0a().to_string().to_std_string()).join("");
                 let loc_key = format!("{}_{}_{}", table_name, loc_column_name, key);
 
                 // Then ask the backend to do the heavy work.
@@ -2789,7 +2713,7 @@ dbg!(t.elapsed().unwrap());
                         if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path && x.get_data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                                 let table_view = view.get_ref_table();
-                                let table_view = table_view.table_view_primary_ptr();
+                                let table_view = table_view.table_view_ptr();
                                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                                 let table_selection_model = table_view.selection_model();
@@ -2816,7 +2740,7 @@ dbg!(t.elapsed().unwrap());
 
     /// This function clears the markings for added/modified cells.
     pub unsafe fn clear_markings(&self) {
-        let table_view = self.table_view_primary_ptr();
+        let table_view = self.table_view_ptr();
         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -2872,605 +2796,6 @@ impl Clone for TableOperations {
                     ).collect()
                 )).collect()),
             _ => unimplemented!()
-        }
-    }
-}
-
-//----------------------------------------------------------------//
-// Implementations of `TableSearch`.
-//----------------------------------------------------------------//
-
-/// Default implementation for TableSearch.
-impl Default for TableSearch {
-    fn default() -> Self {
-        Self {
-            pattern: unsafe { QString::new().into_ptr() },
-            replace: unsafe { QString::new().into_ptr() },
-            regex: false,
-            case_sensitive: false,
-            column: None,
-            matches: vec![],
-            current_item: None,
-        }
-    }
-}
-
-/// Implementation of `TableSearch`.
-impl TableSearch {
-
-    /// This function returns the list of matches present in the model.
-    fn get_matches_in_model(&self) -> Vec<Ptr<QModelIndex>> {
-        self.matches.iter().map(|x| x.0).collect()
-    }
-
-    /// This function returns the list of matches visible to the user with the current filter.
-    fn get_matches_in_filter(&self) -> Vec<Ptr<QModelIndex>> {
-        self.matches.iter().filter_map(|x| x.1).collect()
-    }
-
-    /// This function returns the list of matches present in the model that are visible to the user with the current filter.
-    fn get_visible_matches_in_model(&self) -> Vec<Ptr<QModelIndex>> {
-        self.matches.iter().filter(|x| x.1.is_some()).map(|x| x.0).collect()
-    }
-
-    /// This function takes care of searching data within a column, and adding the matches to the matches list.
-    unsafe fn find_in_column(
-        &mut self,
-        model: Ptr<QStandardItemModel>,
-        filter: Ptr<QSortFilterProxyModel>,
-        fields_processed: &[Field],
-        flags: QFlags<MatchFlag>,
-        column: i32
-    ) {
-
-        // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
-        let is_bool = fields_processed[column as usize].field_type() == &FieldType::Boolean;
-        let matches_unprocessed = if is_bool {
-            match parse_str_as_bool(&self.pattern.to_std_string()) {
-                Ok(boolean) => {
-                    let check_state = if boolean { CheckState::Checked } else { CheckState::Unchecked };
-                    let items = QListOfQStandardItem::new();
-                    for row in 0..model.row_count_0a() {
-                        let item = model.item_2a(row, column);
-                        if item.check_state() == check_state {
-                            items.append_q_standard_item(&item.as_mut_raw_ptr());
-                        }
-                    }
-                    items
-                }
-
-                // If this fails, ignore the entire column.
-                Err(_) => return,
-            }
-        }
-        else {
-            model.find_items_3a(self.pattern.as_ref().unwrap(), flags, column)
-        };
-
-        for index in 0..matches_unprocessed.count_0a() {
-            let model_index = matches_unprocessed.value_1a(index).index();
-            let filter_model_index = filter.map_from_source(&model_index);
-            self.matches.push((
-                model_index.into_ptr(),
-                if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
-            ));
-        }
-    }
-
-    /// This function takes care of updating the UI to reflect changes in the table search.
-    pub unsafe fn update_search_ui(parent: &TableView, update_type: TableSearchUpdate) {
-        let table_search = &mut parent.search_data.write().unwrap();
-        let matches_in_filter = table_search.get_matches_in_filter();
-        let matches_in_model = table_search.get_matches_in_model();
-        match update_type {
-            TableSearchUpdate::Search => {
-                if table_search.pattern.is_empty() {
-                    parent.search_matches_label.set_text(&QString::new());
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // If no matches have been found, report it.
-                else if table_search.matches.is_empty() {
-                    table_search.current_item = None;
-                    parent.search_matches_label.set_text(&QString::from_std_str("No matches found."));
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // Otherwise, if no matches have been found in the current filter, but they have been in the model...
-                else if matches_in_filter.is_empty() {
-                    table_search.current_item = None;
-                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // Otherwise, matches have been found both, in the model and in the filter.
-                else {
-                    table_search.current_item = Some(0);
-                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("1 of {} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(true);
-                    parent.search_replace_all_button.set_enabled(true);
-
-                    if matches_in_filter.len() > 1 {
-                        parent.search_next_match_button.set_enabled(true);
-                    }
-                    else {
-                        parent.search_next_match_button.set_enabled(false);
-                    }
-
-                    parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
-                        matches_in_filter[0].as_ref().unwrap(),
-                        QFlags::from(SelectionFlag::ClearAndSelect)
-                    );
-                }
-
-            }
-            TableSearchUpdate::PrevMatch => {
-                let matches_in_model = table_search.get_matches_in_model();
-                let matches_in_filter = table_search.get_matches_in_filter();
-                if let Some(ref mut pos) = table_search.current_item {
-
-                    // If we are in an invalid result, return. If it's the first one, disable the button and return.
-                    if *pos > 0 {
-                        *pos -= 1;
-                        if *pos == 0 { parent.search_prev_match_button.set_enabled(false); }
-                        else { parent.search_prev_match_button.set_enabled(true); }
-                        if *pos as usize >= matches_in_filter.len() - 1 { parent.search_next_match_button.set_enabled(false); }
-                        else { parent.search_next_match_button.set_enabled(true); }
-
-                        parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
-                            matches_in_filter[*pos as usize].as_ref().unwrap(),
-                            QFlags::from(SelectionFlag::ClearAndSelect)
-                        );
-                        parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
-                    }
-                }
-            }
-            TableSearchUpdate::NextMatch => {
-                let matches_in_model = table_search.get_matches_in_model();
-                let matches_in_filter = table_search.get_matches_in_filter();
-                if let Some(ref mut pos) = table_search.current_item {
-
-                    // If we are in an invalid result, return. If it's the last one, disable the button and return.
-                    if *pos as usize >= matches_in_filter.len() - 1 {
-                        parent.search_next_match_button.set_enabled(false);
-                    }
-                    else {
-                        *pos += 1;
-                        if *pos == 0 { parent.search_prev_match_button.set_enabled(false); }
-                        else { parent.search_prev_match_button.set_enabled(true); }
-                        if *pos as usize >= matches_in_filter.len() - 1 { parent.search_next_match_button.set_enabled(false); }
-                        else { parent.search_next_match_button.set_enabled(true); }
-
-                        parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
-                            matches_in_filter[*pos as usize].as_ref().unwrap(),
-                            QFlags::from(SelectionFlag::ClearAndSelect)
-                        );
-                        parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
-                    }
-                }
-            }
-            TableSearchUpdate::Update => {
-                if table_search.pattern.is_empty() {
-                    parent.search_matches_label.set_text(&QString::new());
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // If no matches have been found, report it.
-                else if table_search.matches.is_empty() {
-                    table_search.current_item = None;
-                    parent.search_matches_label.set_text(&QString::from_std_str("No matches found."));
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // Otherwise, if no matches have been found in the current filter, but they have been in the model...
-                else if matches_in_filter.is_empty() {
-                    table_search.current_item = None;
-                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
-                    parent.search_prev_match_button.set_enabled(false);
-                    parent.search_next_match_button.set_enabled(false);
-                    parent.search_replace_current_button.set_enabled(false);
-                    parent.search_replace_all_button.set_enabled(false);
-                }
-
-                // Otherwise, matches have been found both, in the model and in the filter. Which means we have to recalculate
-                // our position, and then behave more or less like a normal search.
-                else {
-                    table_search.current_item = match table_search.current_item {
-                        Some(pos) => if (pos as usize) < matches_in_filter.len() { Some(pos) } else { Some(0) }
-                        None => Some(0)
-                    };
-
-                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap() + 1, matches_in_filter.len(), matches_in_model.len())));
-
-                    if table_search.current_item.unwrap() == 0 {
-                        parent.search_prev_match_button.set_enabled(false);
-                    }
-                    else {
-                        parent.search_prev_match_button.set_enabled(true);
-                    }
-
-                    if matches_in_filter.len() > 1 && (table_search.current_item.unwrap() as usize) < matches_in_filter.len() - 1 {
-                        parent.search_next_match_button.set_enabled(true);
-                    }
-                    else {
-                        parent.search_next_match_button.set_enabled(false);
-                    }
-
-                    parent.search_replace_current_button.set_enabled(true);
-                    parent.search_replace_all_button.set_enabled(true);
-                }
-            }
-        }
-
-        if parent.get_data_source() != DataSource::PackFile {
-            parent.search_replace_current_button.set_enabled(false);
-            parent.search_replace_all_button.set_enabled(false);
-        }
-    }
-
-    /// This function takes care of updating the search data whenever a change that can alter the results happens.
-    pub unsafe fn update_search(parent: &TableView) {
-        {
-            let fields_processed = parent.table_definition().fields_processed();
-            let table_search = &mut parent.search_data.write().unwrap();
-            table_search.matches.clear();
-
-            let mut flags = if table_search.regex {
-                QFlags::from(MatchFlag::MatchRegExp)
-            } else {
-                QFlags::from(MatchFlag::MatchContains)
-            };
-
-            if table_search.case_sensitive {
-                flags = flags | QFlags::from(MatchFlag::MatchCaseSensitive);
-            }
-
-            let columns_to_search = match table_search.column {
-                Some(column) => vec![column],
-                None => (0..fields_processed.len()).map(|x| x as i32).collect::<Vec<i32>>(),
-            };
-
-            for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &fields_processed, flags, *column);
-            }
-        }
-
-        Self::update_search_ui(parent, TableSearchUpdate::Update);
-    }
-
-    /// This function takes care of searching the patter we provided in the TableView.
-    pub unsafe fn search(parent: &TableView) {
-        {
-            let fields_processed = parent.table_definition().fields_processed();
-            let table_search = &mut parent.search_data.write().unwrap();
-            table_search.matches.clear();
-            table_search.current_item = None;
-            table_search.pattern = parent.search_search_line_edit.text().into_ptr();
-            //table_search.regex = parent.search_search_line_edit.is_checked();
-            table_search.case_sensitive = parent.search_case_sensitive_button.is_checked();
-            table_search.column = {
-                let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
-                if column == "*_(all_columns)" { None }
-                else { Some(fields_processed.iter().position(|x| x.name() == column).unwrap() as i32) }
-            };
-
-            let mut flags = if table_search.regex {
-                QFlags::from(MatchFlag::MatchRegExp)
-            } else {
-                QFlags::from(MatchFlag::MatchContains)
-            };
-
-            if table_search.case_sensitive {
-                flags = flags | QFlags::from(MatchFlag::MatchCaseSensitive);
-            }
-
-            let columns_to_search = match table_search.column {
-                Some(column) => vec![column],
-                None => (0..fields_processed.len()).map(|x| x as i32).collect::<Vec<i32>>(),
-            };
-
-            for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &fields_processed, flags, *column);
-            }
-        }
-
-        Self::update_search_ui(parent, TableSearchUpdate::Search);
-    }
-
-    /// This function takes care of moving the selection to the previous match on the matches list.
-    pub unsafe fn prev_match(parent: &TableView) {
-        Self::update_search_ui(parent, TableSearchUpdate::PrevMatch);
-    }
-
-    /// This function takes care of moving the selection to the next match on the matches list.
-    pub unsafe fn next_match(parent: &TableView) {
-        Self::update_search_ui(parent, TableSearchUpdate::NextMatch);
-    }
-
-    /// This function takes care of replacing the current match with the provided replacing text.
-    pub unsafe fn replace_current(parent: &TableView) {
-
-        // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
-        let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
-        if !text_source.is_empty() {
-            let fields_processed = parent.table_definition().fields_processed();
-
-            // Get the replace data here, as we probably don't have it updated.
-            parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
-            let text_replace = parent.search_data.read().unwrap().replace.to_std_string();
-            if text_source == text_replace { return }
-
-            // And if we got a valid position.
-            let item;
-            let replaced_text;
-            if let Some(ref position) = parent.search_data.read().unwrap().current_item {
-
-                // Here is save to lock, as the lock will be drop before doing the replace.
-                let table_search = &mut parent.search_data.read().unwrap();
-
-                // Get the list of all valid ModelIndex for the current filter and the current position.
-                let matches_in_model_and_filter = table_search.get_visible_matches_in_model();
-                let model_index = matches_in_model_and_filter[*position as usize];
-
-                // If the position is still valid (not required, but just in case)...
-                if model_index.is_valid() {
-                    item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-
-                    if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
-                        replaced_text = text_replace;
-                    }
-                    else {
-                        let text = item.text().to_std_string();
-                        replaced_text = text.replace(&text_source, &text_replace);
-                    }
-
-                    // We need to do an extra check to ensure the new text can be in the field.
-                    match fields_processed[model_index.column() as usize].field_type() {
-                        //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        _ =>  {}
-                    }
-                } else { return }
-            } else { return }
-
-            // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match fields_processed[item.column() as usize].field_type() {
-                FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
-                FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
-                FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
-                FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
-                _ => item.set_text(&QString::from_std_str(&replaced_text)),
-            }
-
-            // At this point, the edition has been done. We're free to lock again. If we still have matches, select the next match, if any, or the first one.
-            let table_search = &mut parent.search_data.read().unwrap();
-            if let Some(pos) = table_search.current_item {
-                let matches_in_filter = table_search.get_matches_in_filter();
-
-                parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
-                    matches_in_filter[pos as usize].as_ref().unwrap(),
-                    QFlags::from(SelectionFlag::ClearAndSelect)
-                );
-            }
-        }
-    }
-
-    /// This function takes care of replacing all the instances of a match with the provided replacing text.
-    pub unsafe fn replace_all(parent: &TableView) {
-
-        // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
-        let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
-        if !text_source.is_empty() {
-            let fields_processed = parent.table_definition().fields_processed();
-
-            // Get the replace data here, as we probably don't have it updated.
-            parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
-            let text_replace = parent.search_data.read().unwrap().replace.to_std_string();
-            if text_source == text_replace { return }
-
-            let mut positions_and_texts: Vec<(Ptr<QModelIndex>, String)> = vec![];
-            {
-                // Here is save to lock, as the lock will be drop before doing the replace.
-                let table_search = &mut parent.search_data.read().unwrap();
-
-                // Get the list of all valid ModelIndex for the current filter and the current position.
-                let matches_in_model_and_filter = table_search.get_visible_matches_in_model();
-                for model_index in &matches_in_model_and_filter {
-
-                    // If the position is still valid (not required, but just in case)...
-                    if model_index.is_valid() {
-                        let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match fields_processed[model_index.column() as usize].field_type() {
-                            FieldType::Boolean => item.data_0a().to_bool().to_string(),
-                            FieldType::F32 => item.data_0a().to_float_0a().to_string(),
-                            FieldType::I16 => item.data_0a().to_int_0a().to_string(),
-                            FieldType::I32 => item.data_0a().to_int_0a().to_string(),
-                            FieldType::I64 => item.data_0a().to_long_long_0a().to_string(),
-                            _ => item.text().to_std_string(),
-                        };
-
-                        let replaced_text = if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
-                            text_replace.to_owned()
-                        }
-                        else {
-                            let text = item.text().to_std_string();
-                            text.replace(&text_source, &text_replace)
-                        };
-
-                        // If no replacement has been done, skip it.
-                        if original_text == replaced_text {
-                            continue;
-                        }
-
-                        // We need to do an extra check to ensure the new text can be in the field.
-                        match fields_processed[model_index.column() as usize].field_type() {
-                            //FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            //FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            _ =>  {}
-                        }
-
-                        positions_and_texts.push((*model_index, replaced_text));
-                    } else { return }
-                }
-            }
-
-            // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            for (model_index, replaced_text) in &positions_and_texts {
-                let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match fields_processed[item.column() as usize].field_type() {
-                    FieldType::Boolean => item.set_check_state(if parse_str_as_bool(replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
-                    FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
-                    FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
-                    FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                    FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
-                    _ => item.set_text(&QString::from_std_str(&replaced_text)),
-                }
-            }
-
-            // At this point, the edition has been done. We're free to lock again. As this is a full replace,
-            // we have to fix the undo history to compensate the mass-editing and turn it into a single action.
-            if !positions_and_texts.is_empty() {
-                {
-                    let mut history_undo = parent.history_undo.write().unwrap();
-                    let mut history_redo = parent.history_redo.write().unwrap();
-
-                    let len = history_undo.len();
-                    let mut edits_data = vec![];
-                    {
-                        let mut edits = history_undo.drain((len - positions_and_texts.len())..);
-                        for edit in &mut edits {
-                            if let TableOperations::Editing(mut edit) = edit {
-                                edits_data.append(&mut edit);
-                            }
-                        }
-                    }
-
-                    history_undo.push(TableOperations::Editing(edits_data));
-                    history_redo.clear();
-                }
-                update_undo_model(&parent.table_model_ptr(), &parent.undo_model_ptr());
-            }
-        }
-    }
-}
-
-impl FilterView {
-
-    pub unsafe fn new(view: &Arc<TableView>) {
-        let parent = view.filter_base_widget_ptr();
-
-        // Create the filter's widgets.
-        let filter_widget = QWidget::new_1a(&parent);
-        let filter_grid = create_grid_layout(filter_widget.static_upcast());
-        filter_grid.set_column_stretch(0, 99);
-        filter_grid.set_column_stretch(3, 0);
-        filter_grid.set_column_stretch(4, 0);
-
-        let filter_timer_delayed_updates = QTimer::new_1a(&parent);
-        let filter_line_edit = QLineEdit::from_q_widget(&parent);
-        let filter_column_selector = QComboBox::new_1a(&parent);
-        let filter_match_group_selector = QComboBox::new_1a(&parent);
-        let filter_show_blank_cells_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_show_blank_cells"), &parent);
-        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), &parent);
-        let filter_add = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &parent);
-        let filter_remove = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &parent);
-
-        // Reuse the models from the first filterview, as that one will never get destroyed.
-        if let Some(first_filter) = view.filters().get(0) {
-            filter_column_selector.set_model(&first_filter.filter_column_selector.model());
-            filter_match_group_selector.set_model(&first_filter.filter_match_group_selector.model());
-        }
-
-        else {
-            let filter_match_group_list = QStandardItemModel::new_1a(&filter_match_group_selector);
-            let filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
-
-            filter_column_selector.set_model(&filter_column_list);
-            filter_match_group_selector.set_model(&filter_match_group_list);
-
-            let fields = view.table_definition().fields_processed_sorted(false);
-            for field in &fields {
-                let name = clean_column_names(field.name());
-                filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
-            }
-
-            filter_match_group_selector.add_item_q_string(&QString::from_std_str(&format!("{} {}", tr("filter_group"), 1)));
-        }
-
-        filter_line_edit.set_placeholder_text(&qtr("table_filter"));
-        filter_line_edit.set_clear_button_enabled(true);
-        filter_case_sensitive_button.set_checkable(true);
-        filter_show_blank_cells_button.set_checkable(true);
-        filter_timer_delayed_updates.set_single_shot(true);
-
-        // The first filter must never be deleted.
-        if view.filters().get(0).is_none() {
-            filter_remove.set_enabled(false);
-        }
-
-        // Add everything to the grid.
-        filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 3);
-        filter_grid.add_widget_5a(&filter_match_group_selector, 0, 3, 1, 1);
-        filter_grid.add_widget_5a(&filter_case_sensitive_button, 0, 4, 1, 1);
-        filter_grid.add_widget_5a(&filter_show_blank_cells_button, 0, 5, 1, 1);
-        filter_grid.add_widget_5a(&filter_column_selector, 0, 6, 1, 1);
-        filter_grid.add_widget_5a(&filter_add, 0, 9, 1, 1);
-        filter_grid.add_widget_5a(&filter_remove, 0, 10, 1, 1);
-
-        let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
-        parent_grid.add_widget_5a(&filter_widget, view.filters().len() as i32 + 3, 0, 1, 2);
-
-        let filter = Arc::new(Self {
-            filter_widget,
-            filter_line_edit,
-            filter_match_group_selector,
-            filter_case_sensitive_button,
-            filter_show_blank_cells_button,
-            filter_column_selector,
-            filter_timer_delayed_updates,
-            filter_add,
-            filter_remove,
-        });
-
-        let slots = FilterViewSlots::new(&filter, view);
-
-        connections::set_connections_filter(&filter, &slots);
-
-        view.filters_mut().push(filter);
-    }
-
-    pub unsafe fn start_delayed_updates_timer(view: &Arc<Self>) {
-        view.filter_timer_delayed_updates.set_interval(500);
-        view.filter_timer_delayed_updates.start_0a();
-    }
-
-    pub unsafe fn add_filter_group(view: &Arc<TableView>) {
-        if view.filters()[0].filter_match_group_selector.count() < view.filters().len() as i32 {
-            let name = QString::from_std_str(&format!("{} {}", tr("filter_group"), view.filters()[0].filter_match_group_selector.count() + 1));
-            view.filters()[0].filter_match_group_selector.add_item_q_string(&name);
         }
     }
 }

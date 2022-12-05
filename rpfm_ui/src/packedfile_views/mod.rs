@@ -321,7 +321,7 @@ impl PackedFileView {
                                         self.get_is_preview(),
                                         self.get_is_read_only(),
                                         view.get_ref_table().table_model_ptr().is_null(),
-                                        view.get_ref_table().table_view_primary_ptr().is_null()
+                                        view.get_ref_table().table_view_ptr().is_null()
                                     );
 
                                     show_dialog(app_ui.main_window(),

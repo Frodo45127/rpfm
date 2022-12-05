@@ -16,20 +16,19 @@ This module is, and should stay, private, as it's only glue between the `TableVi
 
 use std::sync::Arc;
 
-use super::{FilterView, TableView, slots::{FilterViewSlots, TableViewSlots}};
+use super::{TableView, slots::TableViewSlots};
 
 /// This function connects all the actions from the provided `TableView` with their slots in `TableViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
-    ui.table_view_primary_ptr().horizontal_header().sort_indicator_changed().connect(&slots.sort_order_column_changed);
+    ui.table_view_ptr().horizontal_header().sort_indicator_changed().connect(&slots.sort_order_column_changed);
 
-    ui.table_view_primary_ptr().custom_context_menu_requested().connect(&slots.show_context_menu);
-    ui.table_view_frozen_ptr().custom_context_menu_requested().connect(&slots.show_context_menu);
+    ui.table_view_ptr().custom_context_menu_requested().connect(&slots.show_context_menu);
 
     ui.table_model_ptr().item_changed().connect(&slots.item_changed);
-    ui.table_view_primary_ptr().selection_model().selection_changed().connect(&slots.context_menu_enabler);
+    ui.table_view_ptr().selection_model().selection_changed().connect(&slots.context_menu_enabler);
 
     ui.context_menu_add_rows().triggered().connect(&slots.add_rows);
     ui.context_menu_insert_rows().triggered().connect(&slots.insert_rows);
@@ -74,27 +73,7 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
         .zip(slots.freeze_columns.iter())
         .for_each(|(x, y)| { x.state_changed().connect(y); });
 
-    ui.search_search_button().released().connect(&slots.search_search);
-    ui.search_prev_match_button().released().connect(&slots.search_prev_match);
-    ui.search_next_match_button().released().connect(&slots.search_next_match);
-    ui.search_replace_current_button().released().connect(&slots.search_replace_current);
-    ui.search_replace_all_button().released().connect(&slots.search_replace_all);
-    ui.search_close_button().released().connect(&slots.search_close);
-    ui.search_search_line_edit().text_changed().connect(&slots.search_check_regex);
-
-    ui.table_view_primary_ptr().double_clicked().connect(&slots.open_subtable);
+    ui.table_view_ptr().double_clicked().connect(&slots.open_subtable);
 
     ui.timer_delayed_updates.timeout().connect(&slots.delayed_updates);
-}
-
-pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
-    ui.filter_line_edit.text_changed().connect(&slots.filter_line_edit);
-    ui.filter_match_group_selector.current_index_changed().connect(&slots.filter_match_group_selector);
-    ui.filter_column_selector.current_index_changed().connect(&slots.filter_column_selector);
-    ui.filter_case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);
-    ui.filter_show_blank_cells_button.toggled().connect(&slots.filter_show_blank_cells_button);
-    ui.filter_timer_delayed_updates.timeout().connect(&slots.filter_trigger);
-    ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
-    ui.filter_add.released().connect(&slots.filter_add);
-    ui.filter_remove.released().connect(&slots.filter_remove);
 }

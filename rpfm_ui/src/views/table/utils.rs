@@ -426,15 +426,14 @@ pub fn clean_column_names(field_name: &str) -> String {
 
 /// This function loads the data from a compatible `PackedFile` into a TableView.
 pub unsafe fn load_data(
-    table_view_primary: &QPtr<QTableView>,
-    table_view_frozen: &QPtr<QTableView>,
+    table_view: &QPtr<QTableView>,
     definition: &Definition,
     dependency_data: &RwLock<HashMap<i32, TableReferences>>,
     data: &TableType,
     timer: &QBox<QTimer>,
     data_source: DataSource,
 ) {
-    let table_filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
 
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
@@ -454,8 +453,7 @@ pub unsafe fn load_data(
     };
 
     // TODO: Optimize this. On big loc files this is slow as hell.
-    table_view_primary.set_updates_enabled(false);
-    table_view_frozen.set_updates_enabled(false);
+    table_view.set_updates_enabled(false);
 
     // NOTE: We need the blocker because disabling only updates doesn't seem to work.
     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -492,15 +490,13 @@ pub unsafe fn load_data(
     }
 
     setup_item_delegates(
-        table_view_primary,
-        table_view_frozen,
+        table_view,
         definition,
         &dependency_data.read().unwrap(),
         timer
     );
 
-    table_view_primary.set_updates_enabled(true);
-    table_view_frozen.set_updates_enabled(true);
+    table_view.set_updates_enabled(true);
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
@@ -635,12 +631,11 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we load/reload the data to the table.
 pub unsafe fn build_columns(
-    table_view_primary: &QPtr<QTableView>,
-    table_view_frozen: Option<&QPtr<QTableView>>,
+    table_view: &QPtr<QTableView>,
     definition: &Definition,
     table_name: Option<&str>,
 ) {
-    let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+    let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
@@ -661,21 +656,21 @@ pub unsafe fn build_columns(
         // Depending on his type, set one width or another.
         if !setting_bool("adjust_columns_to_content") {
             match field.field_type() {
-                FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
-                FieldType::F32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::F64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::I16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::I32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::I64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::OptionalI16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::OptionalI32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::OptionalI64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::ColourRGB => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-                FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
-                FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
-                FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
-                FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
-                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::Boolean => table_view.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
+                FieldType::F32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::F64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::I16 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::I32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::I64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI16 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI32 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::OptionalI64 => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::ColourRGB => table_view.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::StringU8 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::StringU16 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU8 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU16 => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
             }
         }
 
@@ -685,8 +680,8 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
+    let header = table_view.horizontal_header();
     if !setting_bool("tables_use_old_column_order") && do_we_have_ca_order {
-        let header_primary = table_view_primary.horizontal_header();
         let mut fields = fields_processed.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order()))
@@ -698,33 +693,22 @@ pub unsafe fn build_columns(
 
         for (new_pos, (logical_index, ca_order)) in fields.iter().enumerate() {
             if *ca_order != -1 {
-                let visual_index = header_primary.visual_index(*logical_index as i32);
-                header_primary.move_section(visual_index as i32, new_pos as i32);
-
-                if let Some(table_view_frozen) = table_view_frozen {
-                    let header_frozen = table_view_frozen.horizontal_header();
-                    header_frozen.move_section(visual_index as i32, new_pos as i32);
-                }
+                let visual_index = header.visual_index(*logical_index as i32);
+                header.move_section(visual_index as i32, new_pos as i32);
             }
         }
     }
 
     // Otherwise, if we have any "Key" field, move it to the beginning.
     else if !keys.is_empty() {
-        let header_primary = table_view_primary.horizontal_header();
         for (position, column) in keys.iter().enumerate() {
-            header_primary.move_section(*column as i32, position as i32);
-
-            if let Some(table_view_frozen) = table_view_frozen {
-                let header_frozen = table_view_frozen.horizontal_header();
-                header_frozen.move_section(*column as i32, position as i32);
-            }
+            header.move_section(*column as i32, position as i32);
         }
     }
 
     // If we want to let the columns resize themselves...
     if setting_bool("adjust_columns_to_content") {
-        table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+        header.resize_sections(ResizeMode::ResizeToContents);
     }
 }
 
@@ -887,8 +871,7 @@ pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definiti
 
 /// This function sets up the item delegates for all columns in a table.
 pub unsafe fn setup_item_delegates(
-    table_view_primary: &QPtr<QTableView>,
-    table_view_frozen: &QPtr<QTableView>,
+    table_view: &QPtr<QTableView>,
     definition: &Definition,
     table_references: &HashMap<i32, TableReferences>,
     timer: &QBox<QTimer>
@@ -909,67 +892,30 @@ pub unsafe fn setup_item_delegates(
                 field.enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
-            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
+            new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, &timer.as_ptr(), true);
         }
 
         else {
             match field.field_type() {
-                FieldType::Boolean => {
-                    new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                },
-                FieldType::F32 => {
-                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                },
-                FieldType::F64 => {
-                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                },
-                FieldType::I16 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
-                },
-                FieldType::I32 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
-                },
+                FieldType::Boolean => new_generic_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::F32 => new_doublespinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::F64 => new_doublespinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::I16 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true),
+                FieldType::I32 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true),
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::I64 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
-                },
-                FieldType::OptionalI16 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true);
-                },
-                FieldType::OptionalI32 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true);
-                },
+                FieldType::I64 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true),
+                FieldType::OptionalI16 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 16, &timer.as_ptr(), true),
+                FieldType::OptionalI32 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 32, &timer.as_ptr(), true),
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::OptionalI64 => {
-                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
-                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true);
-                },
-                FieldType::ColourRGB => {
-                    new_colour_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_colour_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                },
+                FieldType::OptionalI64 => new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, 64, &timer.as_ptr(), true),
+                FieldType::ColourRGB => new_colour_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
                 FieldType::StringU8 |
                 FieldType::StringU16 |
                 FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => {
-                    new_qstring_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_qstring_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                },
-                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {
-                    new_generic_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                    new_generic_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true);
-                }
+                FieldType::OptionalStringU16 => new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
+                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => new_generic_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), column as i32, &timer.as_ptr(), true),
             }
         }
     }
@@ -1090,7 +1036,7 @@ pub unsafe fn open_subtable(
         if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.table_definition()) {
             Some(serde_json::to_string(&table).unwrap())
         } else {
-            show_dialog(&table_view.table_view_primary, "This should never happen.", false);
+            show_dialog(&table_view.table_view, "This should never happen.", false);
             None
         }
     } else { None }

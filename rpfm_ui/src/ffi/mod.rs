@@ -200,17 +200,8 @@ pub fn toggle_animated_safe(spoiler: &Ptr<QWidget>) {
 
 // This function allows you to create a table capable of freezing columns.
 extern "C" { fn new_tableview_frozen(parent: *mut QWidget) -> *mut QTableView; }
-extern "C" { fn get_frozen_view(table_view: *mut QTableView) -> *mut QTableView; }
-pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>) -> (QBox<QTableView>, QBox<QTableView>) {
-    let table_view_normal = unsafe { new_tableview_frozen(parent.as_mut_raw_ptr()) };
-    let table_view_frozen = unsafe { get_frozen_view(table_view_normal) };
-    unsafe { (QBox::from_raw(table_view_normal), QBox::from_raw(table_view_frozen)) }
-}
-
-// This function allows you to load data to a table capable of freezing columns.
-extern "C" { fn set_data_model(table: *mut QTableView, model: *mut QAbstractItemModel); }
-pub fn set_frozen_data_model_safe(table: &Ptr<QTableView>, model: &Ptr<QAbstractItemModel>) {
-    unsafe { set_data_model(table.as_mut_raw_ptr(), model.as_mut_raw_ptr()) };
+pub fn new_tableview_frozen_safe(parent: &Ptr<QWidget>) -> QBox<QTableView> {
+    unsafe { QBox::from_raw(new_tableview_frozen(parent.as_mut_raw_ptr())) }
 }
 
 // This function allows you to freeze/unfreeze a column.

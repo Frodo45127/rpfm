@@ -54,7 +54,7 @@ impl PackedFileAnimFragmentViewSlots {
         diagnostics_ui: &Rc<DiagnosticsUI>
     )  -> Self {
 
-        let delayed_updates = SlotNoArgs::new(&view.table_view().table_view_primary_ptr(), clone!(
+        let delayed_updates = SlotNoArgs::new(&view.table_view().table_view_ptr(), clone!(
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui,
@@ -64,7 +64,7 @@ impl PackedFileAnimFragmentViewSlots {
                 if view.data_source() == DataSource::PackFile && !view.table_view().save_lock().load(Ordering::SeqCst) && !view.table_view().undo_lock().load(Ordering::SeqCst) {
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.packed_file_path.read().unwrap() && x.get_data_source() == DataSource::PackFile) {
                         if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
-                            show_dialog(&view.table_view().table_view_primary_ptr(), error, false);
+                            show_dialog(&view.table_view().table_view_ptr(), error, false);
                         } else if setting_bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
                             let path_types = vec![ContainerPath::File(view.packed_file_path.read().unwrap().to_string())];
                             DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);

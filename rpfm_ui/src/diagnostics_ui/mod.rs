@@ -734,7 +734,7 @@ impl DiagnosticsUI {
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::AnimFragment(view)) = packed_file_view.get_view() {
                         let table_view = view.table_view();
-                        let table_view = table_view.table_view_primary();
+                        let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
@@ -762,7 +762,7 @@ impl DiagnosticsUI {
                     // In case of tables, we have to get the logical row/column of the match and select it.
                     if let ViewType::Internal(View::Table(view)) = packed_file_view.get_view() {
                         let table_view = view.get_ref_table();
-                        let table_view = table_view.table_view_primary();
+                        let table_view = table_view.table_view();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                         let table_selection_model = table_view.selection_model();
@@ -859,7 +859,7 @@ impl DiagnosticsUI {
                 else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() { view.table_view() }
                 else { return };
 
-                let table_view = internal_table_view.table_view_primary();
+                let table_view = internal_table_view.table_view();
                 let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                 let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                 let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1033,7 +1033,7 @@ impl DiagnosticsUI {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.get_view() {
-                    let table_view = view.get_ref_table().table_view_primary();
+                    let table_view = view.get_ref_table().table_view();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
@@ -1056,7 +1056,7 @@ impl DiagnosticsUI {
                     blocker.unblock();
                     table_view.viewport().repaint();
                 } else if let ViewType::Internal(View::AnimFragment(view)) = view.get_view() {
-                    let table_view = view.table_view().table_view_primary_ptr();
+                    let table_view = view.table_view().table_view_ptr();
                     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());

@@ -1344,8 +1344,7 @@ impl AppUISlots {
                                 table.set_dependency_data(&data);
 
                                 setup_item_delegates(
-                                    &table.table_view_primary_ptr(),
-                                    &table.table_view_frozen_ptr(),
+                                    &table.table_view_ptr(),
                                     &table.table_definition(),
                                     &data,
                                     table.timer_delayed_updates()
