@@ -860,7 +860,10 @@ pub fn background_loop() {
                 let path = path.path_raw();
                 if let Some(rfile) = pack_file_decoded.file_mut(path) {
                     if let Ok(decoded) = rfile.decoded_mut() {
-                        dependencies.write().unwrap().update_db(decoded);
+                        match dependencies.write().unwrap().update_db(decoded) {
+                            Ok((old_version, new_version)) => CentralCommand::send_back(&sender, Response::I32I32(old_version, new_version)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
                     } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File with the following path undecoded: {}", path))); }
                 } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("File not found in the open Pack: {}", path))); }
             }

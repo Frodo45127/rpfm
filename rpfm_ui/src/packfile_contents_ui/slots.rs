@@ -1121,7 +1121,7 @@ impl PackFileContentsSlots {
                     let receiver = CENTRAL_COMMAND.send_background(Command::UpdateTable(item_type.clone()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
-                        Response::I32I32((old_version, new_version)) => {
+                        Response::I32I32(old_version, new_version) => {
                             let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
                             show_dialog(app_ui.main_window(), message, true);
 

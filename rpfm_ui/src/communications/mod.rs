@@ -471,7 +471,7 @@ pub enum Response {
     VecString(Vec<String>),
 
     /// Response to return `(i32, i32)`.
-    I32I32((i32, i32)),
+    I32I32(i32, i32),
 
     /// Response to return `BTreeMap<i32, DependencyData>`.
     HashMapI32TableReferences(HashMap<i32, TableReferences>),
