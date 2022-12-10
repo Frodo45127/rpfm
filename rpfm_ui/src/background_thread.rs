@@ -1151,25 +1151,18 @@ pub fn background_loop() {
                 let game_path = setting_path(&game_selected.game_key_name());
                 let schema = SCHEMA.read().unwrap().clone();
 
+                let mut diagnostics = Diagnostics::default();
+                *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
                 if let Some(schema) = schema {
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
+                    }
 
-                    // Spawn a separate thread so the UI can keep working.
-                    //
-                    // NOTE: Find a way to not fucking clone dependencies.
-                    thread::spawn(clone!(
-                        mut dependencies,
-                        mut pack_file_decoded => move || {
-                        let mut diagnostics = Diagnostics::default();
-                        *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
-
-                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
-                        }
-                        info!("Checking diagnostics: done.");
-                        CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
-                    }));
+                    info!("Checking diagnostics: done.");
                 }
+
+                CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
             }
 
             Command::DiagnosticsUpdate(mut diagnostics, path_types) => {
@@ -1178,20 +1171,15 @@ pub fn background_loop() {
                 let schema = SCHEMA.read().unwrap().clone();
 
                 if let Some(schema) = schema {
+                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, &schema);
+                    }
 
-                    // Spawn a separate thread so the UI can keep working.
-                    //
-                    // NOTE: Find a way to not fucking clone dependencies.
-                    thread::spawn(clone!(
-                        mut dependencies,
-                        mut pack_file_decoded => move || {
-                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, &schema);
-                        }
-                        CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
-                    }));
+                    info!("Checking diagnostics (update): done.");
                 }
+
+                CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
             }
 
             // In case we want to get the open PackFile's Settings...
