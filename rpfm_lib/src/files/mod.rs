@@ -12,22 +12,23 @@
 //!
 //! # Known file types
 //!
-//! | File Type         | Decoding Supported | Encoding Supported |
-//! | ----------------- | ------------------ | ------------------ |
-//! | [`AnimFragment`]  | Yes                | Yes                |
-//! | [`AnimPack`]      | Yes                | Yes                |
-//! | [`AnimsTable`]    | Yes                | Yes                |
-//! | [`DB`]            | Yes                | Yes                |
-//! | [`ESF`]           | Limited            | Limited            |
-//! | [`Image`]         | Yes                | Yes                |
-//! | [`Loc`]           | Yes                | Yes                |
-//! | [`MatchedCombat`] | Yes                | Yes                |
-//! | [`Pack`]          | Yes                | Yes                |
-//! | [`RigidModel`]    | No                 | No                 |
-//! | [`Text`]          | Yes                | Yes                |
-//! | [`UIC`]           | No                 | No                 |
-//! | [`UnitVariant`]   | Yes                | Yes                |
-//! | [`Video`]         | Yes                | Yes                |
+//! | File Type            | Decoding Supported | Encoding Supported |
+//! | -------------------- | ------------------ | ------------------ |
+//! | [`AnimFragment`]     | Yes                | Yes                |
+//! | [`AnimPack`]         | Yes                | Yes                |
+//! | [`AnimsTable`]       | Yes                | Yes                |
+//! | [`DB`]               | Yes                | Yes                |
+//! | [`ESF`]              | Limited            | Limited            |
+//! | [`Image`]            | Yes                | Yes                |
+//! | [`Loc`]              | Yes                | Yes                |
+//! | [`MatchedCombat`]    | Yes                | Yes                |
+//! | [`Pack`]             | Yes                | Yes                |
+//! | [`PortraitSettings`] | No                 | No                 |
+//! | [`RigidModel`]       | No                 | No                 |
+//! | [`Text`]             | Yes                | Yes                |
+//! | [`UIC`]              | No                 | No                 |
+//! | [`UnitVariant`]      | Yes                | Yes                |
+//! | [`Video`]            | Yes                | Yes                |
 //!
 //! There is an additional type: [`Unknown`]. This type is used as a wildcard,
 //! so you can get the raw data of any non-supported file type and manipulate it yourself in a safe way.
@@ -44,6 +45,7 @@
 //! [`Loc`]: crate::files::loc::Loc
 //! [`MatchedCombat`]: crate::files::matched_combat::MatchedCombat
 //! [`Pack`]: crate::files::pack::Pack
+//! [`PortraitSettings`]: crate::files::portrait_settings::PortraitSettings
 //! [`RigidModel`]: crate::files::rigidmodel::RigidModel
 //! [`Text`]: crate::files::text::Text
 //! [`UIC`]: crate::files::uic::UIC
@@ -85,6 +87,7 @@ use self::image::Image;
 use self::loc::Loc;
 use self::matched_combat::MatchedCombat;
 use self::pack::Pack;
+use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
 use self::text::Text;
 use self::uic::UIC;
@@ -207,6 +210,7 @@ pub enum RFileDecoded {
     Loc(Loc),
     MatchedCombat(MatchedCombat),
     Pack(Pack),
+    PortraitSettings(PortraitSettings),
     RigidModel(RigidModel),
     Save(ESF),
     Text(Text),
@@ -235,6 +239,7 @@ pub enum FileType {
     Loc,
     MatchedCombat,
     Pack,
+    PortraitSettings,
     RigidModel,
     Save,
     Text,
@@ -1291,6 +1296,7 @@ impl RFile {
             (FileType::Loc, &RFileDecoded::Loc(_)) |
             (FileType::MatchedCombat, &RFileDecoded::MatchedCombat(_)) |
             (FileType::Pack, &RFileDecoded::Pack(_)) |
+            (FileType::PortraitSettings, &RFileDecoded::PortraitSettings(_)) |
             (FileType::RigidModel, &RFileDecoded::RigidModel(_)) |
             (FileType::Save, &RFileDecoded::Save(_)) |
             (FileType::Text, &RFileDecoded::Text(_)) |
@@ -1362,6 +1368,7 @@ impl RFile {
                     FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                     FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
                     FileType::Pack => RFileDecoded::Pack(Pack::decode(&mut data, &Some(extra_data))?),
+                    FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                     FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
@@ -1388,6 +1395,7 @@ impl RFile {
                     FileType::Image |
                     FileType::Loc |
                     FileType::MatchedCombat |
+                    FileType::PortraitSettings |
                     FileType::RigidModel |
                     FileType::Save |
                     FileType::Text |
@@ -1424,6 +1432,7 @@ impl RFile {
                             FileType::Image => RFileDecoded::Image(Image::decode(&mut data, &Some(extra_data))?),
                             FileType::Loc => RFileDecoded::Loc(Loc::decode(&mut data, &Some(extra_data))?),
                             FileType::MatchedCombat => RFileDecoded::MatchedCombat(MatchedCombat::decode(&mut data, &Some(extra_data))?),
+                            FileType::PortraitSettings => RFileDecoded::PortraitSettings(PortraitSettings::decode(&mut data, &Some(extra_data))?),
                             FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                             FileType::Save => RFileDecoded::Save(ESF::decode(&mut data, &Some(extra_data))?),
                             FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
@@ -1524,6 +1533,7 @@ impl RFile {
                     RFileDecoded::Loc(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::MatchedCombat(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Pack(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::PortraitSettings(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::RigidModel(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Save(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Text(data) => data.encode(&mut buffer, extra_data)?,
@@ -1739,6 +1749,10 @@ impl RFile {
         // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
         else if path.starts_with("db/") && Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
             self.file_type = FileType::DB;
+        }
+
+        else if path.ends_with(portrait_settings::EXTENSION) && Regex::new(r"portrait_settings_\S+.bin$").unwrap().is_match(&path) {
+            self.file_type = FileType::PortraitSettings;
         }
 
         // If we reach this... we're clueless. Leave it unknown.
@@ -2116,6 +2130,7 @@ impl Display for FileType {
             FileType::Loc => write!(f, "Loc Table"),
             FileType::MatchedCombat => write!(f, "Matched Combat"),
             FileType::Pack => write!(f, "PackFile"),
+            FileType::PortraitSettings => write!(f, "Portrait Settings"),
             FileType::RigidModel => write!(f, "RigidModel"),
             FileType::Save => write!(f, "Save"),
             FileType::Text => write!(f, "Text"),
@@ -2141,6 +2156,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::Loc(_) => Self::Loc,
             RFileDecoded::MatchedCombat(_) => Self::MatchedCombat,
             RFileDecoded::Pack(_) => Self::Pack,
+            RFileDecoded::PortraitSettings(_) => Self::PortraitSettings,
             RFileDecoded::RigidModel(_) => Self::RigidModel,
             RFileDecoded::Save(_) => Self::Save,
             RFileDecoded::Text(_) => Self::Text,

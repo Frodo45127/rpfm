@@ -23,7 +23,7 @@ use regex::Regex;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, rigidmodel, text, text::*, unit_variant, video};
+use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, text, text::*, unit_variant, video};
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
 use crate::utils::{atomic_from_cpp_box, ref_from_atomic_ref};
@@ -64,6 +64,7 @@ pub struct Icons {
 
     pub loc: AtomicPtr<QIcon>,
     pub matched_combat: AtomicPtr<QIcon>,
+    pub portrait_settings: AtomicPtr<QIcon>,
     pub save: AtomicPtr<QIcon>,
 
     pub text_generic: AtomicPtr<QIcon>,
@@ -110,6 +111,7 @@ impl Icons {
 
             loc: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-gettext-translation"))),
             matched_combat: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("view-table-of-contents-ltr"))),
+            portrait_settings: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("x-office-contact"))),
             save: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("document-save"))),
 
             text_generic: atomic_from_cpp_box(QIcon::from_theme_1a(&QString::from_std_str("text-x-generic"))),
@@ -230,6 +232,10 @@ impl Icons {
                     &self.db
                 }
 
+                else if path.ends_with(portrait_settings::EXTENSION) && Regex::new(r"portrait_settings_\S+.bin$").unwrap().is_match(&path) {
+                    &self.portrait_settings
+                }
+
                 // If we reach this... we're clueless. Leave it unknown.
                 else {
                     &self.file
@@ -269,6 +275,7 @@ impl Icons {
                     }
                     FileType::Loc => &self.loc,
                     FileType::MatchedCombat => &self.matched_combat,
+                    FileType::PortraitSettings => &self.portrait_settings,
                     FileType::RigidModel => &self.rigid_model,
                     FileType::Save => &self.save,
                     FileType::Text => {
