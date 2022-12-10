@@ -1359,7 +1359,7 @@ impl AppUI {
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
             file_dialog.set_confirm_overwrite(true);
             file_dialog.set_default_suffix(&QString::from_std_str("pack"));
-            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap().to_string_lossy()));
+            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap_or(OsStr::new("mod.pack")).to_string_lossy()));
 
             // If we are saving an existing PackFile with another name, we start in his current path.
             if path.is_file() {
