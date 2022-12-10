@@ -794,8 +794,7 @@ pub fn background_loop() {
                 }
             }
 
-            // In case we want to rename one or more PackedFiles...
-            // TODO: make sure we don't pass folders here.
+            // In case we want to rename one or more files/folders...
             Command::RenamePackedFiles(renaming_data) => {
                 match pack_file_decoded.rename_paths(&renaming_data) {
                     Ok(data) => CentralCommand::send_back(&sender, Response::VecContainerPathContainerPath(data.iter().map(|(x, y)| (x.clone(), y[0].to_owned())).collect::<Vec<_>>())),

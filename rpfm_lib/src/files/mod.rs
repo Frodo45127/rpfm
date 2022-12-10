@@ -544,7 +544,7 @@ pub trait Container {
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
     fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Option<ContainerPath>> {
-        let mut container_path_folder = container_path_folder.to_owned();
+        let mut container_path_folder = container_path_folder.replace("\\", "/");
         if container_path_folder.starts_with('/') {
             container_path_folder.remove(0);
         }
@@ -610,7 +610,7 @@ pub trait Container {
     ///
     /// Returns the list of [ContainerPath] inserted.
     fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
-        let mut container_path_folder = container_path_folder.to_owned();
+        let mut container_path_folder = container_path_folder.replace("\\", "/");
         if !container_path_folder.is_empty() && !container_path_folder.ends_with('/') {
             container_path_folder.push('/');
         }
@@ -1796,7 +1796,7 @@ impl RFile {
                 };
 
                 let file_path = match metadata.get(2) {
-                    Some(file_path) => file_path.to_owned(),
+                    Some(file_path) => file_path.replace("\\", "/"),
                     None => return Err(RLibError::ImportTSVInvalidOrMissingPath),
                 };
 
