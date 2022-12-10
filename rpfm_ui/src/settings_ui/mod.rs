@@ -8,9 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-This module contains the code to build/use the ***Settings*** UI.
-!*/
+//!This module contains the code to build/use the ***Settings*** UI.
 
 use qt_widgets::{QCheckBox, QTabWidget};
 use qt_widgets::QComboBox;
@@ -236,24 +234,27 @@ pub struct SettingsUI {
 impl SettingsUI {
 
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
-    pub unsafe fn new(app_ui: &Rc<AppUI>) -> bool {
-        let settings_ui = Rc::new(Self::new_with_parent(app_ui.main_window()));
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Result<bool> {
+        let settings_ui = Self::new_with_parent(app_ui.main_window())?;
+        let settings_ui = Rc::new(settings_ui);
         let slots = SettingsUISlots::new(&settings_ui, app_ui);
 
         connections::set_connections(&settings_ui, &slots);
         tips::set_tips(&settings_ui);
 
         // If load fails due to missing locale folder, show the error and cancel the settings edition.
-        settings_ui.load();
+        settings_ui.load()?;
         if settings_ui.dialog.exec() == 1 {
-            settings_ui.save();
+            settings_ui.save()?;
             settings_ui.dialog.delete_later();
-            true
-        } else { false }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// This function creates a new `SettingsUI` and links it to the provided parent.
-    unsafe fn new_with_parent(parent: impl CastInto<Ptr<QWidget>>) -> Self {
+    unsafe fn new_with_parent(parent: impl CastInto<Ptr<QWidget>>) -> Result<Self> {
 
         // Initialize and configure the settings window.
         let dialog = QDialog::new_1a(parent);
@@ -761,7 +762,7 @@ impl SettingsUI {
         main_grid.add_widget_5a(&button_box, 4, 0, 1, 3);
 
         // Now, we build the `SettingsUI` struct and return it.
-        Self {
+        Ok(Self {
 
             //-------------------------------------------------------------------------------//
             // `Dialog` window.
@@ -915,7 +916,7 @@ impl SettingsUI {
             button_box_font_settings_button,
             button_box_cancel_button,
             button_box_accept_button,
-        }
+        })
     }
 
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
@@ -1064,7 +1065,7 @@ impl SettingsUI {
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
-    pub unsafe fn save(&self) {
+    pub unsafe fn save(&self) -> Result<()> {
         let q_settings = settings();
 
         set_setting_string_to_q_setting(&q_settings, MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
@@ -1088,7 +1089,7 @@ impl SettingsUI {
         // We need to store the full locale filename, not just the visible name!
         let mut language = self.general_language_combobox.current_text().to_std_string();
         if let Some(index) = language.find('&') { language.remove(index); }
-        if let Some((_, locale)) = Locale::get_available_locales().unwrap().iter().find(|(x, _)| &language == x) {
+        if let Some((_, locale)) = Locale::get_available_locales()?.iter().find(|(x, _)| &language == x) {
             let file_name = format!("{}_{}", language, locale.language);
             set_setting_string_to_q_setting(&q_settings, "language", &file_name);
         }
@@ -1159,6 +1160,8 @@ impl SettingsUI {
 
         // Save the settings.
         q_settings.sync();
+
+        Ok(())
     }
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)

@@ -543,24 +543,29 @@ impl AppUISlots {
                 let mymod_path_old = setting_path(MYMOD_BASE_PATH);
                 let game_path_old = setting_path(&game_key);
                 let ak_path_old = setting_path(&format!("{}_assembly_kit", game_key));
-                if SettingsUI::new(&app_ui) {
 
-                    let mymod_path_new = setting_path(MYMOD_BASE_PATH);
-                    let game_path_new = setting_path(&game_key);
-                    let ak_path_new = setting_path(&format!("{}_assembly_kit", game_key));
+                match SettingsUI::new(&app_ui) {
+                    Ok(saved) => {
+                        if saved {
+                            let mymod_path_new = setting_path(MYMOD_BASE_PATH);
+                            let game_path_new = setting_path(&game_key);
+                            let ak_path_new = setting_path(&format!("{}_assembly_kit", game_key));
 
-                    // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
-                    // next time we open the MyMod menu.
-                    if mymod_path_old != mymod_path_new {
-                        UI_STATE.set_operational_mode(&app_ui, None);
-                        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                            // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
+                            // next time we open the MyMod menu.
+                            if mymod_path_old != mymod_path_new {
+                                UI_STATE.set_operational_mode(&app_ui, None);
+                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui);
+                            }
+
+                            // If we have changed the path of any of the games, and that game is the current `GameSelected`,
+                            // re-select the current `GameSelected` to force it to reload the game's files.
+                            if game_path_old != game_path_new || ak_path_old != ak_path_new {
+                                QAction::trigger(&app_ui.game_selected_group.checked_action());
+                            }
+                        }
                     }
-
-                    // If we have changed the path of any of the games, and that game is the current `GameSelected`,
-                    // re-select the current `GameSelected` to force it to reload the game's files.
-                    if game_path_old != game_path_new || ak_path_old != ak_path_new {
-                        QAction::trigger(&app_ui.game_selected_group.checked_action());
-                    }
+                    Err(error) => show_dialog(&app_ui.main_window, error, false),
                 }
             }
         ));
