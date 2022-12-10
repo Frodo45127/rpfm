@@ -84,6 +84,9 @@ memchr = "^2.5"
 # Float equality support.
 float_eq = "^1"
 
+# Regex globals support.
+lazy_static = "^1.2"
+
 # Logging support.
 backtrace = { version = "^0.3", optional = true }
 log = { version = "^0.4", optional = true, features = ["std"] }

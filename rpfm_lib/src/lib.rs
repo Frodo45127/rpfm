@@ -23,6 +23,9 @@
     clippy::too_many_arguments              // Disabled because it gets annoying really quick.
 )]
 
+use lazy_static::*;
+use regex::Regex;
+
 pub mod binary;
 pub mod compression;
 pub mod encryption;
@@ -32,3 +35,12 @@ pub mod games;
 pub mod integrations;
 pub mod schema;
 pub mod utils;
+
+lazy_static! {
+
+    /// Regex to find if a path belongs to a db table.
+    pub static ref REGEX_DB: Regex = Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap();
+
+    /// Regex to find if a path belongs to a portrait settings file.
+    pub static ref REGEX_PORTRAIT_SETTINGS: Regex = Regex::new(r"portrait_settings_\S+.bin$").unwrap();
+}

@@ -60,7 +60,6 @@
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
 use rayon::prelude::*;
-use regex::Regex;
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
@@ -75,6 +74,7 @@ use crate::compression::Decompressible;
 use crate::encryption::Decryptable;
 use crate::error::{Result, RLibError};
 use crate::games::pfh_version::PFHVersion;
+use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
 
@@ -1747,11 +1747,11 @@ impl RFile {
 
         // If that failed, check if it's in a folder which is known to only have specific files.
         // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
-        else if path.starts_with("db/") && Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
+        else if path.starts_with("db/") && REGEX_DB.is_match(&path) {
             self.file_type = FileType::DB;
         }
 
-        else if path.ends_with(portrait_settings::EXTENSION) && Regex::new(r"portrait_settings_\S+.bin$").unwrap().is_match(&path) {
+        else if path.ends_with(portrait_settings::EXTENSION) && REGEX_PORTRAIT_SETTINGS.is_match(&path) {
             self.file_type = FileType::PortraitSettings;
         }
 

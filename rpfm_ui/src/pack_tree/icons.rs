@@ -19,11 +19,10 @@ use qt_core::QString;
 
 use cpp_core::Ref;
 
-use regex::Regex;
-
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::files::{animpack, anim_fragment, anims_table, esf, FileType, image, loc, matched_combat, pack, portrait_settings, rigidmodel, text, text::*, unit_variant, video};
+use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::pack_tree::{ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE};
 use crate::utils::{atomic_from_cpp_box, ref_from_atomic_ref};
@@ -228,11 +227,11 @@ impl Icons {
 
                 // If that failed, check if it's in a folder which is known to only have specific files.
                 // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
-                else if path.starts_with("db/") && Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap().is_match(&path) {
+                else if path.starts_with("db/") && REGEX_DB.is_match(&path) {
                     &self.db
                 }
 
-                else if path.ends_with(portrait_settings::EXTENSION) && Regex::new(r"portrait_settings_\S+.bin$").unwrap().is_match(&path) {
+                else if path.ends_with(portrait_settings::EXTENSION) && REGEX_PORTRAIT_SETTINGS.is_match(&path) {
                     &self.portrait_settings
                 }
 

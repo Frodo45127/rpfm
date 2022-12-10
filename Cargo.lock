@@ -2033,6 +2033,7 @@ dependencies = [
  "getset",
  "git2",
  "itertools 0.10.5",
+ "lazy_static",
  "log",
  "memchr",
  "os_info",
