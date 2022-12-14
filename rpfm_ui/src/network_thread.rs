@@ -14,17 +14,14 @@ Module with the network loop.
 Basically, this does the network checks of the program.
 !*/
 
+use anyhow::anyhow;
 use crossbeam::channel::Sender;
 
 use std::path::PathBuf;
 
-use rpfm_lib::integrations::git::*;
-use rpfm_lib::integrations::log::*;
-
+use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
 use rpfm_lib::schema::*;
-//use rpfm_lib::settings::*;
-//use rpfm_lib::tips::Tips;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -74,14 +71,16 @@ pub fn network_loop() {
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
-            /*
+
             // When we want to check if there is a message update available...
             Command::CheckMessageUpdates => {
+                CentralCommand::send_back(&sender, Response::Error(anyhow!("Not yet supported.")));
+                /*
                 match Tips::check_update() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseTips(response)),
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }
-            }*/
+                }*/
+            }
 
             // When we want to check if there is a lua setup update available...
             Command::CheckLuaAutogenUpdates => {
