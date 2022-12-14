@@ -84,7 +84,6 @@ pub fn background_loop() {
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
         let (sender, response): (Sender<Response>, Command) = CENTRAL_COMMAND.recv_background();
-        info!("Command received: {:?}.", response);
         match response {
 
             // Command to close the thread.
