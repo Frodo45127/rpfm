@@ -231,9 +231,17 @@ jobs:
 
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
-      # Changelog step is common for all OS.
-      - name: Get Changelog Entry
-        id: changelog_reader
+      - name: Get Changelog Entry (Linux)
+        if: matrix.os == 'self-hosted-linux'
+        id: changelog_reader_linux
+        uses: mindsers/changelog-reader-action@v1
+        with:
+          version: Unreleased
+          path: ./rpfm/CHANGELOG.md
+
+      - name: Get Changelog Entry (Windows)
+        if: matrix.os == 'self-hosted-windows'
+        id: changelog_reader_windows
         uses: mindsers/changelog-reader-action@v1
         with:
           version: Unreleased
