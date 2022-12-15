@@ -89,7 +89,7 @@ jobs:
           cp -R rpfm/install/arch/rpfm.desktop build/usr/share/applications/rpfm.desktop
 
           # License.
-          mkdir -p build/usr/share/licenses
+          mkdir -p build/usr/share/licenses/rpfm
           cp -R rpfm/LICENSE build/usr/share/licenses/rpfm/LICENSE
 
           # And finally create the compressed file.
