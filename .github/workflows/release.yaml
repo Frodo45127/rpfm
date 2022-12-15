@@ -44,7 +44,7 @@ jobs:
         if: matrix.os == 'self-hosted-linux'
         shell: bash
         run: |
-          cd rpfm
+          cd /usr/src/app/_work/rpfm/rpfm
           cargo build --release
             
       - name: Build RPFM (Windows)
@@ -64,6 +64,10 @@ jobs:
       - name: Prepare Assets for Release (Linux)
         if: matrix.os == 'self-hosted-linux'
         run: |
+
+          # Go back one folder to not put the built files in the repo.
+          cd /usr/src/app/_work/rpfm/
+
           mkdir -p build/usr/bin/
           cp -R rpfm/target/release/rpfm_cli build/usr/bin/rpfm_cli
           cp -R rpfm/target/release/rpfm_ui build/usr/bin/rpfm_ui
@@ -256,7 +260,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_path: /usr/src/app/_work/rpfm/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
