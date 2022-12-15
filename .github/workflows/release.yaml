@@ -93,7 +93,7 @@ jobs:
           cp -R rpfm/LICENSE build/usr/share/licenses/rpfm/LICENSE
 
           # And finally create the compressed file.
-          tar --zstd -cf rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build
+          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build
 
       - name: Prepare Assets for Release (Windows)
         if: matrix.os == 'self-hosted-windows'
@@ -260,7 +260,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /usr/src/app/_work/rpfm/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
