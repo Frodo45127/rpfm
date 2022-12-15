@@ -40,16 +40,16 @@ jobs:
         id: get_version
         uses: battila7/get-version-action@v2.2.1
 
-      - if matrix.os == 'self-hosted-linux'
-        name: Build RPFM (Linux)
+      - name: Build RPFM (Linux)
+        if: matrix.os == 'self-hosted-linux'
+        shell: bash
         run: |
           cd rpfm
           cargo build --release
-
-        shell: bash
-
-      - if matrix.os == 'self-hosted-windows'
-        name: Build RPFM (Windows)
+            
+      - name: Build RPFM (Windows)
+        if: matrix.os == 'self-hosted-windows'
+        shell: pwsh
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
@@ -61,10 +61,8 @@ jobs:
           cargo build --release --bin rpfm_cli
           cargo build --release --features "support_rigidmodel support_modern_dds" --bin rpfm_ui
 
-        shell: pwsh
-
-      - if matrix.os == 'self-hosted-linux'
-        name: Prepare Assets for Release (Linux)
+      - name: Prepare Assets for Release (Linux)
+        if: matrix.os == 'self-hosted-linux'
         run: |
           mkdir -p build/usr/bin/
           cp -R rpfm/target/release/rpfm_cli build/usr/bin/rpfm_cli
@@ -93,8 +91,8 @@ jobs:
           # And finally create the compressed file.
           tar --zstd -cf rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build
 
-      - if matrix.os == 'self-hosted-windows'
-        name: Prepare Assets for Release (Windows)
+      - name: Prepare Assets for Release (Windows)
+        if: matrix.os == 'self-hosted-windows'
         run: |
           cd ${{ matrix.DDISK }}:\
           rm -r -fo ${{ matrix.DDISK }}:\deploy
@@ -250,8 +248,8 @@ jobs:
           draft: true
           prerelease: true
 
-      - if matrix.os == 'self-hosted-linux'
-        name: Upload Release Asset (Linux)
+      - name: Upload Release Asset (Linux)
+        if: matrix.os == 'self-hosted-linux'
         id: upload-release-asset-linux
         uses: actions/upload-release-asset@v1
         env:
@@ -262,8 +260,8 @@ jobs:
           asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
-      - if matrix.os == 'self-hosted-windows'
-        name: Upload Release Asset (Windows)
+      - name: Upload Release Asset (Windows)
+        if: matrix.os == 'self-hosted-windows'
         id: upload-release-asset-windows
         uses: actions/upload-release-asset@v1
         env:
