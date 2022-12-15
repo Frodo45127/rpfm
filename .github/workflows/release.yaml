@@ -237,7 +237,7 @@ jobs:
         uses: mindsers/changelog-reader-action@v1
         with:
           version: Unreleased
-          path: ./rpfm/CHANGELOG.md
+          path: /usr/src/app/_work/rpfm/rpfm/CHANGELOG.md
 
       - name: Get Changelog Entry (Windows)
         if: matrix.os == 'self-hosted-windows'
