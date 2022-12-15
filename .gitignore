@@ -117,10 +117,15 @@ gh-token
 /coverage/
 
 # Ignore files generated while building arch packages.
-/install/arch/src
-/install/arch/rpfm
-/install/arch/rpfm-*
-/install/arch/pkg
+/install/arch/rpfm/src
+/install/arch/rpfm/rpfm
+/install/arch/rpfm/rpfm-*
+/install/arch/rpfm/pkg
+
+/install/arch/rpfm-git/src
+/install/arch/rpfm-git/rpfm
+/install/arch/rpfm-git/rpfm-*
+/install/arch/rpfm-git/pkg
 
 # Ignore this one, as it causes issues when recompiling.
 /rpfm_ui/qt_subclasses/.qmake.stash

@@ -15,7 +15,7 @@ jobs:
       matrix:
 
         # We use self-hosted because this action often runs out of memory on github's own servers.
-        os: [self-hosted-windows]
+        os: [self-hosted-windows, self-hosted-linux]
         include:
 
         # Old windows configuration.
@@ -29,8 +29,8 @@ jobs:
         - {os: self-hosted-windows, TARGET: x86_64-pc-windows-msvc, EXTENSION: zip, MIME: application/x-zip-compressed, DDISK: E}
 
         # Self-hosted linux requires:
-        # - Ubuntu 20.04 (older versions may work, I use this one).
-        #- {os: self-hosted-ubuntu, TARGET: x86_64-unknown-linux-gnu, EXTENSION: zip, MIME: application/x-zip-compressed}
+        # - Archlinux Docker (Ubuntu currently fails to build.
+        - {os: self-hosted-linux, TARGET: x86_64-unknown-linux-gnu, EXTENSION: tar.zst, MIME: application/tar+zstd}
 
     steps:
       - uses: actions/checkout@v2
@@ -40,7 +40,16 @@ jobs:
         id: get_version
         uses: battila7/get-version-action@v2.2.1
 
-      - name: Build RPFM
+      - if matrix.os == 'self-hosted-linux'
+        name: Build RPFM (Linux)
+        run: |
+          cd rpfm
+          cargo build --release
+
+        shell: bash
+
+      - if matrix.os == 'self-hosted-windows'
+        name: Build RPFM (Windows)
         run: |
           ${{ matrix.DDISK }}:\Craft\craft\craftenv.ps1
 
@@ -54,7 +63,38 @@ jobs:
 
         shell: pwsh
 
-      - name: Prepare Assets for Release
+      - if matrix.os == 'self-hosted-linux'
+        name: Prepare Assets for Release (Linux)
+        run: |
+          mkdir -p build/usr/bin/
+          cp -R rpfm/target/release/rpfm_cli build/usr/bin/rpfm_cli
+          cp -R rpfm/target/release/rpfm_ui build/usr/bin/rpfm_ui
+
+          # The icons.
+          mkdir -p build/usr/share/rpfm/icons/
+          cp -R rpfm/icons/* build/usr/share/rpfm/icons/
+
+          # The language files.
+          mkdir -p build/usr/share/rpfm/locale/
+          cp -R rpfm/locale/* build/usr/share/rpfm/locale/
+
+          # The UI files.
+          mkdir -p build/usr/share/rpfm/ui/
+          cp -R rpfm/rpfm_ui/ui_templates/* build/usr/share/rpfm/ui/
+
+          # Shortcuts.
+          mkdir -p build/usr/share/applications
+          cp -R rpfm/install/arch/rpfm.desktop build/usr/share/applications/rpfm.desktop
+
+          # License.
+          mkdir -p build/usr/share/licenses
+          cp -R rpfm/LICENSE build/usr/share/licenses/rpfm/LICENSE
+
+          # And finally create the compressed file.
+          tar --zstd -cf rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build
+
+      - if matrix.os == 'self-hosted-windows'
+        name: Prepare Assets for Release (Windows)
         run: |
           cd ${{ matrix.DDISK }}:\
           rm -r -fo ${{ matrix.DDISK }}:\deploy
@@ -210,7 +250,20 @@ jobs:
           draft: true
           prerelease: true
 
-      - name: Upload Release Asset
+      - if matrix.os == 'self-hosted-linux'
+        name: Upload Release Asset (Linux)
+        id: upload-release-asset-linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_content_type: ${{ matrix.MIME }}
+
+      - if matrix.os == 'self-hosted-windows'
+        name: Upload Release Asset (Windows)
         id: upload-release-asset-windows
         uses: actions/upload-release-asset@v1
         env:
