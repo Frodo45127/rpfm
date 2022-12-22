@@ -591,7 +591,7 @@ pub trait ReadBytes: Read + Seek {
                         // and mark the byte as found.
                         end_pos = curr_pos + read_bytes as u64;
                         curr_pos += pos as u64;
-                        data.extend_from_slice(&buf[..curr_pos as usize]);
+                        data.extend_from_slice(&buf[..pos]);
                         found = true;
                         break;
                     } else {
