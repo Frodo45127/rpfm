@@ -93,7 +93,7 @@ jobs:
           cp -R rpfm/LICENSE build/usr/share/licenses/rpfm/LICENSE
 
           # And finally create the compressed file.
-          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build
+          tar --zstd -cf rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} build/usr
 
       - name: Prepare Assets for Release (Windows)
         if: matrix.os == 'self-hosted-windows'

@@ -1,17 +1,17 @@
 # Maintainer: Frodo45127 <frodo_gv@hotmail.com>
 pkgname=('rpfm-bin')
-pkgver=3.0.16
+pkgver=3.99.111
 pkgrel=1
 pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
 arch=('x86_64')
 url="https://github.com/Frodo45127/rpfm"
 license=('MIT')
-depends=('qt5-base' 'qt5-imageformats' 'kf5' 'xz' 'p7zip')
+depends=('qt5-base' 'qt5-imageformats' 'ktexteditor' 'kiconthemes' 'breeze-icons' 'xz' 'p7zip')
 provides=('rpfm')
 _programname=('rpfm')
 
 source_x86_64=("$url/releases/download/v${pkgver}/rpfm-v${pkgver}-x86_64-unknown-linux-gnu.tar.zst")
-sha256sums_x86_64=('69d7029270f60a54036607ff6c3de6e8e084786ac8555bae77125010e8b387d9')
+sha256sums_x86_64=('67009033994809aa1f51579036ba78f1bca89928065042086bc8110098192451')
 
 package() {
 
@@ -21,23 +21,26 @@ package() {
     install -D -m755 "$srcdir/usr/bin/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
 
     # The icons.
-    for image in "$srcdir/usr/share/$_programname/icons/."; do
-        install -D -m644 $image "$pkgdir/usr/share/$_programname/icons/"
+    cd "$srcdir/usr/share/$_programname/icons/"
+    for icon in *; do
+        install -D -m644 $icon "$pkgdir/usr/share/$_programname/icons/$icon"
     done
 
     # The language files.
-    for locale in "$srcdir/usr/share/$_programname/locale/."; do
-        install -D -m644 $locale "$pkgdir/usr/share/$_programname/locale/"
+    cd "$srcdir/usr/share/$_programname/locale/"
+    for locale in *; do
+        install -D -m644 $locale "$pkgdir/usr/share/$_programname/locale/$locale"
     done
 
     # The UI files.
-    for ui_template in "$srcdir/usr/share/$_programname/ui/."; do
-        install -D -m644 $ui_template "$pkgdir/usr/share/$_programname/ui/"
+    cd "$srcdir/usr/share/$_programname/ui/"
+    for ui_template in *; do
+        install -D -m644 $ui_template "$pkgdir/usr/share/$_programname/ui/$ui_template"
     done
 
     # Shortcut.
     install -D -m644 "$srcdir/usr/share/applications/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
 
     # License.
-    install -D -m644 "$srcdir/$_programname/usr/share/licenses/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
+    install -D -m644 "$srcdir/usr/share/licenses/$_programname/LICENSE" "$pkgdir/usr/share/licenses/$_programname/LICENSE"
 }
