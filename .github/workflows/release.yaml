@@ -231,14 +231,7 @@ jobs:
 
           7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
-      - name: Get Changelog Entry (Linux)
-        if: matrix.os == 'self-hosted-linux'
-        id: changelog_reader_linux
-        uses: mindsers/changelog-reader-action@v1
-        with:
-          version: Unreleased
-          path: /usr/src/app/_work/rpfm/rpfm/CHANGELOG.md
-
+      # Do this only on windows. This fails on linux builds for some reason.
       - name: Get Changelog Entry (Windows)
         if: matrix.os == 'self-hosted-windows'
         id: changelog_reader_windows
