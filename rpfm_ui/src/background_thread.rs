@@ -1148,40 +1148,50 @@ pub fn background_loop() {
 
             // In case we want to perform a diagnostics check...
             Command::DiagnosticsCheck(diagnostics_ignored) => {
-                info!("Checking diagnostics.");
-                let game_selected = GAME_SELECTED.read().unwrap().clone();
-                let game_path = setting_path(&game_selected.game_key_name());
-                let schema = SCHEMA.read().unwrap().clone();
 
-                let mut diagnostics = Diagnostics::default();
-                *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
-                if let Some(schema) = schema {
-                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
+                // Spawn a separate thread so the UI can keep working.
+                thread::spawn(clone!(
+                    dependencies,
+                    pack_file_decoded => move || {
+                    let game_selected = GAME_SELECTED.read().unwrap().clone();
+                    let game_path = setting_path(&game_selected.game_key_name());
+
+                    let mut diagnostics = Diagnostics::default();
+                    *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
+
+                    if let Some(schema) = &*SCHEMA.read().unwrap() {
+                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
+                        }
+
+                        info!("Checking diagnostics: done.");
                     }
 
-                    info!("Checking diagnostics: done.");
-                }
-
-                CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+                    CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+                }));
             }
 
             Command::DiagnosticsUpdate(mut diagnostics, path_types) => {
-                let game_selected = GAME_SELECTED.read().unwrap().clone();
-                let game_path = setting_path(&game_selected.game_key_name());
-                let schema = SCHEMA.read().unwrap().clone();
 
-                if let Some(schema) = schema {
-                    if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
-                        pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                        diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, &schema);
+                // Spawn a separate thread so the UI can keep working.
+                thread::spawn(clone!(
+                    dependencies,
+                    pack_file_decoded => move || {
+                    let game_selected = GAME_SELECTED.read().unwrap().clone();
+                    let game_path = setting_path(&game_selected.game_key_name());
+
+                    if let Some(schema) = &*SCHEMA.read().unwrap() {
+                        if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
+                            pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &path_types, schema);
+                        }
+
+                        info!("Checking diagnostics (update): done.");
                     }
 
-                    info!("Checking diagnostics (update): done.");
-                }
-
-                CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+                    CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+                }));
             }
 
             // In case we want to get the open PackFile's Settings...
