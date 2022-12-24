@@ -89,8 +89,10 @@ impl FilterViewSlots {
 
         let filter_add = SlotNoArgs::new(&view.main_widget, clone!(
             parent_view => move || {
-            FilterView::new(&parent_view);
-            FilterView::add_filter_group(&parent_view);
+            match FilterView::new(&parent_view) {
+                Ok(_) => FilterView::add_filter_group(&parent_view),
+                Err(_) => show_dialog(&parent_view.table_view, "Error while adding new filters. Realistically, this should never happen.", false),
+            }
         }));
 
         let filter_remove = SlotNoArgs::new(&view.main_widget, clone!(

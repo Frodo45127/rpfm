@@ -25,10 +25,8 @@ use qt_widgets::QGridLayout;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
-use qt_widgets::QMenuBar;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
-use qt_widgets::QStatusBar;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
@@ -122,8 +120,6 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     main_window: QBox<QMainWindow>,
     tab_bar_packed_file: QBox<QTabWidget>,
-    menu_bar: QPtr<QMenuBar>,
-    status_bar: QPtr<QStatusBar>,
     shortcuts: CppBox<QListOfQObject>,
 
     //-------------------------------------------------------------------------------//
@@ -132,11 +128,6 @@ pub struct AppUI {
     menu_bar_packfile: QPtr<QMenu>,
     menu_bar_mymod: QPtr<QMenu>,
     menu_bar_view: QPtr<QMenu>,
-    menu_bar_game_selected: QPtr<QMenu>,
-    menu_bar_special_stuff: QPtr<QMenu>,
-    menu_bar_tools: QPtr<QMenu>,
-    menu_bar_about: QPtr<QMenu>,
-    menu_bar_debug: QPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
     // `PackFile` menu.
@@ -151,7 +142,6 @@ pub struct AppUI {
     packfile_open_from_content: QBox<QMenu>,
     packfile_open_from_data: QBox<QMenu>,
     packfile_open_from_autosave: QBox<QMenu>,
-    packfile_change_packfile_type: QBox<QMenu>,
     packfile_load_all_ca_packfiles: QPtr<QAction>,
     packfile_preferences: QPtr<QAction>,
     packfile_quit: QPtr<QAction>,
@@ -708,8 +698,6 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             main_window,
             tab_bar_packed_file,
-            menu_bar,
-            status_bar,
             shortcuts,
 
             //-------------------------------------------------------------------------------//
@@ -718,11 +706,6 @@ impl AppUI {
             menu_bar_packfile,
             menu_bar_mymod,
             menu_bar_view,
-            menu_bar_game_selected,
-            menu_bar_special_stuff,
-            menu_bar_tools,
-            menu_bar_about,
-            menu_bar_debug,
 
             //-------------------------------------------------------------------------------//
             // "PackFile" menu.
@@ -739,7 +722,6 @@ impl AppUI {
             packfile_open_from_content,
             packfile_open_from_data,
             packfile_open_from_autosave,
-            packfile_change_packfile_type,
             packfile_load_all_ca_packfiles,
             packfile_preferences,
             packfile_quit,
@@ -925,17 +907,15 @@ impl AppUI {
                 *self.disabled_counter.write().unwrap() -= 1;
             }
 
-            if *self.disabled_counter.read().unwrap() == 0 {
-                if !self.main_window().is_enabled() {
-                    self.main_window().set_enabled(true);
-                    if let Some(focus_widget) = &*self.focused_widget.read().unwrap() {
-                        if !focus_widget.is_null() && focus_widget.is_visible() && focus_widget.is_enabled() {
-                            focus_widget.set_focus_0a();
-                        }
+            if *self.disabled_counter.read().unwrap() == 0 && !self.main_window().is_enabled() {
+                self.main_window().set_enabled(true);
+                if let Some(focus_widget) = &*self.focused_widget.read().unwrap() {
+                    if !focus_widget.is_null() && focus_widget.is_visible() && focus_widget.is_enabled() {
+                        focus_widget.set_focus_0a();
                     }
-
-                    *self.focused_widget.write().unwrap() = None;
                 }
+
+                *self.focused_widget.write().unwrap() = None;
             }
         }
 
@@ -1144,12 +1124,12 @@ impl AppUI {
                 QStringList::new()
             };
 
-            let pos = paths.index_of_1a(&QString::from_std_str(&pack_file_paths[0].to_str().unwrap()));
+            let pos = paths.index_of_1a(&QString::from_std_str(pack_file_paths[0].to_str().unwrap()));
             if pos != -1 {
                 paths.remove_at(pos);
             }
 
-            paths.prepend(&QString::from_std_str(&pack_file_paths[0].to_str().unwrap()));
+            paths.prepend(&QString::from_std_str(pack_file_paths[0].to_str().unwrap()));
 
             while paths.count_0a() > 10 {
                 paths.remove_last();
@@ -1359,7 +1339,7 @@ impl AppUI {
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
             file_dialog.set_confirm_overwrite(true);
             file_dialog.set_default_suffix(&QString::from_std_str("pack"));
-            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap_or(OsStr::new("mod.pack")).to_string_lossy()));
+            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
 
             // If we are saving an existing PackFile with another name, we start in his current path.
             if path.is_file() {
@@ -2890,7 +2870,7 @@ impl AppUI {
                     let pathbuf = PathBuf::from(path.to_owned());
                     match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, pathbuf) {
                         Ok(_) => {
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path));
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(path));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                             UI_STATE.set_open_packedfiles().push(tab);
                         }
@@ -3236,7 +3216,7 @@ impl AppUI {
             let response = CentralCommand::recv(&receiver);
             let mut tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
             tables.sort();
-            tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
+            tables.iter().for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(x)));
             table_filter.set_source_model(&table_model);
             table_dropdown.set_model(&table_filter);
 
@@ -3503,9 +3483,6 @@ impl AppUI {
         rebuild_dependencies: bool
     ) {
 
-        // Check if the window was previously disabled, to know if we can enable/disable it here, or will the parent function take care of it.
-        let was_window_disabled = !app_ui.main_window.is_enabled();
-
         // Optimization: get this before starting the entire game change. Otherwise, we'll hang the thread near the end.
         // Mutable because we reuse this variable to store the other receiver we need to generate down below.
         let mut receiver = CENTRAL_COMMAND.send_background(Command::GetPackFilePath);
@@ -3707,7 +3684,7 @@ impl AppUI {
                     mod_name.pop();
 
                     let mut assets_folder = mymods_base_path;
-                    assets_folder.push(&game_folder_name);
+                    assets_folder.push(game_folder_name);
                     assets_folder.push(&mod_name);
 
                     // Get the Paths of the files inside the folders we want to add.

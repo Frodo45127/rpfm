@@ -116,7 +116,7 @@ pub fn background_loop() {
                         // Force decoding of table/locs, so they're in memory for the diagnostics to work.
                         if let Some(ref schema) = *SCHEMA.read().unwrap() {
                             let mut decode_extra_data = DecodeableExtraData::default();
-                            decode_extra_data.set_schema(Some(&schema));
+                            decode_extra_data.set_schema(Some(schema));
                             let extra_data = Some(decode_extra_data);
 
                             let mut files = pack_file_decoded.files_by_type_mut(&[FileType::DB, FileType::Loc]);
@@ -269,7 +269,7 @@ pub fn background_loop() {
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
 
                     // Decode the dependencies tables while the UI does its own thing.
-                    dependencies.write().unwrap().decode_tables(&*SCHEMA.read().unwrap());
+                    dependencies.write().unwrap().decode_tables(&SCHEMA.read().unwrap());
                 }
 
                 // Branch 2: no dependecies rebuild.
@@ -304,7 +304,7 @@ pub fn background_loop() {
                             let dependencies_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                             match cache.save(&dependencies_path) {
                                 Ok(_) => {
-                                    let _ = dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
+                                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&dependencies_path), &game_selected, &game_path);
                                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                                 },
@@ -1085,7 +1085,7 @@ pub fn background_loop() {
                                         let game_path = setting_path(&game.game_key_name());
                                         let dependencies_file_path = dependencies_cache_path().unwrap().join(game.dependencies_cache_file_name());
 
-                                        match dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
+                                        match dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), Some(&*dependencies_file_path), &game, &game_path) {
                                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                                             Err(_) => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))),
                                         }
@@ -1706,15 +1706,15 @@ pub fn background_loop() {
                             sublime_config_path.push(format!("{}.sublime-project", mymod_path.file_name().unwrap().to_string_lossy()));
                             if let Ok(file) = File::create(sublime_config_path) {
                                 let mut file = BufWriter::new(file);
-                                let _ = file.write_all(format!("
-{{
+                                let _ = file.write_all("
+{
     \"folders\":
     [
-        {{
+        {
             \"path\": \".\"
-        }}
+        }
     ]
-}}").as_bytes());
+}".to_string().as_bytes());
                             }
                         }
 
@@ -1792,5 +1792,5 @@ fn load_schemas(sender: &Sender<Response>, pack: &mut Pack, game: &GameInfo) {
 
     // Send a response, so the UI continues working while we finish things here.
     info!("Sending success after game selected change.");
-    CentralCommand::send_back(&sender, Response::Success);
+    CentralCommand::send_back(sender, Response::Success);
 }

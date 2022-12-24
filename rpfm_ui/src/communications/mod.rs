@@ -26,7 +26,7 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 
-use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, FileType, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant};
+use rpfm_lib::files::{anim_fragment::AnimFragment, anims_table::AnimsTable, ContainerPath, video::SupportedFormats, db::DB, esf::ESF, image::Image, loc::Loc, matched_combat::MatchedCombat, pack::PackSettings, RFile, RFileDecoded, rigidmodel::RigidModel, text::Text, uic::UIC};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::{git::GitResponse, log::info};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
@@ -35,7 +35,6 @@ use crate::app_ui::NewPackedFile;
 use crate::backend::*;
 use crate::packedfile_views::DataSource;
 use crate::updater::APIResponse;
-use crate::views::table::TableType;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
@@ -202,8 +201,8 @@ pub enum Command {
     /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
     GetTableVersionFromDependencyPackFile(String),
 
-    /// This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
-    GetTableDefinitionFromDependencyPackFile(String),
+    // This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
+    //GetTableDefinitionFromDependencyPackFile(String),
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
@@ -222,7 +221,7 @@ pub enum Command {
 
     /// This command is used when we want to add entire folders to the PackFile. It contains their path in disk and their starting path in the PackFile,
     /// the list of paths to ignore, if any, and if any tsv found should be imported as tables.
-    AddPackedFilesFromFolder(Vec<(PathBuf, String)>, Option<Vec<PathBuf>>, bool),
+    //AddPackedFilesFromFolder(Vec<(PathBuf, String)>, Option<Vec<PathBuf>>, bool),
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
     /// It requires the table name, the definition of the table to get the reference data from and the list of PackedFiles to ignore.
@@ -304,7 +303,7 @@ pub enum Command {
     SearchReferences(HashMap<String, Vec<String>>, String),
 
     /// This command is used to get the type of a File.
-    GetFileType(String),
+    //GetFileType(String),
 
     /// This command is used to get the name of the currently open PackFile.
     GetPackFileName,
@@ -319,16 +318,16 @@ pub enum Command {
     SavePackedFilesToPackFileAndClean(Vec<RFile>),
 
     /// This command is used to get all the file names under a path in all dependencies.
-    GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
+    //GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
     /// This command is used to request all tips under a path, no matter their source.
-    GetTipsForPath(Vec<String>),
+    //GetTipsForPath(Vec<String>),
 
     // This command is used to add a tip to the list of local tips.
     //AddTipToLocalTips(Tip),
 
     /// This command is used to delete a tip with an specific id.
-    DeleteTipById(u64),
+    //DeleteTipById(u64),
 
     /// This command is used to check if there are message updates available.
     CheckMessageUpdates,
@@ -337,7 +336,7 @@ pub enum Command {
     UpdateMessages,
 
     /// This command is used to publish a tip to github.
-    PublishTipById(u64),
+    //PublishTipById(u64),
 
     /// This command is used to upload a schema patch.
     UploadSchemaPatch(String, HashMap<String, DefinitionPatch>),
@@ -399,7 +398,7 @@ pub enum Response {
     GlobalSearchVecRFileInfo(GlobalSearch, Vec<RFileInfo>),
 
     /// Response to return (Vec<Vec<String>>).
-    VecVecString(Vec<Vec<String>>),
+    //VecVecString(Vec<Vec<String>>),
 
     // Response to return (Vec<ContainerPath>).
     VecContainerPath(Vec<ContainerPath>),
@@ -408,7 +407,7 @@ pub enum Response {
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
 
     /// Response to return (String, Vec<Vec<String>>).
-    StringVecVecString((String, Vec<Vec<String>>)),
+    //StringVecVecString((String, Vec<Vec<String>>)),
 
     /// Response to return `APIResponse`.
     APIResponse(APIResponse),
@@ -452,7 +451,7 @@ pub enum Response {
     /// Response to return `(UIC, RFileInfo)`.
     UICRFileInfo(UIC, RFileInfo),
 
-    UnitVariantRFileInfo(UnitVariant, RFileInfo),
+    //UnitVariantRFileInfo(UnitVariant, RFileInfo),
 
     /// Response to return `(DecodedPackedFile, RFileInfo)`. For debug views.
     RFileDecodedRFileInfo(RFileDecoded, RFileInfo),
@@ -464,7 +463,7 @@ pub enum Response {
     Unknown,
 
     /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
-    VecStringVecString(Vec<String>, Vec<String>),
+    //VecStringVecString(Vec<String>, Vec<String>),
     VecContainerPathHashSetString(Vec<ContainerPath>, HashSet<String>),
 
     /// Response to return `Vec<String>`.
@@ -480,7 +479,7 @@ pub enum Response {
     OptionRFile(Option<RFile>),
 
     /// Response to return `TableType`.
-    TableType(TableType),
+    //TableType(TableType),
 
     /// Response to return `PackFileSettings`.
     PackSettings(PackSettings),
@@ -498,7 +497,7 @@ pub enum Response {
     OptionStringStringString(Option<(String, String, String)>),
 
     /// Response to return `FileType`.
-    FileType(FileType),
+    //FileType(FileType),
 
     /// Response to return `Vec<u8>`.
     VecU8(Vec<u8>),
@@ -510,13 +509,13 @@ pub enum Response {
 
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
+    //HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     Diagnostics(Diagnostics),
     //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
-    Definition(Definition),
+    //Definition(Definition),
     //VecTipVecTip(Vec<Tip>, Vec<Tip>),
     HashSetString(HashSet<String>),
-    StringHashSetString(String, HashSet<String>),
+    //StringHashSetString(String, HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>)
 }

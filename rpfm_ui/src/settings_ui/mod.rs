@@ -74,17 +74,12 @@ pub struct SettingsUI {
     // `Dialog` window.
     //-------------------------------------------------------------------------------//
     dialog: QBox<QDialog>,
-    tab_widget: QBox<QTabWidget>,
-    paths_tab: QBox<QWidget>,
-    settings_tab: QBox<QWidget>,
 
     //-------------------------------------------------------------------------------//
     // `Path` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    paths_zip_label: QBox<QLabel>,
     paths_zip_line_edit: QBox<QLineEdit>,
     paths_zip_button: QBox<QPushButton>,
-    paths_mymod_label: QBox<QLabel>,
     paths_mymod_line_edit: QBox<QLineEdit>,
     paths_mymod_button: QBox<QPushButton>,
 
@@ -99,15 +94,9 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     // `General` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
-    general_language_label: QBox<QLabel>,
-    extra_global_default_game_label: QBox<QLabel>,
-    extra_network_update_channel_label: QBox<QLabel>,
-    extra_packfile_autosave_interval_label: QBox<QLabel>,
     extra_packfile_autosave_amount_label: QBox<QLabel>,
     extra_network_check_updates_on_start_label: QBox<QLabel>,
     extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
-    extra_network_check_message_updates_on_start_label: QBox<QLabel>,
-    extra_network_check_lua_autogen_updates_on_start_label: QBox<QLabel>,
     extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
     extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
     extra_packfile_use_lazy_loading_label: QBox<QLabel>,
@@ -115,8 +104,6 @@ pub struct SettingsUI {
     extra_packfile_disable_file_previews_label: QBox<QLabel>,
     ui_global_use_dark_theme_label: QBox<QLabel>,
     ui_window_start_maximized_label: QBox<QLabel>,
-    ui_window_hide_background_icon_label: QBox<QLabel>,
-    general_packfile_treeview_resize_to_fit_label: QBox<QLabel>,
     general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
 
     general_language_combobox: QBox<QComboBox>,
@@ -146,8 +133,6 @@ pub struct SettingsUI {
     ui_table_disable_combos_label: QBox<QLabel>,
     ui_table_extend_last_column_label: QBox<QLabel>,
     ui_table_tight_table_mode_label: QBox<QLabel>,
-    ui_table_resize_on_edit_label: QBox<QLabel>,
-    ui_table_use_old_column_order_label: QBox<QLabel>,
     ui_table_use_right_size_markers_label: QBox<QLabel>,
 
     ui_table_adjust_columns_to_content_checkbox: QBox<QCheckBox>,
@@ -157,12 +142,6 @@ pub struct SettingsUI {
     ui_table_resize_on_edit_checkbox: QBox<QCheckBox>,
     ui_table_use_old_column_order_checkbox: QBox<QCheckBox>,
     ui_table_use_right_size_markers_checkbox: QBox<QCheckBox>,
-
-    ui_table_colour_table_added_label: QBox<QLabel>,
-    ui_table_colour_table_modified_label: QBox<QLabel>,
-    ui_table_colour_diagnostic_error_label: QBox<QLabel>,
-    ui_table_colour_diagnostic_warning_label: QBox<QLabel>,
-    ui_table_colour_diagnostic_info_label: QBox<QLabel>,
 
     ui_table_colour_light_table_added_button: QBox<QPushButton>,
     ui_table_colour_light_table_modified_button: QBox<QPushButton>,
@@ -180,7 +159,6 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     debug_check_for_missing_table_definitions_label: QBox<QLabel>,
     debug_check_for_missing_table_definitions_checkbox: QBox<QCheckBox>,
-    debug_enable_debug_menu_label: QBox<QLabel>,
     debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
     debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
     debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
@@ -209,11 +187,6 @@ pub struct SettingsUI {
 
     diagnostics_diagnostics_trigger_on_open_checkbox: QBox<QCheckBox>,
     diagnostics_diagnostics_trigger_on_table_edit_checkbox: QBox<QCheckBox>,
-
-    //-------------------------------------------------------------------------------//
-    // `Warning` section of the `Settings` dialog.
-    //-------------------------------------------------------------------------------//
-    warning_message: QBox<QLabel>,
 
     //-------------------------------------------------------------------------------//
     // `ButtonBox` section of the `Settings` dialog.
@@ -401,7 +374,7 @@ impl SettingsUI {
         let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
         extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
         for game in SUPPORTED_GAMES.games().iter() {
-            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name()));
+            extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(game.display_name()));
         }
 
         // Update channel combo.
@@ -769,17 +742,11 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             dialog,
 
-            tab_widget,
-            paths_tab,
-            settings_tab,
-
             //-------------------------------------------------------------------------------//
             // `Path` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
-            paths_zip_label,
             paths_zip_line_edit,
             paths_zip_button,
-            paths_mymod_label,
             paths_mymod_line_edit,
             paths_mymod_button,
             paths_spoilers,
@@ -791,15 +758,9 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `General` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
-            general_language_label,
-            extra_global_default_game_label,
-            extra_network_update_channel_label,
             extra_packfile_autosave_amount_label,
-            extra_packfile_autosave_interval_label,
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
-            extra_network_check_message_updates_on_start_label,
-            extra_network_check_lua_autogen_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
             extra_packfile_optimize_not_renamed_packedfiles_label,
             extra_packfile_use_lazy_loading_label,
@@ -807,8 +768,6 @@ impl SettingsUI {
             extra_packfile_disable_file_previews_label,
             ui_global_use_dark_theme_label,
             ui_window_start_maximized_label,
-            ui_window_hide_background_icon_label,
-            general_packfile_treeview_resize_to_fit_label,
             general_packfile_treeview_expand_treeview_when_adding_items_label,
 
             general_language_combobox,
@@ -838,8 +797,6 @@ impl SettingsUI {
             ui_table_disable_combos_label,
             ui_table_extend_last_column_label,
             ui_table_tight_table_mode_label,
-            ui_table_resize_on_edit_label,
-            ui_table_use_old_column_order_label,
             ui_table_use_right_size_markers_label,
 
             ui_table_adjust_columns_to_content_checkbox,
@@ -849,12 +806,6 @@ impl SettingsUI {
             ui_table_resize_on_edit_checkbox,
             ui_table_use_old_column_order_checkbox,
             ui_table_use_right_size_markers_checkbox,
-
-            ui_table_colour_table_added_label,
-            ui_table_colour_table_modified_label,
-            ui_table_colour_diagnostic_error_label,
-            ui_table_colour_diagnostic_warning_label,
-            ui_table_colour_diagnostic_info_label,
 
             ui_table_colour_light_table_added_button,
             ui_table_colour_light_table_modified_button,
@@ -872,7 +823,6 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             debug_check_for_missing_table_definitions_label,
             debug_check_for_missing_table_definitions_checkbox,
-            debug_enable_debug_menu_label,
             debug_enable_debug_menu_checkbox,
             debug_spoof_ca_authoring_tool_label,
             debug_spoof_ca_authoring_tool_checkbox,
@@ -901,11 +851,6 @@ impl SettingsUI {
 
             diagnostics_diagnostics_trigger_on_open_checkbox,
             diagnostics_diagnostics_trigger_on_table_edit_checkbox,
-
-            //-------------------------------------------------------------------------------//
-            // `Warning` section of the `Settings` dialog.
-            //-------------------------------------------------------------------------------//
-            warning_message,
 
             //-------------------------------------------------------------------------------//
             // `ButtonBox` section of the `Settings` dialog.

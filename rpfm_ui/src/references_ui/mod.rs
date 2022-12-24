@@ -75,7 +75,6 @@ pub struct ReferencesUI {
     //-------------------------------------------------------------------------------//
     references_dock_widget: QPtr<QDockWidget>,
     references_table_view: QPtr<QTableView>,
-    references_table_filter: QBox<QSortFilterProxyModel>,
     references_table_model: QBox<QStandardItemModel>,
 }
 
@@ -118,7 +117,6 @@ impl ReferencesUI {
             //-------------------------------------------------------------------------------//
             references_dock_widget,
             references_table_view,
-            references_table_filter,
             references_table_model,
         })
     }

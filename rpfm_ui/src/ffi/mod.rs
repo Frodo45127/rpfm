@@ -31,7 +31,6 @@ use qt_gui::QStandardItemModel;
 #[cfg(any(feature = "support_rigidmodel", feature = "support_modern_dds"))]
 use qt_core::QByteArray;
 
-use qt_core::QAbstractItemModel;
 use qt_core::QBox;
 use qt_core::QListOfQObject;
 use qt_core::QObject;

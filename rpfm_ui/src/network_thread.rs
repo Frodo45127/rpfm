@@ -14,7 +14,6 @@ Module with the network loop.
 Basically, this does the network checks of the program.
 !*/
 
-use anyhow::anyhow;
 use crossbeam::channel::Sender;
 
 use std::path::PathBuf;
@@ -22,6 +21,7 @@ use std::path::PathBuf;
 use rpfm_lib::integrations::{git::*, log::*};
 use rpfm_lib::games::{LUA_REPO, LUA_REMOTE, LUA_BRANCH};
 use rpfm_lib::schema::*;
+use rpfm_lib::tips::{TIPS_REPO, REMOTE as TIPS_REMOTE, MASTER as TIPS_BRANCH};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -54,7 +54,7 @@ pub fn network_loop() {
             Command::CheckUpdates => {
                 match updater::check_updates_rpfm() {
                     Ok(response) => CentralCommand::send_back(&sender, Response::APIResponse(response)),
-                    Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
 
@@ -74,12 +74,16 @@ pub fn network_loop() {
 
             // When we want to check if there is a message update available...
             Command::CheckMessageUpdates => {
-                CentralCommand::send_back(&sender, Response::Error(anyhow!("Not yet supported.")));
-                /*
-                match Tips::check_update() {
-                    Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseTips(response)),
+                match remote_tips_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, TIPS_REPO, TIPS_BRANCH, TIPS_REMOTE);
+                        match git_integration.check_update() {
+                            Ok(response) => CentralCommand::send_back(&sender, Response::APIResponseGit(response)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    }
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                }*/
+                }
             }
 
             // When we want to check if there is a lua setup update available...

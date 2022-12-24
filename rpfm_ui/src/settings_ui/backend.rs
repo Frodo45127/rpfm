@@ -30,6 +30,7 @@ use std::path::{Path, PathBuf};
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::schema::SCHEMA_FOLDER;
+use rpfm_lib::tips::TIPS_REMOTE_FOLDER;
 
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
@@ -338,9 +339,9 @@ pub fn lua_autogen_game_path(game: &GameInfo) -> Result<PathBuf> {
 }
 
 /// This function returns the remote tips path.
-//pub fn remote_tips_path() -> Result<PathBuf> {
-//    Ok(config_path()?.join(TIPS_REMOTE_FOLDER))
-//}
+pub fn remote_tips_path() -> Result<PathBuf> {
+    Ok(config_path()?.join(TIPS_REMOTE_FOLDER))
+}
 
 /// This function returns the autosave path.
 pub fn backup_autosave_path() -> Result<PathBuf> {
