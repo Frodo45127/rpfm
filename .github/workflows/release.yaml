@@ -388,26 +388,15 @@ jobs:
         with:
           commit_message: Update PKGBUILD for latest release.
 
-# It should work up to this point.
-#      - name: Publish pretty-exec to the AUR
-#        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
-#        with:
-#          pkgname: pretty-exec
-#          pkgbuild: ./pkgbuild/pretty-exec/PKGBUILD
-#          commit_username: ${{ secrets.AUR_USERNAME }}
-#          commit_email: ${{ secrets.AUR_EMAIL }}
-#          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-#          commit_message: ${{ needs.create_release.outputs.release_tag }}
-#
-#      - name: Publish pretty-exec-bin to the AUR
-#        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
-#        with:
-#          pkgname: pretty-exec-bin
-#          pkgbuild: ./pkgbuild/pretty-exec-bin/PKGBUILD
-#          commit_username: ${{ secrets.AUR_USERNAME }}
-#          commit_email: ${{ secrets.AUR_EMAIL }}
-#          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-#          commit_message: ${{ needs.create_release.outputs.release_tag }}
+      - name: Publish rpfm-bin to the AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v2.0.4
+        with:
+          pkgname: rpfm-bin
+          pkgbuild: ./install/arch/rpfm/PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: ${{ github.ref }}
 #
 #  publish_cargo_crate:
 #    name: Publish Cargo crate
