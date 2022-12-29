@@ -444,10 +444,10 @@ impl PackFileContentsSlots {
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = mymods_base_path.to_path_buf();
-                            assets_folder.push(&game_folder_name);
-                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
-                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+                            let mut assets_folder = mymods_base_path;
+                            assets_folder.push(game_folder_name);
+                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref());
+                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy()));
 
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
@@ -548,10 +548,10 @@ impl PackFileContentsSlots {
                         if mymods_base_path.is_dir() {
 
                             // We get the assets folder of our mod (without .pack extension).
-                            let mut assets_folder = mymods_base_path.to_path_buf();
-                            assets_folder.push(&game_folder_name);
-                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
-                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+                            let mut assets_folder = mymods_base_path;
+                            assets_folder.push(game_folder_name);
+                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref());
+                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy()));
 
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() {
