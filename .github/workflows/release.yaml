@@ -277,8 +277,22 @@ jobs:
           version: Unreleased
           path: ./Changelog.md
 
-      - name: Create Release
+      - name: Check Version Format in Tag
+        id: check_version_format
+        uses: nowsprinting/check-version-format-action@v3.2.4
+
+      - name: Check the release type
+        id: check_version_format_bash
+        run: |
+          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+            echo "is_beta=1" >> $GITHUB_OUTPUT
+          else
+            echo "is_beta=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release (beta)
         id: create_release
+        if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 1
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
@@ -288,6 +302,25 @@ jobs:
           body: ${{ steps.changelog_reader.outputs.log_entry }}
           draft: true
           prerelease: true
+
+      - name: Create Release (stable)
+        id: create_release
+        if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 0
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            [![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
+
+            ${{ steps.changelog_reader.outputs.log_entry }}
+
+
+            [Patreon]: https://www.patreon.com/RPFM
+          draft: true
+          prerelease: false
 
   upload_release_assets:
     name: Upload Release Assets
