@@ -299,7 +299,7 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release beta ${{ github.ref }}
-          body: ${{ steps.changelog_reader.outputs.log_entry }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
           draft: true
           prerelease: true
 
@@ -315,7 +315,7 @@ jobs:
           body: |
             [![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
 
-            ${{ steps.changelog_reader.outputs.log_entry }}
+            ${{ steps.changelog_reader.outputs.changes }}
 
 
             [Patreon]: https://www.patreon.com/RPFM
