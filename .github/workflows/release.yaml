@@ -270,6 +270,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Test
+        run: |
+          ls -la
+
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
