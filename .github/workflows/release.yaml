@@ -236,21 +236,21 @@ jobs:
 #
 #          7z a rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 #
-#      - name: Upload build artifact (Linux)
-#        id: upload-release-asset-linux
-#        if: matrix.os == 'self-hosted-linux'
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-#          path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+      - name: Upload build artifact (Linux)
+        id: upload-release-asset-linux
+        if: matrix.os == 'self-hosted-linux'
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
-#      - name: Upload build artifact (Windows)
-#        id: upload-release-asset-windows
-#        if: matrix.os == 'self-hosted-windows'
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-#          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+      - name: Upload build artifact (Windows)
+        id: upload-release-asset-windows
+        if: matrix.os == 'self-hosted-windows'
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
   create_release:
     name: Create Release
@@ -360,95 +360,75 @@ jobs:
           asset_name: ${{ needs.build.outputs.windows_artifacts }}
           asset_content_type: application/tar+zstd
 
-#  upload_checksums:
-#    name: Upload Checksums
+  upload_checksums:
+    name: Upload Checksums
+
+    needs:
+      - build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2.0.5
+        with:
+          path: ./downloads
+
+      - name: Generate Release Hashes
+        uses: MCJack123/ghaction-Generate-Release-Hashes@v4
+        with:
+          hash-type: sha256
+          file-name: sha256sum.txt
+
+      - name: Upload as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: checksums
+          path: sha256sum.txt
+
+      - name: Release sha256sum
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./sha256sum.txt
+          asset_name: sha256sum.txt
+          asset_content_type: text/plain
+
+  publish_aur_package:
+    name: Publish AUR package
+
+    needs:
+      - build
+      - create_release
+      - upload_checksums
+      - upload_release_assets
+
+    if: needs.create_release.outputs.is_beta == 0
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download checksums
+        uses: actions/download-artifact@v2.0.5
+        with:
+          name: checksums
+          path: ./checksums
+
+#      - name: Update PKGBUILD's sha256
+#        shell: bash
+#        run: |
 #
-#    needs:
-#      - build
-#      - create_release
-#
-#    if: needs.create_release.outputs.is_release == 'true'
-#
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Download all artifacts
-#        uses: actions/download-artifact@v2.0.5
-#        with:
-#          path: ./downloads
-#
-#      - name: Flatten directory
-#        run: ./ci/github-actions/expose-release-artifacts.sh
-#
-#      - name: Create checksums
-#        run: ./ci/github-actions/create-checksums.sh
-#
-#      - name: Upload as artifacts
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: checksums
-#          path: sha*sum.txt
-#
-#      - name: Release sha1sum
-#        uses: actions/upload-release-asset@v1.0.2
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ needs.create_release.outputs.upload_url }}
-#          asset_path: ./sha1sum.txt
-#          asset_name: sha1sum.txt
-#          asset_content_type: text/plain
-#
-#      - name: Release sha256sum
-#        uses: actions/upload-release-asset@v1.0.2
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ needs.create_release.outputs.upload_url }}
-#          asset_path: ./sha256sum.txt
-#          asset_name: sha256sum.txt
-#          asset_content_type: text/plain
-#
-#      - name: Release sha512sum
-#        uses: actions/upload-release-asset@v1.0.2
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ needs.create_release.outputs.upload_url }}
-#          asset_path: ./sha512sum.txt
-#          asset_name: sha512sum.txt
-#          asset_content_type: text/plain
-#
-#  publish_aur_package:
-#    name: Publish AUR package
-#
-#    needs:
-#      - create_release
-#      - test
-#      - build_linux
-#      - upload_release_assets
-#
-#    if: needs.create_release.outputs.release_type == 'official'
-#
-#    runs-on: ubuntu-latest
-#
-#    strategy:
-#      fail-fast: true
-#      matrix:
-#        target:
-#          - x86_64-unknown-linux-gnu
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#
-#      - name: Download checksums
-#        uses: actions/download-artifact@v2.0.5
-#        with:
-#          name: checksums
-#          path: ./checksums
-#
+#          if [[ ${{ steps.check_version_format.outputs.patch }} -gt 99 ]]; then
+#            echo "is_beta=1" >> $GITHUB_OUTPUT
+#          else
+#            echo "is_beta=0" >> $GITHUB_OUTPUT
+#          fi
 #      - name: Generate PKGBUILD
 #        env:
 #          TARGET: ${{ matrix.target }}
