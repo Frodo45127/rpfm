@@ -290,12 +290,9 @@ jobs:
             echo "is_beta=0" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get color
-        run: echo "The selected color is ${{ steps.check_version_format_bash.outputs.is_beta }}"
-
       - name: Create Release (beta)
         id: create_release_beta
-        if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 1
+        if: steps.check_version_format_bash.outputs.is_beta == 1
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
@@ -308,7 +305,7 @@ jobs:
 
       - name: Create Release (stable)
         id: create_release_stable
-        if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 0
+        if: steps.check_version_format_bash.outputs.is_beta == 0
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
