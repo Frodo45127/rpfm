@@ -244,13 +244,13 @@ jobs:
 #          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 #          path: /usr/src/app/_work/rpfm/rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
-      - name: Upload build artifact (Windows)
-        id: upload-release-asset-windows
-        if: matrix.os == 'self-hosted-windows'
-        uses: actions/upload-artifact@v2
-        with:
-          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
-          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+#      - name: Upload build artifact (Windows)
+#        id: upload-release-asset-windows
+#        if: matrix.os == 'self-hosted-windows'
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: rpfm-${{ steps.get_version.outputs.version }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+#          path: ${{ matrix.DDISK }}:/deploy/rpfm-release-assets/rpfm-${{ github.ref }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
 
   create_release:
     name: Create Release
@@ -275,7 +275,7 @@ jobs:
         uses: mindsers/changelog-reader-action@v1
         with:
           version: Unreleased
-          path: ./rpfm/CHANGELOG.md
+          path: /usr/src/app/_work/rpfm/rpfm/CHANGELOG.md
 
       - name: Create Release
         id: create_release
