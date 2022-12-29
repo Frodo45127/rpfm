@@ -172,6 +172,9 @@ pub trait PackTree {
     /// This function removes the item under the provided path and returns it, removing it from the tree.
     unsafe fn take_row_from_path(path: &ContainerPath, model: &QPtr<QStandardItemModel>) -> Ptr<QListOfQStandardItem>;
 
+    /// This function returns the currently visible children of the given parent, and adds them as `ContainerPath`s to the provided list.
+    unsafe fn visible_children_of_item(&self, parent: &QStandardItem, visible_paths: &mut Vec<ContainerPath>);
+
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
     ///
@@ -526,13 +529,32 @@ impl PackTree for QPtr<QTreeView> {
             match item_type {
                  ContainerPath::File(_) => item_types.push(item_type.clone()),
                  ContainerPath::Folder(_) => {
-                    let item = <QPtr<QTreeView> as PackTree>::item_from_path(item_type, &model);
-                    get_visible_children_of_item(&item, self, &filter, &model, &mut item_types);
+                    let item = Self::item_from_path(item_type, &model);
+                    self.visible_children_of_item(&item, &mut item_types);
                  }
             }
         }
 
         item_types
+    }
+
+    unsafe fn visible_children_of_item(&self, parent: &QStandardItem, visible_paths: &mut Vec<ContainerPath>) {
+        let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
+        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+
+        for row in 0..parent.row_count() {
+            let child = parent.child_1a(row);
+            let child_index = child.index();
+            let filtered_index = filter.map_from_source(&child_index);
+            if filtered_index.is_valid() {
+                if child.has_children() {
+                    self.visible_children_of_item(&child, visible_paths);
+                }
+                else {
+                    visible_paths.push(Self::get_type_from_item(child, &model));
+                }
+            }
+        }
     }
 
     unsafe fn get_item_types_and_data_source_from_selection(&self, has_filter: bool) -> Vec<(ContainerPath, DataSource)> {
@@ -1613,22 +1635,7 @@ unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItem
     }
 }
 
-/// This function returns the currently visible children of the given parent, and add them as `ContainerPath`s to the provided list.
-unsafe fn get_visible_children_of_item(parent: &QStandardItem, tree_view: &QTreeView, filter: &QSortFilterProxyModel, model: &QPtr<QStandardItemModel>, item_types: &mut Vec<ContainerPath>) {
-    for row in 0..parent.row_count() {
-        let child = parent.child_1a(row);
-        let child_index = child.index();
-        let filtered_index = filter.map_from_source(&child_index);
-        if filtered_index.is_valid() {
-            if child.has_children() {
-                get_visible_children_of_item(&child, tree_view, filter, model, item_types);
-            }
-            else {
-                item_types.push(<QPtr<QTreeView> as PackTree>::get_type_from_item(child, model));
-            }
-        }
-    }
-}
+
 
 /// This function sorts items in a TreeView following this order:
 /// - AFolder.
