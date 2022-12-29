@@ -261,11 +261,10 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_type: ${{ steps.release_type.outputs.release_type }}
-      is_release: ${{ steps.release_type.outputs.is_release }}
-      is_prerelease: ${{ steps.release_type.outputs.is_prerelease }}
-      release_tag: ${{ steps.release_type.outputs.release_tag }}
+
+      # Concatenated because it's either one or the other.
+      upload_url: ${{ steps.create_release_beta.outputs.upload_url }}${{ steps.create_release_stable.outputs.upload_url }}
+      is_beta: ${{ steps.check_version_format_bash.outputs.is_beta }}
 
     steps:
       - uses: actions/checkout@v2
@@ -291,7 +290,7 @@ jobs:
           fi
 
       - name: Create Release (beta)
-        id: create_release
+        id: create_release_beta
         if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 1
         uses: actions/create-release@v1
         env:
@@ -304,7 +303,7 @@ jobs:
           prerelease: true
 
       - name: Create Release (stable)
-        id: create_release
+        id: create_release_stable
         if: ${{ steps.check_version_format_bash.outputs.is_beta }} == 0
         uses: actions/create-release@v1
         env:
