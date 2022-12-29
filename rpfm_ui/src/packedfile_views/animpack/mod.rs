@@ -63,6 +63,8 @@ const VIEW_RELEASE: &str = "ui/filterable_tree_widget.ui";
 #[getset(get = "pub")]
 pub struct PackedFileAnimPackView {
     path: Arc<RwLock<String>>,
+    #[getset(skip)]
+    data_source: Arc<RwLock<DataSource>>,
 
     pack_tree_view: QPtr<QTreeView>,
     pack_tree_model_filter: QBox<QSortFilterProxyModel>,
@@ -107,8 +109,8 @@ impl PackedFileAnimPackView {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget_left = load_template(packed_file_view.get_mut_widget(), &template_path)?;
-        let main_widget_right = load_template(packed_file_view.get_mut_widget(), &template_path)?;
+        let main_widget_left = load_template(packed_file_view.get_mut_widget(), template_path)?;
+        let main_widget_right = load_template(packed_file_view.get_mut_widget(), template_path)?;
 
         let pack_tree_view: QPtr<QTreeView> = find_widget(&main_widget_left.static_upcast(), "tree_view")?;
         let pack_filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget_left.static_upcast(), "filter_line_edit")?;
@@ -172,6 +174,7 @@ impl PackedFileAnimPackView {
 
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
             path: packed_file_view.get_path_raw(),
+            data_source: packed_file_view.data_source.clone(),
 
             pack_tree_view,
             pack_tree_model_filter,

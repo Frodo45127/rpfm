@@ -74,6 +74,11 @@ impl PackedFileAnimPackViewSlots {
             pack_file_contents_ui,
             view => move |_| {
 
+                // Do not add files to the animpack if its not in our own Pack.
+                if *view.data_source.read().unwrap() != DataSource::PackFile {
+                    return;
+                }
+
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.pack_tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
@@ -117,6 +122,11 @@ impl PackedFileAnimPackViewSlots {
             pack_file_contents_ui,
             view => move |_| {
 
+                // Do not import if we don't have an open pack.
+                if view.pack_tree_model_filter().source_model().row_count_0a() == 0 {
+                    return;
+                }
+
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();
                 if selection_file_to_move.count_0a() == 1 {
@@ -124,7 +134,7 @@ impl PackedFileAnimPackViewSlots {
 
                     // Ask the Background Thread to copy the files, and send him the path.
                     app_ui.toggle_main_window(false);
-                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(DataSource::PackFile, view.path().read().unwrap().to_owned(), item_types));
+                    let receiver = CENTRAL_COMMAND.send_background(Command::AddPackedFilesFromAnimpack(*view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPath(paths_ok) => {
@@ -137,7 +147,7 @@ impl PackedFileAnimPackViewSlots {
                             // Reload all the views belonging to overwritten files.
                             for packed_file_view in UI_STATE.set_open_packedfiles().iter_mut() {
                                 for path_ok in &paths_ok {
-                                    if path_ok.path_raw() == &packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
+                                    if path_ok.path_raw() == packed_file_view.get_path() && packed_file_view.get_data_source() == DataSource::PackFile {
                                         let _ = packed_file_view.reload(path_ok.path_raw(), &pack_file_contents_ui);
                                     }
                                 }

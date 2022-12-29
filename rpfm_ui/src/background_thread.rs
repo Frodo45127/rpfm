@@ -560,7 +560,16 @@ pub fn background_loop() {
 
             // In case we want to move stuff from an Animpack to our PackFile...
             Command::AddPackedFilesFromAnimpack(data_source, anim_pack_path, paths) => {
-                let files = match pack_file_decoded.files_mut().get_mut(&anim_pack_path) {
+                let mut dependencies = dependencies.write().unwrap();
+                let anim_pack_file = match data_source {
+                    DataSource::PackFile => pack_file_decoded.files_mut().get_mut(&anim_pack_path),
+                    DataSource::GameFiles => dependencies.file_mut(&anim_pack_path, true, false).ok(),
+                    DataSource::ParentFiles => dependencies.file_mut(&anim_pack_path, false, true).ok(),
+                    DataSource::AssKitFiles |
+                    DataSource::ExternalFile => unreachable!(),
+                };
+
+                let files = match anim_pack_file {
                     Some(file) => {
 
                         // Try to decode it using lazy_load if enabled.
