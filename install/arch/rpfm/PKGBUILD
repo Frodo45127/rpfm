@@ -1,6 +1,6 @@
-# Maintainer: Frodo45127 <frodo_gv@hotmail.com>
+# Maintainer: Ismael Gutiérrez González <frodo_gv@hotmail.com>
 pkgname=('rpfm-bin')
-pkgver=3.99.112
+pkgver=3.99.111
 pkgrel=1
 pkgdesc="A modding tool for modern (since Empire) Total War games. Precompiled version."
 arch=('x86_64')

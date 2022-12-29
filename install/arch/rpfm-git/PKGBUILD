@@ -1,4 +1,4 @@
-# Maintainer: Frodo45127 <frodo_gv@hotmail.com>
+# Maintainer: Ismael Gutiérrez González <frodo_gv@hotmail.com>
 pkgname=('rpfm-git')
 pkgver=3.99.106.2813.g3af6da7c
 pkgrel=1
