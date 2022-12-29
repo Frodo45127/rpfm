@@ -187,7 +187,7 @@ pub enum Command {
     ExtractPackedFiles(Vec<ContainerPath>, PathBuf, bool),
 
     // This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original ContainerPath and their new name.
-    RenamePackedFiles(Vec<(ContainerPath, String)>),
+    RenamePackedFiles(Vec<(ContainerPath, ContainerPath)>),
 
     /// This command is used when we want to know if a folder exists in the currently open PackFile.
     FolderExists(String),

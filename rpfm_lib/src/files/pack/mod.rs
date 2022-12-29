@@ -328,15 +328,11 @@ impl Container for Pack {
     /// This function allows you to *move* any RFile of folder of RFiles from one folder to another.
     ///
     /// It returns a list with all the new [ContainerPath].
-    fn move_path(
-        &mut self,
-        source_path: ContainerPath,
-        destination_path: ContainerPath,
-    ) -> Result<Vec<ContainerPath>> {
+    fn move_path(&mut self, source_path: &ContainerPath, destination_path: &ContainerPath) -> Result<Vec<(ContainerPath, ContainerPath)>> {
         match source_path {
             ContainerPath::File(source_path) => match destination_path {
                 ContainerPath::File(destination_path) => {
-                    if RESERVED_RFILE_NAMES.contains(&&*destination_path) {
+                    if RESERVED_RFILE_NAMES.contains(&&**destination_path) {
                         return Err(RLibError::ReservedFiles);
                     }
 
@@ -344,10 +340,14 @@ impl Container for Pack {
                         return Err(RLibError::EmptyDestiny);
                     }
 
-                    let mut moved = self.files_mut().remove(&source_path).ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
-                    moved.set_path_in_container_raw(&destination_path);
+                    let mut moved = self.files_mut()
+                        .remove(source_path)
+                        .ok_or_else(|| RLibError::FileNotFound(source_path.to_string()))?;
+
+                    moved.set_path_in_container_raw(destination_path);
+
                     self.insert(moved).map(|x| match x {
-                        Some(x) => vec![x; 1],
+                        Some(x) => vec![(ContainerPath::File(source_path.to_string()), x); 1],
                         None => Vec::with_capacity(0),
                     })
                 },
@@ -362,15 +362,21 @@ impl Container for Pack {
 
                     let moved_paths = self.files()
                         .par_iter()
-                        .filter_map(|(path, _)| if path.starts_with(&source_path) { Some(path.to_owned()) } else { None })
+                        .filter_map(|(path, _)| if path.starts_with(source_path) { Some(path.to_owned()) } else { None })
                         .collect::<Vec<_>>();
-                    let moved = moved_paths.iter().filter_map(|x| self.files_mut().remove(x)).collect::<Vec<_>>();
+
+                    let moved = moved_paths.iter()
+                        .filter_map(|x| self.files_mut().remove(x))
+                        .collect::<Vec<_>>();
+
                     let mut new_paths = Vec::with_capacity(moved.len());
                     for mut moved in moved {
-                        let path = moved.path_in_container_raw().replacen(&source_path, &destination_path, 1);
-                        moved.set_path_in_container_raw(&path);
-                        if let Some(path) = self.insert(moved)? {
-                            new_paths.push(path);
+                        let old_path = moved.path_in_container();
+                        let new_path = moved.path_in_container_raw().replacen(source_path, destination_path, 1);
+                        moved.set_path_in_container_raw(&new_path);
+
+                        if let Some(new_path) = self.insert(moved)? {
+                            new_paths.push((old_path, new_path));
                         }
                     }
 

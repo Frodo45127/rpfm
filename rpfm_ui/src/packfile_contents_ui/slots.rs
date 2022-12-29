@@ -21,9 +21,7 @@ use qt_gui::QGuiApplication;
 
 use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
-use qt_core::QObject;
 use qt_core::QPtr;
-use qt_core::QSignalBlocker;
 use qt_core::QString;
 
 use std::fs::DirBuilder;
@@ -730,99 +728,86 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Rename` By Slot");
 
-                // First, check if it's yet another idiot trying to rename the db folders, and give him a warning.
+                // Rare case, but possible due to selection weirdness.
                 let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                let mut are_you_seriously_trying_to_edit_the_damn_table_folder = false;
-                for item_type in &selected_items {
-                    if let ContainerPath::Folder(ref path) = item_type {
-                        if path.to_lowercase().starts_with("db/") {
-                            are_you_seriously_trying_to_edit_the_damn_table_folder = true;
-                            break;
-                        }
-                    }
+                if selected_items.is_empty() {
+                    return;
                 }
 
-                if are_you_seriously_trying_to_edit_the_damn_table_folder {
-                    if !AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rename_db_folder") {
-                        return;
-                    }
+                // First, check if it's yet another idiot trying to rename the db folders, and give him a warning.
+                if selected_items.iter()
+                    .filter_map(|item_type| if let ContainerPath::Folder(ref path) = item_type { Some(path) } else { None })
+                    .any(|path| path.to_lowercase().starts_with("db/")) &&
+                    !AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rename_db_folder") {
+                    return;
                 }
 
-                // Get the data for the rename.
+                // Ask for the new path of the item to rename. Even if we select multiple items, this returns the rename sequence for all of them.
                 if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
-                    let mut renaming_data_background: Vec<(ContainerPath, String)> = vec![];
-                    for item_type in selected_items {
-                        let path = item_type.path_raw();
-                        let path = path.split('/').collect::<Vec<_>>();
+
+                    // Prepare the new paths using the rename sequence.
+                    let mut renaming_data_background: Vec<(ContainerPath, ContainerPath)> = vec![];
+                    for item_type in &selected_items {
+                        let path = item_type.path_raw().split('/').collect::<Vec<_>>();
+
+                        // Replace {x} with the original name.
                         let original_name = path.last().unwrap();
-                        let new_name = rewrite_sequence.to_owned().replace("{x}", original_name);
-                        renaming_data_background.push((item_type.clone(), new_name));
+                        let new_path = rewrite_sequence.replace("{x}", original_name);
+                        let new_path = match item_type {
+                            ContainerPath::File(_) => ContainerPath::File(new_path),
+                            ContainerPath::Folder(_) => ContainerPath::Folder(new_path),
+                        };
+
+                        renaming_data_background.push((item_type.clone(), new_path));
                     }
 
-                    dbg!(&renaming_data_background);
-                    // Send the renaming data to the Background Thread, wait for a response. TODO: MAke sure we don't pass folders here before the backend is adapted for them.
+                    // Send the renaming data to the Background Thread, wait for a response.
                     let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
                     let response = CentralCommand::recv(&receiver);
                     match response {
                         Response::VecContainerPathContainerPath(renamed_items) => {
-                    dbg!(&renamed_items);
                             let mut path_changes = vec![];
+
+                            // TODO: Filter out reserved files with some generic logic.
                             for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
                                 if !path.is_empty() {
-                                    for (item_type, new_path) in &renamed_items {
+                                    for (old_path, new_path) in &renamed_items {
 
-                                        // Due to how the backend is built (doing a Per-PackedFile movement) we will always receive here individual PackedFiles.
-                                        // So we don't need to check the rest. But the name change can be in any place of the path, so we have to take that into account.
-                                        if let ContainerPath::File(ref current_path) = item_type {
-                                            if let ContainerPath::File(ref new_path) = new_path {
-                                                if *current_path == *path {
-                                                    path_changes.push((current_path.to_owned(), new_path.to_owned()));
-                                                }
-                                            }
+                                        // No need to check for path type here, as we can only get file paths.
+                                        if old_path.path_raw() == *path {
+                                            path_changes.push((old_path.path_raw(), new_path.path_raw()));
                                         }
                                     }
                                 }
                             }
 
-                            for (path_before, path_after) in &path_changes {
+                            {
                                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                                let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
-                                let data = open_packedfiles.remove(position);
-                                let widget = data.get_mut_widget();
-                                let index = app_ui.tab_bar_packed_file().index_of(widget);
-                                let path_split_before = path_before.split('/').collect::<Vec<_>>();
-                                let path_split_after = path_after.split('/').collect::<Vec<_>>();
-                                let old_name = path_split_before.last().unwrap();
-                                let new_name = path_split_after.last().unwrap();
-                                if old_name != new_name {
-                                    app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
-                                }
+                                for (path_before, path_after) in &path_changes {
+                                    let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
+                                    let data = open_packedfiles.remove(position);
+                                    let widget = data.get_mut_widget();
+                                    let index = app_ui.tab_bar_packed_file().index_of(widget);
+                                    let path_split_before = path_before.split('/').collect::<Vec<_>>();
+                                    let path_split_after = path_after.split('/').collect::<Vec<_>>();
+                                    let old_name = path_split_before.last().unwrap();
+                                    let new_name = path_split_after.last().unwrap();
+                                    if old_name != new_name {
+                                        app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
+                                    }
 
-                                data.set_path(path_after);
-                                open_packedfiles.push(data);
+                                    data.set_path(path_after);
+                                    open_packedfiles.push(data);
+                                }
                             }
 
-                            // Ok, problem here: the view expects you pass the exact items renamed, NOT THE GODDAM FILES!!!!
-                            // which means in case of folders we have turn all those "renamed items" into a big "renamed folder".
-                            // What a fucking planning mess.
-                            let renamed_items_view: Vec<(ContainerPath, String)> = renaming_data_background.iter().map(|(x, y)| {
-                                match x {
-                                    ContainerPath::Folder(path) |
-                                    ContainerPath::File(path) => {
-                                        let mut path_split = path.split('/').collect::<Vec<_>>();
-                                        *path_split.last_mut().unwrap() = y;
-                                        (x.clone(), path_split.join("/"))
-                                    }
-                                }
-                            }).collect();
+                            // Move the items on the UI and mark the currently open Pack as modified.
+                            let folders_to_move = selected_items.into_iter()
+                                .filter(|path| matches!(path, ContainerPath::Folder(_)))
+                                .collect::<Vec<_>>();
 
-                            let blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.selection_model().static_upcast::<QObject>());
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items_view), DataSource::PackFile);
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(renamed_items.iter().map(|x| match x.0 {
-                                ContainerPath::File(_) => x.1.clone(),
-                                ContainerPath::Folder(_) => x.1.clone(),
-                            }).collect()), DataSource::PackFile);
-                            blocker.unblock();
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile);
+
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
