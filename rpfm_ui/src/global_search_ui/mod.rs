@@ -53,18 +53,20 @@ use getset::Getters;
 use std::rc::Rc;
 
 use rpfm_extensions::search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
+use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::{new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
+use crate::ffi::{kline_edit_configure_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{DataSource, View, ViewType};
 use crate::references_ui::ReferencesUI;
+use crate::TREEVIEW_ICONS;
 use crate::utils::*;
 use crate::UI_STATE;
 
@@ -86,7 +88,7 @@ const VIEW_RELEASE: &str = "ui/global_search_dock_widget.ui";
 pub struct GlobalSearchUI {
     dock_widget: QPtr<QDockWidget>,
 
-    search_combobox: QPtr<QComboBox>,
+    search_line_edit: QPtr<QLineEdit>,
     search_button: QPtr<QToolButton>,
     clear_button: QPtr<QToolButton>,
     case_sensitive_checkbox: QPtr<QToolButton>,
@@ -109,34 +111,22 @@ pub struct GlobalSearchUI {
 
     matches_tab_widget: QPtr<QTabWidget>,
 
-    matches_db_tree_view: QPtr<QTreeView>,
-    matches_loc_tree_view: QPtr<QTreeView>,
-    matches_text_tree_view: QPtr<QTreeView>,
+    matches_table_and_text_tree_view: QPtr<QTreeView>,
     matches_schema_tree_view: QPtr<QTreeView>,
 
-    matches_db_tree_filter: QBox<QSortFilterProxyModel>,
-    matches_loc_tree_filter: QBox<QSortFilterProxyModel>,
-    matches_text_tree_filter: QBox<QSortFilterProxyModel>,
+    matches_table_and_text_tree_filter: QBox<QSortFilterProxyModel>,
     matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
 
-    matches_db_tree_model: QBox<QStandardItemModel>,
-    matches_loc_tree_model: QBox<QStandardItemModel>,
-    matches_text_tree_model: QBox<QStandardItemModel>,
+    matches_table_and_text_tree_model: QBox<QStandardItemModel>,
     matches_schema_tree_model: QBox<QStandardItemModel>,
 
-    matches_filter_db_line_edit: QPtr<QLineEdit>,
-    matches_filter_loc_line_edit: QPtr<QLineEdit>,
-    matches_filter_text_line_edit: QPtr<QLineEdit>,
+    matches_filter_table_and_text_line_edit: QPtr<QLineEdit>,
     matches_filter_schema_line_edit: QPtr<QLineEdit>,
 
-    matches_case_sensitive_db_button: QPtr<QToolButton>,
-    matches_case_sensitive_loc_button: QPtr<QToolButton>,
-    matches_case_sensitive_text_button: QPtr<QToolButton>,
+    matches_case_sensitive_table_and_text_button: QPtr<QToolButton>,
     matches_case_sensitive_schema_button: QPtr<QToolButton>,
 
-    matches_column_selector_db_combobox: QPtr<QComboBox>,
-    matches_column_selector_loc_combobox: QPtr<QComboBox>,
-    matches_column_selector_text_combobox: QPtr<QComboBox>,
+    matches_column_selector_table_and_text_combobox: QPtr<QComboBox>,
     matches_column_selector_schema_combobox: QPtr<QComboBox>,
 }
 
@@ -162,13 +152,14 @@ impl GlobalSearchUI {
         dock_widget.set_object_name(&QString::from_std_str("global_search_dock"));
 
         // Create the search & replace section.
-        let search_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "seach_combobox")?;
+        let search_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "search_line_edit")?;
         let search_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "search_button")?;
         let clear_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "clear_button")?;
         let case_sensitive_checkbox: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_search_button")?;
         search_button.set_tool_tip(&qtr("global_search_search"));
         clear_button.set_tool_tip(&qtr("global_search_clear"));
         case_sensitive_checkbox.set_tool_tip(&qtr("global_search_case_sensitive"));
+        kline_edit_configure_safe(&search_line_edit.static_upcast::<QWidget>().as_ptr());
 
         let replace_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "replace_line_edit")?;
         let replace_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "replace_button")?;
@@ -178,6 +169,7 @@ impl GlobalSearchUI {
         replace_button.set_tool_tip(&qtr("global_search_replace"));
         replace_all_button.set_tool_tip(&qtr("global_search_replace_all"));
         use_regex_checkbox.set_tool_tip(&qtr("global_search_use_regex"));
+        kline_edit_configure_safe(&replace_line_edit.static_upcast::<QWidget>().as_ptr());
 
         let search_on_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_on_groupbox")?;
         search_on_group_box.set_title(&qtr("global_search_search_on"));
@@ -208,65 +200,25 @@ impl GlobalSearchUI {
         // Create the frames for the matches tables.
         let matches_tab_widget: QPtr<QTabWidget> = find_widget(&main_widget.static_upcast(), "results_tab_widget")?;
 
-        // DB
-        let matches_widget_db: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_db")?;
-        let tree_view_matches_db: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "db_tree_view")?;
-        let filter_matches_db_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "db_filter_line_edit")?;
-        let filter_matches_db_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "db_filter_case_sensitive_button")?;
-        let filter_matches_db_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "db_column_combo_box")?;
-        let filter_matches_db_column_list = QStandardItemModel::new_1a(&matches_widget_db);
-        filter_matches_db_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_db_column_selector.set_model(&filter_matches_db_column_list);
-        filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
-        filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_column"));
-        filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_row"));
-        filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_db_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
+        // Tables and texts.
+        let matches_widget_table_and_text: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_table_and_text")?;
+        let tree_view_matches_table_and_text: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "table_and_text_tree_view")?;
+        let filter_matches_table_and_text_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "table_and_text_filter_line_edit")?;
+        let filter_matches_table_and_text_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "table_and_text_filter_case_sensitive_button")?;
+        let filter_matches_table_and_text_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "table_and_text_column_combo_box")?;
+        let filter_matches_table_and_text_column_list = QStandardItemModel::new_1a(&matches_widget_table_and_text);
+        filter_matches_table_and_text_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_matches_table_and_text_column_selector.set_model(&filter_matches_table_and_text_column_list);
+        filter_matches_table_and_text_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
+        filter_matches_table_and_text_column_selector.add_item_q_string(&qtr("gen_loc_column"));
+        filter_matches_table_and_text_column_selector.add_item_q_string(&qtr("gen_loc_row"));
+        filter_matches_table_and_text_column_selector.add_item_q_string(&qtr("gen_loc_match"));
+        filter_matches_table_and_text_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
 
-        let matches_db_tree_filter = new_treeview_filter_safe(tree_view_matches_db.static_upcast());
-        let matches_db_tree_model = QStandardItemModel::new_1a(&tree_view_matches_db);
-        tree_view_matches_db.set_model(&matches_db_tree_filter);
-        matches_db_tree_filter.set_source_model(&matches_db_tree_model);
-
-        // Loc
-        let matches_widget_loc: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_loc")?;
-        let tree_view_matches_loc: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "loc_tree_view")?;
-        let filter_matches_loc_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "loc_filter_line_edit")?;
-        let filter_matches_loc_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "loc_filter_case_sensitive_button")?;
-        let filter_matches_loc_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "loc_column_combo_box")?;
-        let filter_matches_loc_column_list = QStandardItemModel::new_1a(&matches_widget_loc);
-        filter_matches_loc_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_loc_column_selector.set_model(&filter_matches_loc_column_list);
-        filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
-        filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_column"));
-        filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_row"));
-        filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_loc_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
-
-        let matches_loc_tree_filter = new_treeview_filter_safe(tree_view_matches_loc.static_upcast());
-        let matches_loc_tree_model = QStandardItemModel::new_1a(&tree_view_matches_loc);
-        tree_view_matches_loc.set_model(&matches_loc_tree_filter);
-        matches_loc_tree_filter.set_source_model(&matches_loc_tree_model);
-
-        // Text
-        let matches_widget_text: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_text")?;
-        let tree_view_matches_text: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "text_tree_view")?;
-        let filter_matches_text_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "text_filter_line_edit")?;
-        let filter_matches_text_case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "text_filter_case_sensitive_button")?;
-        let filter_matches_text_column_selector: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "text_column_combo_box")?;
-        let filter_matches_text_column_list = QStandardItemModel::new_1a(&matches_widget_text);
-        filter_matches_text_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_text_column_selector.set_model(&filter_matches_text_column_list);
-        filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
-        filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_column"));
-        filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_row"));
-        filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_match"));
-        filter_matches_text_case_sensitive_button.set_tool_tip(&qtr("global_search_case_sensitive"));
-
-        let matches_text_tree_filter = new_treeview_filter_safe(tree_view_matches_text.static_upcast());
-        let matches_text_tree_model = QStandardItemModel::new_1a(&tree_view_matches_text);
-        tree_view_matches_text.set_model(&matches_text_tree_filter);
-        matches_text_tree_filter.set_source_model(&matches_text_tree_model);
+        let matches_table_and_text_tree_filter = new_treeview_filter_safe(tree_view_matches_table_and_text.static_upcast());
+        let matches_table_and_text_tree_model = QStandardItemModel::new_1a(&tree_view_matches_table_and_text);
+        tree_view_matches_table_and_text.set_model(&matches_table_and_text_tree_filter);
+        matches_table_and_text_tree_filter.set_source_model(&matches_table_and_text_tree_model);
 
         // Schema
         let matches_widget_schema: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_schema")?;
@@ -290,8 +242,6 @@ impl GlobalSearchUI {
 
         matches_tab_widget.set_tab_text(0, &qtr("global_search_db_matches"));
         matches_tab_widget.set_tab_text(1, &qtr("global_search_loc_matches"));
-        matches_tab_widget.set_tab_text(2, &qtr("global_search_txt_matches"));
-        matches_tab_widget.set_tab_text(3, &qtr("global_search_schema_matches"));
 
         // Hide this widget by default.
         dock_widget.hide();
@@ -299,7 +249,7 @@ impl GlobalSearchUI {
         // Create ***Da monsta***.
         Ok(Self {
             dock_widget,
-            search_combobox,
+            search_line_edit,
             search_button,
 
             replace_line_edit,
@@ -323,34 +273,22 @@ impl GlobalSearchUI {
 
             matches_tab_widget,
 
-            matches_db_tree_view: tree_view_matches_db,
-            matches_loc_tree_view: tree_view_matches_loc,
-            matches_text_tree_view: tree_view_matches_text,
+            matches_table_and_text_tree_view: tree_view_matches_table_and_text,
             matches_schema_tree_view: tree_view_matches_schema,
 
-            matches_db_tree_filter,
-            matches_loc_tree_filter,
-            matches_text_tree_filter,
+            matches_table_and_text_tree_filter,
             matches_schema_tree_filter,
 
-            matches_db_tree_model,
-            matches_loc_tree_model,
-            matches_text_tree_model,
+            matches_table_and_text_tree_model,
             matches_schema_tree_model,
 
-            matches_filter_db_line_edit: filter_matches_db_line_edit,
-            matches_filter_loc_line_edit: filter_matches_loc_line_edit,
-            matches_filter_text_line_edit: filter_matches_text_line_edit,
+            matches_filter_table_and_text_line_edit: filter_matches_table_and_text_line_edit,
             matches_filter_schema_line_edit: filter_matches_schema_line_edit,
 
-            matches_case_sensitive_db_button: filter_matches_db_case_sensitive_button,
-            matches_case_sensitive_loc_button: filter_matches_loc_case_sensitive_button,
-            matches_case_sensitive_text_button: filter_matches_text_case_sensitive_button,
+            matches_case_sensitive_table_and_text_button: filter_matches_table_and_text_case_sensitive_button,
             matches_case_sensitive_schema_button: filter_matches_schema_case_sensitive_button,
 
-            matches_column_selector_db_combobox: filter_matches_db_column_selector,
-            matches_column_selector_loc_combobox: filter_matches_loc_column_selector,
-            matches_column_selector_text_combobox: filter_matches_text_column_selector,
+            matches_column_selector_table_and_text_combobox: filter_matches_table_and_text_column_selector,
             matches_column_selector_schema_combobox: filter_matches_schema_column_selector,
         })
     }
@@ -360,7 +298,7 @@ impl GlobalSearchUI {
 
         // Create the global search and populate it with all the settings for the search.
         let mut global_search = GlobalSearch {
-            pattern: self.search_combobox.current_text().to_std_string(),
+            pattern: self.search_line_edit.text().to_std_string(),
             case_sensitive: self.case_sensitive_checkbox.is_checked(),
             use_regex: self.use_regex_checkbox.is_checked(),
             ..Default::default()
@@ -395,43 +333,23 @@ impl GlobalSearchUI {
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearch(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let tree_view_db = &self.matches_db_tree_view;
-        let tree_view_loc = &self.matches_loc_tree_view;
-        let tree_view_text = &self.matches_text_tree_view;
-        let tree_view_schema = &self.matches_schema_tree_view;
-
-        let model_db = &self.matches_db_tree_model;
-        let model_loc = &self.matches_loc_tree_model;
-        let model_text = &self.matches_text_tree_model;
-        let model_schema = &self.matches_schema_tree_model;
-
-        model_db.clear();
-        model_loc.clear();
-        model_text.clear();
-        model_schema.clear();
+        self.matches_table_and_text_tree_model.clear();
+        self.matches_schema_tree_model.clear();
 
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
-                Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
-                Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
-                Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
-                Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
+                self.load_table_matches_to_ui(&global_search.matches_db, FileType::DB);
+                self.load_table_matches_to_ui(&global_search.matches_loc, FileType::Loc);
+                self.load_text_matches_to_ui(&global_search.matches_text, FileType::Text);
+                Self::load_schema_matches_to_ui(&self.matches_schema_tree_model, &self.matches_schema_tree_view, &global_search.matches_schema);
 
-                if !global_search.matches_db.is_empty() {
+                if !global_search.matches_db.is_empty() || !global_search.matches_loc.is_empty() || !global_search.matches_text.is_empty() {
                     self.matches_tab_widget().set_current_index(0);
                 }
 
-                else if !global_search.matches_loc.is_empty() {
-                    self.matches_tab_widget().set_current_index(1);
-                }
-
-                else if !global_search.matches_text.is_empty() {
-                    self.matches_tab_widget().set_current_index(2);
-                }
-
                 else if !global_search.matches_schema.matches().is_empty() {
-                    self.matches_tab_widget().set_current_index(3);
+                    self.matches_tab_widget().set_current_index(1);
                 }
 
                 UI_STATE.set_global_search(&global_search);
@@ -445,9 +363,7 @@ impl GlobalSearchUI {
     pub unsafe fn clear(&self) {
         UI_STATE.set_global_search(&GlobalSearch::default());
 
-        self.matches_db_tree_model.clear();
-        self.matches_loc_tree_model.clear();
-        self.matches_text_tree_model.clear();
+        self.matches_table_and_text_tree_model.clear();
         self.matches_schema_tree_model.clear();
     }
 
@@ -460,7 +376,7 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.search_combobox.current_text().to_std_string();
+        global_search.pattern = global_search_ui.search_line_edit.text().to_std_string();
         global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
         global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
@@ -482,9 +398,7 @@ impl GlobalSearchUI {
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
 
         // While we wait for an answer, we need to clear the current results panels.
-        global_search_ui.matches_db_tree_model.clear();
-        global_search_ui.matches_loc_tree_model.clear();
-        global_search_ui.matches_text_tree_model.clear();
+        global_search_ui.matches_table_and_text_tree_model.clear();
 
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
@@ -533,7 +447,7 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.search_combobox.current_text().to_std_string();
+        global_search.pattern = global_search_ui.search_line_edit.text().to_std_string();
         global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
         global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
         global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
@@ -554,13 +468,7 @@ impl GlobalSearchUI {
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceAll(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let model_db = &global_search_ui.matches_db_tree_model;
-        let model_loc = &global_search_ui.matches_loc_tree_model;
-        let model_text = &global_search_ui.matches_text_tree_model;
-
-        model_db.clear();
-        model_loc.clear();
-        model_text.clear();
+        global_search_ui.matches_table_and_text_tree_model.clear();
 
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
@@ -712,7 +620,10 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.
-    unsafe fn load_table_matches_to_ui(model: &QStandardItemModel, tree_view: &QTreeView, matches: &[TableMatches]) {
+    unsafe fn load_table_matches_to_ui(&self, matches: &[TableMatches], file_type: FileType) {
+        let model = &self.matches_table_and_text_tree_model;
+        let tree_view = &self.matches_table_and_text_tree_view;
+
         if !matches.is_empty() {
 
             for match_table in matches {
@@ -723,7 +634,10 @@ impl GlobalSearchUI {
                     let fill1 = QStandardItem::new();
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
+
                     file.set_text(&QString::from_std_str(&path));
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
                     file.set_editable(false);
                     fill1.set_editable(false);
                     fill2.set_editable(false);
@@ -765,6 +679,7 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
 
+
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }
             }
@@ -782,7 +697,10 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `TextMatches` into a model.
-    unsafe fn load_text_matches_to_ui(model: &QStandardItemModel, tree_view: &QTreeView, matches: &[TextMatches]) {
+    unsafe fn load_text_matches_to_ui(&self, matches: &[TextMatches], file_type: FileType) {
+        let model = &self.matches_table_and_text_tree_model;
+        let tree_view = &self.matches_table_and_text_tree_view;
+
         if !matches.is_empty() {
 
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
@@ -798,7 +716,10 @@ impl GlobalSearchUI {
                     let fill1 = QStandardItem::new();
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
+
                     file.set_text(&QString::from_std_str(&path));
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+
                     file.set_editable(false);
                     fill1.set_editable(false);
                     fill2.set_editable(false);
@@ -934,8 +855,7 @@ impl GlobalSearchUI {
     unsafe fn get_matches_from_selection(&self) -> Vec<MatchHolder> {
 
         let tree_view = match self.matches_tab_widget.current_index() {
-            0 => &self.matches_db_tree_view,
-            1 => &self.matches_loc_tree_view,
+            0 => &self.matches_table_and_text_tree_view,
             _ => return vec![],
         };
 

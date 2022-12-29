@@ -266,6 +266,16 @@ pub fn set_color_safe(view: &Ptr<QWidget>, color: &Ptr<QColor>) {
 }
 
 //---------------------------------------------------------------------------//
+// KLineEdit stuff.
+//---------------------------------------------------------------------------//
+
+// This function allow us to pre-configure a KLineEdit.
+extern "C" { fn kline_edit_configure(view: *mut QWidget); }
+pub fn kline_edit_configure_safe(view: &Ptr<QWidget>) {
+    unsafe { kline_edit_configure(view.as_mut_raw_ptr()) };
+}
+
+//---------------------------------------------------------------------------//
 // KMessageWidget stuff.
 //---------------------------------------------------------------------------//
 

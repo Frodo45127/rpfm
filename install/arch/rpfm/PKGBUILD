@@ -6,7 +6,7 @@ pkgdesc="A modding tool for modern (since Empire) Total War games. Precompiled v
 arch=('x86_64')
 url="https://github.com/Frodo45127/rpfm"
 license=('MIT')
-depends=('qt5-base' 'qt5-imageformats' 'ktexteditor' 'kiconthemes' 'breeze-icons' 'xz' 'p7zip')
+depends=('xz' 'p7zip', 'qt5-base' 'qt5-imageformats' 'kcompletion' 'kiconthemes'  'ktexteditor' 'kxmlgui' 'kwidgetsaddons' 'breeze-icons')
 provides=('rpfm')
 _programname=('rpfm')
 

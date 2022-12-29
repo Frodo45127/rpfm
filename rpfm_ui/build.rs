@@ -120,10 +120,11 @@ fn common_config() {
     // This is to make RPFM able to see the extra libs we need while building.
     println!("cargo:rustc-link-search=native=./libs");
     println!("cargo:rustc-link-lib=dylib=qt_subclasses");
-    println!("cargo:rustc-link-lib=dylib=KF5TextEditor");
-    println!("cargo:rustc-link-lib=dylib=KF5WidgetsAddons");
-    println!("cargo:rustc-link-lib=dylib=KF5XmlGui");
+    println!("cargo:rustc-link-lib=dylib=KF5Completion");
     println!("cargo:rustc-link-lib=dylib=KF5IconThemes");
+    println!("cargo:rustc-link-lib=dylib=KF5TextEditor");
+    println!("cargo:rustc-link-lib=dylib=KF5XmlGui");
+    println!("cargo:rustc-link-lib=dylib=KF5WidgetsAddons");
 
     // Force cargo to rerun this script if any of these files is changed.
     println!("cargo:rerun-if-changed=./libs/*");

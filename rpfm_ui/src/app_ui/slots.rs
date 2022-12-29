@@ -836,7 +836,7 @@ impl AppUISlots {
             if !state { global_search_ui.dock_widget().hide(); }
             else {
                 global_search_ui.dock_widget().show();
-                global_search_ui.search_combobox().set_focus_0a()
+                global_search_ui.search_line_edit().set_focus_0a()
             }
         }));
 

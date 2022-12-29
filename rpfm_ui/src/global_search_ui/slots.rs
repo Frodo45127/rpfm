@@ -41,9 +41,7 @@ pub struct GlobalSearchSlots {
     pub check_regex_clean: QBox<SlotOfBool>,
     pub open_match: QBox<SlotOfQModelIndex>,
     pub toggle_all: QBox<SlotOfBool>,
-    pub filter_dbs: QBox<SlotNoArgs>,
-    pub filter_locs: QBox<SlotNoArgs>,
-    pub filter_texts: QBox<SlotNoArgs>,
+    pub filter_table_and_text: QBox<SlotNoArgs>,
     pub filter_schemas: QBox<SlotNoArgs>,
 }
 
@@ -100,7 +98,7 @@ impl GlobalSearchSlots {
         let check_regex = SlotOfQString::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move |string| {
             if global_search_ui.use_regex_checkbox.is_checked() {
-                check_regex_string(&string.to_std_string(), global_search_ui.search_combobox.static_upcast());
+                check_regex_string(&string.to_std_string(), global_search_ui.search_line_edit.static_upcast());
             }
         }));
 
@@ -108,9 +106,9 @@ impl GlobalSearchSlots {
         let check_regex_clean = SlotOfBool::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move |is_checked| {
             if is_checked {
-                check_regex_string(&global_search_ui.search_combobox.current_text().to_std_string(), global_search_ui.search_combobox.static_upcast());
+                check_regex_string(&global_search_ui.search_line_edit.text().to_std_string(), global_search_ui.search_line_edit.static_upcast());
             } else {
-                check_regex_string("", global_search_ui.search_combobox.static_upcast());
+                check_regex_string("", global_search_ui.search_line_edit.static_upcast());
             }
         }));
 
@@ -136,33 +134,13 @@ impl GlobalSearchSlots {
         }));
 
         // What happens when we filter the different result TreeViews
-        let filter_dbs = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
+        let filter_table_and_text = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
         global_search_ui => move || {
             GlobalSearchUI::filter_results(
-                &global_search_ui.matches_db_tree_view,
-                &global_search_ui.matches_filter_db_line_edit,
-                &global_search_ui.matches_column_selector_db_combobox,
-                &global_search_ui.matches_case_sensitive_db_button,
-            );
-        }));
-
-        let filter_locs = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
-        global_search_ui => move || {
-            GlobalSearchUI::filter_results(
-                &global_search_ui.matches_loc_tree_view,
-                &global_search_ui.matches_filter_loc_line_edit,
-                &global_search_ui.matches_column_selector_loc_combobox,
-                &global_search_ui.matches_case_sensitive_loc_button,
-            );
-        }));
-
-        let filter_texts = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
-        global_search_ui => move || {
-            GlobalSearchUI::filter_results(
-                &global_search_ui.matches_text_tree_view,
-                &global_search_ui.matches_filter_text_line_edit,
-                &global_search_ui.matches_column_selector_text_combobox,
-                &global_search_ui.matches_case_sensitive_text_button,
+                &global_search_ui.matches_table_and_text_tree_view,
+                &global_search_ui.matches_filter_table_and_text_line_edit,
+                &global_search_ui.matches_column_selector_table_and_text_combobox,
+                &global_search_ui.matches_case_sensitive_table_and_text_button,
             );
         }));
 
@@ -186,9 +164,7 @@ impl GlobalSearchSlots {
             check_regex_clean,
             open_match,
             toggle_all,
-            filter_dbs,
-            filter_locs,
-            filter_texts,
+            filter_table_and_text,
             filter_schemas,
 		}
 	}

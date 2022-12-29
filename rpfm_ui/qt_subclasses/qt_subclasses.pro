@@ -8,6 +8,7 @@ QT       += widgets
 QT       += KIconThemes
 QT       += KTextEditor
 QT       += KWidgetsAddons
+QT       += KCompletion
 
 TARGET = qt_subclasses
 TEMPLATE = lib
@@ -33,6 +34,7 @@ SOURCES += \
     src/colour_item_delegate.cpp \
     src/extended_q_styled_item_delegate.cpp \
     src/kcolor_combo.cpp \
+    src/kline_edit_custom.cpp \
     src/kmessage_widget.cpp \
     src/kshortcuts_dialog.cpp \
     src/q_main_window_custom.cpp \
@@ -56,6 +58,7 @@ INCLUDEPATH += include
 HEADERS += \
     include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
+    include/kline_edit_custom.h \
     include/kmessage_widget.h \
     include/kshortcuts_dialog.h \
     include/qt_subclasses_global.h \
