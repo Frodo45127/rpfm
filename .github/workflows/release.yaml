@@ -275,7 +275,7 @@ jobs:
         uses: mindsers/changelog-reader-action@v1
         with:
           version: Unreleased
-          path: /usr/src/app/_work/rpfm/rpfm/CHANGELOG.md
+          path: /home/runner/work/rpfm/rpfm/CHANGELOG.md
 
       - name: Create Release
         id: create_release
