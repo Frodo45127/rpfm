@@ -1,6 +1,6 @@
 # Maintainer: Frodo45127 <frodo_gv@hotmail.com>
 pkgname=('rpfm-bin')
-pkgver=3.99.111
+pkgver=3.99.112
 pkgrel=1
 pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
 arch=('x86_64')
