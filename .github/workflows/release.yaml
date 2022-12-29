@@ -270,16 +270,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Test
-        run: |
-          ls -la
-
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
         with:
           version: Unreleased
-          path: ./CHANGELOG.md
+          path: ./Changelog.md
 
       - name: Create Release
         id: create_release
