@@ -42,7 +42,7 @@ ron = "^0.8"
 #bincode = "^1.1"
 
 # Date conversion support.
-chrono = "^0.4"
+time = { version = "^0.3", features = ["formatting"] }
 
 # Support for Regex operations.
 regex = "^1"

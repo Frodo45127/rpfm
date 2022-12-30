@@ -29,8 +29,8 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 use cpp_core::CastFrom;
 
-use chrono::naive::NaiveDateTime;
 use rayon::prelude::*;
+use time::OffsetDateTime;
 
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
@@ -1594,7 +1594,10 @@ pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
         </ul>",
         info.pfh_version(),
         info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA),
-        NaiveDateTime::from_timestamp_opt(*info.timestamp() as i64, 0).unwrap()
+        OffsetDateTime::from_unix_timestamp(*info.timestamp() as i64)
+            .unwrap()
+            .format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap())
+            .unwrap()
     )
 }
 
@@ -1607,7 +1610,10 @@ fn new_packed_file_tooltip(info: &RFileInfo) -> String {
     );
 
     if let Some(timestamp) = info.timestamp() {
-        string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", NaiveDateTime::from_timestamp_opt(*timestamp as i64, 0).unwrap()));
+        string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", OffsetDateTime::from_unix_timestamp(*timestamp as i64)
+            .unwrap()
+            .format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap())
+            .unwrap()));
     }
 
     string.push_str("</ul>");
