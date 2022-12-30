@@ -2117,6 +2117,62 @@ impl Display for FileType {
     }
 }
 
+impl From<&str> for FileType {
+    fn from(value: &str) -> Self {
+        dbg!(value);
+        match value {
+            "Anim" => FileType::Anim,
+            "AnimFragment" => FileType::AnimFragment,
+            "AnimPack" => FileType::AnimPack,
+            "AnimsTable" => FileType::AnimsTable,
+            "Video" => FileType::Video,
+            "CEO" => FileType::CEO,
+            "DB" => FileType::DB,
+            "ESF" => FileType::ESF,
+            "GroupFormations" => FileType::GroupFormations,
+            "Image" => FileType::Image,
+            "Loc" => FileType::Loc,
+            "MatchedCombat" => FileType::MatchedCombat,
+            "Pack" => FileType::Pack,
+            "PortraitSettings" => FileType::PortraitSettings,
+            "RigidModel" => FileType::RigidModel,
+            "Save" => FileType::Save,
+            "Text" => FileType::Text,
+            "UIC" => FileType::UIC,
+            "UnitVariant" => FileType::UnitVariant,
+            "Unknown" => FileType::Unknown,
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl From<FileType> for String {
+    fn from(value: FileType) -> String {
+        match value {
+            FileType::Anim => "Anim",
+            FileType::AnimFragment => "AnimFragment",
+            FileType::AnimPack => "AnimPack",
+            FileType::AnimsTable => "AnimsTable",
+            FileType::Video => "Video",
+            FileType::CEO => "CEO",
+            FileType::DB => "DB",
+            FileType::ESF => "ESF",
+            FileType::GroupFormations => "GroupFormations",
+            FileType::Image => "Image",
+            FileType::Loc => "Loc",
+            FileType::MatchedCombat => "MatchedCombat",
+            FileType::Pack => "Pack",
+            FileType::PortraitSettings => "PortraitSettings",
+            FileType::RigidModel => "RigidModel",
+            FileType::Save => "Save",
+            FileType::Text => "Text",
+            FileType::UIC => "UIC",
+            FileType::UnitVariant => "UnitVariant",
+            FileType::Unknown => "Unknown",
+        }.to_owned()
+    }
+}
+
 impl From<&RFileDecoded> for FileType {
     fn from(file: &RFileDecoded) -> Self {
         match file {

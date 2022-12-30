@@ -82,7 +82,7 @@ impl GlobalSearchSlots {
             pack_file_contents_ui,
             global_search_ui => move || {
             info!("Triggering `Global Replace (current)` By Slot");
-            GlobalSearchUI::replace_current(&app_ui, &pack_file_contents_ui, &global_search_ui);
+            global_search_ui.replace_current(&app_ui, &pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Replace All" action.
@@ -91,7 +91,7 @@ impl GlobalSearchSlots {
             pack_file_contents_ui,
             global_search_ui => move || {
             info!("Triggering `Global Replace (all)` By Slot");
-            GlobalSearchUI::replace_all(&app_ui, &pack_file_contents_ui, &global_search_ui);
+            global_search_ui.replace_all(&app_ui, &pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Check Regex" action.

@@ -249,6 +249,12 @@ pub fn scroll_to_row_safe<'a>(parent: &Ptr<QWidget>, row_number: u64) {
     unsafe { scroll_to_row(parent.as_mut_raw_ptr(), row_number) }
 }
 
+// This function returns the current row of the cursor in a KTextEditor.
+extern "C" { fn cursor_row(parent: *mut QWidget) -> u64; }
+pub fn cursor_row_safe<'a>(parent: &Ptr<QWidget>) -> u64 {
+    unsafe { cursor_row(parent.as_mut_raw_ptr()) }
+}
+
 //---------------------------------------------------------------------------//
 // KColorCombo stuff.
 //---------------------------------------------------------------------------//

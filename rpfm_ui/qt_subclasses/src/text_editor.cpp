@@ -82,3 +82,10 @@ extern "C" void scroll_to_row(QWidget* view, int row_number) {
     KTextEditor::Cursor* cursor = new KTextEditor::Cursor(row_number, 0);
     doc_view->setCursorPosition(*cursor);
 }
+
+// Function to get the current row of the cursor in a text file.
+extern "C" int cursor_row(QWidget* view) {
+
+    KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
+    return doc_view->cursorPosition().line();
+}

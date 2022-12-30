@@ -454,7 +454,7 @@ impl GlobalSearch {
         for match_file in matches {
             match match_file {
                 MatchHolder::Table(search_matches) => {
-                    let container_path = ContainerPath::Folder(search_matches.path().to_string());
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
                     let mut file = pack.files_by_path_mut(&container_path, false);
                     if let Some(file) = file.get_mut(0) {
                         if let Ok(decoded) = file.decoded_mut() {
@@ -471,10 +471,38 @@ impl GlobalSearch {
                     }
                 }
 
-                // TODO.
-                MatchHolder::Text(_) => {
+                MatchHolder::Text(search_matches) => {
+                    let container_path = ContainerPath::File(search_matches.path().to_string());
+                    let mut file = pack.files_by_path_mut(&container_path, false);
+                    if let Some(file) = file.get_mut(0) {
 
+                        // Make sure it has been decoded.
+                        let _ = file.decode(&None, true, false);
+                        if let Ok(decoded) = file.decoded_mut() {
+
+                            // NOTE: Make freaking sure this is sorted properly. Otherwise the replace logic will break when changing the lenght of the string.
+                            let mut search_matches = search_matches.clone();
+                            search_matches.matches_mut().par_sort_unstable_by(|a, b| {
+                                if a.row() == b.row() {
+                                    a.column().cmp(b.column())
+                                } else {
+                                    a.row().cmp(b.row())
+                                }
+                            });
+
+                            let edited = match decoded {
+                                RFileDecoded::Text(text) => text.replace(&self.pattern, &self.replace_text, self.case_sensitive, &matching_mode, &search_matches),
+                                _ => unimplemented!(),
+                            };
+
+                            if edited {
+                                edited_paths.push(container_path);
+                            }
+                        }
+                    }
                 }
+
+                // We cannot edit schemas here.
                 MatchHolder::Schema(_) => continue,
             }
         }

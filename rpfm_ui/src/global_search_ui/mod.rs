@@ -52,7 +52,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_extensions::search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
+use rpfm_extensions::search::{GlobalSearch, MatchHolder, SearchSource, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::{TextMatches, TextMatch}};
 use rpfm_lib::files::FileType;
 
 use crate::app_ui::AppUI;
@@ -114,9 +114,6 @@ pub struct GlobalSearchUI {
     matches_table_and_text_tree_view: QPtr<QTreeView>,
     matches_schema_tree_view: QPtr<QTreeView>,
 
-    matches_table_and_text_tree_filter: QBox<QSortFilterProxyModel>,
-    matches_schema_tree_filter: QBox<QSortFilterProxyModel>,
-
     matches_table_and_text_tree_model: QBox<QStandardItemModel>,
     matches_schema_tree_model: QBox<QStandardItemModel>,
 
@@ -156,6 +153,7 @@ impl GlobalSearchUI {
         let search_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "search_button")?;
         let clear_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "clear_button")?;
         let case_sensitive_checkbox: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_search_button")?;
+        search_line_edit.set_placeholder_text(&qtr("global_search_search_placeholder"));
         search_button.set_tool_tip(&qtr("global_search_search"));
         clear_button.set_tool_tip(&qtr("global_search_clear"));
         case_sensitive_checkbox.set_tool_tip(&qtr("global_search_case_sensitive"));
@@ -240,8 +238,8 @@ impl GlobalSearchUI {
         tree_view_matches_schema.set_model(&matches_schema_tree_filter);
         matches_schema_tree_filter.set_source_model(&matches_schema_tree_model);
 
-        matches_tab_widget.set_tab_text(0, &qtr("global_search_db_matches"));
-        matches_tab_widget.set_tab_text(1, &qtr("global_search_loc_matches"));
+        matches_tab_widget.set_tab_text(0, &qtr("global_search_file_matches"));
+        matches_tab_widget.set_tab_text(1, &qtr("global_search_schema_matches"));
 
         // Hide this widget by default.
         dock_widget.hide();
@@ -275,9 +273,6 @@ impl GlobalSearchUI {
 
             matches_table_and_text_tree_view: tree_view_matches_table_and_text,
             matches_schema_tree_view: tree_view_matches_schema,
-
-            matches_table_and_text_tree_filter,
-            matches_schema_tree_filter,
 
             matches_table_and_text_tree_model,
             matches_schema_tree_model,
@@ -344,6 +339,21 @@ impl GlobalSearchUI {
                 self.load_text_matches_to_ui(&global_search.matches_text, FileType::Text);
                 self.load_schema_matches_to_ui(&global_search.matches_schema);
 
+                // Tweak the table columns for the files tree here, instead on each load function.
+                self.matches_table_and_text_tree_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_match_packedfile_column")));
+                self.matches_table_and_text_tree_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_column_name")));
+                self.matches_table_and_text_tree_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_row")));
+                self.matches_table_and_text_tree_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_column")));
+                self.matches_table_and_text_tree_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_length")));
+
+                // Hide the column number column for tables.
+                self.matches_table_and_text_tree_view.hide_column(3);
+                self.matches_table_and_text_tree_view.hide_column(4);
+                self.matches_table_and_text_tree_view.hide_column(5);
+                self.matches_table_and_text_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
+                self.matches_table_and_text_tree_view.header().resize_sections(ResizeMode::ResizeToContents);
+
+                // Focus on the tree with the results.
                 if !global_search.matches_db.is_empty() || !global_search.matches_loc.is_empty() || !global_search.matches_text.is_empty() {
                     self.matches_tab_widget().set_current_index(0);
                 }
@@ -369,7 +379,7 @@ impl GlobalSearchUI {
     }
 
     /// This function replace the currently selected match with the provided text.
-    pub unsafe fn replace_current(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, global_search_ui: &Rc<Self>) {
+    pub unsafe fn replace_current(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         let mut global_search = UI_STATE.get_global_search();
 
@@ -377,52 +387,76 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.search_line_edit.text().to_std_string();
-        global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
-        global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
-        global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
+        global_search.pattern = self.search_line_edit.text().to_std_string();
+        global_search.replace_text = self.replace_line_edit.text().to_std_string();
+        global_search.case_sensitive = self.case_sensitive_checkbox.is_checked();
+        global_search.use_regex = self.use_regex_checkbox.is_checked();
 
-        if global_search_ui.search_on_all_checkbox.is_checked() {
+        if self.search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
             global_search.search_on_texts = true;
             global_search.search_on_schema = true;
         }
         else {
-            global_search.search_on_dbs = global_search_ui.search_on_dbs_checkbox.is_checked();
-            global_search.search_on_locs = global_search_ui.search_on_locs_checkbox.is_checked();
-            global_search.search_on_texts = global_search_ui.search_on_texts_checkbox.is_checked();
-            global_search.search_on_schema = global_search_ui.search_on_schemas_checkbox.is_checked();
+            global_search.search_on_dbs = self.search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = self.search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = self.search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = self.search_on_schemas_checkbox.is_checked();
         }
 
-        let matches = Self::get_matches_from_selection(global_search_ui);
+        let matches = self.matches_from_selection();
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
 
+        // Before rebuilding the tree, check what items are expanded, to re-expand them later.
+        let filter_model: QPtr<QSortFilterProxyModel> = self.matches_table_and_text_tree_view.model().static_downcast();
+        let root = self.matches_table_and_text_tree_model.invisible_root_item();
+        let mut expanded = vec![];
+
+        for index in 0..root.row_count() {
+            let source_index = root.child_1a(index).index();
+            let view_index = filter_model.map_from_source(&source_index);
+            if view_index.is_valid() && self.matches_table_and_text_tree_view.is_expanded(&view_index) {
+                expanded.push(self.matches_table_and_text_tree_model.item_1a(index).text());
+            }
+        }
+
         // While we wait for an answer, we need to clear the current results panels.
-        global_search_ui.matches_table_and_text_tree_model.clear();
+        self.matches_table_and_text_tree_model.clear();
 
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
-                global_search_ui.search(pack_file_contents_ui);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
+                self.search(pack_file_contents_ui);
 
                 // Update the views of the updated PackedFiles.
-                for replace_match in matches {
-                    let path = match replace_match {
-                        MatchHolder::Table(matches) => matches.path().to_owned(),
-                        MatchHolder::Text(matches) => matches.path().to_owned(),
-                        _ => unimplemented!(),
-                    };
-
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == *path && x.get_data_source() == DataSource::PackFile) {
-                        if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
+                for path in packed_files_info.iter().map(|x| x.path()) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
+                        if let Err(error) = packed_file_view.reload(path, pack_file_contents_ui) {
                             show_dialog(app_ui.main_window(), error, false);
                         }
                     }
-
-                    // Set them as modified in the UI.
                 }
+
+                // Re-expand the previously expanded items. We disable animation to avoid the slow opening behaviour of the UI.
+                self.matches_table_and_text_tree_view.set_animated(false);
+
+                let root = self.matches_table_and_text_tree_model.invisible_root_item();
+                for index in 0..root.row_count() {
+                    let source_item = root.child_1a(index);
+
+                    if expanded.iter().any(|old| source_item.text().compare_q_string(old) == 0) {
+                        let source_index = source_item.index();
+                        let view_index = filter_model.map_from_source(&source_index);
+                        if view_index.is_valid() && !self.matches_table_and_text_tree_view.is_expanded(&view_index) {
+                            self.matches_table_and_text_tree_view.expand(&view_index)
+                        }
+                    }
+                }
+
+                self.matches_table_and_text_tree_view.set_animated(true);
+
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
             Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => unimplemented!()
@@ -430,18 +464,14 @@ impl GlobalSearchUI {
     }
 
     /// This function replace all the matches in the current search with the provided text.
-    pub unsafe fn replace_all(
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<Self>,
-    ) {
+    pub unsafe fn replace_all(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
         if let Err(error) = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui) {
             return show_dialog(app_ui.main_window(), error, false);
         }
 
-        global_search_ui.search(pack_file_contents_ui);
+        self.search(pack_file_contents_ui);
 
         let mut global_search = UI_STATE.get_global_search();
 
@@ -449,33 +479,33 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        global_search.pattern = global_search_ui.search_line_edit.text().to_std_string();
-        global_search.replace_text = global_search_ui.replace_line_edit.text().to_std_string();
-        global_search.case_sensitive = global_search_ui.case_sensitive_checkbox.is_checked();
-        global_search.use_regex = global_search_ui.use_regex_checkbox.is_checked();
+        global_search.pattern = self.search_line_edit.text().to_std_string();
+        global_search.replace_text = self.replace_line_edit.text().to_std_string();
+        global_search.case_sensitive = self.case_sensitive_checkbox.is_checked();
+        global_search.use_regex = self.use_regex_checkbox.is_checked();
 
-        if global_search_ui.search_on_all_checkbox.is_checked() {
+        if self.search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
             global_search.search_on_texts = true;
             global_search.search_on_schema = true;
         }
         else {
-            global_search.search_on_dbs = global_search_ui.search_on_dbs_checkbox.is_checked();
-            global_search.search_on_locs = global_search_ui.search_on_locs_checkbox.is_checked();
-            global_search.search_on_texts = global_search_ui.search_on_texts_checkbox.is_checked();
-            global_search.search_on_schema = global_search_ui.search_on_schemas_checkbox.is_checked();
+            global_search.search_on_dbs = self.search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = self.search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = self.search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = self.search_on_schemas_checkbox.is_checked();
         }
 
         let receiver = CENTRAL_COMMAND.send_background(Command::GlobalSearchReplaceAll(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
-        global_search_ui.matches_table_and_text_tree_model.clear();
+        self.matches_table_and_text_tree_model.clear();
 
         match CentralCommand::recv(&receiver) {
             Response::GlobalSearchVecRFileInfo(global_search, packed_files_info) => {
                 UI_STATE.set_global_search(&global_search);
-                global_search_ui.search(pack_file_contents_ui);
+                self.search(pack_file_contents_ui);
 
                 for path in packed_files_info.iter().map(|x| x.path()) {
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path && x.get_data_source() == DataSource::PackFile) {
@@ -598,7 +628,7 @@ impl GlobalSearchUI {
                     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
                     let table_selection_model = table_view.selection_model();
 
-                    let row = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                    let row = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
                     let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
 
                     let table_model_index = table_model.index_2a(row, column);
@@ -614,7 +644,7 @@ impl GlobalSearchUI {
                 // If it's a text file, scroll to the row in question.
                 else if let ViewType::Internal(View::Text(view)) = packed_file_view.get_view() {
                     let parent = gidhora.parent();
-                    let row_number = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                    let row_number = parent.child_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
                     let editor = view.get_mut_editor();
                     scroll_to_row_safe(&editor.as_ptr(), row_number.try_into().unwrap());
                 }
@@ -625,11 +655,19 @@ impl GlobalSearchUI {
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.
     unsafe fn load_table_matches_to_ui(&self, matches: &[TableMatches], file_type: FileType) {
         let model = &self.matches_table_and_text_tree_model;
-        let tree_view = &self.matches_table_and_text_tree_view;
 
         if !matches.is_empty() {
 
-            for match_table in matches {
+            // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
+            if !matches.is_empty() {
+                model.block_signals(true);
+            }
+
+            let file_type_item = QStandardItem::new();
+            file_type_item.set_editable(false);
+            file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
+
+            for (index, match_table) in matches.iter().enumerate() {
                 if !match_table.matches().is_empty() {
                     let path = match_table.path();
                     let qlist_daddy = QListOfQStandardItem::new();
@@ -637,6 +675,7 @@ impl GlobalSearchUI {
                     let fill1 = QStandardItem::new();
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
+                    let fill4 = QStandardItem::new();
 
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -645,6 +684,7 @@ impl GlobalSearchUI {
                     fill1.set_editable(false);
                     fill2.set_editable(false);
                     fill3.set_editable(false);
+                    fill4.set_editable(false);
 
                     for match_row in match_table.matches() {
 
@@ -652,26 +692,29 @@ impl GlobalSearchUI {
                         let qlist_boi = QListOfQStandardItem::new();
 
                         // Create an empty row.
-                        let column_name = QStandardItem::new();
-                        let column_number = QStandardItem::new();
-                        let row = QStandardItem::new();
                         let text = QStandardItem::new();
+                        let column_name = QStandardItem::new();
+                        let row = QStandardItem::new();
+                        let column_number = QStandardItem::new();
+                        let fill5 = QStandardItem::new();
 
-                        column_name.set_text(&QString::from_std_str(match_row.column_name()));
-                        column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
-                        row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
                         text.set_text(&QString::from_std_str(match_row.contents().trim()));
+                        column_name.set_text(&QString::from_std_str(match_row.column_name()));
+                        row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
+                        column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
 
-                        column_name.set_editable(false);
-                        column_number.set_editable(false);
-                        row.set_editable(false);
                         text.set_editable(false);
+                        column_name.set_editable(false);
+                        row.set_editable(false);
+                        column_number.set_editable(false);
+                        fill5.set_editable(false);
 
                         // Add an empty row to the list.
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&column_number.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&fill5.into_ptr().as_mut_raw_ptr());
 
                         // Append the new row.
                         file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -681,28 +724,23 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&file_type_item.clone().as_mut_raw_ptr());
 
+                    // Unlock the model before the last insertion.
+                    if index == matches.len() - 1 {
+                        model.block_signals(false);
+                    }
 
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }
             }
-
-            model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_match_packedfile_column")));
-            model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_row")));
-            model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_match")));
-
-            // Hide the column number column for tables.
-            tree_view.hide_column(3);
-            tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
-
-            tree_view.header().resize_sections(ResizeMode::ResizeToContents);
         }
     }
 
     /// This function takes care of loading the results of a global search of `TextMatches` into a model.
     unsafe fn load_text_matches_to_ui(&self, matches: &[TextMatches], file_type: FileType) {
         let model = &self.matches_table_and_text_tree_model;
-        let tree_view = &self.matches_table_and_text_tree_view;
 
         if !matches.is_empty() {
 
@@ -710,6 +748,10 @@ impl GlobalSearchUI {
             if !matches.is_empty() {
                 model.block_signals(true);
             }
+
+            let file_type_item = QStandardItem::new();
+            file_type_item.set_editable(false);
+            file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
 
             for (index, match_text) in matches.iter().enumerate() {
                 if !match_text.matches().is_empty() {
@@ -719,6 +761,7 @@ impl GlobalSearchUI {
                     let fill1 = QStandardItem::new();
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
+                    let fill4 = QStandardItem::new();
 
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -727,6 +770,7 @@ impl GlobalSearchUI {
                     fill1.set_editable(false);
                     fill2.set_editable(false);
                     fill3.set_editable(false);
+                    fill4.set_editable(false);
 
                     for match_row in match_text.matches() {
 
@@ -742,22 +786,24 @@ impl GlobalSearchUI {
 
                         // Create an empty row.
                         let text = QStandardItem::from_q_string(&text_value);
+                        let fill5 = QStandardItem::new();
                         let row = QStandardItem::new();
                         let column = QStandardItem::new();
                         let len = QStandardItem::new();
 
-                        //text.set_text(&QString::from_std_str(&match_row.text()));
                         row.set_data_2a(&QVariant::from_u64(match_row.row() + 1), 2);
                         column.set_data_2a(&QVariant::from_u64(*match_row.column()), 2);
                         len.set_data_2a(&QVariant::from_i64(*match_row.len()), 2);
 
                         text.set_editable(false);
+                        fill5.set_editable(false);
                         row.set_editable(false);
                         column.set_editable(false);
                         len.set_editable(false);
 
                         // Add an empty row to the list.
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&fill5.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&len.into_ptr().as_mut_raw_ptr());
@@ -770,6 +816,8 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill4.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&file_type_item.clone().as_mut_raw_ptr());
 
                     // Unlock the model before the last insertion.
                     if index == matches.len() - 1 {
@@ -779,18 +827,6 @@ impl GlobalSearchUI {
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }
             }
-
-            model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("global_search_match_packedfile_text")));
-            model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_row")));
-            model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_column")));
-            model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("gen_loc_length")));
-
-            // Hide the column and length numbers on the TreeView.
-            tree_view.hide_column(2);
-            tree_view.hide_column(3);
-            tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
-
-            tree_view.header().resize_sections(ResizeMode::ResizeToContents);
         }
     }
 
@@ -858,10 +894,10 @@ impl GlobalSearchUI {
     }
 
     /// Function to get all the selected matches in the visible selection.
-    unsafe fn get_matches_from_selection(&self) -> Vec<MatchHolder> {
+    unsafe fn matches_from_selection(&self) -> Vec<MatchHolder> {
 
-        let tree_view = match self.matches_tab_widget.current_index() {
-            0 => &self.matches_table_and_text_tree_view,
+        let (model, tree_view) = match self.matches_tab_widget.current_index() {
+            0 => (&self.matches_table_and_text_tree_model, &self.matches_table_and_text_tree_view),
             _ => return vec![],
         };
 
@@ -872,7 +908,8 @@ impl GlobalSearchUI {
         // - If it's a child, check if the parent already exists.
         // - If it does, add another entry to it's matches.
         // - If not, create it with only that match.
-        let mut matches: Vec<TableMatches> = vec![];
+        let mut table_matches: Vec<TableMatches> = vec![];
+        let mut text_matches: Vec<TextMatches> = vec![];
         for item in items {
             if item.column() == 0 {
                 let is_match = !item.has_children();
@@ -881,52 +918,109 @@ impl GlobalSearchUI {
                 if is_match {
                     let parent = item.parent();
                     let path = parent.text().to_std_string();
+                    let file_type_index = parent.index().sibling_at_column(5);
+                    let file_type = FileType::from(&*model.item_from_index(&file_type_index).text().to_std_string());
 
-                    let match_file = match matches.iter_mut().find(|x| x.path() == &path) {
-                        Some(match_file) => match_file,
-                        None => {
-                            let table = TableMatches::new(&path);
-                            matches.push(table);
-                            matches.last_mut().unwrap()
-                        }
-                    };
-
-                    let column_name = parent.child_2a(item.row(), 0).text().to_std_string();
+                    let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
                     let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                    let row_number = parent.child_2a(item.row(), 1).text().to_std_string().parse::<i64>().unwrap() - 1;
-                    let text = parent.child_2a(item.row(), 2).text().to_std_string();
-                    let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+                    let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                    let text = parent.child_2a(item.row(), 0).text().to_std_string();
 
-                    if !match_file.matches_mut().contains(&match_entry) {
-                        match_file.matches_mut().push(match_entry);
+                    match file_type {
+                        FileType::DB |
+                        FileType::Loc => {
+                            let match_file = match table_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let table = TableMatches::new(&path);
+                                    table_matches.push(table);
+                                    table_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        FileType::Text => {
+                            let lenght = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+                            let match_file = match text_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let text = TextMatches::new(&path);
+                                    text_matches.push(text);
+                                    text_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = TextMatch::new(column_number as u64, row_number as u64, lenght, text);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        _ => unimplemented!()
                     }
                 }
 
                 // If it's not a particular match, it's an entire file.
                 else {
                     let path = item.text().to_std_string();
+                    let file_type_index = item.index().sibling_at_column(5);
+                    let file_type = FileType::from(&*model.item_from_index(&file_type_index).text().to_std_string());
 
                     // If it already exists, delete it, as the new one contains the entire set for it.
-                    if let Some(position) = matches.iter().position(|x| x.path() == &path) {
-                        matches.remove(position);
+                    match file_type {
+                        FileType::DB |
+                        FileType::Loc => {
+                            if let Some(position) = table_matches.iter().position(|x| x.path() == &path) {
+                                table_matches.remove(position);
+                            }
+
+                            let table = TableMatches::new(&path);
+                            table_matches.push(table);
+                            let match_file = table_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let column_name = item.child_2a(row, 1).text().to_std_string();
+                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                                let text = item.child_2a(row, 0).text().to_std_string();
+                                let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        FileType::Text => {
+                            if let Some(position) = text_matches.iter().position(|x| x.path() == &path) {
+                                text_matches.remove(position);
+                            }
+
+                            let text = TextMatches::new(&path);
+                            text_matches.push(text);
+                            let match_file = text_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let column_number = item.child_2a(row, 3).text().to_std_string().parse::<u64>().unwrap();
+                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                                let text = item.child_2a(row, 0).text().to_std_string();
+                                let lenght = item.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
+                                let match_entry = TextMatch::new(column_number, row_number as u64, lenght, text);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        }
+                        _ => unimplemented!()
                     }
 
-                    let table = TableMatches::new(&path);
-                    matches.push(table);
-                    let match_file = matches.last_mut().unwrap();
-
-                    // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                    for row in 0..item.row_count() {
-                        let column_name = item.child_2a(row, 0).text().to_std_string();
-                        let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                        let row_number = item.child_2a(row, 1).text().to_std_string().parse::<i64>().unwrap() - 1;
-                        let text = item.child_2a(row, 2).text().to_std_string();
-                        let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
-                        match_file.matches_mut().push(match_entry);
-                    }
                 }
             }
         }
-        matches.iter().map(|x| MatchHolder::Table(x.clone())).collect()
+
+        let mut matches = table_matches.into_iter().map(MatchHolder::Table).collect::<Vec<_>>();
+        matches.append(&mut text_matches.into_iter().map(MatchHolder::Text).collect::<Vec<_>>());
+        matches
     }
 }

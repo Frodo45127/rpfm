@@ -28,9 +28,9 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
 
 gen_loc_accept = Accept
 gen_loc_create = Create
-gen_loc_packedfile = PackedFile
-gen_loc_packfile = PackFile
-gen_loc_packfile_contents = PackFile Contents
+gen_loc_packedfile = File
+gen_loc_packfile = Pack
+gen_loc_packfile_contents = Pack Contents
 
 gen_loc_column = Column
 gen_loc_row = Row
@@ -264,13 +264,10 @@ global_search_schemas = Schemas
 
 ## Filter Dialogues
 
-global_search_db_matches = DB Matches
-global_search_loc_matches = Loc Matches
-global_search_txt_matches = Text Matches
+global_search_file_matches = File Matches
 global_search_schema_matches = Schema Matches
 
-global_search_match_packedfile_column = PackedFile/Column
-global_search_match_packedfile_text = PackedFile/Text
+global_search_match_packedfile_column = File Path/Match
 
 global_search_table_name = Table Name
 global_search_version = Version
@@ -1246,4 +1243,5 @@ new_mymod_gitignore_same_as_files_ignored_on_import = Same as files ignored on i
 mymod_error_spaces_on_name = Error: Mod name cannot contain spaces.
 new_mymod_pack_import_ignore_contents_placeholder = Relative paths, one per line.
 new_mymod_gitignore_contents_placeholder = Paths ignored by git, one per line.
-global_search_replace_placeholder = Write here the replace value.
+global_search_search_placeholder = Search
+global_search_replace_placeholder = Replace

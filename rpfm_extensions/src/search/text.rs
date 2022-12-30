@@ -15,10 +15,11 @@ This module contains the code needed to get text matches from a `GlobalSearch`.
 !*/
 
 use getset::{Getters, MutGetters};
+use itertools::Itertools;
 
 use rpfm_lib::files::text::Text;
 
-use super::{MatchingMode, Searchable};
+use super::{MatchingMode, Replaceable, Searchable};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -37,7 +38,7 @@ pub struct TextMatches {
 }
 
 /// This struct represents a match on a piece of text within a Text PackedFile.
-#[derive(Debug, Clone, Getters, MutGetters)]
+#[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct TextMatch {
 
@@ -61,7 +62,6 @@ pub struct TextMatch {
 impl Searchable for Text {
     type SearchMatches = TextMatches;
 
-    /// This function performs a search over the provided Text PackedFile.
     fn search(&self, file_path: &str, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode) -> TextMatches {
 
         // TODO: while it searches quite fast... I think it can be improved even more.
@@ -84,7 +84,7 @@ impl Searchable for Text {
 
             // If we're searching a pattern, we just check every text PackedFile, line by line.
             MatchingMode::Pattern => {
-                let length = pattern.chars().count();
+                let length = pattern.len();
                 let mut column = 0;
 
                 for (row, data) in self.contents().lines().enumerate() {
@@ -92,7 +92,7 @@ impl Searchable for Text {
                         if case_sensitive {
                             match text.find(pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
                                     column += position + length;
                                 }
                                 None => break,
@@ -102,7 +102,7 @@ impl Searchable for Text {
                             let text = text.to_lowercase();
                             match text.find(pattern) {
                                 Some(position) => {
-                                    matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
+                                    matches.matches.push(TextMatch::new(column as u64 + position as u64, row as u64, length as i64, data.to_owned()));
                                     column += position + length;
                                 }
                                 None => break,
@@ -119,7 +119,21 @@ impl Searchable for Text {
     }
 }
 
-/// Implementation of `TextMatches`.
+impl Replaceable for Text {
+
+    fn replace(&mut self, _pattern: &str, replace_pattern: &str, _case_sensitive: bool, _matching_mode: &MatchingMode, search_matches: &TextMatches) -> bool {
+        let mut edited = false;
+
+        // NOTE: Due to changes in index positions, we need to do this in reverse.
+        // Otherwise we may cause one edit to generate invalid indexes for the next matches.
+        for search_match in search_matches.matches().iter().rev() {
+            edited |= search_match.replace(replace_pattern, self.contents_mut());
+        }
+
+        edited
+    }
+}
+
 impl TextMatches {
 
     /// This function creates a new `TextMatches` for the provided path.
@@ -131,7 +145,6 @@ impl TextMatches {
     }
 }
 
-/// Implementation of `TextMatch`.
 impl TextMatch {
 
     /// This function creates a new `TextMatch` with the provided data.
@@ -142,5 +155,29 @@ impl TextMatch {
             len,
             text,
         }
+    }
+
+    /// This function replaces all the matches in the provided text.
+    fn replace(&self, replace_pattern: &str, data: &mut String) -> bool {
+        let mut edited = false;
+
+        let new_data = data.lines()
+            .enumerate()
+            .map(|(row, line)| {
+                if self.row == row as u64 {
+                    let mut new_line = line.to_owned();
+                    new_line.replace_range(self.column as usize..self.column as usize + self.len as usize, replace_pattern);
+                    new_line
+                } else {
+                    line.to_owned()
+                }
+            }).join("\n");
+
+        if new_data != *data {
+            *data = new_data;
+            edited = true;
+        }
+
+        edited
     }
 }

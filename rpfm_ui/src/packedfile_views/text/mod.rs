@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::{FileType, text::*};
 
 use crate::app_ui::AppUI;
-use crate::ffi::{new_text_editor_safe, set_text_safe};
+use crate::ffi::{cursor_row_safe, new_text_editor_safe, scroll_to_row_safe, set_text_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, PackedFileView, View, ViewType};
 use crate::packedfile_views::text::slots::PackedFileTextViewSlots;
@@ -120,6 +120,10 @@ impl PackedFileTextView {
             TextFormat::Js => QString::from_std_str(JS),
         };
 
+        let row_number = cursor_row_safe(&self.editor.as_ptr());
         set_text_safe(&self.editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &highlighting_mode.as_ptr());
+
+        // Try to scroll to the line we were before.
+        scroll_to_row_safe(&self.editor.as_ptr(), row_number);
     }
 }
