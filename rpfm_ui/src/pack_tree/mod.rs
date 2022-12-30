@@ -1140,7 +1140,6 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a file can slow this down to a crawl.
-                self.header().set_stretch_last_section(true);
                 model.append_row_q_standard_item(big_parent);
             },
 

@@ -197,6 +197,7 @@ impl GlobalSearchUI {
 
         // Create the frames for the matches tables.
         let matches_tab_widget: QPtr<QTabWidget> = find_widget(&main_widget.static_upcast(), "results_tab_widget")?;
+        matches_tab_widget.tab_bar().set_expanding(true);
 
         // Tables and texts.
         let matches_widget_table_and_text: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_table_and_text")?;
