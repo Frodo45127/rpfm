@@ -39,6 +39,7 @@ use qt_gui::q_font_database::SystemFont;
 use qt_core::QString;
 
 use lazy_static::lazy_static;
+use time::format_description::{parse, FormatItem};
 
 use std::path::PathBuf;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, RwLock};
@@ -246,6 +247,9 @@ lazy_static! {
 
     /// Atomic to control if we have performed the initial game selected change or not.
     static ref FIRST_GAME_CHANGE_DONE: AtomicBool = AtomicBool::new(false);
+
+    /// Formatted date, so we can reuse it instead of re-parsing it on each use.
+    static ref FULL_DATE_FORMAT: Vec<FormatItem<'static>> = parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap();
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

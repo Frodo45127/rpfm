@@ -42,6 +42,7 @@ use rpfm_lib::utils::*;
 use crate::backend::*;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::FULL_DATE_FORMAT;
 use crate::locale::qtr;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -1596,7 +1597,7 @@ pub fn new_pack_file_tooltip(info: &ContainerInfo) -> String {
         info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX) || info.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA),
         OffsetDateTime::from_unix_timestamp(*info.timestamp() as i64)
             .unwrap()
-            .format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap())
+            .format(&FULL_DATE_FORMAT)
             .unwrap()
     )
 }
@@ -1612,7 +1613,7 @@ fn new_packed_file_tooltip(info: &RFileInfo) -> String {
     if let Some(timestamp) = info.timestamp() {
         string.push_str(&format!("<li><b>Last Modified:</b> <i>{}</i></li>", OffsetDateTime::from_unix_timestamp(*timestamp as i64)
             .unwrap()
-            .format(&time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap())
+            .format(&FULL_DATE_FORMAT)
             .unwrap()));
     }
 
