@@ -342,7 +342,7 @@ impl GlobalSearchUI {
                 self.load_table_matches_to_ui(&global_search.matches_db, FileType::DB);
                 self.load_table_matches_to_ui(&global_search.matches_loc, FileType::Loc);
                 self.load_text_matches_to_ui(&global_search.matches_text, FileType::Text);
-                Self::load_schema_matches_to_ui(&self.matches_schema_tree_model, &self.matches_schema_tree_view, &global_search.matches_schema);
+                self.load_schema_matches_to_ui(&global_search.matches_schema);
 
                 if !global_search.matches_db.is_empty() || !global_search.matches_loc.is_empty() || !global_search.matches_text.is_empty() {
                     self.matches_tab_widget().set_current_index(0);
@@ -792,7 +792,10 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `SchemaMatches` into a model.
-    unsafe fn load_schema_matches_to_ui(model: &QStandardItemModel, tree_view: &QTreeView, matches: &SchemaMatches) {
+    unsafe fn load_schema_matches_to_ui(&self, matches: &SchemaMatches) {
+        let model = &self.matches_schema_tree_model;
+        let tree_view = &self.matches_schema_tree_view;
+
         if !matches.matches().is_empty() {
             for match_schema in matches.matches() {
                 let qlist = QListOfQStandardItem::new();
