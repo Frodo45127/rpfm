@@ -231,7 +231,7 @@ pub fn background_loop() {
                         let packed_files_info = RFileInfo::info_from_global_search(&global_search, &pack_file_decoded);
                         CentralCommand::send_back(&sender, Response::GlobalSearchVecRFileInfo(global_search, packed_files_info));
                     }
-                    None => {}
+                    None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Schema not found. Maybe you need to download it?"))),
                 }
             }
 

@@ -355,6 +355,7 @@ impl GlobalSearchUI {
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
+            Response::Error(error) => show_dialog(&self.dock_widget, error, false),
             _ => unimplemented!()
         }
     }
@@ -423,6 +424,7 @@ impl GlobalSearchUI {
                     // Set them as modified in the UI.
                 }
             },
+            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => unimplemented!()
         }
     }
@@ -485,6 +487,7 @@ impl GlobalSearchUI {
 
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile);
             },
+            Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
             _ => unimplemented!()
         }
     }
