@@ -88,7 +88,7 @@ pub fn update_schema_from_raw_files(
             // This one is notably missing in Warhammer 2, so it's optional.
             let raw_localisable_fields: Option<RawLocalisableFields> =
                 if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_path, raw_db_version) {
-                    let file = BufReader::new(File::open(&file_path)?);
+                    let file = BufReader::new(File::open(file_path)?);
                     from_reader(file).ok()
                 } else { None };
 

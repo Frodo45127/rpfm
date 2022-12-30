@@ -244,7 +244,7 @@ impl DependenciesUI {
 
         match response2 {
             Response::Success => {},
-            Response::VecString(error_paths) => show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", error_paths.iter().map(|x| "<li>".to_owned() + &x + "</li>").collect::<String>()), false),
+            Response::VecString(error_paths) => show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", error_paths.iter().map(|x| "<li>".to_owned() + x + "</li>").collect::<String>()), false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response2),
         }
 

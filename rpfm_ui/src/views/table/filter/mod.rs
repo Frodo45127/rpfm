@@ -110,10 +110,10 @@ impl FilterView {
             let fields = view.table_definition().fields_processed_sorted(false);
             for field in &fields {
                 let name = clean_column_names(field.name());
-                column_combobox.add_item_q_string(&QString::from_std_str(&name));
+                column_combobox.add_item_q_string(&QString::from_std_str(name));
             }
 
-            group_combobox.add_item_q_string(&QString::from_std_str(&format!("{} {}", tr("filter_group"), 1)));
+            group_combobox.add_item_q_string(&QString::from_std_str(format!("{} {}", tr("filter_group"), 1)));
         }
 
         // Add the new filter at the bottom of the window.
@@ -145,7 +145,7 @@ impl FilterView {
 
     pub unsafe fn add_filter_group(view: &TableView) {
         if view.filters()[0].group_combobox.count() < view.filters().len() as i32 {
-            let name = QString::from_std_str(&format!("{} {}", tr("filter_group"), view.filters()[0].group_combobox.count() + 1));
+            let name = QString::from_std_str(format!("{} {}", tr("filter_group"), view.filters()[0].group_combobox.count() + 1));
             view.filters()[0].group_combobox.add_item_q_string(&name);
         }
     }

@@ -145,7 +145,7 @@ pub(crate) fn log_to_status_bar(text: &str) {
 /// - text: something that implements the trait `Display`, to put in the KMessageWidget.
 #[allow(dead_code)]
 pub unsafe fn show_message_error<T: Display>(widget: &QPtr<QWidget>, text: T) {
-    let message = QString::from_std_str(&text.to_string());
+    let message = QString::from_std_str(text.to_string());
     kmessage_widget_set_error_safe(&widget.as_ptr(), message.into_ptr())
 }
 
@@ -156,7 +156,7 @@ pub unsafe fn show_message_error<T: Display>(widget: &QPtr<QWidget>, text: T) {
 /// - text: something that implements the trait `Display`, to put in the KMessageWidget.
 #[allow(dead_code)]
 pub unsafe fn show_message_warning<T: Display>(widget: &QPtr<QWidget>, text: T) {
-    let message = QString::from_std_str(&text.to_string());
+    let message = QString::from_std_str(text.to_string());
     kmessage_widget_set_warning_safe(&widget.as_ptr(), message.into_ptr())
 }
 
@@ -167,7 +167,7 @@ pub unsafe fn show_message_warning<T: Display>(widget: &QPtr<QWidget>, text: T) 
 /// - text: something that implements the trait `Display`, to put in the KMessageWidget.
 #[allow(dead_code)]
 pub unsafe fn show_message_info<T: Display>(widget: &QPtr<QWidget>, text: T) {
-    let message = QString::from_std_str(&text.to_string());
+    let message = QString::from_std_str(text.to_string());
     kmessage_widget_set_info_safe(&widget.as_ptr(), message.into_ptr())
 }
 
@@ -187,7 +187,7 @@ pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidge
     let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
         icon,
         &title,
-        &QString::from_std_str(&text.to_string()),
+        &QString::from_std_str(text.to_string()),
         QFlags::from(StandardButton::Ok),
         parent,
     );
@@ -236,7 +236,7 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
     let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
         Icon::Critical,
         &qtr("title_error"),
-        &QString::from_std_str(&text.to_string()),
+        &QString::from_std_str(text.to_string()),
         QFlags::from(0),
         parent,
     );
@@ -345,7 +345,7 @@ pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
         get_color_clean()
     };
 
-    widget.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", style_sheet)));
+    widget.set_style_sheet(&QString::from_std_str(format!("background-color: {}", style_sheet)));
 }
 
 /// This functin returns the feature flags enabled for RPFM.
@@ -523,7 +523,7 @@ pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<
 pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
     let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
     let mut data = vec!();
-    let mut file = BufReader::new(File::open(&path)?);
+    let mut file = BufReader::new(File::open(path)?);
     file.read_to_end(&mut data)?;
 
     let ui_loader = QUiLoader::new_0a();

@@ -90,7 +90,7 @@ impl Searchable for Text {
                 for (row, data) in self.contents().lines().enumerate() {
                     while let Some(text) = data.get(column..) {
                         if case_sensitive {
-                            match text.find(&pattern) {
+                            match text.find(pattern) {
                                 Some(position) => {
                                     matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
                                     column += position + length;
@@ -100,7 +100,7 @@ impl Searchable for Text {
                         }
                         else {
                             let text = text.to_lowercase();
-                            match text.find(&pattern) {
+                            match text.find(pattern) {
                                 Some(position) => {
                                     matches.matches.push(TextMatch::new(position as u64, row as u64, length as i64, data.to_owned()));
                                     column += position + length;

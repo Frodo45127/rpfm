@@ -200,10 +200,7 @@ impl Dependencies {
             let extra_data = Some(decode_extra_data);
 
             let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
-                match self.parent_files.remove(path) {
-                    Some(file) => Some((path.to_owned(), file)),
-                    None => None,
-                }
+                self.parent_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
@@ -415,10 +412,7 @@ impl Dependencies {
             let extra_data = Some(decode_extra_data);
 
             let mut files = dependencies.vanilla_locs.iter().chain(dependencies.vanilla_tables.values().flatten()).filter_map(|path| {
-                match dependencies.vanilla_files.remove(path) {
-                    Some(file) => Some((path.to_owned(), file)),
-                    None => None,
-                }
+                dependencies.vanilla_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
@@ -531,10 +525,7 @@ impl Dependencies {
 
             // Vanilla files.
             let mut files = self.vanilla_locs.iter().chain(self.vanilla_tables.values().flatten()).filter_map(|path| {
-                match self.vanilla_files.remove(path) {
-                    Some(file) => Some((path.to_owned(), file)),
-                    None => None,
-                }
+                self.vanilla_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
@@ -545,10 +536,7 @@ impl Dependencies {
 
             // Parent files.
             let mut files = self.parent_locs.iter().chain(self.parent_tables.values().flatten()).filter_map(|path| {
-                match self.parent_files.remove(path) {
-                    Some(file) => Some((path.to_owned(), file)),
-                    None => None,
-                }
+                self.parent_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
@@ -874,7 +862,7 @@ impl Dependencies {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
 
-        if let Ok(files) = self.db_data(&ref_table, true, true) {
+        if let Ok(files) = self.db_data(ref_table, true, true) {
             files.iter().for_each(|file| {
                 if let Ok(RFileDecoded::DB(db)) = file.decoded() {
                     let fields_processed = db.definition().fields_processed();

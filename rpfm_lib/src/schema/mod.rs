@@ -322,7 +322,7 @@ impl Schema {
 
     /// This function loads a [Schema] to memory from a provided `.ron` file.
     pub fn load(path: &Path) -> Result<Self> {
-        let mut file = BufReader::new(File::open(&path)?);
+        let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         from_bytes(&data).map_err(From::from)
@@ -330,7 +330,7 @@ impl Schema {
 
     /// This function loads a [Schema] to memory from a provided `.json` file.
     pub fn load_json(path: &Path) -> Result<Self> {
-        let mut file = BufReader::new(File::open(&path)?);
+        let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         serde_json::from_slice(&data).map_err(From::from)
@@ -341,10 +341,10 @@ impl Schema {
 
         // Make sure the path exists to avoid problems with updating schemas.
         if let Some(parent_folder) = path.parent() {
-            DirBuilder::new().recursive(true).create(&parent_folder)?;
+            DirBuilder::new().recursive(true).create(parent_folder)?;
         }
 
-        let mut file = BufWriter::new(File::create(&path)?);
+        let mut file = BufWriter::new(File::create(path)?);
         let config = PrettyConfig::default();
 
         // Make sure all definitions are properly sorted by version number.
@@ -376,7 +376,7 @@ impl Schema {
 
         // Make sure the path exists to avoid problems with updating schemas.
         if let Some(parent_folder) = path.parent() {
-            DirBuilder::new().recursive(true).create(&parent_folder)?;
+            DirBuilder::new().recursive(true).create(parent_folder)?;
         }
 
         let mut file = BufWriter::new(File::create(&path)?);

@@ -51,19 +51,19 @@ pub enum UpdateChannel {
 pub enum APIResponse {
 
     /// This means a beta update was found.
-    SuccessNewBetaUpdate(String),
+    NewBetaUpdate(String),
 
     /// This means a major stable update was found.
-    SuccessNewStableUpdate(String),
+    NewStableUpdate(String),
 
     /// This means a minor stable update was found.
-    SuccessNewUpdateHotfix(String),
+    NewUpdateHotfix(String),
 
     /// This means no update was found.
-    SuccessNoUpdate,
+    NoUpdate,
 
     /// This means don't know if there was an update or not, because the version we got was invalid.
-    SuccessUnknownVersion,
+    UnknownVersion,
 }
 
 //---------------------------------------------------------------------------//
@@ -118,10 +118,10 @@ pub fn update_main_program() -> Result<()> {
 
         // Fix for files in folders: we have to get the destination path with the folders included.
         let tmp_file_relative = updated_file.strip_prefix(tmp_dir.path()).unwrap();
-        let dest_file = dest_base_path.join(&tmp_file_relative);
+        let dest_file = dest_base_path.join(tmp_file_relative);
 
         // Make sure the destination folder actually exists, or this will fail.
-        let mut dest_folder = dest_base_path.join(&tmp_file_relative);
+        let mut dest_folder = dest_base_path.join(tmp_file_relative);
         dest_folder.pop();
         DirBuilder::new().recursive(true).create(&dest_folder)?;
 
@@ -148,7 +148,7 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
     // In that case, return the last stable as valid.
     if let UpdateChannel::Stable = update_channel {
         if current_version[2] >= 99 {
-            return Ok(APIResponse::SuccessNewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join("."))));
+            return Ok(APIResponse::NewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join("."))));
         }
     }
 
@@ -159,7 +159,7 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
 
     // If this is triggered, there has been a problem parsing the current/remote version.
     if first.0 == 0 && second.0 == 0 && third.0 == 0 || first.1 == 0 && second.1 == 0 && third.1 == 0 {
-        Ok(APIResponse::SuccessUnknownVersion)
+        Ok(APIResponse::UnknownVersion)
     }
 
     // If the current version is different than the last released version...
@@ -167,38 +167,38 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
 
         // If the latest released version is lesser than the current version...
         // No update. We are using a newer build than the last build released (dev?).
-        if first.0 < first.1 { Ok(APIResponse::SuccessNoUpdate) }
+        if first.0 < first.1 { Ok(APIResponse::NoUpdate) }
 
         // If the latest released version is greater than the current version...
         // New major update. No more checks needed.
         else if first.0 > first.1 {
             match update_channel {
-                UpdateChannel::Stable => Ok(APIResponse::SuccessNewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
-                UpdateChannel::Beta => Ok(APIResponse::SuccessNewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Stable => Ok(APIResponse::NewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Beta => Ok(APIResponse::NewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
             }
         }
 
         // If the latest released version the same than the current version, we check the second, then the third number.
         // No update. We are using a newer build than the last build released (dev?).
-        else if second.0 < second.1 { Ok(APIResponse::SuccessNoUpdate) }
+        else if second.0 < second.1 { Ok(APIResponse::NoUpdate) }
 
         // New major update. No more checks needed.
         else if second.0 > second.1 {
             match update_channel {
-                UpdateChannel::Stable => Ok(APIResponse::SuccessNewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
-                UpdateChannel::Beta => Ok(APIResponse::SuccessNewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Stable => Ok(APIResponse::NewStableUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Beta => Ok(APIResponse::NewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
             }
         }
 
         // We check the last number in the versions, and repeat. Scraping the barrel...
         // No update. We are using a newer build than the last build released (dev?).
-        else if third.0 < third.1 { Ok(APIResponse::SuccessNoUpdate) }
+        else if third.0 < third.1 { Ok(APIResponse::NoUpdate) }
 
         // If the latest released version only has the last number higher, is a hotfix.
         else if third.0 > third.1 {
             match update_channel {
-                UpdateChannel::Stable => Ok(APIResponse::SuccessNewUpdateHotfix(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
-                UpdateChannel::Beta => Ok(APIResponse::SuccessNewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Stable => Ok(APIResponse::NewUpdateHotfix(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
+                UpdateChannel::Beta => Ok(APIResponse::NewBetaUpdate(format!("v{}", last_version.iter().map(|x| x.to_string()).join(".")))),
             }
         }
 
@@ -206,7 +206,7 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
         else { unreachable!() }
     }
     else {
-        Ok(APIResponse::SuccessNoUpdate)
+        Ok(APIResponse::NoUpdate)
     }
 }
 

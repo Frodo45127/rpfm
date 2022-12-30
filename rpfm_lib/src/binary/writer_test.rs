@@ -218,13 +218,13 @@ fn write_string_u8_0padded() {
 
     // Check the writer works for a properly encoded string.
     let mut data = vec![];
-    assert_eq!(data.write_string_u8_0padded("Waha", 8, false).is_ok(), true);
+    assert!(data.write_string_u8_0padded("Waha", 8, false).is_ok());
     assert_eq!(data, vec![87, 97, 104, 97, 0, 0, 0, 0]);
 
     // Check the writer fails properly when the length it's inferior to the current string's length.
     let mut data = vec![];
     let result = data.write_string_u8_0padded("Waha", 3, false);
-    assert_eq!(result.is_err(), true);
+    assert!(result.is_err());
 }
 
 /// Test for WriteBytes::write_string_u8_0terminated().
@@ -283,7 +283,7 @@ fn write_string_u16_0padded() {
     // Check the writer fails properly when the length it's inferior to the current string's length.
     let mut data = vec![];
     let result = data.write_string_u16_0padded("Waha", 6, false);
-    assert_eq!(result.is_err(), true);
+    assert!(result.is_err());
 }
 
 /// Test for WriteBytes::write_sized_string_u16().

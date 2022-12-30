@@ -45,8 +45,8 @@ fn read_slice() {
 fn read_bool() {
 
     // Check the reader works for a proper value.
-    assert_eq!(ReadBytes::read_bool(&mut Cursor::new([0])).unwrap(), false);
-    assert_eq!(ReadBytes::read_bool(&mut Cursor::new([1])).unwrap(), true);
+    assert!(!ReadBytes::read_bool(&mut Cursor::new([0])).unwrap());
+    assert!(ReadBytes::read_bool(&mut Cursor::new([1])).unwrap());
 
     // Check the reader returns an error for an invalid value.
     assert!(ReadBytes::read_bool(&mut Cursor::new([2])).is_err());
@@ -60,7 +60,7 @@ fn read_u8() {
     assert_eq!(ReadBytes::read_u8(&mut Cursor::new([10])).unwrap(), 10);
 
     // Check the reader returns an error for empty data.
-    assert_eq!(ReadBytes::read_u8(&mut Cursor::new([])).is_err(), true);
+    assert!(ReadBytes::read_u8(&mut Cursor::new([])).is_err());
 }
 
 /// Test to `ReadBytes::read_u16()`.
@@ -71,7 +71,7 @@ fn read_u16() {
     assert_eq!(ReadBytes::read_u16(&mut Cursor::new([10, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 2.
-    assert_eq!(ReadBytes::read_u16(&mut Cursor::new([10])).is_err(), true);
+    assert!(ReadBytes::read_u16(&mut Cursor::new([10])).is_err());
 }
 
 /// Test to `ReadBytes::read_u24()`.
@@ -82,7 +82,7 @@ fn read_u24() {
     assert_eq!(ReadBytes::read_u24(&mut Cursor::new([152, 150, 129])).unwrap(), 8492696);
 
     // Check the reader returns an error for a slice whose length is smaller than 3.
-    assert_eq!(ReadBytes::read_u24(&mut Cursor::new([152, 150])).is_err(), true);
+    assert!(ReadBytes::read_u24(&mut Cursor::new([152, 150])).is_err());
 }
 
 /// Test to `ReadBytes::read_u32()`.
@@ -93,7 +93,7 @@ fn read_u32() {
     assert_eq!(ReadBytes::read_u32(&mut Cursor::new([10, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 4.
-    assert_eq!(ReadBytes::read_u32(&mut Cursor::new([10, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_u32(&mut Cursor::new([10, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_u64()`.
@@ -104,7 +104,7 @@ fn read_u64() {
     assert_eq!(ReadBytes::read_u64(&mut Cursor::new([10, 0, 0, 0, 0, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 8.
-    assert_eq!(ReadBytes::read_u64(&mut Cursor::new([10, 0, 0, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_u64(&mut Cursor::new([10, 0, 0, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_cauleb128()`.
@@ -115,7 +115,7 @@ fn read_cauleb128() {
     assert_eq!(ReadBytes::read_cauleb128(&mut Cursor::new([0x80, 10])).unwrap(), 10);
 
     // Check the reader returns an error for a slice that's not big enough.
-    assert_eq!(ReadBytes::read_cauleb128(&mut Cursor::new([])).is_err(), true);
+    assert!(ReadBytes::read_cauleb128(&mut Cursor::new([])).is_err());
 }
 
 /// Test to `ReadBytes::read_i8()`.
@@ -126,7 +126,7 @@ fn read_i8() {
     assert_eq!(ReadBytes::read_i8(&mut Cursor::new([254])).unwrap(), -2);
 
     // Check the reader returns an error for a slice whose length is smaller than 1.
-    assert_eq!(ReadBytes::read_i8(&mut Cursor::new([])).is_err(), true);
+    assert!(ReadBytes::read_i8(&mut Cursor::new([])).is_err());
 }
 
 /// Test to `ReadBytes::read_u16()`.
@@ -137,7 +137,7 @@ fn read_i16() {
     assert_eq!(ReadBytes::read_i16(&mut Cursor::new([254, 254])).unwrap(), -258);
 
     // Check the reader returns an error for a slice whose length is smaller than 2.
-    assert_eq!(ReadBytes::read_i16(&mut Cursor::new([10])).is_err(), true);
+    assert!(ReadBytes::read_i16(&mut Cursor::new([10])).is_err());
 }
 
 /// Test to `ReadBytes::read_i24()`.
@@ -148,7 +148,7 @@ fn read_i24() {
     assert_eq!(ReadBytes::read_i24(&mut Cursor::new([152, 150, 129])).unwrap(), -8_284_520);
 
     // Check the reader returns an error for a slice whose length is smaller than 3.
-    assert_eq!(ReadBytes::read_i24(&mut Cursor::new([152, 150])).is_err(), true);
+    assert!(ReadBytes::read_i24(&mut Cursor::new([152, 150])).is_err());
 }
 
 /// Test to `ReadBytes::read_u32()`.
@@ -159,7 +159,7 @@ fn read_i32() {
     assert_eq!(ReadBytes::read_i32(&mut Cursor::new([10, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 4.
-    assert_eq!(ReadBytes::read_i32(&mut Cursor::new([10, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_i32(&mut Cursor::new([10, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_i64()`.
@@ -170,7 +170,7 @@ fn read_i64() {
     assert_eq!(ReadBytes::read_i64(&mut Cursor::new([10, 0, 0, 0, 0, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 8.
-    assert_eq!(ReadBytes::read_i64(&mut Cursor::new([10, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_i64(&mut Cursor::new([10, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_i16()`.
@@ -181,10 +181,10 @@ fn read_optional_i16() {
     assert_eq!(ReadBytes::read_optional_i16(&mut Cursor::new([1, 254, 254])).unwrap(), -258);
 
     // Check the reader returns an error for a slice whose length is smaller than 2.
-    assert_eq!(ReadBytes::read_optional_i16(&mut Cursor::new([1, 10])).is_err(), true);
+    assert!(ReadBytes::read_optional_i16(&mut Cursor::new([1, 10])).is_err());
 
     // Check the reader returns an error if the first value is not a bool.
-    assert_eq!(ReadBytes::read_optional_i16(&mut Cursor::new([2, 10, 0])).is_err(), true);
+    assert!(ReadBytes::read_optional_i16(&mut Cursor::new([2, 10, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_i32()`.
@@ -195,10 +195,10 @@ fn read_optional_i32() {
     assert_eq!(ReadBytes::read_optional_i32(&mut Cursor::new([1, 10, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 4.
-    assert_eq!(ReadBytes::read_optional_i32(&mut Cursor::new([1, 10, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_optional_i32(&mut Cursor::new([1, 10, 0, 0])).is_err());
 
     // Check the reader returns an error if the first value is not a bool.
-    assert_eq!(ReadBytes::read_optional_i32(&mut Cursor::new([2, 10, 0, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_optional_i32(&mut Cursor::new([2, 10, 0, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_i64()`.
@@ -209,10 +209,10 @@ fn read_optional_i64() {
     assert_eq!(ReadBytes::read_optional_i64(&mut Cursor::new([1, 10, 0, 0, 0, 0, 0, 0, 0])).unwrap(), 10);
 
     // Check the reader returns an error for a slice whose length is smaller than 8.
-    assert_eq!(ReadBytes::read_optional_i64(&mut Cursor::new([1, 10, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_optional_i64(&mut Cursor::new([1, 10, 0, 0])).is_err());
 
     // Check the reader returns an error if the first value is not a bool.
-    assert_eq!(ReadBytes::read_optional_i64(&mut Cursor::new([2, 10, 0, 0, 0])).is_err(), true);
+    assert!(ReadBytes::read_optional_i64(&mut Cursor::new([2, 10, 0, 0, 0])).is_err());
 }
 
 /// Test to `ReadBytes::read_f32()`.
@@ -223,7 +223,7 @@ fn read_f32() {
     assert_eq!(ReadBytes::read_f32(&mut Cursor::new([0, 0, 32, 65])).unwrap(), 10.0);
 
     // Check the reader returns an error for a slice whose length is smaller than 4.
-    assert_eq!(ReadBytes::read_f32(&mut Cursor::new([0, 32, 65])).is_err(), true);
+    assert!(ReadBytes::read_f32(&mut Cursor::new([0, 32, 65])).is_err());
 }
 
 /// Test to `ReadBytes::read_f64()`.
@@ -234,7 +234,7 @@ fn read_f64() {
     assert_eq!(ReadBytes::read_f64(&mut Cursor::new([0, 0, 0, 0, 0, 0, 36, 64])).unwrap(), 10.0);
 
     // Check the reader returns an error for a slice whose length is smaller than 8.
-    assert_eq!(ReadBytes::read_f64(&mut Cursor::new([0, 0, 0, 0, 36, 64])).is_err(), true);
+    assert!(ReadBytes::read_f64(&mut Cursor::new([0, 0, 0, 0, 36, 64])).is_err());
 }
 
 /// Test to `ReadBytes::read_string_u8()`.
@@ -245,7 +245,7 @@ fn read_string_u8() {
     assert_eq!(ReadBytes::read_string_u8(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97]), 10).unwrap(), "Wahahahaha");
 
     // Check the reader returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(ReadBytes::read_string_u8(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]), 10).is_err(), true);
+    assert!(ReadBytes::read_string_u8(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97]), 10).is_err());
 }
 
 /// Test to `ReadBytes::read_string_u8_iso_8859_15()`.
@@ -270,7 +270,7 @@ fn read_string_u8_0padded() {
     assert_eq!(ReadBytes::read_string_u8_0padded(&mut Cursor::new([87, 97, 104, 97, 0, 104, 97, 0, 0, 0]), 10).unwrap(), "Waha");
 
     // Check the reader returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(ReadBytes::read_string_u8_0padded(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97, 0, 0]), 12).is_err(), true);
+    assert!(ReadBytes::read_string_u8_0padded(&mut Cursor::new([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97, 0, 0]), 12).is_err());
 
     // Check the reader returns the full string if no zeros have been found before the end of the slice.
     assert_eq!(ReadBytes::read_string_u8_0padded(&mut Cursor::new([87, 97, 104, 97, 104, 97, 104, 97, 104, 97]), 10).unwrap(), "Wahahahaha");
@@ -298,13 +298,13 @@ fn read_sized_string_u8() {
     assert_eq!(ReadBytes::read_sized_string_u8(&mut Cursor::new([10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97])).unwrap(), "Wahahahaha".to_owned());
 
     // Check the reader returns an error for a slice with less than two bytes.
-    assert_eq!(ReadBytes::read_sized_string_u8(&mut Cursor::new([5])).is_err(), true);
+    assert!(ReadBytes::read_sized_string_u8(&mut Cursor::new([5])).is_err());
 
     // Check the reader returns an error for a slice shorter than it's specified length.
-    assert_eq!(ReadBytes::read_sized_string_u8(&mut Cursor::new([4, 0, 2])).is_err(), true);
+    assert!(ReadBytes::read_sized_string_u8(&mut Cursor::new([4, 0, 2])).is_err());
 
     // Check the reader returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(ReadBytes::read_sized_string_u8(&mut Cursor::new([11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err(), true);
+    assert!(ReadBytes::read_sized_string_u8(&mut Cursor::new([11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_string_u8()`.
@@ -318,19 +318,19 @@ fn read_optional_string_u8() {
     assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 10, 0, 87, 97, 104, 97, 104, 97, 104, 97, 104, 97])).unwrap(), "Wahahahaha".to_owned());
 
     // Check the reader returns an error for a slice when it expects a string after the bool, but founds nothing.
-    assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1])).is_err());
 
     // Check the reader returns an error if the first value is not a boolean
-    assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([2])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u8(&mut Cursor::new([2])).is_err());
 
     // Check the reader returns an error for a slice with less than two bytes.
-    assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 5])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 5])).is_err());
 
     // Check the reader returns an error for a slice shorter than it's specified length.
-    assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 4, 0, 2])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 4, 0, 2])).is_err());
 
     // Check the reader returns an error for a slice with non-UTF8 characters (255).
-    assert_eq!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u8(&mut Cursor::new([1, 11, 0, 87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97])).is_err());
 }
 
 /// Test to `ReadBytes::read_string_u16()`.
@@ -341,10 +341,10 @@ fn read_string_u16() {
     assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0]), 12).unwrap(), "Wahaha");
 
     // Check the reader returns an error for a slice with uneven amount of bytes.
-    assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0, 1]), 13).is_err(), true);
+    assert!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0, 1]), 13).is_err());
 
     // Check the reader returns an error for a slice with the wrong size.
-    assert_eq!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0]), 14).is_err(), true);
+    assert!(ReadBytes::read_string_u16(&mut Cursor::new([87, 0, 0, 216, 104, 0, 97, 0, 104, 0, 97, 0]), 14).is_err());
 }
 
 /// Test to `ReadBytes::read_string_u16_0padded()`.
@@ -361,7 +361,7 @@ fn read_string_u16_0padded() {
     assert_eq!(ReadBytes::read_string_u16_0padded(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0]), 20).unwrap(), "Wahahahaha");
 
     // Check that fails properly if the size is wrong
-    assert_eq!(ReadBytes::read_string_u16_0padded(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 40).is_err(), true);
+    assert!(ReadBytes::read_string_u16_0padded(&mut Cursor::new([87, 0, 97, 0, 104, 0, 97, 0, 104, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 40).is_err());
 }
 
 /// Test to `ReadBytes::read_sized_string_u16()`.
@@ -372,10 +372,10 @@ fn read_sized_string_u16() {
     assert_eq!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 87, 0, 97, 0, 104, 0, 97, 0])).unwrap(), "Waha".to_owned());
 
     // Check the reader returns an error for a slice with less than two bytes.
-    assert_eq!(ReadBytes::read_sized_string_u16(&mut Cursor::new([5])).is_err(), true);
+    assert!(ReadBytes::read_sized_string_u16(&mut Cursor::new([5])).is_err());
 
     // Check the reader returns an error for a slice shorter than it's specified length.
-    assert_eq!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 2])).is_err(), true);
+    assert!(ReadBytes::read_sized_string_u16(&mut Cursor::new([4, 0, 2])).is_err());
 }
 
 /// Test to `ReadBytes::read_optional_string_u16()`.
@@ -389,13 +389,13 @@ fn read_optional_string_u16() {
     assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 4, 0, 87, 0, 97, 0, 104, 0, 97, 0])).unwrap(), "Waha".to_owned());
 
     // Check the reader returns an error if the first value is not a boolean
-    assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([2, 5])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u16(&mut Cursor::new([2, 5])).is_err());
 
     // Check the reader returns an error for a slice with less than two bytes.
-    assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 5])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 5])).is_err());
 
     // Check the reader returns an error for a slice shorter than it's specified length.
-    assert_eq!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 4, 0, 2])).is_err(), true);
+    assert!(ReadBytes::read_optional_string_u16(&mut Cursor::new([1, 4, 0, 2])).is_err());
 }
 
 /// Test to `ReadBytes::read_string_colour_rgb()`.
@@ -406,5 +406,5 @@ fn read_string_colour_rgb() {
     assert_eq!(ReadBytes::read_string_colour_rgb(&mut Cursor::new([0xFF, 0x04, 0x05, 0x00])).unwrap(), "0504FF");
 
     // Check the reader returns an error for a slice shorter than expected.
-    assert_eq!(ReadBytes::read_string_colour_rgb(&mut Cursor::new([0x87, 0x97])).is_err(), true);
+    assert!(ReadBytes::read_string_colour_rgb(&mut Cursor::new([0x87, 0x97])).is_err());
 }

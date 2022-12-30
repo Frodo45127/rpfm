@@ -449,7 +449,7 @@ impl Pack {
 
         // First, we do some quick checks to ensure it's a valid Pack.
         // A valid Pack, bare and empty, needs at least 24 bytes, regardless of game or type.
-        let data_len = disk_file_size as u64;
+        let data_len = disk_file_size;
         if data_len < 24 {
             return Err(RLibError::PackHeaderNotComplete);
         }

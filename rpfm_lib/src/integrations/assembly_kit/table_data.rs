@@ -101,8 +101,8 @@ impl RawTable {
                     return Err(RLibError::AssemblyKitTableTableIgnored)
                 }
 
-                let raw_table_data_path = raw_table_data_folder.join(&raw_definition.name.as_ref().unwrap());
-                let mut raw_table_data_file = BufReader::new(File::open(&raw_table_data_path)?);
+                let raw_table_data_path = raw_table_data_folder.join(raw_definition.name.as_ref().unwrap());
+                let mut raw_table_data_file = BufReader::new(File::open(raw_table_data_path)?);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, because unique names for
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.

@@ -83,7 +83,7 @@ impl MyModUI {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(app_ui.main_window(), &template_path)?;
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
 
         // Get the common widgets for all tools.
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
@@ -141,7 +141,7 @@ impl MyModUI {
                 selected_index_counter += 1;
             }
         }
-        game_combobox.set_current_index(selected_index as i32);
+        game_combobox.set_current_index(selected_index);
 
         // Disable the "Accept" button by default.
         button_box.button(q_dialog_button_box::StandardButton::Ok).set_enabled(false);

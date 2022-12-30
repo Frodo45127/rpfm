@@ -573,7 +573,7 @@ impl Diagnostics {
             // Checks that only need to be done once per table.
             if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableFound"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
                 for column in &columns_without_reference_table {
-                    let field_name = fields_processed[*column as usize].name().to_string();
+                    let field_name = fields_processed[*column].name().to_string();
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableFound(field_name), &[(-1, *column as i32)]);
                     diagnostic.results_mut().push(result);
                 }
@@ -581,13 +581,13 @@ impl Diagnostics {
             for column in &columns_with_reference_table_and_no_column {
                 if !dependencies.is_asskit_data_loaded() {
                     if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundNoPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                        let field_name = fields_processed[*column as usize].name().to_string();
+                        let field_name = fields_processed[*column].name().to_string();
                         let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name), &[(-1, *column as i32)]);
                         diagnostic.results_mut().push(result);
                     }
                 }
                 else if !Self::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundPak"), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields) {
-                    let field_name = fields_processed[*column as usize].name().to_string();
+                    let field_name = fields_processed[*column].name().to_string();
                     let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name), &[(-1, *column as i32)]);
                     diagnostic.results_mut().push(result);
                 }

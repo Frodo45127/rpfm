@@ -1339,7 +1339,7 @@ impl AppUI {
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
             file_dialog.set_confirm_overwrite(true);
             file_dialog.set_default_suffix(&QString::from_std_str("pack"));
-            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
+            file_dialog.select_file(&QString::from_std_str(path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
 
             // If we are saving an existing PackFile with another name, we start in his current path.
             if path.is_file() {
@@ -1364,7 +1364,7 @@ impl AppUI {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile);
                         let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                        packfile_item.set_text(&QString::from_std_str(&file_name));
+                        packfile_item.set_text(&QString::from_std_str(file_name));
 
                         UI_STATE.set_operational_mode(app_ui, None);
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
@@ -1877,7 +1877,7 @@ impl AppUI {
                                 if pack_file.is_file() && pack_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() == "pack" {
                                     let pack_file = pack_file.clone();
                                     let mod_name = pack_file.file_name().unwrap().to_string_lossy();
-                                    let open_mod_action = game_submenu.add_action_q_string(&QString::from_std_str(&mod_name));
+                                    let open_mod_action = game_submenu.add_action_q_string(&QString::from_std_str(mod_name));
 
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
@@ -1945,23 +1945,23 @@ impl AppUI {
         let message = match response {
             Response::APIResponse(response) => {
                 match response {
-                    APIResponse::SuccessNewStableUpdate(last_release) => {
+                    APIResponse::NewStableUpdate(last_release) => {
                         update_button.set_enabled(true);
                         qtre("api_response_success_new_stable_update", &[&last_release])
                     }
-                    APIResponse::SuccessNewBetaUpdate(last_release) => {
+                    APIResponse::NewBetaUpdate(last_release) => {
                         update_button.set_enabled(true);
                         qtre("api_response_success_new_beta_update", &[&last_release])
                     }
-                    APIResponse::SuccessNewUpdateHotfix(last_release) => {
+                    APIResponse::NewUpdateHotfix(last_release) => {
                         update_button.set_enabled(true);
                         qtre("api_response_success_new_update_hotfix", &[&last_release])
                     }
-                    APIResponse::SuccessNoUpdate => {
+                    APIResponse::NoUpdate => {
                         if !use_dialog { return; }
                         qtr("api_response_success_no_update")
                     }
-                    APIResponse::SuccessUnknownVersion => {
+                    APIResponse::UnknownVersion => {
                         if !use_dialog { return; }
                         qtr("api_response_success_unknown_version")
                     }
@@ -2003,12 +2003,12 @@ impl AppUI {
                         QApplication::close_all_windows();
 
                         let rpfm_exe_path = current_exe().unwrap();
-                        SystemCommand::new(&rpfm_exe_path).spawn().unwrap();
+                        SystemCommand::new(rpfm_exe_path).spawn().unwrap();
                         exit(10);
                     }
                 },
                 Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2085,7 +2085,7 @@ impl AppUI {
                     close_button.set_enabled(true);
                 },
                 Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2163,7 +2163,7 @@ impl AppUI {
                         close_button.set_enabled(true);
                     },
                     Response::Error(error) => {
-                        dialog.set_text(&QString::from_std_str(&error.to_string()));
+                        dialog.set_text(&QString::from_std_str(error.to_string()));
                         close_button.set_enabled(true);
                     }
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -2249,7 +2249,7 @@ impl AppUI {
                     close_button.set_enabled(true);
                 },
                 Response::Error(error) => {
-                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    dialog.set_text(&QString::from_std_str(error.to_string()));
                     close_button.set_enabled(true);
                 }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -3202,7 +3202,7 @@ impl AppUI {
             packfile_name
         } else { packfile_name };
 
-        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
+        name_line_edit.set_text(&QString::from_std_str(packfile_name));
         table_dropdown.set_model(&table_model);
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
@@ -3297,7 +3297,7 @@ impl AppUI {
             packfile_name
         } else { packfile_name };
 
-        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
+        name_line_edit.set_text(&QString::from_std_str(packfile_name));
 
         main_grid.add_widget_5a(&name_line_edit, 1, 0, 1, 1);
         main_grid.add_widget_5a(&accept_button, 1, 1, 1, 1);
@@ -3334,7 +3334,7 @@ impl AppUI {
             packfile_name
         } else { packfile_name };
 
-        name_line_edit.set_text(&QString::from_std_str(&packfile_name));
+        name_line_edit.set_text(&QString::from_std_str(packfile_name));
 
         let delete_source_tables = QCheckBox::from_q_string(&qtr("merge_tables_delete_option"));
 

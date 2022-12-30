@@ -171,7 +171,7 @@ impl SettingsUISlots {
 
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             match dependencies_cache_path() {
-                Ok(path) => match remove_dir_all(&path) {
+                Ok(path) => match remove_dir_all(path) {
                     Ok(_) => {
                         let _ = init_config_path();
                         show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true);
@@ -184,7 +184,7 @@ impl SettingsUISlots {
 
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             match backup_autosave_path() {
-                Ok(path) => match remove_dir_all(&path) {
+                Ok(path) => match remove_dir_all(path) {
                     Ok(_) => {
                         let _ = init_config_path();
                         show_dialog(&ui.dialog, tr("autosaves_cleared"), true);
@@ -335,7 +335,7 @@ unsafe fn change_colour(button: &QBox<QPushButton>) {
         button.set_palette(&palette);
 
         if cfg!(target_os = "windows") {
-            button.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", color.name_1a(NameFormat::HexArgb).to_std_string())));
+            button.set_style_sheet(&QString::from_std_str(format!("background-color: {}", color.name_1a(NameFormat::HexArgb).to_std_string())));
         }
     }
 }

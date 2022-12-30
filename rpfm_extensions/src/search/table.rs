@@ -167,14 +167,14 @@ impl TableMatches {
 
             MatchingMode::Pattern => {
                 if case_sensitive {
-                    if text.contains(&pattern) {
+                    if text.contains(pattern) {
                         let column_name = fields_processed[column_number as usize].name();
                         self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
                 }
                 else {
                     let text_lower = text.to_lowercase();
-                    if text_lower.contains(&pattern) {
+                    if text_lower.contains(pattern) {
                         let column_name = fields_processed[column_number as usize].name();
                         self.matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
@@ -215,7 +215,7 @@ impl TableMatch {
                         let mut text = cell.data_to_string().to_string();
                         if case_sensitive {
                             let mut index = 0;
-                            while let Some(start) = text.find(&pattern) {
+                            while let Some(start) = text.find(pattern) {
 
                                 // Advance the index so we don't get trapped in an infinite loop... again.
                                 if start >= index {

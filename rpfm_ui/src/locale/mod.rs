@@ -69,7 +69,7 @@ impl Locale {
             let locale = format!("{}/{}/{}.ftl", ASSETS_PATH.to_string_lossy(), LOCALE_FOLDER, file_name);
 
             // If found, load the entire file to a string.
-            let mut file = File::open(&locale)?;
+            let mut file = File::open(locale)?;
             let mut ftl_string = String::new();
             file.read_to_string(&mut ftl_string)?;
 

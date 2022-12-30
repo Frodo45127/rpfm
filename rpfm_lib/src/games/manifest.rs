@@ -67,7 +67,7 @@ impl Manifest {
             .quoting(false)
             .has_headers(false)
             .flexible(true)
-            .from_path(&manifest_path)?;
+            .from_path(manifest_path)?;
 
         // Due to "flexible" not actually working when doing serde-backed deserialization (took some time to figure this out)
         // the deserialization has to be done manually.

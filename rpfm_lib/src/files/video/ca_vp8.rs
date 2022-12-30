@@ -99,7 +99,7 @@ impl Video {
             let x = data.stream_position()?;
             data.seek(SeekFrom::Start(frame_offset_real as u64))?;
             frame_table_decoded.extend_from_slice(&data.read_slice(frame.size as usize, false)?);
-            data.seek(SeekFrom::Start(x as u64))?;
+            data.seek(SeekFrom::Start(x))?;
         }
 
         // Check we decoded the full file correctly.

@@ -191,7 +191,7 @@ impl UI {
 
         if !setting_string("font_name").is_empty() && !setting_string("font_size").is_empty() {
             let font = QFont::new();
-            font.set_family(&QString::from_std_str(&setting_string("font_name")));
+            font.set_family(&QString::from_std_str(setting_string("font_name")));
             font.set_point_size(setting_string("font_size").parse::<i32>().unwrap());
             QApplication::set_font_1a(&font);
         }
@@ -355,17 +355,17 @@ impl GameSelectedIcons {
             KEY_ARENA => &GAME_SELECTED_ICONS.arena,
             _ => unimplemented!(),
         };
-        app_ui.main_window().set_window_icon(ref_from_atomic(&*icon));
+        app_ui.main_window().set_window_icon(ref_from_atomic(icon));
 
         // Fix due to windows paths.
-        let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
+        let big_icon = if cfg!(target_os = "windows") {  big_icon.replace('\\', "/") } else { big_icon.to_owned() };
 
         if !setting_bool("hide_background_icon") {
             if app_ui.tab_bar_packed_file().count() == 0 {
 
                 // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
                 let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
-                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str(&format!("
+                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str(format!("
                     QTabWidget::pane {{
                         background-image: url('{}');
                         background-repeat: no-repeat;

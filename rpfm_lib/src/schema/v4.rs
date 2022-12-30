@@ -219,7 +219,7 @@ impl SchemaV4 {
 
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
     pub fn load(path: &Path) -> Result<Self> {
-        let mut file = BufReader::new(File::open(&path)?);
+        let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         from_bytes(&data).map_err(From::from)
@@ -389,7 +389,7 @@ impl SchemaPatches {
 
     /// This function loads a `SchemaPatches` to memory from a file in the `schemas/` folder.
     pub fn load(file_path: &Path) -> Result<Self> {
-        let mut file = BufReader::new(File::open(&file_path)?);
+        let mut file = BufReader::new(File::open(file_path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
         from_bytes(&data).map_err(From::from)

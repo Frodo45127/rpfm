@@ -142,7 +142,7 @@ impl GlobalSearchUI {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let main_widget = load_template(main_window, &template_path)?;
+        let main_widget = load_template(main_window, template_path)?;
 
         let dock_widget: QPtr<QDockWidget> = main_widget.static_downcast();
 
@@ -635,7 +635,7 @@ impl GlobalSearchUI {
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
 
-                    file.set_text(&QString::from_std_str(&path));
+                    file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
                     file.set_editable(false);
@@ -654,10 +654,10 @@ impl GlobalSearchUI {
                         let row = QStandardItem::new();
                         let text = QStandardItem::new();
 
-                        column_name.set_text(&QString::from_std_str(&match_row.column_name()));
+                        column_name.set_text(&QString::from_std_str(match_row.column_name()));
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
                         row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
-                        text.set_text(&QString::from_std_str(&match_row.contents().trim()));
+                        text.set_text(&QString::from_std_str(match_row.contents().trim()));
 
                         column_name.set_editable(false);
                         column_number.set_editable(false);
@@ -717,7 +717,7 @@ impl GlobalSearchUI {
                     let fill2 = QStandardItem::new();
                     let fill3 = QStandardItem::new();
 
-                    file.set_text(&QString::from_std_str(&path));
+                    file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
 
                     file.set_editable(false);
@@ -732,9 +732,9 @@ impl GlobalSearchUI {
 
                         // Long rows take forever to load. Instead, we truncate them around the match.
                         let text_value = if match_row.text().chars().count() > 100 {
-                            QString::from_std_str(&(match_row.text()[..match_row.text().char_indices().map(|(i, _)| i).nth(100).unwrap()].to_owned() + "...").trim())
+                            QString::from_std_str((match_row.text()[..match_row.text().char_indices().map(|(i, _)| i).nth(100).unwrap()].to_owned() + "...").trim())
                         } else {
-                            QString::from_std_str(&match_row.text().trim())
+                            QString::from_std_str(match_row.text().trim())
                         };
 
                         // Create an empty row.
@@ -804,9 +804,9 @@ impl GlobalSearchUI {
                 let column_name = QStandardItem::new();
                 let column = QStandardItem::new();
 
-                table_name.set_text(&QString::from_std_str(&match_schema.table_name()));
+                table_name.set_text(&QString::from_std_str(match_schema.table_name()));
                 version.set_data_2a(&QVariant::from_int(*match_schema.version()), 2);
-                column_name.set_text(&QString::from_std_str(&match_schema.column_name()));
+                column_name.set_text(&QString::from_std_str(match_schema.column_name()));
                 column.set_data_2a(&QVariant::from_uint(*match_schema.column()), 2);
 
                 table_name.set_editable(false);

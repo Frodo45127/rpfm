@@ -141,7 +141,7 @@ impl From<&Pack> for ContainerInfo {
         let file_name = if pack.disk_file_path().is_empty() {
             "new_file.pack"
         } else {
-            pack.disk_file_path().split("/").last().unwrap_or("unknown.pack")
+            pack.disk_file_path().split('/').last().unwrap_or("unknown.pack")
         };
 
         Self {
@@ -161,7 +161,7 @@ impl From<&Pack> for ContainerInfo {
 impl From<&AnimPack> for ContainerInfo {
     fn from(animpack: &AnimPack) -> Self {
         Self {
-            file_name: animpack.disk_file_path().split("/").last().unwrap_or("unknown.animpack").to_string(),
+            file_name: animpack.disk_file_path().split('/').last().unwrap_or("unknown.animpack").to_string(),
             file_path: animpack.disk_file_path().to_string(),
             ..Default::default()
         }

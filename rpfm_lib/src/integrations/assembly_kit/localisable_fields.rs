@@ -60,7 +60,7 @@ impl RawLocalisableFields {
         match version {
             2 | 1 => {
                 let localisable_fields_path = get_raw_localisable_fields_path(raw_data_path, version)?;
-                let localisable_fields_file = BufReader::new(File::open(&localisable_fields_path)?);
+                let localisable_fields_file = BufReader::new(File::open(localisable_fields_path)?);
                 from_reader(localisable_fields_file).map_err(From::from)
             }
             _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))

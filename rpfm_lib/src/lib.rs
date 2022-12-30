@@ -20,7 +20,8 @@
 
 // Disabled `Clippy` linters, with the reasons why they were disabled.
 #![allow(
-    clippy::too_many_arguments              // Disabled because it gets annoying really quick.
+    clippy::too_many_arguments,             // Disabled because it gets annoying really quick.
+    clippy::field_reassign_with_default     // Disabled because it gets annoying on tests.
 )]
 
 use lazy_static::*;

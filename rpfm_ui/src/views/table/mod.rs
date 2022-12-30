@@ -441,7 +441,7 @@ impl TableView {
 
         let fields = table_definition.fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for column in &fields {
-            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(column.name())));
+            search_column_selector.add_item_q_string(&QString::from_std_str(utils::clean_column_names(column.name())));
         }
         search_case_sensitive_button.set_checkable(true);
 
@@ -510,7 +510,7 @@ impl TableView {
         let mut sidebar_hide_checkboxes = vec![];
         let mut sidebar_freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
-            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(column.name())), &sidebar_widget);
+            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(utils::clean_column_names(column.name())), &sidebar_widget);
             let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             //freeze_unfreeze_checkbox.set_enabled(false);
@@ -536,7 +536,7 @@ dbg!(t.elapsed().unwrap());
 
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let Some(schema) = &*SCHEMA.read().unwrap() {
-            if let Some(ref table_name) = table_name {
+            if let Some(table_name) = table_name {
                 schema.referencing_columns_for_table(table_name, table_definition)
             } else {
                 HashMap::new()
@@ -546,7 +546,7 @@ dbg!(t.elapsed().unwrap());
         };
 dbg!(t.elapsed().unwrap());
         // Create the raw Struct and begin
-        let mut packed_file_table_view = Arc::new(TableView {
+        let packed_file_table_view = Arc::new(TableView {
             table_view,
             table_filter,
             table_model,
@@ -725,7 +725,7 @@ dbg!(t.elapsed().unwrap());
             let _filter_blocker = QSignalBlocker::from_q_object(filter.column_combobox().static_upcast::<QObject>());
             filter.column_combobox().clear();
             for column in self.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order")) {
-                let name = QString::from_std_str(&utils::clean_column_names(column.name()));
+                let name = QString::from_std_str(utils::clean_column_names(column.name()));
                 filter.column_combobox().add_item_q_string(&name);
             }
         }
@@ -2474,7 +2474,7 @@ dbg!(t.elapsed().unwrap());
 
         // Setup data.
         if let Some(default_value) = field.default_value(Some(&self.patches())) {
-            default_value_line_edit.set_text(&QString::from_std_str(&default_value));
+            default_value_line_edit.set_text(&QString::from_std_str(default_value));
         }
         not_empty_checkbox.set_checked(field.cannot_be_empty(Some(&self.patches())));
         explanation_text_edit.set_text(&QString::from_std_str(field.schema_patch_explanation(Some(&self.patches()))));

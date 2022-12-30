@@ -75,7 +75,7 @@ impl Pack {
 
             // Get his size. If it's encrypted, decrypt it first.
             let size = if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
-                buffer_mem.decrypt_u32(files_to_read as u32)?
+                buffer_mem.decrypt_u32(files_to_read)?
             } else {
                 buffer_mem.read_u32()?
             };
@@ -83,7 +83,7 @@ impl Pack {
             // Some Packs keep the timestamps of their files. If we have them, get them.
             let timestamp = u64::from(if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                 if self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
-                    buffer_mem.decrypt_u32(files_to_read as u32)?
+                    buffer_mem.decrypt_u32(files_to_read)?
                 } else { buffer_mem.read_u32()? }
             } else { 0 });
 

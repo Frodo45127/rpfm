@@ -148,7 +148,7 @@ impl SearchView {
 
         let fields = view.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for column in &fields {
-            column_combobox.add_item_q_string(&QString::from_std_str(&clean_column_names(column.name())));
+            column_combobox.add_item_q_string(&QString::from_std_str(clean_column_names(column.name())));
         }
 
         parent_grid.add_widget_5a(&main_widget, 3, 0, 1, 2);
@@ -185,7 +185,7 @@ impl SearchView {
 
         let fields = parent.table_definition.read().unwrap().fields_processed_sorted(setting_bool("tables_use_old_column_order"));
         for column in &fields {
-            self.column_combobox.add_item_q_string(&QString::from_std_str(&clean_column_names(column.name())));
+            self.column_combobox.add_item_q_string(&QString::from_std_str(clean_column_names(column.name())));
         }
     }
 
@@ -217,7 +217,7 @@ impl SearchView {
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
                 else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&QString::from_std_str(format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -227,7 +227,7 @@ impl SearchView {
                 // Otherwise, matches have been found both, in the model and in the filter.
                 else {
                     table_search.current_item = Some(0);
-                    self.matches_label.set_text(&QString::from_std_str(&format!("1 of {} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&QString::from_std_str(format!("1 of {} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
                     self.prev_match_button.set_enabled(false);
                     self.replace_button.set_enabled(true);
                     self.replace_all_button.set_enabled(true);
@@ -263,7 +263,7 @@ impl SearchView {
                             matches_in_filter[*pos as usize].as_ref().unwrap(),
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
-                        self.matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                        self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
                     }
                 }
             }
@@ -287,7 +287,7 @@ impl SearchView {
                             matches_in_filter[*pos as usize].as_ref().unwrap(),
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
-                        self.matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                        self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
                     }
                 }
             }
@@ -313,7 +313,7 @@ impl SearchView {
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
                 else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&QString::from_std_str(format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -328,7 +328,7 @@ impl SearchView {
                         None => Some(0)
                     };
 
-                    self.matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap() + 1, matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap() + 1, matches_in_filter.len(), matches_in_model.len())));
 
                     if table_search.current_item.unwrap() == 0 {
                         self.prev_match_button.set_enabled(false);
@@ -578,7 +578,7 @@ impl SearchView {
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
                     FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
                     FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
-                    _ => item.set_text(&QString::from_std_str(&replaced_text)),
+                    _ => item.set_text(&QString::from_std_str(replaced_text)),
                 }
             }
 

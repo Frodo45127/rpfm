@@ -108,7 +108,7 @@ impl AnimsTable {
                 definition.set_fields(fields);
                 Ok(definition)
             },
-            _ => return Err(RLibError::DecodingAnimsTableUnknownVersion(version))
+            _ => Err(RLibError::DecodingAnimsTableUnknownVersion(version))
         }
     }
 

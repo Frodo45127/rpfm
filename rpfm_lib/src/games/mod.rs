@@ -544,7 +544,7 @@ impl GameInfo {
                 let data_path = self.data_path(game_path)?;
                 let locale_path = data_path.join(locale_file);
                 let mut language = String::new();
-                if let Ok(mut file) = File::open(&locale_path) {
+                if let Ok(mut file) = File::open(locale_path) {
                     file.read_to_string(&mut language)?;
 
                     let language = match &*language {

@@ -340,7 +340,7 @@ impl PackedFileView {
                                         ", false);
                                 } else {
                                     for row in 0..model.row_count_0a() {
-                                        let item = model.item_1a(row as i32).text().to_std_string();
+                                        let item = model.item_1a(row).text().to_std_string();
                                         entries.push(item);
                                     }
 

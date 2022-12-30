@@ -35,6 +35,7 @@ use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, Deco
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, pfh_file_type::PFHFileType};
 use rpfm_lib::integrations::{assembly_kit::*, git::*, log::*};
 use rpfm_lib::schema::*;
+use rpfm_lib::tips::*;
 use rpfm_lib::utils::*;
 
 use crate::app_ui::NewPackedFile;
@@ -1111,16 +1112,20 @@ pub fn background_loop() {
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
             }
-            /*
+
             // When we want to update our messages...
             Command::UpdateMessages => {
-
-                // TODO: Properly reload all loaded tips.
-                match Tips::update_from_repo() {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                match remote_tips_path() {
+                    Ok(local_path) => {
+                        let git_integration = GitIntegration::new(&local_path, TIPS_REPO, MASTER, TIPS_REMOTE_FOLDER);
+                        match git_integration.update_repo() {
+                            Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
+                        }
+                    },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
                 }
-            }*/
+            }
 
             // When we want to update our lua setup...
             Command::UpdateLuaAutogen => {
@@ -1171,7 +1176,7 @@ pub fn background_loop() {
                     if let Some(schema) = &*SCHEMA.read().unwrap() {
                         if pack_file_decoded.pfh_file_type() == PFHFileType::Mod ||
                             pack_file_decoded.pfh_file_type() == PFHFileType::Movie {
-                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], &schema);
+                            diagnostics.check(&pack_file_decoded, &mut dependencies.write().unwrap(), &game_selected, &game_path, &[], schema);
                         }
 
                         info!("Checking diagnostics: done.");
@@ -1250,7 +1255,7 @@ pub fn background_loop() {
                     let dependencies_file_path = dependencies_cache_path().unwrap().join(game_selected.dependencies_cache_file_name());
                     let file_path = if !rebuild_only_current_mod_dependencies { Some(&*dependencies_file_path) } else { None };
 
-                    let _ = dependencies.write().unwrap().rebuild(&*SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
+                    let _ = dependencies.write().unwrap().rebuild(&SCHEMA.read().unwrap(), pack_file_decoded.dependencies(), file_path, &game_selected, &game_path);
                     let dependencies_info = DependenciesInfo::from(&*dependencies.read().unwrap());
                     CentralCommand::send_back(&sender, Response::DependenciesInfo(dependencies_info));
                 } else {
@@ -1259,9 +1264,9 @@ pub fn background_loop() {
             },
 
             Command::CascadeEdition(table_name, definition, changes) => {
-                let edited_paths = changes.iter().map(|(field, value_before, value_after)| {
-                    DB::cascade_edition(&mut pack_file_decoded, &*SCHEMA.read().unwrap(), &table_name, &field, &definition, &value_before, &value_after)
-                }).flatten().collect::<Vec<_>>();
+                let edited_paths = changes.iter().flat_map(|(field, value_before, value_after)| {
+                    DB::cascade_edition(&mut pack_file_decoded, &SCHEMA.read().unwrap(), &table_name, field, &definition, value_before, value_after)
+                }).collect::<Vec<_>>();
 
                 let packed_files_info = pack_file_decoded.files_by_paths(&edited_paths, false).into_par_iter().map(From::from).collect();
                 CentralCommand::send_back(&sender, Response::VecContainerPathVecRFileInfo(edited_paths, packed_files_info));

@@ -145,7 +145,7 @@ impl ReferencesUI {
                 let column_number_item = QStandardItem::new();
                 let row_number_item = QStandardItem::new();
 
-                data_source_item.set_text(&QString::from_std_str(&format!("{}", data_source)));
+                data_source_item.set_text(&QString::from_std_str(format!("{}", data_source)));
                 path_item.set_text(&QString::from_std_str(path));
                 column_name_item.set_text(&QString::from_std_str(column_name));
                 column_number_item.set_data_2a(&QVariant::from_int(*column_number as i32), 2);

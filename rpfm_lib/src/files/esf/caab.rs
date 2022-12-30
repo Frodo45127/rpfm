@@ -214,7 +214,7 @@ impl ESF {
                 // Make sure we decoded exactly the data we wanted.
                 let curr_pos = data.stream_position()?;
                 if curr_pos != final_entry_offset as u64 {
-                    return Err(RLibError::DecodingMismatchSizeError(final_entry_offset as usize, curr_pos as usize));
+                    return Err(RLibError::DecodingMismatchSizeError(final_entry_offset, curr_pos as usize));
                 }
 
                 children.push(node_list);
@@ -223,7 +223,7 @@ impl ESF {
             // Make sure we decoded exactly the data we wanted.
             let curr_pos = data.stream_position()?;
             if curr_pos != final_block_offset as u64 {
-                return Err(RLibError::DecodingMismatchSizeError(final_block_offset as usize, curr_pos as usize));
+                return Err(RLibError::DecodingMismatchSizeError(final_block_offset, curr_pos as usize));
             }
 
             let node_data = RecordNode {
@@ -334,7 +334,7 @@ impl ESF {
                     optimized: true,
                 }),
                 U32_24BIT => NodeType::U32(U32Node {
-                    value: data.read_u24()? as u32,
+                    value: data.read_u24()?,
                     optimized: true,
                 }),
                 I32_ZERO => NodeType::I32(I32Node {
@@ -350,7 +350,7 @@ impl ESF {
                     optimized: true,
                 }),
                 I32_24BIT => NodeType::I32(I32Node {
-                    value: data.read_i24()? as i32,
+                    value: data.read_i24()?,
                     optimized: true,
                 }),
                 F32_ZERO => NodeType::F32(F32Node {
@@ -686,7 +686,7 @@ impl ESF {
                     let end_offset = data.stream_position()? + size as u64;
 
                     while data.stream_position()? < end_offset {
-                        node_data.push(data.read_i24()? as i32);
+                        node_data.push(data.read_i24()?);
                     }
 
                     NodeType::I32Array(VecI32Node {

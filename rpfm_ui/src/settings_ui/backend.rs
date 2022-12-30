@@ -285,10 +285,10 @@ pub fn init_config_path() -> Result<()> {
 
     DirBuilder::new().recursive(true).create(&autosaves_path)?;
     DirBuilder::new().recursive(true).create(&config_path)?;
-    DirBuilder::new().recursive(true).create(&error_path)?;
-    DirBuilder::new().recursive(true).create(&schemas_path)?;
-    DirBuilder::new().recursive(true).create(&tips_local_path)?;
-    DirBuilder::new().recursive(true).create(&tips_remote_path)?;
+    DirBuilder::new().recursive(true).create(error_path)?;
+    DirBuilder::new().recursive(true).create(schemas_path)?;
+    DirBuilder::new().recursive(true).create(tips_local_path)?;
+    DirBuilder::new().recursive(true).create(tips_remote_path)?;
 
     // Init autosave files if they're not yet initialized. Minimum 1.
     let mut max_autosaves = setting_int("autosave_amount");

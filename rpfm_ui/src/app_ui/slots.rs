@@ -322,7 +322,7 @@ impl AppUISlots {
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
-                        game_local_mods_path.push(&mod_name);
+                        game_local_mods_path.push(mod_name);
 
                         // Check if the PackFile is not a CA one before installing.
                         let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
@@ -380,7 +380,7 @@ impl AppUISlots {
                     }
 
                     if let Some(ref mod_name) = pack_path.file_name() {
-                        game_local_mods_path.push(&mod_name);
+                        game_local_mods_path.push(mod_name);
 
                         let ca_paths = match GAME_SELECTED.read().unwrap().ca_packs_paths(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
                             Ok(paths) => paths,
@@ -638,7 +638,7 @@ impl AppUISlots {
                             app_ui.toggle_main_window(false);
 
                             // Initialize the folder structure of the MyMod.
-                            let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
+                            let receiver = CENTRAL_COMMAND.send_background(Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, git_support));
                             let response = CENTRAL_COMMAND.recv_try(&receiver);
                             match response {
                                 Response::PathBuf(mymod_pack_path) => {
@@ -670,7 +670,7 @@ impl AppUISlots {
                                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile);
                                             let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                             packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                            packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+                                            packfile_item.set_text(&QString::from_std_str(full_mod_name));
 
                                             // Set the UI to the state it should be in.
                                             app_ui.change_packfile_type_mod.set_checked(true);
@@ -739,8 +739,8 @@ impl AppUISlots {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path;
-                                mymod_path.push(&game_folder_name);
-                                mymod_path.push(&mod_name);
+                                mymod_path.push(game_folder_name);
+                                mymod_path.push(mod_name);
 
                                 if !mymod_path.is_file() {
                                     return show_dialog(&app_ui.main_window, "The Pack of the selected MyMod doesn't exists, so it can't be installed or removed.", false);
@@ -866,7 +866,7 @@ impl AppUISlots {
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             match GAME_SELECTED.read().unwrap().game_launch_command(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
-                Ok(command) => { let _ = open::that(&command); },
+                Ok(command) => { let _ = open::that(command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
             }
         }));
@@ -875,7 +875,7 @@ impl AppUISlots {
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&setting_path(&GAME_SELECTED.read().unwrap().game_key_name())) {
-                let _ = open::that(&path);
+                let _ = open::that(path);
             } else {
                 show_dialog(&app_ui.main_window, "Game Path not configured. Go to <i>'PackFile/Preferences'</i> and configure it.", false);
             }
@@ -896,7 +896,7 @@ impl AppUISlots {
         let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = config_path() {
-                let _ = open::that(&path);
+                let _ = open::that(path);
             } else {
                 show_dialog(&app_ui.main_window, "RPFM's config folder couldn't be open (maybe it doesn't exists?).", false);
             }
@@ -1036,7 +1036,7 @@ impl AppUISlots {
                 match response {
                     Response::StringVecContainerPath(message, paths) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths), DataSource::PackFile);
-                        show_dialog(&app_ui.main_window, &message, true);
+                        show_dialog(&app_ui.main_window, message, true);
                     }
 
                     // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
@@ -1088,7 +1088,7 @@ impl AppUISlots {
 
                                 let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                                 packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                packfile_item.set_text(&QString::from_std_str(&file_name));
+                                packfile_item.set_text(&QString::from_std_str(file_name));
 
                                 UI_STATE.set_operational_mode(&app_ui, None);
                                 UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
@@ -1381,7 +1381,7 @@ impl AppUISlots {
                             let path_split = path.split('/').collect::<Vec<_>>();
 
                             let name = path_split.last().unwrap().to_owned();
-                            app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                            app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(name));
                         }
                         break;
                     }

@@ -40,7 +40,7 @@ pub trait WriteBytes: Write {
     /// assert_eq!(data, vec![1]);
     /// ```
     fn write_bool(&mut self, boolean: bool) -> Result<()> {
-        self.write_u8(if boolean { 1 } else { 0 }).map_err(From::from)
+        self.write_u8(u8::from(boolean)).map_err(From::from)
     }
 
     /// This function tries to write a byte value to `self`.

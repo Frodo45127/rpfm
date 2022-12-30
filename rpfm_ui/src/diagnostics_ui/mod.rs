@@ -178,7 +178,7 @@ impl DiagnosticsUI {
         diagnostics_dock_widget.set_window_title(&qtr("gen_loc_diagnostics"));
         diagnostics_dock_widget.set_object_name(&QString::from_std_str("diagnostics_dock"));
 
-        diagnostics_button_info.set_style_sheet(&QString::from_std_str(&format!("
+        diagnostics_button_info.set_style_sheet(&QString::from_std_str(format!("
         QPushButton {{
             background-color: {}
         }}
@@ -186,7 +186,7 @@ impl DiagnosticsUI {
             background-color: {}
         }}", get_color_info(), get_color_info_pressed())));
 
-        diagnostics_button_warning.set_style_sheet(&QString::from_std_str(&format!("
+        diagnostics_button_warning.set_style_sheet(&QString::from_std_str(format!("
         QPushButton {{
             background-color: {}
         }}
@@ -194,7 +194,7 @@ impl DiagnosticsUI {
             background-color: {}
         }}", get_color_warning(), get_color_warning_pressed())));
 
-        diagnostics_button_error.set_style_sheet(&QString::from_std_str(&format!("
+        diagnostics_button_error.set_style_sheet(&QString::from_std_str(format!("
         QPushButton {{
             background-color: {}
         }}
@@ -445,11 +445,11 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(&result.message()));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -493,11 +493,11 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(&result.message()));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -541,9 +541,9 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            message.set_text(&QString::from_std_str(&result.message()));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
+                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -586,11 +586,11 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
+                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
                             cells_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
                             path.set_text(&QString::from_std_str(diagnostic.path()));
-                            message.set_text(&QString::from_std_str(&result.message()));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -634,9 +634,9 @@ impl DiagnosticsUI {
 
                             level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
                             level.set_text(&QString::from_std_str(result_type));
-                            diag_type.set_text(&QString::from_std_str(&format!("{}", diagnostic_type)));
-                            message.set_text(&QString::from_std_str(&result.message()));
-                            report_type.set_text(&QString::from_std_str(&format!("{}", result.report_type())));
+                            diag_type.set_text(&QString::from_std_str(format!("{}", diagnostic_type)));
+                            message.set_text(&QString::from_std_str(result.message()));
+                            report_type.set_text(&QString::from_std_str(format!("{}", result.report_type())));
 
                             level.set_editable(false);
                             diag_type.set_editable(false);
@@ -872,7 +872,7 @@ impl DiagnosticsUI {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
-                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                            let table_model_index = table_model.index_2a(*row, column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -886,7 +886,7 @@ impl DiagnosticsUI {
                                         }
                                     } else if *row == -1 {
                                         for row in 0..table_model.row_count_0a() {
-                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                            let table_model_index = table_model.index_2a(row, *column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -899,7 +899,7 @@ impl DiagnosticsUI {
                                             }
                                         }
                                     } else {
-                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_index = table_model.index_2a(*row, *column);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -972,7 +972,7 @@ impl DiagnosticsUI {
                                 if *row != -1 || *column != -1 {
                                     if *column == -1 {
                                         for column in 0..table_model.column_count_0a() {
-                                            let table_model_index = table_model.index_2a(*row as i32, column as i32);
+                                            let table_model_index = table_model.index_2a(*row, column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -986,7 +986,7 @@ impl DiagnosticsUI {
                                         }
                                     } else if *row == -1 {
                                         for row in 0..table_model.row_count_0a() {
-                                            let table_model_index = table_model.index_2a(row as i32, *column as i32);
+                                            let table_model_index = table_model.index_2a(row, *column);
                                             let table_model_item = table_model.item_from_index(&table_model_index);
 
                                             // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -999,7 +999,7 @@ impl DiagnosticsUI {
                                             }
                                         }
                                     } else {
-                                        let table_model_index = table_model.index_2a(*row as i32, *column as i32);
+                                        let table_model_index = table_model.index_2a(*row, *column);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
 
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
@@ -1328,9 +1328,9 @@ impl DiagnosticsUI {
                     .count(),
             }).sum::<usize>();
 
-        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
-        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_warning"), warning)));
-        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_error"), error)));
+        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_info"), info)));
+        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_warning"), warning)));
+        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(format!("{} ({})", tr("diagnostics_button_error"), error)));
     }
 
     pub unsafe fn set_tooltips_anim_fragment(items: &[&CppBox<QStandardItem>], report_type: &AnimFragmentDiagnosticReportType) {

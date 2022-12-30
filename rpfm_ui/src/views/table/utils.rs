@@ -83,8 +83,7 @@ pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &Q
 pub unsafe fn get_real_indexes_from_visible_selection_sorted(view: &QPtr<QTableView>, filter: &QPtr<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
     let indexes = view.selection_model().selection().indexes();
     let indexes_sorted = get_visible_selection_sorted(&indexes, view);
-    let indexes_sorted = get_real_indexes(&indexes_sorted, &filter);
-    indexes_sorted
+    get_real_indexes(&indexes_sorted, filter)
 }
 
 /// This function returns the VISIBLE SELECTION of a view, sorted visually. This means all filtered out rows and hidden columns are not returned, even if selected.
@@ -111,7 +110,7 @@ pub unsafe fn get_visible_selection_unsorted(indexes: &CppBox<QListOfQModelIndex
 
 /// This function sorts the VISUAL SELECTION. That means, the selection just as you see it on screen.
 /// This should be provided with the indexes OF THE VIEW/FILTER, NOT THE MODEL.
-pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, table_view: &QPtr<QTableView>) {
+pub unsafe fn sort_indexes_visually(indexes_sorted: &mut [Ref<QModelIndex>], table_view: &QPtr<QTableView>) {
 
     // Sort the indexes so they follow the visual index, not their logical one.
     // This should fix situations like copying a row and getting a different order in the cells,
@@ -129,7 +128,7 @@ pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, 
 
 /// This function sorts the MODEL SELECTION. That means, the real selection over the model.
 /// This should be provided with the indexes OF THE MODEL, NOT THE VIEW/FILTER.
-pub unsafe fn sort_indexes_by_model(indexes_sorted: &mut Vec<Ref<QModelIndex>>) {
+pub unsafe fn sort_indexes_by_model(indexes_sorted: &mut [Ref<QModelIndex>]) {
 
     // Sort the indexes so they follow the visual index, not their logical one.
     // This should fix situations like copying a row and getting a different order in the cells,
@@ -244,12 +243,12 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             if check_state {
                 item.set_check_state(CheckState::Checked);
                 item.set_data_2a(&QVariant::from_bool(true), ITEM_SOURCE_VALUE);
-                item.set_tool_tip(&QString::from_std_str(&tre("original_data", &["True"])));
+                item.set_tool_tip(&QString::from_std_str(tre("original_data", &["True"])));
             }
             else {
                 item.set_check_state(CheckState::Unchecked);
                 item.set_data_2a(&QVariant::from_bool(false), ITEM_SOURCE_VALUE);
-                item.set_tool_tip(&QString::from_std_str(&tre("original_data", &["False"])));
+                item.set_tool_tip(&QString::from_std_str(tre("original_data", &["False"])));
             }
             item
         }
@@ -265,7 +264,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
                 0.0f32
             };
 
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
@@ -284,7 +283,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
                 0.0f64
             };
 
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_double(data), ITEM_SOURCE_VALUE);
@@ -303,7 +302,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             } else {
                 0_i32
             };
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_int(data), ITEM_SOURCE_VALUE);
@@ -322,7 +321,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             } else {
                 0i32
             };
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_int(data), ITEM_SOURCE_VALUE);
@@ -341,7 +340,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             } else {
                 0i64
             };
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_i64(data), ITEM_SOURCE_VALUE);
@@ -359,7 +358,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
                 "000000".to_owned()
             };
             let item = QStandardItem::from_q_string(&QString::from_std_str(&text));
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&text])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&text])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&text)), ITEM_SOURCE_VALUE);
@@ -375,7 +374,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
                 String::new()
             };
             let item = QStandardItem::from_q_string(&QString::from_std_str(&text));
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&text])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&text])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&text)), ITEM_SOURCE_VALUE);
@@ -389,7 +388,7 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             item.set_text(&qtr("packedfile_editable_sequence"));
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(table)), ITEM_SEQUENCE_DATA);
             item
         }
     };
@@ -509,7 +508,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_editable(false);
             item.set_checkable(true);
             item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -530,7 +529,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             };
 
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
@@ -550,7 +549,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
             };
 
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_double(data), ITEM_SOURCE_VALUE);
@@ -580,7 +579,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::I64(ref data) |
         DecodedData::OptionalI64(ref data) => {
             let item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
@@ -591,7 +590,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::ColourRGB(_) => {
             let data = data.data_to_string();
             let item = QStandardItem::from_q_string(&QString::from_std_str(&data));
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
@@ -604,14 +603,14 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::OptionalStringU8(ref data) |
         DecodedData::OptionalStringU16(ref data) => {
             let item = QStandardItem::from_q_string(&QString::from_std_str(data));
-            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[data])));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
             item
         },
         DecodedData::SequenceU16(ref table) | DecodedData::SequenceU32(ref table) => {
-            let table = QString::from_std_str(&serde_json::to_string(&table).unwrap());
+            let table = QString::from_std_str(serde_json::to_string(&table).unwrap());
             let item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
             item.set_editable(false);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
@@ -647,7 +646,7 @@ pub unsafe fn build_columns(
     for (index, field) in fields_processed.iter().enumerate() {
 
         let name = clean_column_names(field.name());
-        let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
+        let item = QStandardItem::from_q_string(&QString::from_std_str(name));
         if let Some(ref tooltip) = tooltips.get(index) {
             item.set_tool_tip(&QString::from_std_str(tooltip));
         }
@@ -694,7 +693,7 @@ pub unsafe fn build_columns(
         for (new_pos, (logical_index, ca_order)) in fields.iter().enumerate() {
             if *ca_order != -1 {
                 let visual_index = header.visual_index(*logical_index as i32);
-                header.move_section(visual_index as i32, new_pos as i32);
+                header.move_section(visual_index, new_pos as i32);
             }
         }
     }
@@ -966,30 +965,30 @@ pub unsafe fn get_table_from_view(
             let item = match field.field_type() {
 
                 // This one needs a couple of changes before turning it into an item in the table.
-                FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
+                FieldType::Boolean => DecodedData::Boolean(model.item_2a(row, column as i32).check_state() == CheckState::Checked),
 
                 // Numbers need parsing, and this can fail.
-                FieldType::F32 => DecodedData::F32(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
-                FieldType::F64 => DecodedData::F64(model.item_2a(row as i32, column as i32).data_1a(2).to_double_0a()),
-                FieldType::I16 => DecodedData::I16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
-                FieldType::I32 => DecodedData::I32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
-                FieldType::I64 => DecodedData::I64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
-                FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
-                FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
-                FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
+                FieldType::F32 => DecodedData::F32(model.item_2a(row, column as i32).data_1a(2).to_float_0a()),
+                FieldType::F64 => DecodedData::F64(model.item_2a(row, column as i32).data_1a(2).to_double_0a()),
+                FieldType::I16 => DecodedData::I16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
+                FieldType::I32 => DecodedData::I32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
+                FieldType::I64 => DecodedData::I64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
+                FieldType::OptionalI16 => DecodedData::OptionalI16(model.item_2a(row, column as i32).data_1a(2).to_int_0a() as i16),
+                FieldType::OptionalI32 => DecodedData::OptionalI32(model.item_2a(row, column as i32).data_1a(2).to_int_0a()),
+                FieldType::OptionalI64 => DecodedData::OptionalI64(model.item_2a(row, column as i32).data_1a(2).to_long_long_0a()),
 
                 // Colours need parsing to turn them into integers.
-                FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                FieldType::ColourRGB => DecodedData::ColourRGB(QString::to_std_string(&model.item_2a(row, column as i32).text())),
 
                 // All these are just normal Strings.
-                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row, column as i32).text())),
+                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row, column as i32).text())),
 
                 // Sequences in the UI are not yet supported.
-                FieldType::SequenceU16(_) => DecodedData::SequenceU16(serde_json::from_str(&model.item_2a(row as i32, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
-                FieldType::SequenceU32(_) => DecodedData::SequenceU32(serde_json::from_str(&model.item_2a(row as i32, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
+                FieldType::SequenceU16(_) => DecodedData::SequenceU16(serde_json::from_str(&model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
+                FieldType::SequenceU32(_) => DecodedData::SequenceU32(serde_json::from_str(&model.item_2a(row, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
             };
             new_row.push(item);
         }

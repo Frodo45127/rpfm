@@ -1568,7 +1568,7 @@ impl PackTree for QPtr<QTreeView> {
             // If we want to get the tooltips of the PackedFiles updated...
             TreeViewOperation::UpdateTooltip(packed_files_info) => {
                 for packed_file_info in packed_files_info {
-                    let tooltip = QString::from_std_str(&new_packed_file_tooltip(&packed_file_info));
+                    let tooltip = QString::from_std_str(new_packed_file_tooltip(&packed_file_info));
                     let tree_path_type = ContainerPath::File(packed_file_info.path().to_owned());
                     let item = Self::item_from_path(&tree_path_type, &model);
                     item.set_tool_tip(&tooltip);

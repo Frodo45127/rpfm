@@ -461,7 +461,7 @@ pub trait Container {
                 for rfile in &mut rfiles {
                     let container_path = rfile.path_in_container_raw();
                     let destination_path = if keep_container_path_structure {
-                        destination_path.to_owned().join(&container_path)
+                        destination_path.to_owned().join(container_path)
                     } else {
                         destination_path.to_owned()
                     };
@@ -549,7 +549,7 @@ pub trait Container {
     ///
     /// Returns the [ContainerPath] of the inserted [RFile].
     fn insert_file(&mut self, source_path: &Path, container_path_folder: &str, schema: &Option<Schema>) -> Result<Option<ContainerPath>> {
-        let mut container_path_folder = container_path_folder.replace("\\", "/");
+        let mut container_path_folder = container_path_folder.replace('\\', "/");
         if container_path_folder.starts_with('/') {
             container_path_folder.remove(0);
         }
@@ -615,7 +615,7 @@ pub trait Container {
     ///
     /// Returns the list of [ContainerPath] inserted.
     fn insert_folder(&mut self, source_path: &Path, container_path_folder: &str, ignored_paths: &Option<Vec<&str>>, schema: &Option<Schema>) -> Result<Vec<ContainerPath>> {
-        let mut container_path_folder = container_path_folder.replace("\\", "/");
+        let mut container_path_folder = container_path_folder.replace('\\', "/");
         if !container_path_folder.is_empty() && !container_path_folder.ends_with('/') {
             container_path_folder.push('/');
         }
@@ -1433,7 +1433,7 @@ impl RFile {
                         };
                         extra_data.lazy_load = !extra_data.is_encrypted && extra_data.lazy_load;
                         extra_data.file_name = self.file_name();
-                        extra_data.data_size = data.size as u64;
+                        extra_data.data_size = data.size;
 
                         // If we're lazy-loading we also need extra data to read from disk on-demand.
                         if extra_data.lazy_load {
@@ -1786,7 +1786,7 @@ impl RFile {
                 };
 
                 let file_path = match metadata.get(2) {
-                    Some(file_path) => file_path.replace("\\", "/"),
+                    Some(file_path) => file_path.replace('\\', "/"),
                     None => return Err(RLibError::ImportTSVInvalidOrMissingPath),
                 };
 
