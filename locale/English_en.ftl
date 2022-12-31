@@ -328,9 +328,10 @@ packedfile_editable_sequence = Editable Sequence
 
 ### Rename Dialogues
 
-rename_selection = Rename Selection
-rename_selection_instructions = Instructions
-rename_selection_placeholder = Write here whatever you want. {"{"}x{"}"} it's your current name.
+rename_move_selection = Rename/Move Selection
+rename_move_selection_instructions = Instructions
+rename_move_checkbox = Enable full-path move
+rename_move_selection_placeholder = New path/name
 
 ### Mass-Import
 
@@ -375,9 +376,9 @@ context_menu_new_queek_packed_file = New Quick File
 context_menu_mass_import_tsv = Mass-Import TSV
 context_menu_mass_export_tsv = Mass-Export TSV
 context_menu_mass_export_tsv_folder = Select destination folder
-context_menu_rename = &Rename
-context_menu_delete = &Delete
-context_menu_extract = &Extract
+context_menu_move = Rename/Move
+context_menu_delete = Delete
+context_menu_extract = Extract
 
 context_menu_open_decoder = &Open with Decoder
 context_menu_open_dependency_manager = Open &Dependency Manager
@@ -569,14 +570,22 @@ settings_font_title = Font Settings
 title_success = Success!
 title_error = Error!
 
-rename_instructions = <p>It's easy, but you'll not understand it without an example, so here it's one:</p>
+rename_move_instructions = <p>It's easy peasy:</p>
     <ul>
-        <li>Your files/folders says 'you' and 'I'.</li>
-        <li>Write 'whatever {"{"}x{"}"} want' in the box below.</li>
-        <li>Hit 'Accept'.</li>
-        <li>RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.</li>
+        <li>Modes of operation:</li>
+        <ul>
+            <li><b>Single file/folder selected, Full-Path move enabled</b>: You can replace any part of the path (including prefix/sufix), and the file/folder will be moved to the new path.</li>
+            <li><b>Single file/folder selected, Full-Path move disabled</b>: You can replace the file/folder name (including prefix/sufix), and the file/folder will be renamed with the new name.</li>
+            <li><b>Multiple file/folder selected within the same folder, Full-Path move enabled</b>: You can replace any part of the path (including prefixes/sufixes to the final names), and the files/folders will be moved to the new paths.</li>
+            <li><b>Multiple file/folder selected within the same folder, Full-Path move disabled</b>: You can apply prefixes/sufixes to all the files/folders.</li>
+            <li><b>Multiple file/folder selected from different folders, Full-Path move disabled</b>: You can replace any part of the path, and the files/folders will be moved to the new paths.</li>
+        </ul>
+        <li>Extra tips:</li>
+        <ul>
+            <li>Use '/' as path separators. You can't use '/' on file/folder names. Do not start paths with '/'.</li>
+            <li>You can apply prefixes/sufixes to the file/folder name (useful for mass-renaming) by replacing the file/folder name with 'yourprefix{"{"}x{"}"}yoursuffix' ({"{"}{"}"} included).</li>
+        </ul>
     </ul>
-    <p>And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.</p>
 
 update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.
 no_errors_detected = No errors detected.

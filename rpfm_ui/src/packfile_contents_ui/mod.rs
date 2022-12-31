@@ -13,14 +13,14 @@ Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
 use qt_widgets::QAction;
+use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
+use qt_widgets::{q_dialog_button_box::StandardButton, QDialogButtonBox};
 use qt_widgets::QDockWidget;
 use qt_widgets::QFileDialog;
-use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMenu;
-use qt_widgets::QPushButton;
 use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
@@ -61,9 +61,11 @@ pub mod connections;
 pub mod slots;
 pub mod tips;
 
-/// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/filterable_tree_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/filterable_tree_dock_widget.ui";
+
+const RENAME_MOVE_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/rename_move_dialog.ui";
+const RENAME_MOVE_VIEW_RELEASE: &str = "ui/rename_move_dialog.ui";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -196,7 +198,7 @@ impl PackFileContentsUI {
         let context_menu_new_packed_file_loc = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_loc", "context_menu_new_packed_file_loc", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_text = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_text", "context_menu_new_packed_file_text", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_queek_packed_file = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_quick_file", "context_menu_new_queek_packed_file", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_rename = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "rename", "context_menu_rename", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_rename = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "rename", "context_menu_move", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_delete = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "delete", "context_menu_delete", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_extract = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "extract", "context_menu_extract", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_copy_path = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "copy_path", "context_menu_copy_path", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
@@ -372,40 +374,53 @@ impl PackFileContentsUI {
     /// This function creates the entire "Rename" dialog.
     ///
     ///It returns the new name of the Item, or `None` if the dialog is canceled or closed.
-    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[ContainerPath]) -> Option<String> {
+    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[ContainerPath]) -> Result<Option<String>> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(app_ui.main_window());
-        dialog.set_window_title(&qtr("rename_selection"));
-        dialog.set_modal(true);
-        dialog.resize_2a(400, 50);
-        let main_grid = create_grid_layout(dialog.static_upcast());
+        let template_path = if cfg!(debug_assertions) { RENAME_MOVE_VIEW_DEBUG } else { RENAME_MOVE_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
 
-        // Create a little frame with some instructions.
-        let instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions"));
-        let instructions_grid = create_grid_layout(instructions_frame.static_upcast());
-        let instructions_label = QLabel::from_q_string(&qtr("rename_instructions"));
-        instructions_grid.add_widget_5a(&instructions_label, 0, 0, 1, 1);
+        let dialog: QPtr<QDialog> = main_widget.static_downcast();
+        dialog.set_window_title(&qtr("rename_move_selection"));
 
-        let rewrite_sequence_line_edit = QLineEdit::new();
-        rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_selection_placeholder"));
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let move_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "move_checkbox")?;
+        let rewrite_sequence_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "name_line_edit")?;
+        instructions_label.set_text(&qtr("rename_move_instructions"));
+        rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_move_selection_placeholder"));
+        move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
-        // If we only have one selected item, put his name by default in the rename dialog.
+        // If we only have one selected item, put its path in the line edit.
         if selected_items.len() == 1 {
             rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
         }
-        let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 2);
-        main_grid.add_widget_5a(&rewrite_sequence_line_edit, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&accept_button, 1, 1, 1, 1);
+        /*
+        // If we have multiple items selected, things get complicated.
+        else if selected_items.len() > 1 {
+            let last_separator = selected_items[0].path_raw().rfind('/');
+            let start_path = if let Some(last_separator) = last_separator {
+                &selected_items[0].path_raw()[..last_separator]
+            } else {
+                ""
+            };
 
-        accept_button.released().connect(dialog.slot_accept());
+            // Branch 1: all items in the same folder.
+            if selected_items.iter()
+                .all(|item| item.path_raw().rfind('/') == last_separator && ((!start_path.is_empty() && item.path_raw().starts_with(start_path)) || start_path.is_empty())) {
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
+            }
+        }*/
 
-        if dialog.exec() == 1 {
-            let new_text = rewrite_sequence_line_edit.text().to_std_string();
-            if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
-        } else { None }
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        Ok(
+            if dialog.exec() == 1 {
+                let new_text = rewrite_sequence_line_edit.text().to_std_string();
+                if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
+            } else { None }
+        )
     }
 
     pub unsafe fn extract_packed_files(

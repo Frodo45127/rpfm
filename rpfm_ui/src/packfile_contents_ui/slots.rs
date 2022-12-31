@@ -743,76 +743,81 @@ impl PackFileContentsSlots {
                 }
 
                 // Ask for the new path of the item to rename. Even if we select multiple items, this returns the rename sequence for all of them.
-                if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
+                match PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
+                    Ok(rewrite_sequence) => {
+                        if let Some(rewrite_sequence) = rewrite_sequence {
 
-                    // Prepare the new paths using the rename sequence.
-                    let mut renaming_data_background: Vec<(ContainerPath, ContainerPath)> = vec![];
-                    for item_type in &selected_items {
-                        let path = item_type.path_raw().split('/').collect::<Vec<_>>();
+                            // Prepare the new paths using the rename sequence.
+                            let mut renaming_data_background: Vec<(ContainerPath, ContainerPath)> = vec![];
+                            for item_type in &selected_items {
+                                let path = item_type.path_raw().split('/').collect::<Vec<_>>();
 
-                        // Replace {x} with the original name.
-                        let original_name = path.last().unwrap();
-                        let new_path = rewrite_sequence.replace("{x}", original_name);
-                        let new_path = match item_type {
-                            ContainerPath::File(_) => ContainerPath::File(new_path),
-                            ContainerPath::Folder(_) => ContainerPath::Folder(new_path),
-                        };
+                                // Replace {x} with the original name.
+                                let original_name = path.last().unwrap();
+                                let new_path = rewrite_sequence.replace("{x}", original_name);
+                                let new_path = match item_type {
+                                    ContainerPath::File(_) => ContainerPath::File(new_path),
+                                    ContainerPath::Folder(_) => ContainerPath::Folder(new_path),
+                                };
 
-                        renaming_data_background.push((item_type.clone(), new_path));
-                    }
+                                renaming_data_background.push((item_type.clone(), new_path));
+                            }
 
-                    // Send the renaming data to the Background Thread, wait for a response.
-                    let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::VecContainerPathContainerPath(renamed_items) => {
-                            let mut path_changes = vec![];
+                            // Send the renaming data to the Background Thread, wait for a response.
+                            let receiver = CENTRAL_COMMAND.send_background(Command::RenamePackedFiles(renaming_data_background.to_vec()));
+                            let response = CentralCommand::recv(&receiver);
+                            match response {
+                                Response::VecContainerPathContainerPath(renamed_items) => {
+                                    let mut path_changes = vec![];
 
-                            // TODO: Filter out reserved files with some generic logic.
-                            for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
-                                if !path.is_empty() {
-                                    for (old_path, new_path) in &renamed_items {
+                                    // TODO: Filter out reserved files with some generic logic.
+                                    for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.get_data_source() == DataSource::PackFile).map(|x| x.get_ref_path()) {
+                                        if !path.is_empty() {
+                                            for (old_path, new_path) in &renamed_items {
 
-                                        // No need to check for path type here, as we can only get file paths.
-                                        if old_path.path_raw() == *path {
-                                            path_changes.push((old_path.path_raw(), new_path.path_raw()));
+                                                // No need to check for path type here, as we can only get file paths.
+                                                if old_path.path_raw() == *path {
+                                                    path_changes.push((old_path.path_raw(), new_path.path_raw()));
+                                                }
+                                            }
                                         }
                                     }
-                                }
-                            }
 
-                            {
-                                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                                for (path_before, path_after) in &path_changes {
-                                    let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
-                                    let data = open_packedfiles.remove(position);
-                                    let widget = data.get_mut_widget();
-                                    let index = app_ui.tab_bar_packed_file().index_of(widget);
-                                    let path_split_before = path_before.split('/').collect::<Vec<_>>();
-                                    let path_split_after = path_after.split('/').collect::<Vec<_>>();
-                                    let old_name = path_split_before.last().unwrap();
-                                    let new_name = path_split_after.last().unwrap();
-                                    if old_name != new_name {
-                                        app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
+                                    {
+                                        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                                        for (path_before, path_after) in &path_changes {
+                                            let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before && x.get_data_source() == DataSource::PackFile).unwrap();
+                                            let data = open_packedfiles.remove(position);
+                                            let widget = data.get_mut_widget();
+                                            let index = app_ui.tab_bar_packed_file().index_of(widget);
+                                            let path_split_before = path_before.split('/').collect::<Vec<_>>();
+                                            let path_split_after = path_after.split('/').collect::<Vec<_>>();
+                                            let old_name = path_split_before.last().unwrap();
+                                            let new_name = path_split_after.last().unwrap();
+                                            if old_name != new_name {
+                                                app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
+                                            }
+
+                                            data.set_path(path_after);
+                                            open_packedfiles.push(data);
+                                        }
                                     }
 
-                                    data.set_path(path_after);
-                                    open_packedfiles.push(data);
-                                }
+                                    // Move the items on the UI and mark the currently open Pack as modified.
+                                    let folders_to_move = selected_items.into_iter()
+                                        .filter(|path| matches!(path, ContainerPath::Folder(_)))
+                                        .collect::<Vec<_>>();
+
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile);
+
+                                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                                },
+                                Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
-
-                            // Move the items on the UI and mark the currently open Pack as modified.
-                            let folders_to_move = selected_items.into_iter()
-                                .filter(|path| matches!(path, ContainerPath::Folder(_)))
-                                .collect::<Vec<_>>();
-
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items, folders_to_move), DataSource::PackFile);
-
-                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
-                        },
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        }
                     }
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
