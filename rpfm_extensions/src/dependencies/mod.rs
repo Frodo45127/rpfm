@@ -595,13 +595,12 @@ impl Dependencies {
 
     /// This function returns a reference to all files corresponding to the provided paths.
     pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> HashMap<String, &RFile> {
-        let mut files = HashMap::new();
-
-        for file_path in file_paths {
+        file_paths.into_par_iter().flat_map(|file_path| {
+            let mut files = HashMap::new();
             match file_path {
                 ContainerPath::Folder(folder_path) => {
-                   if include_vanilla {
 
+                    if include_vanilla {
                         if folder_path.is_empty() {
                             files.extend(self.vanilla_files.par_iter()
                                 .map(|(path, file)| (path.to_owned(), file))
@@ -639,9 +638,8 @@ impl Dependencies {
                     }
                 }
             }
-        }
-
-        files
+            files
+        }).collect()
     }
 
     /// This function returns a reference to all files of the specified FileTypes from the cache, if any, along with their path.
