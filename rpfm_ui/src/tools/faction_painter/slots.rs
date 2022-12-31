@@ -47,56 +47,56 @@ impl ToolFactionPainterSlots {
     /// This function creates a new `ToolFactionPainterSlots`.
     pub unsafe fn new(ui: &Rc<ToolFactionPainter>) -> Self {
 
-        let delayed_updates = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let delayed_updates = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.filter_list();
             }
         ));
 
-        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
                     let filter_index = before.take_at(0).indexes().take_at(0);
-                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
                 }
 
                 // Load the new data.
                 if after.count_0a() == 1 {
                     let filter_index = after.take_at(0).indexes().take_at(0);
-                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
                 }
             }
         ));
 
-        let filter_edited = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let filter_edited = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.start_delayed_updates_timer();
             }
         ));
 
-        let banner_restore_initial_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let banner_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.banner_restore_initial_values();
             }
         ));
 
-        let banner_restore_vanilla_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let banner_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.banner_restore_vanilla_values();
             }
         ));
 
-        let uniform_restore_initial_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let uniform_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.uniform_restore_initial_values();
             }
         ));
 
-        let uniform_restore_vanilla_values = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let uniform_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.uniform_restore_vanilla_values();
             }

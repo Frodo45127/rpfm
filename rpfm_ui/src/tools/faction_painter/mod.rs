@@ -40,27 +40,23 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
+use getset::*;
 use itertools::Itertools;
 use rayon::prelude::*;
-use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 
 use std::collections::HashMap;
 
-use rpfm_lib::packfile::ContainerPath;
-use rpfm_lib::packfile::packedfile::PackedFile;
-use rpfm_lib::packedfile::DecodedPackedFile;
-use rpfm_lib::packedfile::table::{db::DB, DecodedData};
-
-use rpfm_error::*;
-use getset::*;
+use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
+use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::*;
 use crate::locale::{tr, qtr};
-use self::slots::ToolFactionPainterSlots;
 
+use self::slots::ToolFactionPainterSlots;
 use super::*;
+use super::error::ToolsError;
 
 mod connections;
 mod slots;
@@ -97,6 +93,7 @@ const DEFAULT_FILENAME: &str = "faction_painter_edited";
 
 /// This struct contains all the widgets used by the `Faction Painter` Tool, along with some data needed for the view to work.
 #[derive(Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct ToolFactionPainter {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,
@@ -148,19 +145,20 @@ impl ToolFactionPainter {
 
         // Initialize a Tool. This also performs some common checks to ensure we can actually use the tool.
         // TODO: Move this to a tool var.
-        let paths = match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+        let paths = match &*GAME_SELECTED.read().unwrap().game_key_name() {
             KEY_WARHAMMER_3 => vec![
-                ContainerPath::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
+                ContainerPath::Folder("db/factions_tables".to_owned()),
+                ContainerPath::Folder("text".to_owned()),
             ],
             _ => vec![
-                ContainerPath::Folder(vec!["db".to_owned(), "factions_tables".to_owned()]),
-                ContainerPath::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()]),
-                ContainerPath::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()]),
+                ContainerPath::Folder("db/factions_tables".to_owned()),
+                ContainerPath::Folder("db/faction_banners_tables".to_owned()),
+                ContainerPath::Folder("db/faction_uniform_colours_tables".to_owned()),
             ]
         };
 
         let view = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
-        let tool = Tool::new(&app_ui.main_window, &paths, &TOOL_SUPPORTED_GAMES, view)?;
+        let tool = Tool::new(app_ui.main_window(), &paths, &TOOL_SUPPORTED_GAMES, view)?;
         tool.set_title(&tr("faction_painter_title"));
         tool.backup_used_paths(app_ui, pack_file_contents_ui)?;
 
@@ -205,7 +203,7 @@ impl ToolFactionPainter {
         faction_list_filter.set_source_model(&faction_list_model);
 
         // Filter timer.
-        let timer_delayed_updates = QTimer::new_1a(tool.get_ref_main_widget());
+        let timer_delayed_updates = QTimer::new_1a(tool.main_widget());
         timer_delayed_updates.set_single_shot(true);
 
         // Build the view itself.
@@ -250,7 +248,7 @@ impl ToolFactionPainter {
         // Load all the data to the view.
         view.load_data()?;
 
-        // If we hit ok, save the data back to the PackFile.
+        // If we hit ok, save the data back to the Pack.
         if view.tool.get_ref_dialog().exec() == 1 {
             view.save_data(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui)?;
         }
@@ -262,68 +260,70 @@ impl ToolFactionPainter {
     /// This function loads the data we need for the faction painter to the view, inside items in the ListView.
     unsafe fn load_data(&self) -> Result<()> {
 
-        // Note: this data is HashMap<DataSource, HashMap<Path, PackedFile>>.
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(self.tool.used_paths.to_vec()));
+        // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec()));
         let response = CentralCommand::recv(&receiver);
-        let mut data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let mut data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
         let mut processed_data = HashMap::new();
 
         // Get the table's data.
         get_data_from_all_sources!(self, get_faction_data, data, processed_data, true);
+        get_data_from_all_sources!(self, get_faction_loc_data, data, processed_data, true);
 
-        if self.tool.get_ref_used_paths().contains(&ContainerPath::Folder(vec!["db".to_owned(), "faction_banners_tables".to_owned()])) {
+        if self.tool.used_paths().contains(&ContainerPath::Folder("db/faction_banners_tables".to_owned())) {
             get_data_from_all_sources!(self, get_faction_banner_data, data, processed_data, true);
         }
-        if self.tool.get_ref_used_paths().contains(&ContainerPath::Folder(vec!["db".to_owned(), "faction_uniform_colours_tables".to_owned()])) {
+        if self.tool.used_paths().contains(&ContainerPath::Folder("db/faction_uniform_colours_tables".to_owned())) {
             get_data_from_all_sources!(self, get_faction_uniform_data, data, processed_data, true);
         }
 
         // Finally, grab the flag files. For that, get the paths from each faction's data, and request the flag icons.
         // These flag paths are already pre-processed to contain their full icon path, and a common slash format.
         let paths_to_use = processed_data.values()
-            .map(|x| x.get("flags_path").unwrap()
-                .split('/')
-                .map(|x| x.to_owned())
-                .collect::<Vec<String>>()
-            )
-            .filter_map(|x| if !x.is_empty() { Some(ContainerPath::File(x.to_vec())) } else { None })
+            .filter_map(|x| x.get("flags_path"))
+            .filter_map(|x| if !x.is_empty() { Some(ContainerPath::File(x.to_owned())) } else { None })
             .collect::<Vec<ContainerPath>>();
 
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(paths_to_use));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(paths_to_use));
         let response = CentralCommand::recv(&receiver);
-        let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
         // Map the paths to be a single string, lowercase. That should speed-up things.
-        let images_data: HashMap<DataSource, HashMap<String, PackedFile>> = images_data.iter().map(|(x, y)| (*x, y.par_iter().map(|(path, z)| (path.join("/").to_lowercase(), z.clone())).collect())).collect();
+        let mut images_data: HashMap<DataSource, HashMap<String, RFile>> = images_data.iter().map(|(x, y)| (*x, y.par_iter().map(|(path, z)| (path.to_lowercase(), z.clone())).collect())).collect();
 
         // Once we got everything processed, build the items for the ListView.
-        for (key, data) in processed_data.iter().sorted_by_key(|x| x.0) {
-
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&format!("{} - {}", data.get("screen_name").unwrap(), key))).into_ptr();
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(data).unwrap())), FACTION_DATA);
+        for (key, data) in processed_data.iter_mut().sorted_by_key(|x| x.0) {
+            let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{} - {}", data.get("screen_name").unwrap(), key))).into_ptr();
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(data).unwrap())), FACTION_DATA);
 
             // Image paths, we may or may not have them, so only try to load them if we actually have a path for them.
             if let Some(image_path) = data.get("flags_path") {
                 let image_path_lowercase = image_path.to_lowercase();
                 let mut image_data = None;
 
-                if let Some(data) = images_data.get(&DataSource::PackFile) {
-                    if let Some(image_packed_file) = data.get(&image_path_lowercase) {
-                        image_data = Some(image_packed_file.get_raw_data().unwrap());
-                    }
-                }
-                if image_data.is_none() {
-                    if let Some(data) = images_data.get(&DataSource::ParentFiles) {
-                        if let Some(image_packed_file) = data.get(&image_path_lowercase) {
-                            image_data = Some(image_packed_file.get_raw_data().unwrap());
+                if let Some(data) = images_data.get_mut(&DataSource::PackFile) {
+                    if let Some(image_packed_file) = data.get_mut(&image_path_lowercase) {
+                        if let Some(RFileDecoded::Image(decoded)) = image_packed_file.decode(&None, false, true)? {
+                            image_data = Some(decoded.data().to_vec());
                         }
                     }
                 }
                 if image_data.is_none() {
-                    if let Some(data) = images_data.get(&DataSource::GameFiles) {
-                        if let Some(image_packed_file) = data.get(&image_path_lowercase) {
-                            image_data = Some(image_packed_file.get_raw_data().unwrap());
+                    if let Some(data) = images_data.get_mut(&DataSource::ParentFiles) {
+                        if let Some(image_packed_file) = data.get_mut(&image_path_lowercase) {
+                            if let Some(RFileDecoded::Image(decoded)) = image_packed_file.decode(&None, false, true)? {
+                                image_data = Some(decoded.data().to_vec());
+                            }
+                        }
+                    }
+                }
+                if image_data.is_none() {
+                    if let Some(data) = images_data.get_mut(&DataSource::GameFiles) {
+                        if let Some(image_packed_file) = data.get_mut(&image_path_lowercase) {
+                            if let Some(RFileDecoded::Image(decoded)) = image_packed_file.decode(&None, false, true)? {
+                                image_data = Some(decoded.data().to_vec());
+                            }
                         }
                     }
                 }
@@ -344,12 +344,14 @@ impl ToolFactionPainter {
             self.faction_list_model.append_row_q_standard_item(item);
         }
 
-        // Store the PackedFiles for use when saving.
+        self.faction_list_filter.sort_1a(0);
+
+        // Store the RFiles for use when saving.
         *self.tool.packed_files.borrow_mut() = data;
         Ok(())
     }
 
-    /// This function takes care of saving the data of this Tool into the currently open PackFile, creating a new one if there wasn't one open.
+    /// This function takes care of saving the data of this Tool into the currently open Pack, creating a new one if there wasn't one open.
     pub unsafe fn save_data(
         &self,
         app_ui: &Rc<AppUI>,
@@ -375,7 +377,7 @@ impl ToolFactionPainter {
 
         // We have to save the data to the last entry of the keys in out list, so if any of the other fields is edited on it, that edition is kept.
         let mut files_to_save = vec![];
-        match &*GAME_SELECTED.read().unwrap().get_game_key_name() {
+        match &*GAME_SELECTED.read().unwrap().game_key_name() {
             KEY_WARHAMMER_3 => {
                 files_to_save.push(self.save_factions_data(&data_to_save)?);
             }
@@ -385,7 +387,7 @@ impl ToolFactionPainter {
             }
         };
 
-        // Once we got the PackedFiles to save properly edited, call the generic tool `save` function to save them to a PackFile.
+        // Once we got the RFiles to save properly edited, call the generic tool `save` function to save them to a Pack.
         self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, &files_to_save)
     }
 
@@ -401,11 +403,11 @@ impl ToolFactionPainter {
         }
 
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
-        self.tool.load_field_to_detailed_view_editor_string_label(&data, self.get_ref_faction_name_label(), "screen_name");
+        self.tool.load_field_to_detailed_view_editor_string_label(&data, self.faction_name_label(), "screen_name");
 
         let image = QPixmap::new();
         image.load_from_data_q_byte_array(&index.data_1a(FACTION_ICON).to_byte_array());
-        self.get_ref_faction_icon_label().set_pixmap(&image);
+        self.faction_icon_label().set_pixmap(&image);
 
         // From here, everything can not exits, depending on our tables.
         let mut missing_fields = vec![];
@@ -413,13 +415,13 @@ impl ToolFactionPainter {
         if data.get("banner_primary").is_some() {
             self.banner_groupbox.set_checked(true);
 
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_primary(), "banner_primary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.banner_colour_primary(), "banner_primary") {
                 missing_fields.push(field);
             }
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_secondary(), "banner_secondary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.banner_colour_secondary(), "banner_secondary") {
                 missing_fields.push(field);
             }
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_banner_colour_tertiary(), "banner_tertiary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.banner_colour_tertiary(), "banner_tertiary") {
                 missing_fields.push(field);
             }
         } else {
@@ -429,13 +431,13 @@ impl ToolFactionPainter {
         if data.get("uniform_primary").is_some() {
             self.uniform_groupbox.set_checked(true);
 
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_primary(), "uniform_primary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.uniform_colour_primary(), "uniform_primary") {
                 missing_fields.push(field);
             }
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_secondary(), "uniform_secondary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.uniform_colour_secondary(), "uniform_secondary") {
                 missing_fields.push(field);
             }
-            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary") {
+            if let Some(field) = self.tool.load_fields_to_detailed_view_editor_combo_color(&data, self.uniform_colour_tertiary(), "uniform_tertiary") {
                 missing_fields.push(field);
             }
         } else {
@@ -444,7 +446,7 @@ impl ToolFactionPainter {
 
         // If any of the fields failed, report it.
         if !missing_fields.is_empty() {
-            show_message_warning(&self.tool.message_widget, ErrorKind::ToolEntryDataNotFound(missing_fields.join(", ")));
+            show_message_warning(&self.tool.message_widget, ToolsError::ToolEntryDataNotFound(missing_fields.join(", ")));
         }
     }
 
@@ -454,9 +456,9 @@ impl ToolFactionPainter {
 
         // Only save if checked. If not, remove the data we have, if we have any.
         if self.banner_groupbox.is_checked() {
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_primary(), "banner_primary");
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_secondary(), "banner_secondary");
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_banner_colour_tertiary(), "banner_tertiary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.banner_colour_primary(), "banner_primary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.banner_colour_secondary(), "banner_secondary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.banner_colour_tertiary(), "banner_tertiary");
         } else {
             data.remove("banner_primary");
             data.remove("banner_secondary");
@@ -464,16 +466,16 @@ impl ToolFactionPainter {
         }
 
         if self.uniform_groupbox.is_checked() {
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_primary(), "uniform_primary");
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_secondary(), "uniform_secondary");
-            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.get_ref_uniform_colour_tertiary(), "uniform_tertiary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.uniform_colour_primary(), "uniform_primary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.uniform_colour_secondary(), "uniform_secondary");
+            self.tool.save_fields_from_detailed_view_editor_combo_color(&mut data, self.uniform_colour_tertiary(), "uniform_tertiary");
         } else {
             data.remove("uniform_primary");
             data.remove("uniform_secondary");
             data.remove("uniform_tertiary");
         }
 
-        self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), FACTION_DATA);
+        self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), FACTION_DATA);
     }
 
     /// This function restores the banner colours to its initial values when we opened the tool.
@@ -482,13 +484,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_initial_primary") {
-            set_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
+            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
         }
         if let Some(banner_secondary) = data.get("banner_initial_secondary") {
-            set_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
+            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
         }
         if let Some(banner_tertiary) = data.get("banner_initial_tertiary") {
-            set_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
+            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
         }
     }
 
@@ -501,13 +503,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(banner_primary) = data.get("banner_vanilla_primary") {
-            set_color_safe(&self.get_ref_banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
+            set_color_safe(&self.banner_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_primary))).as_ptr());
         }
         if let Some(banner_secondary) = data.get("banner_vanilla_secondary") {
-            set_color_safe(&self.get_ref_banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
+            set_color_safe(&self.banner_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_secondary))).as_ptr());
         }
         if let Some(banner_tertiary) = data.get("banner_vanilla_tertiary") {
-            set_color_safe(&self.get_ref_banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
+            set_color_safe(&self.banner_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", banner_tertiary))).as_ptr());
         }
     }
 
@@ -517,13 +519,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_initial_primary") {
-            set_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
+            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
         }
         if let Some(uniform_secondary) = data.get("uniform_initial_secondary") {
-            set_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
+            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
         }
         if let Some(uniform_tertiary) = data.get("uniform_initial_tertiary") {
-            set_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
+            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
         }
     }
 
@@ -536,13 +538,13 @@ impl ToolFactionPainter {
         let data: HashMap<String, String> = serde_json::from_str(&index.data_1a(FACTION_DATA).to_string().to_std_string()).unwrap();
 
         if let Some(uniform_primary) = data.get("uniform_vanilla_primary") {
-            set_color_safe(&self.get_ref_uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
+            set_color_safe(&self.uniform_colour_primary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_primary))).as_ptr());
         }
         if let Some(uniform_secondary) = data.get("uniform_vanilla_secondary") {
-            set_color_safe(&self.get_ref_uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
+            set_color_safe(&self.uniform_colour_secondary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_secondary))).as_ptr());
         }
         if let Some(uniform_tertiary) = data.get("uniform_vanilla_tertiary") {
-            set_color_safe(&self.get_ref_uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
+            set_color_safe(&self.uniform_colour_tertiary().as_ptr().static_upcast(), &QColor::from_q_string(&QString::from_std_str(format!("#{}", uniform_tertiary))).as_ptr());
         }
     }
 
@@ -588,41 +590,40 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the factions table.
-    unsafe fn get_faction_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_factions_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_factions_row_key".to_owned())))?;
+    unsafe fn get_faction_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_factions_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_factions_row_key".to_owned()))?;
 
-        let banner_primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned())))?;
-        let banner_secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned())))?;
-        let banner_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned())))?;
+        let banner_primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned()))?;
+        let banner_secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned()))?;
+        let banner_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned()))?;
 
-        let uniform_primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned())))?;
-        let uniform_secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned())))?;
-        let uniform_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned())))?;
+        let uniform_primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned()))?;
+        let uniform_secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned()))?;
+        let uniform_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned()))?;
 
         // First, get the keys, names and flags from the factions tables.
         for (path, packed_file) in data.iter_mut() {
-            if path.len() > 2 && path[0].to_lowercase() == "db" && path[1] == "factions_tables" {
-
-                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
+            if path.to_lowercase().starts_with("db/factions_tables/") {
+                if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 
                     // We need multiple column's data for this to work.
-                    let key_column = table.get_column_position_by_name("key")?;
+                    let key_column = table.column_position_by_name("key").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "key".to_string()))?;
 
                     // TODO: move this to get the name from the loc file instead, as that should work for any game/language.
-                    let name_column =  if GAME_SELECTED.read().unwrap().get_game_key_name() != KEY_WARHAMMER_3 { table.get_column_position_by_name("screen_name")? } else { 0 };
-                    let flag_path_column = table.get_column_position_by_name("flags_path")?;
+                    let name_column =  if GAME_SELECTED.read().unwrap().game_key_name() != KEY_WARHAMMER_3 { table.column_position_by_name("screen_name").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "screen_name".to_string()))? } else { 0 };
+                    let flag_path_column = table.column_position_by_name("flags_path").ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), "flags_path".to_string()))?;
 
                     // Only used for WH3.
-                    let banner_primary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(banner_primary_colour_column_name)? } else { 0 };
-                    let banner_secondary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(banner_secondary_colour_column_name)? } else { 0 };
-                    let banner_tertiary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(banner_tertiary_colour_column_name)? } else { 0 };
+                    let banner_primary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_primary_colour_column_name.to_string()))? } else { 0 };
+                    let banner_secondary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_secondary_colour_column_name.to_string()))? } else { 0 };
+                    let banner_tertiary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(banner_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_tertiary_colour_column_name.to_string()))? } else { 0 };
 
-                    let uniform_primary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(uniform_primary_colour_column_name)? } else { 0 };
-                    let uniform_secondary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(uniform_secondary_colour_column_name)? } else { 0 };
-                    let uniform_tertiary_colour_column = if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 { table.get_column_position_by_name(uniform_tertiary_colour_column_name)? } else { 0 };
+                    let uniform_primary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_primary_colour_column_name.to_string()))? } else { 0 };
+                    let uniform_secondary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_secondary_colour_column_name.to_string()))? } else { 0 };
+                    let uniform_tertiary_colour_column = if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 { table.column_position_by_name(uniform_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_tertiary_colour_column_name.to_string()))? } else { 0 };
 
-                    let definition = serde_json::to_string(table.get_ref_definition())?;
-                    for row in table.get_ref_table_data() {
+                    let definition = serde_json::to_string(table.definition())?;
+                    for row in table.data(&None)?.iter() {
                         let mut data = HashMap::new();
 
                         // TODO: This doesn't work for WH3.
@@ -633,7 +634,7 @@ impl ToolFactionPainter {
                             DecodedData::OptionalStringU16(ref value) => {
                                 data.insert("screen_name".to_owned(), value.to_owned());
                             }
-                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                         }
 
                         match Tool::get_row_by_column_index(row, flag_path_column)? {
@@ -643,13 +644,13 @@ impl ToolFactionPainter {
                             DecodedData::OptionalStringU16(ref value) => {
 
                                 // This cleans up the \ slashes some paths use, and removes the "data\" prefix some games use in these paths.
-                                let mut value = value.to_owned().replace("\\", "/") + "/mon_64.png";
+                                let mut value = value.to_owned().replace('\\', "/") + "/mon_64.png";
                                 if value.starts_with("data/") {
                                     value = value[5..].to_owned();
                                 }
                                 data.insert("flags_path".to_owned(), value);
                             }
-                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                         }
 
                         match Tool::get_row_by_column_index(row, key_column)? {
@@ -659,11 +660,11 @@ impl ToolFactionPainter {
                             DecodedData::OptionalStringU16(ref key) => {
                                 data.insert("key".to_owned(), key.to_owned());
                             }
-                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                         }
 
                         // In WH3 the 3 tables were merged into factions, so we have to check here for their data
-                        if GAME_SELECTED.read().unwrap().get_game_key_name() == KEY_WARHAMMER_3 {
+                        if GAME_SELECTED.read().unwrap().game_key_name() == KEY_WARHAMMER_3 {
                             let banner_primary_row_by_column = Tool::get_row_by_column_index(row, banner_primary_colour_column)?;
                             let banner_secondary_row_by_column = Tool::get_row_by_column_index(row, banner_secondary_colour_column)?;
                             let banner_tertiary_row_by_column = Tool::get_row_by_column_index(row, banner_tertiary_colour_column)?;
@@ -674,55 +675,55 @@ impl ToolFactionPainter {
 
                             let banner_primary_colour = match banner_primary_row_by_column {
                                 DecodedData::ColourRGB(_) => banner_primary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let banner_secondary_colour = match banner_secondary_row_by_column {
                                 DecodedData::ColourRGB(_) => banner_secondary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let banner_tertiary_colour = match banner_tertiary_row_by_column {
                                 DecodedData::ColourRGB(_) => banner_tertiary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             let uniform_primary_colour = match uniform_primary_row_by_column {
                                 DecodedData::ColourRGB(_) => uniform_primary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let uniform_secondary_colour = match uniform_secondary_row_by_column {
                                 DecodedData::ColourRGB(_) => uniform_secondary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let uniform_tertiary_colour = match uniform_tertiary_row_by_column {
                                 DecodedData::ColourRGB(_) => uniform_tertiary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             // If we're processing the game files, set the vanilla values.
                             if let DataSource::GameFiles = data_source {
-                                data.insert("banner_vanilla_primary".to_owned(), banner_primary_colour.to_owned());
-                                data.insert("banner_vanilla_secondary".to_owned(), banner_secondary_colour.to_owned());
-                                data.insert("banner_vanilla_tertiary".to_owned(), banner_tertiary_colour.to_owned());
+                                data.insert("banner_vanilla_primary".to_owned(), banner_primary_colour.to_string());
+                                data.insert("banner_vanilla_secondary".to_owned(), banner_secondary_colour.to_string());
+                                data.insert("banner_vanilla_tertiary".to_owned(), banner_tertiary_colour.to_string());
 
-                                data.insert("uniform_vanilla_primary".to_owned(), uniform_primary_colour.to_owned());
-                                data.insert("uniform_vanilla_secondary".to_owned(), uniform_secondary_colour.to_owned());
-                                data.insert("uniform_vanilla_tertiary".to_owned(), uniform_tertiary_colour.to_owned());
+                                data.insert("uniform_vanilla_primary".to_owned(), uniform_primary_colour.to_string());
+                                data.insert("uniform_vanilla_secondary".to_owned(), uniform_secondary_colour.to_string());
+                                data.insert("uniform_vanilla_tertiary".to_owned(), uniform_tertiary_colour.to_string());
                             }
 
                             // Set the initial values. The last value inputted is the initial one due to how we load the data.
-                            data.insert("banner_initial_primary".to_owned(), banner_primary_colour.to_owned());
-                            data.insert("banner_initial_secondary".to_owned(), banner_secondary_colour.to_owned());
-                            data.insert("banner_initial_tertiary".to_owned(), banner_tertiary_colour.to_owned());
-                            data.insert("banner_primary".to_owned(), banner_primary_colour);
-                            data.insert("banner_secondary".to_owned(), banner_secondary_colour);
-                            data.insert("banner_tertiary".to_owned(), banner_tertiary_colour);
+                            data.insert("banner_initial_primary".to_owned(), banner_primary_colour.to_string());
+                            data.insert("banner_initial_secondary".to_owned(), banner_secondary_colour.to_string());
+                            data.insert("banner_initial_tertiary".to_owned(), banner_tertiary_colour.to_string());
+                            data.insert("banner_primary".to_owned(), banner_primary_colour.to_string());
+                            data.insert("banner_secondary".to_owned(), banner_secondary_colour.to_string());
+                            data.insert("banner_tertiary".to_owned(), banner_tertiary_colour.to_string());
 
-                            data.insert("uniform_initial_primary".to_owned(), uniform_primary_colour.to_owned());
-                            data.insert("uniform_initial_secondary".to_owned(), uniform_secondary_colour.to_owned());
-                            data.insert("uniform_initial_tertiary".to_owned(), uniform_tertiary_colour.to_owned());
-                            data.insert("uniform_primary".to_owned(), uniform_primary_colour);
-                            data.insert("uniform_secondary".to_owned(), uniform_secondary_colour);
-                            data.insert("uniform_tertiary".to_owned(), uniform_tertiary_colour);
+                            data.insert("uniform_initial_primary".to_owned(), uniform_primary_colour.to_string());
+                            data.insert("uniform_initial_secondary".to_owned(), uniform_secondary_colour.to_string());
+                            data.insert("uniform_initial_tertiary".to_owned(), uniform_tertiary_colour.to_string());
+                            data.insert("uniform_primary".to_owned(), uniform_primary_colour.to_string());
+                            data.insert("uniform_secondary".to_owned(), uniform_secondary_colour.to_string());
+                            data.insert("uniform_tertiary".to_owned(), uniform_tertiary_colour.to_string());
                         }
 
                         // Also save the full row, so we can easely edit it and put it into a file later on.
@@ -746,36 +747,64 @@ impl ToolFactionPainter {
         Ok(())
     }
 
-    /// This function gets the data needed for the tool from the faction_banners table.
-    unsafe fn get_faction_banner_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+    /// This function gets the data needed for the tool from the factions table.
+    unsafe fn get_faction_loc_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, _data_source: DataSource) -> Result<()> {
+        for (path, packed_file) in data.iter_mut() {
+            if path.to_lowercase().ends_with(".loc") {
+                if let Ok(RFileDecoded::Loc(table)) = packed_file.decoded() {
+                    let base_name = "factions_screen_name_".to_owned();
+                    let table_data = table.data(&None)?;
 
-        let table_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_table_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_table_name".to_owned())))?;
-        let table_definition_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_table_definition").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_table_definition".to_owned())))?;
-        let key_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_key_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_key_column_name".to_owned())))?;
-        let primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned())))?;
-        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned())))?;
-        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned())))?;
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_row_key".to_owned())))?;
+                    processed_data.iter_mut().for_each(|(key, values)| {
+                        let key = format!("{}{}", base_name, key);
+                        let screen_name = table_data.iter().find_map(|row| {
+                            if row[0].data_to_string() == key {
+                                Some(row[1].data_to_string())
+                            } else {
+                                None
+                            }
+                        });
+
+                        if let Some(screen_name) = screen_name {
+                            values.insert("screen_name".to_string(), screen_name.to_string());
+                        }
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// This function gets the data needed for the tool from the faction_banners table.
+    unsafe fn get_faction_banner_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+
+        let table_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_table_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_table_name".to_owned()))?;
+        let table_definition_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_table_definition").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_table_definition".to_owned()))?;
+        let key_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_key_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_key_column_name".to_owned()))?;
+        let primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned()))?;
+        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned()))?;
+        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned()))?;
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_row_key".to_owned()))?;
 
         for (path, packed_file) in data.iter_mut() {
-            if path.len() > 2 && path[0].to_lowercase() == "db" && &path[1] == table_name {
+            if path.to_lowercase().starts_with(&format!("db/{}/", table_name)) {
 
-                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
+                if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 
                     // We need multiple column's data for this to work.
-                    let key_column = table.get_column_position_by_name(key_column_name)?;
+                    let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
 
-                    let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
-                    let secondary_colour_column = table.get_column_position_by_name(secondary_colour_column_name)?;
-                    let tertiary_colour_column = table.get_column_position_by_name(tertiary_colour_column_name)?;
+                    let primary_colour_column = table.column_position_by_name(primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), primary_colour_column_name.to_string()))?;
+                    let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
+                    let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
-                    for row in table.get_ref_table_data() {
+                    for row in table.data(&None)?.iter() {
                         let key = match Tool::get_row_by_column_index(row, key_column)? {
                             DecodedData::StringU8(ref value) |
                             DecodedData::StringU16(ref value) |
                             DecodedData::OptionalStringU8(ref value) |
                             DecodedData::OptionalStringU16(ref value) => value,
-                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                         };
 
                         if let Some(faction_data) = processed_data.get_mut(key) {
@@ -785,31 +814,31 @@ impl ToolFactionPainter {
 
                             let primary_colour = match primary_row_by_column {
                                 DecodedData::ColourRGB(_) => primary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let secondary_colour = match secondary_row_by_column {
                                 DecodedData::ColourRGB(_) => secondary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let tertiary_colour = match tertiary_row_by_column {
                                 DecodedData::ColourRGB(_) => tertiary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             // If we're processing the game files, set the vanilla values.
                             if let DataSource::GameFiles = data_source {
-                                faction_data.insert("banner_vanilla_primary".to_owned(), primary_colour.to_owned());
-                                faction_data.insert("banner_vanilla_secondary".to_owned(), secondary_colour.to_owned());
-                                faction_data.insert("banner_vanilla_tertiary".to_owned(), tertiary_colour.to_owned());
+                                faction_data.insert("banner_vanilla_primary".to_owned(), primary_colour.to_string());
+                                faction_data.insert("banner_vanilla_secondary".to_owned(), secondary_colour.to_string());
+                                faction_data.insert("banner_vanilla_tertiary".to_owned(), tertiary_colour.to_string());
                             }
 
                             // Set the initial values. The last value inputted is the initial one due to how we load the data.
-                            faction_data.insert("banner_initial_primary".to_owned(), primary_colour.to_owned());
-                            faction_data.insert("banner_initial_secondary".to_owned(), secondary_colour.to_owned());
-                            faction_data.insert("banner_initial_tertiary".to_owned(), tertiary_colour.to_owned());
-                            faction_data.insert("banner_primary".to_owned(), primary_colour);
-                            faction_data.insert("banner_secondary".to_owned(), secondary_colour);
-                            faction_data.insert("banner_tertiary".to_owned(), tertiary_colour);
+                            faction_data.insert("banner_initial_primary".to_owned(), primary_colour.to_string());
+                            faction_data.insert("banner_initial_secondary".to_owned(), secondary_colour.to_string());
+                            faction_data.insert("banner_initial_tertiary".to_owned(), tertiary_colour.to_string());
+                            faction_data.insert("banner_primary".to_owned(), primary_colour.to_string());
+                            faction_data.insert("banner_secondary".to_owned(), secondary_colour.to_string());
+                            faction_data.insert("banner_tertiary".to_owned(), tertiary_colour.to_string());
 
                             // Also save the full row, so we can easely edit it and put it into a file later on.
                             if faction_data.get(row_key).is_none() {
@@ -818,7 +847,7 @@ impl ToolFactionPainter {
 
                             // Store the definition, so we can re-use it later to recreate the table.
                             if faction_data.get(table_definition_name).is_none() {
-                                let definition = serde_json::to_string(table.get_ref_definition())?;
+                                let definition = serde_json::to_string(table.definition())?;
                                 faction_data.insert(table_definition_name.to_owned(), definition);
                             }
                         }
@@ -831,35 +860,35 @@ impl ToolFactionPainter {
     }
 
     /// This function gets the data needed for the tool from the faction_uniform_colours table.
-    unsafe fn get_faction_uniform_data(&self, data: &mut HashMap<Vec<String>, PackedFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
+    unsafe fn get_faction_uniform_data(&self, data: &mut HashMap<String, RFile>, processed_data: &mut HashMap<String, HashMap<String, String>>, data_source: DataSource) -> Result<()> {
 
-        let table_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_table_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_table_name".to_owned())))?;
-        let table_definition_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_table_definition").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_table_definition".to_owned())))?;
-        let key_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_key_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_key_column_name".to_owned())))?;
-        let primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned())))?;
-        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned())))?;
-        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned())))?;
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_row_key".to_owned())))?;
+        let table_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_table_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_table_name".to_owned()))?;
+        let table_definition_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_table_definition").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_table_definition".to_owned()))?;
+        let key_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_key_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_key_column_name".to_owned()))?;
+        let primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned()))?;
+        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned()))?;
+        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned()))?;
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_row_key".to_owned()))?;
 
         for (path, packed_file) in data.iter_mut() {
-            if path.len() > 2 && path[0].to_lowercase() == "db" && &path[1] == table_name {
+            if path.to_lowercase().starts_with(&format!("db/{}/", table_name)) {
 
-                if let Ok(DecodedPackedFile::DB(table)) = packed_file.decode_return_ref() {
+                if let Ok(RFileDecoded::DB(table)) = packed_file.decoded() {
 
                     // We need multiple column's data for this to work.
-                    let key_column = table.get_column_position_by_name(key_column_name)?;
+                    let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
 
-                    let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
-                    let secondary_colour_column = table.get_column_position_by_name(secondary_colour_column_name)?;
-                    let tertiary_colour_column = table.get_column_position_by_name(tertiary_colour_column_name)?;
+                    let primary_colour_column = table.column_position_by_name(primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), primary_colour_column_name.to_string()))?;
+                    let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
+                    let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
-                    for row in table.get_ref_table_data() {
+                    for row in table.data(&None)?.iter() {
                         let key = match Tool::get_row_by_column_index(row, key_column)? {
                             DecodedData::StringU8(ref value) |
                             DecodedData::StringU16(ref value) |
                             DecodedData::OptionalStringU8(ref value) |
                             DecodedData::OptionalStringU16(ref value) => value,
-                            _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                            _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                         };
 
                         if let Some(faction_data) = processed_data.get_mut(key) {
@@ -869,31 +898,31 @@ impl ToolFactionPainter {
 
                             let primary_colour = match primary_row_by_column {
                                 DecodedData::ColourRGB(_) => primary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let secondary_colour = match secondary_row_by_column {
                                 DecodedData::ColourRGB(_) => secondary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
                             let tertiary_colour = match tertiary_row_by_column {
                                 DecodedData::ColourRGB(_) => tertiary_row_by_column.data_to_string(),
-                                _ => return Err(ErrorKind::ToolTableColumnNotOfTypeWeExpected.into()),
+                                _ => return Err(ToolsError::ToolTableColumnNotOfTypeWeExpected.into()),
                             };
 
                             // If we're processing the game files, set the vanilla values.
                             if let DataSource::GameFiles = data_source {
-                                faction_data.insert("uniform_vanilla_primary".to_owned(), primary_colour.to_owned());
-                                faction_data.insert("uniform_vanilla_secondary".to_owned(), secondary_colour.to_owned());
-                                faction_data.insert("uniform_vanilla_tertiary".to_owned(), tertiary_colour.to_owned());
+                                faction_data.insert("uniform_vanilla_primary".to_owned(), primary_colour.to_string());
+                                faction_data.insert("uniform_vanilla_secondary".to_owned(), secondary_colour.to_string());
+                                faction_data.insert("uniform_vanilla_tertiary".to_owned(), tertiary_colour.to_string());
                             }
 
                             // Set the initial values. The last value inputted is the initial one due to how we load the data.
-                            faction_data.insert("uniform_initial_primary".to_owned(), primary_colour.to_owned());
-                            faction_data.insert("uniform_initial_secondary".to_owned(), secondary_colour.to_owned());
-                            faction_data.insert("uniform_initial_tertiary".to_owned(), tertiary_colour.to_owned());
-                            faction_data.insert("uniform_primary".to_owned(), primary_colour);
-                            faction_data.insert("uniform_secondary".to_owned(), secondary_colour);
-                            faction_data.insert("uniform_tertiary".to_owned(), tertiary_colour);
+                            faction_data.insert("uniform_initial_primary".to_owned(), primary_colour.to_string());
+                            faction_data.insert("uniform_initial_secondary".to_owned(), secondary_colour.to_string());
+                            faction_data.insert("uniform_initial_tertiary".to_owned(), tertiary_colour.to_string());
+                            faction_data.insert("uniform_primary".to_owned(), primary_colour.to_string());
+                            faction_data.insert("uniform_secondary".to_owned(), secondary_colour.to_string());
+                            faction_data.insert("uniform_tertiary".to_owned(), tertiary_colour.to_string());
 
                             // Also save the full row, so we can easely edit it and put it into a file later on.
                             if faction_data.get(row_key).is_none() {
@@ -902,7 +931,7 @@ impl ToolFactionPainter {
 
                             // Store the definition, so we can re-use it later to recreate the table.
                             if faction_data.get(table_definition_name).is_none() {
-                                let definition = serde_json::to_string(table.get_ref_definition())?;
+                                let definition = serde_json::to_string(table.definition())?;
                                 faction_data.insert(table_definition_name.to_owned(), definition);
                             }
                         }
@@ -914,31 +943,31 @@ impl ToolFactionPainter {
         Ok(())
     }
 
-    /// This function takes care of saving the factions's data into a PackedFile.
-    unsafe fn save_factions_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
-        let table_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_factions_table_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_factions_table_name".to_owned())))?;
-        let table_definition_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_factions_table_definition").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_factions_table_definition".to_owned())))?;
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_factions_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_factions_row_key".to_owned())))?;
+    /// This function takes care of saving the factions's data into a RFile.
+    unsafe fn save_factions_data(&self, data: &[HashMap<String, String>]) -> Result<RFile> {
+        let table_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_factions_table_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_factions_table_name".to_owned()))?;
+        let table_definition_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_factions_table_definition").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_factions_table_definition".to_owned()))?;
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_factions_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_factions_row_key".to_owned()))?;
 
-        let banner_primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned())))?;
-        let banner_secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned())))?;
-        let banner_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned())))?;
+        let banner_primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned()))?;
+        let banner_secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned()))?;
+        let banner_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned()))?;
 
-        let uniform_primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned())))?;
-        let uniform_secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned())))?;
-        let uniform_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned())))?;
+        let uniform_primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned()))?;
+        let uniform_secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned()))?;
+        let uniform_tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned()))?;
 
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
-                let mut table = DB::new(&table_name, None, &serde_json::from_str(definition)?);
+                let mut table = DB::new(&serde_json::from_str(definition)?, None, table_name, false);
 
-                let banner_primary_colour_column = table.get_column_position_by_name(banner_primary_colour_column_name)?;
-                let banner_secondary_colour_column = table.get_column_position_by_name(banner_secondary_colour_column_name)?;
-                let banner_tertiary_colour_column = table.get_column_position_by_name(banner_tertiary_colour_column_name)?;
+                let banner_primary_colour_column = table.column_position_by_name(banner_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_primary_colour_column_name.to_string()))?;
+                let banner_secondary_colour_column = table.column_position_by_name(banner_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_secondary_colour_column_name.to_string()))?;
+                let banner_tertiary_colour_column = table.column_position_by_name(banner_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), banner_tertiary_colour_column_name.to_string()))?;
 
-                let uniform_primary_colour_column = table.get_column_position_by_name(uniform_primary_colour_column_name)?;
-                let uniform_secondary_colour_column = table.get_column_position_by_name(uniform_secondary_colour_column_name)?;
-                let uniform_tertiary_colour_column = table.get_column_position_by_name(uniform_tertiary_colour_column_name)?;
+                let uniform_primary_colour_column = table.column_position_by_name(uniform_primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_primary_colour_column_name.to_string()))?;
+                let uniform_secondary_colour_column = table.column_position_by_name(uniform_secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_secondary_colour_column_name.to_string()))?;
+                let uniform_tertiary_colour_column = table.column_position_by_name(uniform_tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), uniform_tertiary_colour_column_name.to_string()))?;
 
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
@@ -946,9 +975,9 @@ impl ToolFactionPainter {
                         let mut row: Vec<DecodedData> = serde_json::from_str(row).ok()?;
                         let mut save_row = false;
                         if row_data.get("banner_primary").is_some() {
-                            let banner_primary = u32::from_str_radix(row_data.get("banner_primary")?, 16).ok()?;
-                            let banner_secondary = u32::from_str_radix(row_data.get("banner_secondary")?, 16).ok()?;
-                            let banner_tertiary = u32::from_str_radix(row_data.get("banner_tertiary")?, 16).ok()?;
+                            let banner_primary = row_data.get("banner_primary")?.to_owned();
+                            let banner_secondary = row_data.get("banner_secondary")?.to_owned();
+                            let banner_tertiary = row_data.get("banner_tertiary")?.to_owned();
 
                             row[banner_primary_colour_column] = DecodedData::ColourRGB(banner_primary);
                             row[banner_secondary_colour_column] = DecodedData::ColourRGB(banner_secondary);
@@ -957,9 +986,9 @@ impl ToolFactionPainter {
                             save_row = true;
                         }
                         if row_data.get("uniform_primary").is_some() {
-                            let uniform_primary = u32::from_str_radix(row_data.get("uniform_primary")?, 16).ok()?;
-                            let uniform_secondary = u32::from_str_radix(row_data.get("uniform_secondary")?, 16).ok()?;
-                            let uniform_tertiary = u32::from_str_radix(row_data.get("uniform_tertiary")?, 16).ok()?;
+                            let uniform_primary = row_data.get("uniform_primary")?.to_owned();
+                            let uniform_secondary = row_data.get("uniform_secondary")?.to_owned();
+                            let uniform_tertiary = row_data.get("uniform_tertiary")?.to_owned();
 
                             row[uniform_primary_colour_column] = DecodedData::ColourRGB(uniform_primary);
                             row[uniform_secondary_colour_column] = DecodedData::ColourRGB(uniform_secondary);
@@ -975,36 +1004,36 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_table_data(&table_data)?;
-                let path = vec!["db".to_owned(), table_name.to_owned(), self.get_file_name()];
-                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
-            } else { Err(ErrorKind::Impossibru.into()) }
-        } else { Err(ErrorKind::Impossibru.into()) }
+                table.set_data(None, &table_data)?;
+                let path = format!("db/{}/{}", table_name, self.get_file_name());
+                Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
+            } else { Err(ToolsError::Impossibru.into()) }
+        } else { Err(ToolsError::Impossibru.into()) }
     }
 
-    /// This function takes care of saving the banner's data into a PackedFile.
-    unsafe fn save_faction_banner_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
+    /// This function takes care of saving the banner's data into a RFile.
+    unsafe fn save_faction_banner_data(&self, data: &[HashMap<String, String>]) -> Result<RFile> {
 
-        let table_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_table_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_table_name".to_owned())))?;
-        let table_definition_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_table_definition").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_table_definition".to_owned())))?;
-        let primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned())))?;
-        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned())))?;
-        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned())))?;
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_row_key".to_owned())))?;
+        let table_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_table_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_table_name".to_owned()))?;
+        let table_definition_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_table_definition").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_table_definition".to_owned()))?;
+        let primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_primary_colour_column_name".to_owned()))?;
+        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_secondary_colour_column_name".to_owned()))?;
+        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_tertiary_colour_column_name".to_owned()))?;
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_row_key".to_owned()))?;
 
-        let key_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_banner_key_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_banner_key_column_name".to_owned())))?;
+        let key_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_banner_key_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_banner_key_column_name".to_owned()))?;
 
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
                 let definition = serde_json::from_str(definition)?;
-                let mut table = DB::new(&table_name, None, &definition);
+                let mut table = DB::new(&definition, None, table_name, false);
 
                 let fields_processed = definition.fields_processed();
-                let key_column = table.get_column_position_by_name(key_column_name)?;
+                let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
 
-                let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
-                let secondary_colour_column = table.get_column_position_by_name(secondary_colour_column_name)?;
-                let tertiary_colour_column = table.get_column_position_by_name(tertiary_colour_column_name)?;
+                let primary_colour_column = table.column_position_by_name(primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), primary_colour_column_name.to_string()))?;
+                let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
+                let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
@@ -1014,8 +1043,8 @@ impl ToolFactionPainter {
                             serde_json::from_str(row).ok()?
                         } else {
                             let key = row_data.get("key")?;
-                            let mut row = table.get_new_row();
-                            row[key_column] = match fields_processed[key_column].get_field_type() {
+                            let mut row = table.new_row();
+                            row[key_column] = match fields_processed[key_column].field_type() {
                                 FieldType::StringU8 => DecodedData::StringU8(key.to_owned()),
                                 FieldType::StringU16 => DecodedData::StringU16(key.to_owned()),
                                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(key.to_owned()),
@@ -1026,9 +1055,9 @@ impl ToolFactionPainter {
                         };
 
                         if row_data.get("banner_primary").is_some() {
-                            let primary = u32::from_str_radix(row_data.get("banner_primary")?, 16).ok()?;
-                            let secondary = u32::from_str_radix(row_data.get("banner_secondary")?, 16).ok()?;
-                            let tertiary = u32::from_str_radix(row_data.get("banner_tertiary")?, 16).ok()?;
+                            let primary = row_data.get("banner_primary")?.to_owned();
+                            let secondary = row_data.get("banner_secondary")?.to_owned();
+                            let tertiary = row_data.get("banner_tertiary")?.to_owned();
 
                             row[primary_colour_column] = DecodedData::ColourRGB(primary);
                             row[secondary_colour_column] = DecodedData::ColourRGB(secondary);
@@ -1040,36 +1069,36 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_table_data(&table_data)?;
-                let path = vec!["db".to_owned(), table_name.to_owned(), self.get_file_name()];
-                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
-            } else { Err(ErrorKind::Impossibru.into()) }
-        } else { Err(ErrorKind::Impossibru.into()) }
+                table.set_data(None, &table_data)?;
+                let path = format!("db/{}/{}", table_name, self.get_file_name());
+                Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
+            } else { Err(ToolsError::Impossibru.into()) }
+        } else { Err(ToolsError::Impossibru.into()) }
     }
 
-    /// This function takes care of saving the banner's data into a PackedFile.
-    unsafe fn save_faction_uniform_data(&self, data: &[HashMap<String, String>]) -> Result<PackedFile> {
+    /// This function takes care of saving the banner's data into a RFile.
+    unsafe fn save_faction_uniform_data(&self, data: &[HashMap<String, String>]) -> Result<RFile> {
 
-        let table_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_table_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_table_name".to_owned())))?;
-        let table_definition_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_table_definition").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_table_definition".to_owned())))?;
-        let primary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned())))?;
-        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned())))?;
-        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned())))?;
-        let row_key = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_row_key").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_row_key".to_owned())))?;
+        let table_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_table_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_table_name".to_owned()))?;
+        let table_definition_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_table_definition").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_table_definition".to_owned()))?;
+        let primary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_primary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_primary_colour_column_name".to_owned()))?;
+        let secondary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_secondary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_secondary_colour_column_name".to_owned()))?;
+        let tertiary_colour_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_tertiary_colour_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_tertiary_colour_column_name".to_owned()))?;
+        let row_key = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_row_key").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_row_key".to_owned()))?;
 
-        let key_column_name = GAME_SELECTED.read().unwrap().get_tool_var("faction_painter_uniform_key_column_name").ok_or_else(|| Error::from(ErrorKind::ToolVarNotFoundForGame("faction_painter_uniform_key_column_name".to_owned())))?;
+        let key_column_name = GAME_SELECTED.read().unwrap().tool_var("faction_painter_uniform_key_column_name").ok_or_else(|| ToolsError::ToolVarNotFoundForGame("faction_painter_uniform_key_column_name".to_owned()))?;
 
         if let Some(first) = data.iter().next() {
             if let Some(definition) = first.get(table_definition_name) {
                 let definition = serde_json::from_str(definition)?;
-                let mut table = DB::new(&table_name, None, &definition);
+                let mut table = DB::new(&definition, None, table_name, false);
 
                 let fields_processed = definition.fields_processed();
-                let key_column = table.get_column_position_by_name(key_column_name)?;
+                let key_column = table.column_position_by_name(key_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), key_column_name.to_string()))?;
 
-                let primary_colour_column = table.get_column_position_by_name(primary_colour_column_name)?;
-                let secondary_colour_column = table.get_column_position_by_name(secondary_colour_column_name)?;
-                let tertiary_colour_column = table.get_column_position_by_name(tertiary_colour_column_name)?;
+                let primary_colour_column = table.column_position_by_name(primary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), primary_colour_column_name.to_string()))?;
+                let secondary_colour_column = table.column_position_by_name(secondary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), secondary_colour_column_name.to_string()))?;
+                let tertiary_colour_column = table.column_position_by_name(tertiary_colour_column_name).ok_or_else(|| ToolsError::MissingColumnInTable(table.table_name().to_string(), tertiary_colour_column_name.to_string()))?;
 
                 let table_data = data.par_iter()
                     .filter_map(|row_data| {
@@ -1079,8 +1108,8 @@ impl ToolFactionPainter {
                             serde_json::from_str(row).ok()?
                         } else {
                             let key = row_data.get("key")?;
-                            let mut row = table.get_new_row();
-                            row[key_column] = match fields_processed[key_column].get_field_type() {
+                            let mut row = table.new_row();
+                            row[key_column] = match fields_processed[key_column].field_type() {
                                 FieldType::StringU8 => DecodedData::StringU8(key.to_owned()),
                                 FieldType::StringU16 => DecodedData::StringU16(key.to_owned()),
                                 FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(key.to_owned()),
@@ -1092,9 +1121,9 @@ impl ToolFactionPainter {
 
                         // If this is missing, the checkbox for this field is disabled.s
                         if row_data.get("uniform_primary").is_some() {
-                            let primary = u32::from_str_radix(row_data.get("uniform_primary")?, 16).ok()?;
-                            let secondary = u32::from_str_radix(row_data.get("uniform_secondary")?, 16).ok()?;
-                            let tertiary = u32::from_str_radix(row_data.get("uniform_tertiary")?, 16).ok()?;
+                            let primary = row_data.get("uniform_primary")?.to_owned();
+                            let secondary = row_data.get("uniform_secondary")?.to_owned();
+                            let tertiary = row_data.get("uniform_tertiary")?.to_owned();
 
                             row[primary_colour_column] = DecodedData::ColourRGB(primary);
                             row[secondary_colour_column] = DecodedData::ColourRGB(secondary);
@@ -1106,14 +1135,14 @@ impl ToolFactionPainter {
                         }
                     }).collect::<Vec<Vec<DecodedData>>>();
 
-                table.set_table_data(&table_data)?;
-                let path = vec!["db".to_owned(), table_name.to_owned(), self.get_file_name()];
-                Ok(PackedFile::new_from_decoded(&DecodedPackedFile::DB(table), &path))
-            } else { Err(ErrorKind::Impossibru.into()) }
-        } else { Err(ErrorKind::Impossibru.into()) }
+                table.set_data(None, &table_data)?;
+                let path = format!("db/{}/{}", table_name, self.get_file_name());
+                Ok(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
+            } else { Err(ToolsError::Impossibru.into()) }
+        } else { Err(ToolsError::Impossibru.into()) }
     }
 
-    /// This function returns the file name this tool uses for the PackedFiles, when a PackedFile has no specific name.
+    /// This function returns the file name this tool uses for the RFiles, when a RFile has no specific name.
     unsafe fn get_file_name(&self) -> String {
         let packed_file_name = self.packed_file_name_line_edit.text();
         if !packed_file_name.is_empty() {

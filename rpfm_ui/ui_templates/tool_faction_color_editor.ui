@@ -189,9 +189,6 @@
      </layout>
     </widget>
    </item>
-   <item row="5" column="1">
-    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
-   </item>
    <item row="5" column="3">
     <widget class="QDialogButtonBox" name="button_box">
      <property name="orientation">
@@ -203,10 +200,23 @@
     </widget>
    </item>
    <item row="1" column="0" rowspan="4" colspan="2">
-    <widget class="QListView" name="faction_list_view"/>
+    <widget class="QListView" name="faction_list_view">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
    <item row="2" column="2" colspan="2">
     <widget class="KMessageWidget" name="message_widget"/>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QLineEdit" name="faction_list_filter_line_edit"/>
    </item>
   </layout>
  </widget>

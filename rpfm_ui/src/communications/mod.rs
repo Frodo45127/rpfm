@@ -202,7 +202,7 @@ pub enum Command {
     GetTableVersionFromDependencyPackFile(String),
 
     // This command is used when we want to get the definition of the table provided that's compatible with the version of the game we currently have installed.
-    //GetTableDefinitionFromDependencyPackFile(String),
+    GetTableDefinitionFromDependencyPackFile(String),
 
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
@@ -237,7 +237,7 @@ pub enum Command {
     FileFromLocalPack(String),
 
     // This command is used to get a full list of PackedFile from all known sources to the UI. Requires the path of the PackedFile.
-    GetPackedFilesFromAllSources(Vec<ContainerPath>),
+    GetRFilesFromAllSources(Vec<ContainerPath>),
 
     // This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetVideoFormat(String, SupportedFormats),
@@ -512,12 +512,13 @@ pub enum Response {
     //HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     Diagnostics(Diagnostics),
     //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
-    //Definition(Definition),
+    Definition(Definition),
     //VecTipVecTip(Vec<Tip>, Vec<Tip>),
     HashSetString(HashSet<String>),
     //StringHashSetString(String, HashSet<String>),
     StringVecContainerPath(String, Vec<ContainerPath>),
-    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>)
+    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
+    VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>)
 }
 
 //-------------------------------------------------------------------------------//

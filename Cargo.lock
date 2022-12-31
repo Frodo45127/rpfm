@@ -1966,6 +1966,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tempfile",
+ "thiserror",
  "time 0.3.17",
  "unic-langid",
  "winres",

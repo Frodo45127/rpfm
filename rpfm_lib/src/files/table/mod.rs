@@ -175,6 +175,30 @@ impl DecodedData {
         }
     }
 
+    /// This function creates a new DecodedData of the requested type.
+    ///
+    /// Returns error if the value is not parseable by the provided FieldType.
+    pub fn new_from_type_and_string(field_type: &FieldType, value: &str) -> Result<Self> {
+        Ok(match field_type {
+            FieldType::Boolean => Self::Boolean(parse_str_as_bool(value)?),
+            FieldType::F32 => Self::F32(value.parse::<f32>()?),
+            FieldType::F64 => Self::F64(value.parse::<f64>()?),
+            FieldType::I16 => Self::I16(value.parse::<i16>()?),
+            FieldType::I32 => Self::I32(value.parse::<i32>()?),
+            FieldType::I64 => Self::I64(value.parse::<i64>()?),
+            FieldType::ColourRGB => Self::ColourRGB(value.to_string()),
+            FieldType::StringU8 => Self::StringU8(value.to_string()),
+            FieldType::StringU16 => Self::StringU16(value.to_string()),
+            FieldType::OptionalI16 => Self::OptionalI16(value.parse::<i16>()?),
+            FieldType::OptionalI32 => Self::OptionalI32(value.parse::<i32>()?),
+            FieldType::OptionalI64 => Self::OptionalI64(value.parse::<i64>()?),
+            FieldType::OptionalStringU8 => Self::OptionalStringU8(value.to_string()),
+            FieldType::OptionalStringU16 => Self::OptionalStringU16(value.to_string()),
+            FieldType::SequenceU16(_) => Self::SequenceU16(value.as_bytes().to_vec()),
+            FieldType::SequenceU32(_) => Self::SequenceU32(value.as_bytes().to_vec()),
+        })
+    }
+
     /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
     pub fn is_field_type_correct(&self, field_type: &FieldType) -> bool {
         match self {
@@ -371,7 +395,7 @@ impl DecodedData {
 
     /// This function tries to change the current data with the new one provided.
     ///
-    /// It may fail if the new data is not pareseable to the type required of the current data.
+    /// It may fail if the new data is not parseable to the type required of the current data.
     pub fn set_data(&mut self, new_data: &str) -> Result<()> {
         match self {
             Self::Boolean(data) => *data = parse_str_as_bool(new_data)?,

@@ -832,20 +832,21 @@ pub fn background_loop() {
                         Some(version) => CentralCommand::send_back(&sender, Response::I32(version)),
                         None => CentralCommand::send_back(&sender, Response::Error(anyhow!("Table not found in the game files."))),
                     }
-                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be generated before this."))); }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be regenerated before this."))); }
             }
-/*
+
             // In case we want to get the definition of an specific table from the dependency database...
             Command::GetTableDefinitionFromDependencyPackFile(table_name) => {
-                if dependencies.game_has_vanilla_data_loaded(false) {
+                if dependencies.read().unwrap().is_vanilla_data_loaded(false) {
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        match schema.get_ref_last_definition_db(&table_name, &dependencies) {
-                            Ok(definition) => CentralCommand::send_back(&sender, Response::Definition(definition.clone())),
-                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error)),
-                        }
-                    } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::SchemaNotFound.into())); }
-                } else { CentralCommand::send_back(&sender, Response::Error(ErrorKind::DependenciesCacheNotGeneratedorOutOfDate.into())); }
-            }*/
+                        if let Some(version) = dependencies.read().unwrap().db_version(&table_name) {
+                            if let Some(definition) = schema.definition_by_name_and_version(&table_name, version) {
+                                CentralCommand::send_back(&sender, Response::Definition(definition.clone()));
+                            } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("No definition found for table {}.", table_name))); }
+                        } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Table version not found in dependencies for table {}.", table_name))); }
+                    } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected."))); }
+                } else { CentralCommand::send_back(&sender, Response::Error(anyhow!("Dependencies cache needs to be regenerated before this."))); }
+            }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
             Command::MergeFiles(paths, merged_path, delete_source_files) => {
@@ -1500,7 +1501,7 @@ pub fn background_loop() {
                 CentralCommand::send_back(&sender, Response::Success);
             },
 
-            Command::GetPackedFilesFromAllSources(paths) => {
+            Command::GetRFilesFromAllSources(paths) => {
                 let mut packed_files = HashMap::new();
 
                 // Get PackedFiles requested from the Parent Files.
@@ -1594,7 +1595,9 @@ pub fn background_loop() {
 
                         // Then, optimize the PackFile. This should remove any non-edited rows/files.
                         match pack_file_decoded.optimize(&mut dependencies.write().unwrap(), schema, false) {
-                            Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathHashSetString(added_paths, paths_to_delete)),
+                            Ok(paths_to_delete) => CentralCommand::send_back(&sender, Response::VecContainerPathVecContainerPath(added_paths, paths_to_delete.into_iter()
+                                .map(|x| ContainerPath::File(x))
+                                .collect())),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(From::from(error))),
                         }
                     },

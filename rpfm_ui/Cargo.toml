@@ -30,6 +30,7 @@ lazy_static = "^1.2"
 
 # Error managing.
 anyhow = "1.0"
+thiserror = "1.0"
 
 # Basic get/set support.
 getset = "^0.1"
