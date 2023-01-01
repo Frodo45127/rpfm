@@ -745,16 +745,23 @@ impl PackFileContentsSlots {
                 // Ask for the new path of the item to rename. Even if we select multiple items, this returns the rename sequence for all of them.
                 match PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
                     Ok(rewrite_sequence) => {
-                        if let Some(rewrite_sequence) = rewrite_sequence {
+                        if let Some((rewrite_sequence, full_path_movement)) = rewrite_sequence {
 
                             // Prepare the new paths using the rename sequence.
                             let mut renaming_data_background: Vec<(ContainerPath, ContainerPath)> = vec![];
                             for item_type in &selected_items {
-                                let path = item_type.path_raw().split('/').collect::<Vec<_>>();
+                                let mut original_path = item_type.path_raw().split('/').to_owned().collect::<Vec<_>>();
 
                                 // Replace {x} with the original name.
-                                let original_name = path.last().unwrap();
-                                let new_path = rewrite_sequence.replace("{x}", original_name);
+                                let new_path = match full_path_movement {
+                                    true => rewrite_sequence.replace("{x}", original_path.last().unwrap()),
+                                    false => {
+                                        let new_name = rewrite_sequence.replace("{x}", original_path.last().unwrap());
+                                        *original_path.last_mut().unwrap() = &new_name;
+                                        original_path.join("/")
+                                    },
+                                };
+
                                 let new_path = match item_type {
                                     ContainerPath::File(_) => ContainerPath::File(new_path),
                                     ContainerPath::Folder(_) => ContainerPath::Folder(new_path),

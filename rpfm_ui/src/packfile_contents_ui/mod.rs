@@ -40,6 +40,7 @@ use qt_core::QTimer;
 use anyhow::Result;
 use getset::Getters;
 
+use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -374,7 +375,7 @@ impl PackFileContentsUI {
     /// This function creates the entire "Rename" dialog.
     ///
     ///It returns the new name of the Item, or `None` if the dialog is canceled or closed.
-    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[ContainerPath]) -> Result<Option<String>> {
+    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[ContainerPath]) -> Result<Option<(String, bool)>> {
 
         // Create and configure the dialog.
         let template_path = if cfg!(debug_assertions) { RENAME_MOVE_VIEW_DEBUG } else { RENAME_MOVE_VIEW_RELEASE };
@@ -390,35 +391,49 @@ impl PackFileContentsUI {
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_move_selection_placeholder"));
         move_checkbox.set_text(&qtr("rename_move_checkbox"));
 
-        // If we only have one selected item, put its path in the line edit.
-        if selected_items.len() == 1 {
-            rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
-        }
+        match selected_items.len().cmp(&1) {
 
-        /*
-        // If we have multiple items selected, things get complicated.
-        else if selected_items.len() > 1 {
-            let last_separator = selected_items[0].path_raw().rfind('/');
-            let start_path = if let Some(last_separator) = last_separator {
-                &selected_items[0].path_raw()[..last_separator]
-            } else {
-                ""
-            };
+            // If we only have one selected item, put its path in the line edit.
+            Ordering::Equal => rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw())),
 
-            // Branch 1: all items in the same folder.
-            if selected_items.iter()
-                .all(|item| item.path_raw().rfind('/') == last_separator && ((!start_path.is_empty() && item.path_raw().starts_with(start_path)) || start_path.is_empty())) {
-                rewrite_sequence_line_edit.set_text(&QString::from_std_str(selected_items[0].path_raw()));
+            // If we have multiple items selected, things get complicated.
+            // We need to check if all of them are within the same exact folder to check if we can allow full-path move or not.
+            Ordering::Greater => {
+
+                let last_separator = selected_items[0].path_raw().rfind('/');
+                let start_path = match last_separator {
+                    Some(last_separator) => &selected_items[0].path_raw()[..last_separator + 1],
+                    None => ""
+                };
+
+                // Branch 1: all items in the same folder. We allow full-path replace, and by default we change the file name to {x}.
+                if selected_items.iter().all(|item| item.path_raw().rfind('/') == last_separator && ((!start_path.is_empty() && item.path_raw().starts_with(start_path)) || start_path.is_empty())) {
+                    let new_path = format!("{}{{x}}", start_path);
+                    rewrite_sequence_line_edit.set_text(&QString::from_std_str(new_path));
+                }
+
+                // Branch 2: items are in different folders. We need to disable the checkbox and allow to only replace the name.
+                else {
+                    move_checkbox.set_enabled(false);
+                    rewrite_sequence_line_edit.set_text(&QString::from_std_str("{x}"));
+                }
             }
-        }*/
+            Ordering::Less => unreachable!(),
+        }
 
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
+        // TODO: Validator to ensure than on multifile edit {x} is used as long as more than one file shares folder with another one.
+        // TODO2: Make sure this can't be triggered if you select a file/folder, and a parent of said file/folder.
+
         Ok(
             if dialog.exec() == 1 {
                 let new_text = rewrite_sequence_line_edit.text().to_std_string();
-                if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
+                if new_text.is_empty() {
+                    None
+                } else {
+                    Some((rewrite_sequence_line_edit.text().to_std_string(), move_checkbox.is_enabled() && move_checkbox.is_checked())) }
             } else { None }
         )
     }

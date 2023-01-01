@@ -1479,10 +1479,7 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Remove the now empty folders.
-                for base_folder in &base_folders {
-                    let item = Self::item_from_path(base_folder, &model);
-                    item.parent().remove_row(item.row());
-                }
+                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders), source);
             },
 
             // If you want to mark an item so it can't lose his modified state...
@@ -1640,8 +1637,6 @@ unsafe fn clean_treeview(item: Option<Ptr<QStandardItem>>, model: &QStandardItem
         }
     }
 }
-
-
 
 /// This function sorts items in a TreeView following this order:
 /// - AFolder.
