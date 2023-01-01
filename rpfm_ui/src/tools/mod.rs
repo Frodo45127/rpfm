@@ -41,7 +41,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
