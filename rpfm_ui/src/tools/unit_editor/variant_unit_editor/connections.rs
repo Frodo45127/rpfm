@@ -14,15 +14,13 @@ Module with all the code to connect `SubToolVariantUnitEditor` signals with thei
 This module is, and should stay, private, as it's only glue between the `SubToolVariantUnitEditor` and `SubToolVariantUnitEditorSlots` structs.
 !*/
 
-use rpfm_error::Result;
-
 use super::{SubToolVariantUnitEditor, slots::SubToolVariantUnitEditorSlots};
 
 /// This function connects all the actions from the provided `SubToolVariantUnitEditor` with their slots in `SubToolVariantUnitEditorSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub unsafe fn set_connections(ui: &SubToolVariantUnitEditor, slots: &SubToolVariantUnitEditorSlots) -> Result<()> {
+pub unsafe fn set_connections(ui: &SubToolVariantUnitEditor, slots: &SubToolVariantUnitEditorSlots) {
     ui.faction_list_view.custom_context_menu_requested().connect(&slots.faction_list_context_menu);
     ui.faction_list_view.selection_model().selection_changed().connect(&slots.faction_list_context_menu_enabler);
     ui.faction_list_view.selection_model().selection_changed().connect(&slots.load_data_to_detailed_view);
@@ -46,6 +44,4 @@ pub unsafe fn set_connections(ui: &SubToolVariantUnitEditor, slots: &SubToolVari
 
     ui.new_faction_name_combobox.current_text_changed().connect(&slots.add_faction_check);
     ui.new_colour_variant_name_combobox.current_text_changed().connect(&slots.add_colour_variant_check);
-
-    Ok(())
 }

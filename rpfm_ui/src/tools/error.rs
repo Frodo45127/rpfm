@@ -46,4 +46,7 @@ pub enum ToolsError {
 
     #[error("<p>Missing column {1} in table {0}. This is caused either by an outdated definition, or a bug.</p>")]
     MissingColumnInTable(String, String),
+
+    #[error("<p>{0}</p>")]
+    GenericError(String),
 }

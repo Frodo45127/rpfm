@@ -37,13 +37,13 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
+use anyhow::Result;
+use getset::*;
 use itertools::Itertools;
 
 use std::collections::HashMap;
 
-use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::packfile::ContainerPath;
-use getset::*;
+use rpfm_lib::files::{ContainerPath, FileType};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -90,6 +90,7 @@ const VARIANT_KEY_VALUE: &str = "unit_variants_faction";
 
 /// This struct contains all the widgets used by the `Unit Editor` Tool, along with some data needed for the view to work.
 #[derive(Getters, MutGetters)]
+#[getset(get = "pub", get_mut = "pub")]
 pub struct SubToolVariantUnitEditor {
     tool: Tool,
     timer_delayed_updates: QBox<QTimer>,
@@ -163,26 +164,26 @@ impl SubToolVariantUnitEditor {
         tool.set_title(&tr("variant_editor_title"));
 
         // ListView.
-        let faction_list_view: QPtr<QListView> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(), "faction_list_view")?;
+        let faction_list_view: QPtr<QListView> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(), "faction_list_view")?;
         let faction_list_filter = QSortFilterProxyModel::new_1a(&faction_list_view);
         let faction_list_model = QStandardItemModel::new_1a(&faction_list_filter);
-        let faction_list_filter_line_edit: QPtr<QLineEdit> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(), "faction_list_filter_line_edit")?;
+        let faction_list_filter_line_edit: QPtr<QLineEdit> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(), "faction_list_filter_line_edit")?;
         faction_list_view.set_model(&faction_list_filter);
         faction_list_filter.set_source_model(&faction_list_model);
 
-        let unit_variants_colours_list_view: QPtr<QListView> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(), "unit_variants_colours_list_view")?;
+        let unit_variants_colours_list_view: QPtr<QListView> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(), "unit_variants_colours_list_view")?;
         let unit_variants_colours_list_filter = QSortFilterProxyModel::new_1a(&unit_variants_colours_list_view);
         let unit_variants_colours_list_model = QStandardItemModel::new_1a(&unit_variants_colours_list_filter);
         unit_variants_colours_list_view.set_model(&unit_variants_colours_list_filter);
         unit_variants_colours_list_filter.set_source_model(&unit_variants_colours_list_model);
 
         // Filter timer.
-        let timer_delayed_updates = QTimer::new_1a(tool.get_ref_main_widget());
+        let timer_delayed_updates = QTimer::new_1a(tool.main_widget());
         timer_delayed_updates.set_single_shot(true);
 
         // Copy faction dialog.
         let new_faction_view = if cfg!(debug_assertions) { ADD_FACTION_VIEW_DEBUG } else { ADD_FACTION_VIEW_RELEASE };
-        let new_faction_widget = Tool::load_template(&tool.main_widget, new_faction_view)?;
+        let new_faction_widget = crate::utils::load_template(&tool.main_widget, new_faction_view)?;
 
         let new_faction_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_faction_button_box")?;
         let new_faction_instructions_label: QPtr<QLabel> = tool.find_widget("new_faction_instructions_label")?;
@@ -191,7 +192,7 @@ impl SubToolVariantUnitEditor {
 
         // Copy colour variant dialog.
         let new_colour_variant_view = if cfg!(debug_assertions) { ADD_COLOUR_VARIANT_VIEW_DEBUG } else { ADD_COLOUR_VARIANT_VIEW_RELEASE };
-        let new_colour_variant_widget = Tool::load_template(&tool.main_widget, new_colour_variant_view)?;
+        let new_colour_variant_widget = crate::utils::load_template(&tool.main_widget, new_colour_variant_view)?;
 
         let new_colour_variant_button_box: QPtr<QDialogButtonBox> = tool.find_widget("new_colour_variant_button_box")?;
         let new_colour_variant_instructions_label: QPtr<QLabel> = tool.find_widget("new_colour_variant_instructions_label")?;
@@ -199,9 +200,9 @@ impl SubToolVariantUnitEditor {
         let new_colour_variant_name_combobox: QPtr<QComboBox> = tool.find_widget("new_colour_variant_name_combobox")?;
 
         // Icon stuff.
-        let unit_variants_unit_card_preview_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"unit_variants_unit_card_preview_label")?;
-        let unit_variants_unit_card_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"unit_variants_unit_card_label")?;
-        let unit_variants_unit_card_combobox: QPtr<QComboBox> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"unit_variants_unit_card_combobox")?;
+        let unit_variants_unit_card_preview_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_preview_label")?;
+        let unit_variants_unit_card_label: QPtr<QLabel> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_label")?;
+        let unit_variants_unit_card_combobox: QPtr<QComboBox> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"unit_variants_unit_card_combobox")?;
 
         let unit_variants_colours_faction_combobox: QPtr<QComboBox> = tool.find_widget("unit_variants_colours_faction_combobox")?;
         let unit_variants_colours_subculture_combobox: QPtr<QComboBox> = tool.find_widget("unit_variants_colours_subculture_combobox")?;
@@ -219,7 +220,7 @@ impl SubToolVariantUnitEditor {
         variants_mesh_editor_main_widget.layout().replace_widget_2a(variants_mesh_editor_placeholder.as_ptr(), variants_mesh_editor.as_ptr());
 
         // Detailed view widget.
-        let detailed_view_widget: QPtr<QWidget> = Tool::find_widget_no_tool(&tool.get_ref_main_widget().static_upcast(),"detailed_view_widget")?;
+        let detailed_view_widget: QPtr<QWidget> = Tool::find_widget_no_tool(&tool.main_widget().static_upcast(),"detailed_view_widget")?;
         let unit_variants_colours_widget: QPtr<QWidget> = tool.find_widget("unit_variants_colours_widget")?;
 
         let faction_list_context_menu = QMenu::from_q_widget(&faction_list_view);
@@ -295,16 +296,16 @@ impl SubToolVariantUnitEditor {
         // Build the slots and connect them to the view.
         let view = Rc::new(view);
         let slots = SubToolVariantUnitEditorSlots::new(&view);
-        connections::set_connections(&view, &slots)?;
+        connections::set_connections(&view, &slots);
 
         // Setup text translations.
         view.setup_translations()?;
 
         // Load all the data to the view.
-        view.load_data(&data)?;
+        view.load_data(data)?;
 
         // If we hit ok, save the data back to the parent tool.
-        if view.tool.get_ref_main_widget().static_downcast::<QDialog>().exec() == 1 {
+        if view.tool.main_widget().static_downcast::<QDialog>().exec() == 1 {
             Ok(Some(view.save_data()?))
         }
 
@@ -326,7 +327,7 @@ impl SubToolVariantUnitEditor {
 
             // If no variant is set, use a * to identify it.
             let value = if value.is_empty() { "*" } else { value };
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&value)).into_ptr();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr();
 
             // Search on the unit data for this faction's data, and for the definitions.
             let faction_data = data.iter()
@@ -350,7 +351,7 @@ impl SubToolVariantUnitEditor {
                 .collect::<HashMap<String, String>>();
 
             // Then, load the faction data to the UI.
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&faction_data).unwrap())), UNIT_DATA);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&faction_data)?)), UNIT_DATA);
             self.faction_list_model.append_row_q_standard_item(item);
         }
 
@@ -366,12 +367,16 @@ impl SubToolVariantUnitEditor {
     /// This function gets the data needed for the tool from the unit_variants_colours table.
     unsafe fn get_unit_variants_colours_data(&self, data: &HashMap<String, String>) -> Result<()> {
         if let Some(definition) = data.get("unit_variants_colours_definition") {
-            let definition = serde_json::from_str(definition).unwrap();
-            let reference_data = get_reference_data("unit_variants_colours_tables", &definition)?;
+            let definition = serde_json::from_str(definition)?;
+            let reference_data = get_reference_data(FileType::DB, "unit_variants_colours_tables", &definition)?;
 
-            self.tool.load_reference_data_to_detailed_view_editor_combo(definition.get_column_position_by_name("faction")? as i32, &self.tool.find_widget("unit_variants_colours_faction_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(definition.get_column_position_by_name("soldier_type")? as i32, &self.tool.find_widget("unit_variants_colours_soldier_type_combobox")?, &reference_data);
-            self.tool.load_reference_data_to_detailed_view_editor_combo(definition.get_column_position_by_name("subculture")? as i32, &self.tool.find_widget("unit_variants_colours_subculture_combobox")?, &reference_data);
+            let column_faction = definition.column_position_by_name("faction").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "faction".to_string()))?;
+            let column_soldier_type = definition.column_position_by_name("soldier_type").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "soldier_type".to_string()))?;
+            let column_subculture = definition.column_position_by_name("subculture").ok_or_else(|| ToolsError::MissingColumnInTable("unit_variants_colours".to_string(), "subculture".to_string()))?;
+
+            self.tool.load_reference_data_to_detailed_view_editor_combo(column_faction as i32, &self.tool.find_widget("unit_variants_colours_faction_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(column_soldier_type as i32, &self.tool.find_widget("unit_variants_colours_soldier_type_combobox")?, &reference_data);
+            self.tool.load_reference_data_to_detailed_view_editor_combo(column_subculture as i32, &self.tool.find_widget("unit_variants_colours_subculture_combobox")?, &reference_data);
         }
 
         Ok(())
@@ -379,16 +384,13 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available icon paths to the UI.
     unsafe fn load_icon_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.split("/").map(|x| x.to_owned()).collect())));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())));
         let response = CentralCommand::recv(&receiver);
-        let icon_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let icon_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let icon_keys_sorted = icon_keys.values()
-            .map(|paths|
-                paths.par_iter()
-                .map(|path| path.join("/"))
-                .collect::<Vec<String>>()
-            )
-            .flatten()
+            .flat_map(|paths| paths.iter()
+                .map(|path| path.path_raw().to_owned())
+                .collect::<Vec<String>>())
             .sorted()
             .collect::<Vec<String>>();
 
@@ -403,16 +405,13 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available variantmesh paths to the UI.
     unsafe fn load_variant_mesh_paths(&self) -> Result<()> {
-        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.split("/").map(|x| x.to_owned()).collect())));
+        let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())));
         let response = CentralCommand::recv(&receiver);
-        let variant_keys = if let Response::HashMapDataSourceHashSetVecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+        let variant_keys = if let Response::HashMapDataSourceHashSetContainerPath(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
         let variant_keys_sorted = variant_keys.values()
-            .map(|paths|
-                paths.par_iter()
-                .map(|path| path.join("/"))
-                .collect::<Vec<String>>()
-            )
-            .flatten()
+            .flat_map(|paths| paths.iter()
+                .map(|path| path.path_raw().to_owned())
+                .collect::<Vec<String>>())
             .sorted()
             .collect::<Vec<String>>();
 
@@ -454,7 +453,10 @@ impl SubToolVariantUnitEditor {
         self.tool.load_field_to_detailed_view_editor_string_combo(&data, &self.variants_variant_filename_combobox, "variants_variant_filename");
 
         // The icon needs to be pulled up from the dependencies cache on load.
-        self.load_unit_icon(&data, None);
+        if let Err(error) = self.load_unit_icon(&data, None) {
+            errors.push(error.to_string());
+        }
+
         self.load_variant_mesh(&data, None);
 
         // Colours must be loaded into a list, with the same logic as the main faction list.
@@ -509,7 +511,7 @@ impl SubToolVariantUnitEditor {
             .for_each(|(_, value)| {
 
             let value = if value.is_empty() { "*" } else { value };
-            let item = QStandardItem::from_q_string(&QString::from_std_str(&value)).into_ptr();
+            let item = QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr();
             let unit_variants_colours = data.iter()
                 .filter(|x| x.0.ends_with(value) || x.0 == "unit_variants_colours_definition")
                 .map(|x| {
@@ -525,50 +527,51 @@ impl SubToolVariantUnitEditor {
                 })
                 .collect::<HashMap<String, String>>();
 
-            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&unit_variants_colours).unwrap())), UNIT_DATA);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&unit_variants_colours).unwrap())), UNIT_DATA);
             self.unit_variants_colours_list_model.append_row_q_standard_item(item);
         });
     }
 
     /// This function loads the unit icon into the tool. If provided with a key, it uses it. If not, it uses whatever key the unit has.
-    pub unsafe fn load_unit_icon(&self, data: &HashMap<String, String>, key: Option<String>) {
-        let unit_card = if let Some(unit_card) = key { Some(unit_card.to_owned()) }
-        else if let Some(unit_card) = data.get("unit_variants_unit_card") { Some(unit_card.to_owned()) }
-        else { None };
+    pub unsafe fn load_unit_icon(&self, data: &HashMap<String, String>, key: Option<String>) -> Result<()> {
+        let unit_card = if let Some(unit_card) = key { Some(unit_card) }
+        else { data.get("unit_variants_unit_card").map(|unit_card| unit_card.to_owned()) };
 
         // The icon needs to be pulled up from the dependencies cache on load.
         if let Some(unit_card) = unit_card {
-            let icon_path_png_lowres = format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-            let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let icon_path_png_lowres = format!("{}{}.png", UNIT_ICONS_PATH.to_owned(), unit_card);
+            let icon_path_tga_lowres = format!("{}{}.tga", UNIT_ICONS_PATH.to_owned(), unit_card);
 
             let icon_paths = vec![
-                ContainerPath::File(icon_path_png_lowres.to_vec()),
-                ContainerPath::File(icon_path_tga_lowres.to_vec()),
+                ContainerPath::File(icon_path_png_lowres.to_owned()),
+                ContainerPath::File(icon_path_tga_lowres.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(icon_paths));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(icon_paths));
             let response = CentralCommand::recv(&receiver);
-            let images_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            let images_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
             let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
                 Some(image_file)
-            } else if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) {
-                Some(image_file)
-            } else {
-                None
-            };
+            } else { Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) };
 
-            if let Some(image_file) = image_file {
-                let image_data = image_file.get_raw_data().unwrap();
-                let byte_array = QByteArray::from_slice(&image_data);
-                let image = QPixmap::new();
-                image.load_from_data_q_byte_array(&byte_array);
-                self.unit_variants_unit_card_preview_label.set_pixmap(&image);
+            if let Some(mut image_file) = image_file {
+                if let Some(RFileDecoded::Image(decoded)) = image_file.decode(&None, false, true)? {
+                    let image_data = decoded.data().to_vec();
+                    let byte_array = QByteArray::from_slice(&image_data);
+                    let image = QPixmap::new();
+                    image.load_from_data_q_byte_array(&byte_array);
+                    self.unit_variants_unit_card_preview_label.set_pixmap(&image);
+                } else {
+                    self.unit_variants_unit_card_preview_label.set_text(&QString::from_std_str("No image available"));
+                }
             } else {
                 self.unit_variants_unit_card_preview_label.set_text(&QString::from_std_str("No image available"));
             }
         } else {
             self.unit_variants_unit_card_preview_label.set_text(&QString::from_std_str("No image available"));
         }
+
+        Ok(())
     }
 
     /// This function loads the variantmesh of a unit into the tool. If provided with a key, it uses it. If not, it uses whatever key the unit has.
@@ -585,29 +588,24 @@ impl SubToolVariantUnitEditor {
         }
 
         // If not, load it from the backend.
-        let variant = if let Some(variant) = key { Some(variant.to_owned()) }
-        else if let Some(variant) = data.get("variants_variant_filename") { Some(variant.to_owned()) }
-        else { None };
+        let variant = if let Some(variant) = key { Some(variant) }
+        else { data.get("variants_variant_filename").map(|variant| variant.to_owned()) };
 
         // The variant needs to be pulled up from the dependencies cache on load.
         if let Some(variant) = variant {
-            let variant_path = format!("{}{}.{}", VARIANT_MESH_PATH, variant, VARIANT_MESH_EXTENSION).split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+            let variant_path = format!("{}{}.{}", VARIANT_MESH_PATH, variant, VARIANT_MESH_EXTENSION);
             let variant_paths = vec![
-                ContainerPath::File(variant_path.to_vec()),
+                ContainerPath::File(variant_path.to_owned()),
             ];
 
-            let receiver = CENTRAL_COMMAND.send_background(Command::GetPackedFilesFromAllSources(variant_paths));
+            let receiver = CENTRAL_COMMAND.send_background(Command::GetRFilesFromAllSources(variant_paths));
             let response = CentralCommand::recv(&receiver);
-            let variant_data = if let Response::HashMapDataSourceHashMapVecStringPackedFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-            let file = if let Some(file) = Tool::get_most_relevant_file(&variant_data, &variant_path) {
-                Some(file)
-            } else {
-                None
-            };
+            let variant_data = if let Response::HashMapDataSourceHashMapStringRFile(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+            let file = Tool::get_most_relevant_file(&variant_data, &variant_path);
 
-            if let Some(mut file) = file {
-                if let Ok(DecodedPackedFile::Text(data)) = file.decode_return_ref() {
-                    set_text_safe(&self.variants_mesh_editor.static_upcast(), &QString::from_std_str(data.get_ref_contents()).as_ptr(), &QString::from_std_str("XML").as_ptr());
+            if let Some(file) = file {
+                if let Ok(RFileDecoded::Text(data)) = file.decoded() {
+                    set_text_safe(&self.variants_mesh_editor.static_upcast(), &QString::from_std_str(data.contents()).as_ptr(), &QString::from_std_str("XML").as_ptr());
                 } else {
                     set_text_safe(&self.variants_mesh_editor.static_upcast(), &QString::from_std_str("").as_ptr(), &QString::from_std_str("XML").as_ptr());
                 }
@@ -627,7 +625,7 @@ impl SubToolVariantUnitEditor {
 
         // Get each faction's data as a HashMap of data/value.
         let data_to_save = (0..self.faction_list_model.row_count_0a())
-            .map(|row| {
+            .flat_map(|row| {
                 let index = self.faction_list_model.index_2a(row, 0);
                 let data = self.faction_list_model.data_2a(&index, UNIT_DATA);
                 let data: HashMap<String, String> = serde_json::from_str(&data.to_string().to_std_string()).unwrap();
@@ -640,7 +638,6 @@ impl SubToolVariantUnitEditor {
 
                 data
             })
-            .flatten()
             .collect::<HashMap<String, String>>();
 
        Ok(data_to_save)
@@ -690,7 +687,7 @@ impl SubToolVariantUnitEditor {
         if cfg!(debug_assertions) {
             log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
-        self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+        self.faction_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
 
     /// This function saves the variant mesh contents to a role in the Faction ListView, so we can save it to a file later.
@@ -763,7 +760,7 @@ impl SubToolVariantUnitEditor {
             log::info!("{:#?}", data.iter().sorted_by_key(|x| x.0).collect::<std::collections::BTreeMap<&String, &String>>());
         }
 
-        self.unit_variants_colours_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+        self.unit_variants_colours_list_model.item_from_index(index).set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), UNIT_DATA);
     }
 
     /// Function to trigger certain delayed actions, like the filter.
@@ -830,20 +827,20 @@ impl SubToolVariantUnitEditor {
             let unit_variants_definition = Tool::get_table_definition("unit_variants_tables")?;
             let variants_definition = Tool::get_table_definition("variants_tables")?;
 
-            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition).unwrap());
-            data.insert("unit_variants_definition".to_owned(), serde_json::to_string(&unit_variants_definition).unwrap());
-            data.insert("variants_definition".to_owned(), serde_json::to_string(&variants_definition).unwrap());
+            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition)?);
+            data.insert("unit_variants_definition".to_owned(), serde_json::to_string(&unit_variants_definition)?);
+            data.insert("variants_definition".to_owned(), serde_json::to_string(&variants_definition)?);
 
-            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data)?)), UNIT_DATA);
 
             // Append the new item.
             self.faction_list_model.append_row_q_standard_item(new_item);
             let new_index = self.faction_list_model.index_from_item(new_item);
 
             // Clear the filters (just in case) and open the new faction.
-            self.get_ref_faction_list_filter_line_edit().clear();
-            self.get_ref_faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
-            self.get_ref_faction_list_view().set_current_index(&self.get_ref_faction_list_filter().map_from_source(&new_index));
+            self.faction_list_filter_line_edit().clear();
+            self.faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.faction_list_view().set_current_index(&self.faction_list_filter().map_from_source(&new_index));
         }
 
         Ok(())
@@ -866,9 +863,9 @@ impl SubToolVariantUnitEditor {
             let mut data: HashMap<String, String> = HashMap::new();
 
             let unit_variants_colours_definition = Tool::get_table_definition("unit_variants_colours_tables")?;
-            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition).unwrap());
+            data.insert("unit_variants_colours_definition".to_owned(), serde_json::to_string(&unit_variants_colours_definition)?);
 
-            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&serde_json::to_string(&data).unwrap())), UNIT_DATA);
+            new_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data)?)), UNIT_DATA);
 
             // Append the new item.
             self.unit_variants_colours_list_model.append_row_q_standard_item(new_item);
@@ -883,7 +880,7 @@ impl SubToolVariantUnitEditor {
         let source_indexes = source_selection.indexes();
 
         if source_indexes.is_empty() {
-            return Err(ErrorKind::GenericHTMLError("No faction selected".to_string()).into());
+            return Err(ToolsError::GenericError("No faction selected".to_string()).into());
         }
 
         let source_model_index = self.faction_list_filter.map_to_source(source_indexes.at(0));
@@ -914,9 +911,9 @@ impl SubToolVariantUnitEditor {
             let new_index = self.faction_list_model.index_from_item(new_item);
 
             // Clear the filters (just in case) and open the new faction.
-            self.get_ref_faction_list_filter_line_edit().clear();
-            self.get_ref_faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
-            self.get_ref_faction_list_view().set_current_index(&self.get_ref_faction_list_filter().map_from_source(&new_index));
+            self.faction_list_filter_line_edit().clear();
+            self.faction_list_filter().sort_2a(0, SortOrder::AscendingOrder);
+            self.faction_list_view().set_current_index(&self.faction_list_filter().map_from_source(&new_index));
         }
 
         Ok(())
@@ -928,7 +925,7 @@ impl SubToolVariantUnitEditor {
         let source_indexes = source_selection.indexes();
 
         if source_indexes.is_empty() {
-            return Err(ErrorKind::GenericHTMLError("No colour variant selected".to_string()).into());
+            return Err(ToolsError::GenericError("No colour variant selected".to_string()).into());
         }
 
         let source_model_index = self.unit_variants_colours_list_filter.map_to_source(source_indexes.at(0));
@@ -960,13 +957,13 @@ impl SubToolVariantUnitEditor {
     pub unsafe fn delete_faction(&self) -> Result<()> {
         let source_faction = self.faction_list_view.selection_model().selection();
         if source_faction.count_0a() != 1 {
-            return Err(ErrorKind::GenericHTMLError("No faction selected".to_string()).into());
+            return Err(ToolsError::GenericError("No faction selected".to_string()).into());
         }
 
         // Unselect the item, then delete it.
         self.faction_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.faction_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
-        let source_faction_real = self.get_ref_faction_list_filter().map_to_source(&source_faction.take_at(0).indexes().take_at(0));
-        self.get_ref_faction_list_model().remove_row_1a(source_faction_real.row());
+        let source_faction_real = self.faction_list_filter().map_to_source(&source_faction.take_at(0).indexes().take_at(0));
+        self.faction_list_model().remove_row_1a(source_faction_real.row());
 
         Ok(())
     }
@@ -975,13 +972,13 @@ impl SubToolVariantUnitEditor {
     pub unsafe fn delete_colour_variant(&self) -> Result<()> {
         let source_variant = self.unit_variants_colours_list_view.selection_model().selection();
         if source_variant.count_0a() != 1 {
-            return Err(ErrorKind::GenericHTMLError("No colour variant selected".to_string()).into());
+            return Err(ToolsError::GenericError("No colour variant selected".to_string()).into());
         }
 
         // Unselect the item, then delete it.
         self.unit_variants_colours_list_view.selection_model().select_q_item_selection_q_flags_selection_flag(&self.unit_variants_colours_list_view.selection_model().selection(), SelectionFlag::Toggle.into());
-        let source_variant_real = self.get_ref_unit_variants_colours_list_filter().map_to_source(&source_variant.take_at(0).indexes().take_at(0));
-        self.get_ref_unit_variants_colours_list_model().remove_row_1a(source_variant_real.row());
+        let source_variant_real = self.unit_variants_colours_list_filter().map_to_source(&source_variant.take_at(0).indexes().take_at(0));
+        self.unit_variants_colours_list_model().remove_row_1a(source_variant_real.row());
 
         Ok(())
     }

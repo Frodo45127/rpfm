@@ -16,7 +16,7 @@ This module is, and should stay, private, as it's only glue between the `ToolUni
 
 use qt_widgets::{QComboBox, q_dialog_button_box::StandardButton};
 
-use rpfm_error::Result;
+use anyhow::Result;
 
 use super::{ToolUnitEditor, slots::ToolUnitEditorSlots};
 

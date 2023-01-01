@@ -48,19 +48,19 @@ impl ToolUnitEditorSlots {
     /// This function creates a new `ToolUnitEditorSlots`.
     pub unsafe fn new(ui: &Rc<ToolUnitEditor>) -> Self {
 
-        let delayed_updates = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let delayed_updates = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.filter_list();
             }
         ));
 
-        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
                     let filter_index = before.take_at(0).indexes().take_at(0);
-                    let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
                     ui.detailed_view_tab_widget.set_enabled(false);
                     ui.copy_button.set_enabled(false);
@@ -69,7 +69,7 @@ impl ToolUnitEditorSlots {
                 // Load the new data.
                 if after.count_0a() == 1 {
                     let filter_index = after.take_at(0).indexes().take_at(0);
-                    let index = ui.get_ref_unit_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
                     ui.detailed_view_tab_widget.set_enabled(true);
                     ui.copy_button.set_enabled(true);
@@ -77,13 +77,13 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let filter_edited = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let filter_edited = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.start_delayed_updates_timer();
             }
         ));
 
-        let change_caste = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let change_caste = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
 
                 // First, disable the widgets enabled by the previous type.
@@ -101,7 +101,7 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let copy_unit = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let copy_unit = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_copy_unit_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -117,7 +117,7 @@ impl ToolUnitEditorSlots {
             }
         ));
 
-        let open_variant_editor = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let open_variant_editor = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.open_variant_editor() {
                     show_message_error(&ui.tool.message_widget, error);

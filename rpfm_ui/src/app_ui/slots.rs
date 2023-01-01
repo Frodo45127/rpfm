@@ -58,7 +58,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::PATREON_URL;
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::{backend::*, SettingsUI};
-use crate::tools::faction_painter::ToolFactionPainter;
+use crate::tools::{faction_painter::ToolFactionPainter, unit_editor::ToolUnitEditor};
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
@@ -1134,11 +1134,11 @@ impl AppUISlots {
             diagnostics_ui,
             dependencies_ui => move || {
                 info!("Triggering `Unit Editor Tool` By Slot");
-                /*
+
                 app_ui.toggle_main_window(false);
                 if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui) {
                     show_dialog(&app_ui.main_window, error, false);
-                }*/
+                }
                 app_ui.toggle_main_window(true);
             }
         ));

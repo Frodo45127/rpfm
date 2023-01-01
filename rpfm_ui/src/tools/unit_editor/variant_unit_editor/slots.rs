@@ -67,25 +67,25 @@ impl SubToolVariantUnitEditorSlots {
     /// This function creates a new `SubToolVariantUnitEditorSlots`.
     pub unsafe fn new(ui: &Rc<SubToolVariantUnitEditor>) -> Self {
 
-        let delayed_updates = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let delayed_updates = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.filter_list();
             }
         ));
 
-        let filter_edited = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let filter_edited = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 ui.start_delayed_updates_timer();
             }
         ));
 
-        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
                     let filter_index = before.at(0).indexes().take_at(0);
-                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
                     ui.detailed_view_widget.set_enabled(false);
                 }
@@ -93,20 +93,20 @@ impl SubToolVariantUnitEditorSlots {
                 // Load the new data.
                 if after.count_0a() == 1 {
                     let filter_index = after.at(0).indexes().take_at(0);
-                    let index = ui.get_ref_faction_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
                     ui.detailed_view_widget.set_enabled(true);
                 }
             }
         ));
 
-        let load_unit_variants_colours_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let load_unit_variants_colours_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
 
                 // Save the previous data if needed.
                 if before.count_0a() == 1 {
                     let filter_index = before.at(0).indexes().take_at(0);
-                    let index = ui.get_ref_unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_unit_variants_colours_from_detailed_view(index.as_ref());
                     ui.unit_variants_colours_widget.set_enabled(false);
                 }
@@ -114,19 +114,19 @@ impl SubToolVariantUnitEditorSlots {
                 // Load the new data.
                 if after.count_0a() == 1 {
                     let filter_index = after.at(0).indexes().take_at(0);
-                    let index = ui.get_ref_unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
+                    let index = ui.unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_unit_variants_colours_to_detailed_view(index.as_ref());
                     ui.unit_variants_colours_widget.set_enabled(true);
                 }
             }
         ));
 
-        let faction_list_context_menu = SlotOfQPoint::new(ui.tool.get_ref_main_widget(), clone!(
+        let faction_list_context_menu = SlotOfQPoint::new(ui.tool.main_widget(), clone!(
             ui => move |_| {
             ui.faction_list_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
-        let faction_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let faction_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, _| {
                 let enabled = after.count_0a() == 1;
                 ui.faction_list_clone_faction.set_enabled(enabled);
@@ -139,7 +139,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let faction_list_add_faction = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let faction_list_add_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_add_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -147,7 +147,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let faction_list_clone_faction = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let faction_list_clone_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_clone_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -155,7 +155,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let faction_list_delete_faction = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let faction_list_delete_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.delete_faction() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -163,12 +163,12 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let unit_variants_colours_list_context_menu = SlotOfQPoint::new(ui.tool.get_ref_main_widget(), clone!(
+        let unit_variants_colours_list_context_menu = SlotOfQPoint::new(ui.tool.main_widget(), clone!(
             ui => move |_| {
             ui.unit_variants_colours_list_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
-        let unit_variants_colours_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.get_ref_main_widget(), clone!(
+        let unit_variants_colours_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, _| {
                 let enabled = after.count_0a() == 1;
                 ui.unit_variants_colours_list_clone_colour_variant.set_enabled(enabled);
@@ -176,7 +176,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let unit_variants_colours_list_add_colour_variant = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let unit_variants_colours_list_add_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_add_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -184,7 +184,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let unit_variants_colours_list_clone_colour_variant = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let unit_variants_colours_list_clone_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.load_clone_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -192,7 +192,7 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let unit_variants_colours_list_delete_colour_variant = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let unit_variants_colours_list_delete_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 if let Err(error) = ui.delete_colour_variant() {
                     show_message_warning(&ui.tool.message_widget, error);
@@ -200,28 +200,28 @@ impl SubToolVariantUnitEditorSlots {
             }
         ));
 
-        let change_icon = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let change_icon = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 let key = ui.unit_variants_unit_card_combobox.current_text().to_std_string();
                 ui.load_unit_icon(&HashMap::new(), Some(key));
             }
         ));
 
-        let change_variant_mesh = SlotNoArgs::new(ui.tool.get_ref_main_widget(), clone!(
+        let change_variant_mesh = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 let key = ui.variants_variant_filename_combobox.current_text().to_std_string();
                 ui.load_variant_mesh(&HashMap::new(), Some(key));
             }
         ));
 
-        let add_faction_check = SlotOfQString::new(ui.tool.get_ref_main_widget(), clone!(
+        let add_faction_check = SlotOfQString::new(ui.tool.main_widget(), clone!(
             ui => move |value| {
                 let ok_button = ui.new_faction_button_box.button(q_dialog_button_box::StandardButton::Ok);
                 ok_button.set_enabled(ui.faction_list_model.find_items_1a(value).is_empty());
             }
         ));
 
-        let add_colour_variant_check = SlotOfQString::new(ui.tool.get_ref_main_widget(), clone!(
+        let add_colour_variant_check = SlotOfQString::new(ui.tool.main_widget(), clone!(
             ui => move |value| {
 
                 // TODO: Make this check against the full key list, not just a subset.

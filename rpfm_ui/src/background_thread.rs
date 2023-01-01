@@ -19,7 +19,7 @@ use crossbeam::channel::Sender;
 use open::that;
 use rayon::prelude::*;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, BufWriter, Cursor, Read, Write};
@@ -1537,43 +1537,30 @@ pub fn background_loop() {
 
                 // Return the full list of PackedFiles requested, split by source.
                 CentralCommand::send_back(&sender, Response::HashMapDataSourceHashMapStringRFile(packed_files));
-            },/*
+            },
 
             Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => {
-                let mut packed_files = HashMap::new();
-                let base_path = if let ContainerPath::Folder(ref path) = path { path.to_vec() } else { unimplemented!() };
+                let mut files: HashMap<DataSource, HashSet<ContainerPath>> = HashMap::new();
+                let dependencies = dependencies.read().unwrap();
 
-                // Get PackedFiles requested from the Parent Files.
-                let mut packed_files_parent = HashSet::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_parent_files_unicased(&[path.clone()]) {
-                    for packed_file in packed_files_decoded {
-                        let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
-                        packed_files_parent.insert(packed_file_path);
-                    }
-                    packed_files.insert(DataSource::ParentFiles, packed_files_parent);
+                let parent_files = dependencies.files_by_path(&[path.clone()], false, true, true);
+                if !parent_files.is_empty() {
+                    files.insert(DataSource::ParentFiles, parent_files.into_keys().map(|path| ContainerPath::File(path)).collect());
                 }
 
-                // Get PackedFiles requested from the Game Files.
-                let mut packed_files_game = HashSet::new();
-                if let Ok((packed_files_decoded, _)) = dependencies.get_packedfiles_from_game_files_unicased(&[path.clone()]) {
-                    for packed_file in packed_files_decoded {
-                        let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
-                        packed_files_game.insert(packed_file_path);
-                    }
-                    packed_files.insert(DataSource::GameFiles, packed_files_game);
+                let game_files = dependencies.files_by_path(&[path.clone()], true, false, true);
+                if !game_files.is_empty() {
+                    files.insert(DataSource::GameFiles, game_files.into_keys().map(|path| ContainerPath::File(path)).collect());
                 }
 
-                // Get PackedFiles requested from the currently open PackFile, if any.
-                let mut packed_files_packfile = HashSet::new();
-                for packed_file in pack_file_decoded.get_packed_files_by_path_type_unicased(&[path]) {
-                    let packed_file_path = packed_file.get_path()[base_path.len() - 1..].to_vec();
-                    packed_files_packfile.insert(packed_file_path);
+                let local_files = pack_file_decoded.files_by_path(&path, true);
+                if !local_files.is_empty() {
+                    files.insert(DataSource::PackFile, local_files.into_iter().map(|file| file.path_in_container()).collect());
                 }
-                packed_files.insert(DataSource::PackFile, packed_files_packfile);
 
                 // Return the full list of PackedFile names requested, split by source.
-                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashSetContainerPath(packed_files));
-            },*/
+                CentralCommand::send_back(&sender, Response::HashMapDataSourceHashSetContainerPath(files));
+            },
 
             Command::SavePackedFilesToPackFileAndClean(files) => {
                 let schema = SCHEMA.read().unwrap();

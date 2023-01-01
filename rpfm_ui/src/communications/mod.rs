@@ -318,7 +318,7 @@ pub enum Command {
     SavePackedFilesToPackFileAndClean(Vec<RFile>),
 
     /// This command is used to get all the file names under a path in all dependencies.
-    //GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
+    GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
 
     /// This command is used to request all tips under a path, no matter their source.
     //GetTipsForPath(Vec<String>),
@@ -509,7 +509,7 @@ pub enum Response {
 
     /// Response to return `HashMap<DataSource, HashMap<Vec<String>, PackedFile>>`.
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    //HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
+    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     Diagnostics(Diagnostics),
     //DiagnosticsVecRFileInfo(Diagnostics, Vec<RFileInfo>),
     Definition(Definition),

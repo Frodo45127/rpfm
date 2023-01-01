@@ -94,7 +94,7 @@ macro_rules! get_data_from_all_sources {
 
 mod error;
 pub mod faction_painter;
-//pub mod unit_editor;
+pub mod unit_editor;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -524,13 +524,13 @@ impl Tool {
 
     /// This function gets the data needed for the tool from the locs in a generic way.
     unsafe fn get_loc_data(
-        data: &mut HashMap<Vec<String>, RFile>,
+        data: &mut HashMap<String, RFile>,
         processed_data: &mut HashMap<String, HashMap<String, String>>,
         loc_keys: &[(&str, &str)],
     ) -> Result<()> {
 
         for (path, packed_file) in data.iter_mut() {
-            if path.len() > 1 && path[0].to_lowercase() == "text" && path.last().unwrap().ends_with(".loc") {
+            if path.to_lowercase().ends_with(".loc") {
                 if let Ok(RFileDecoded::Loc(table)) = packed_file.decoded() {
                     let table = table.data(&None)?.par_iter()
                         .filter_map(|row| {
@@ -603,7 +603,7 @@ impl Tool {
     }
 
     /// This function is an utility function to get the most relevant file for a tool from the dependencies.
-    unsafe fn get_most_relevant_file(data: &HashMap<DataSource, HashMap<Vec<String>, RFile>>, path: &[String]) -> Option<RFile> {
+    unsafe fn get_most_relevant_file(data: &HashMap<DataSource, HashMap<String, RFile>>, path: &str) -> Option<RFile> {
         if let Some(data) = data.get(&DataSource::PackFile) {
             if let Some(packed_file) = data.get(path) {
                 return Some(packed_file.to_owned());
@@ -916,7 +916,7 @@ impl Tool {
 
     /// This function populates the provided combo with the provided data.
     #[allow(dead_code)]
-    unsafe fn load_reference_data_to_detailed_view_editor_combo(&self, column: i32, combo: &QPtr<QComboBox>, reference_data: &BTreeMap<i32, TableReferences>) {
+    unsafe fn load_reference_data_to_detailed_view_editor_combo(&self, column: i32, combo: &QPtr<QComboBox>, reference_data: &HashMap<i32, TableReferences>) {
 
         // We need an empty item for optional combos.
         combo.add_item_q_string(&QString::from_std_str(""));
