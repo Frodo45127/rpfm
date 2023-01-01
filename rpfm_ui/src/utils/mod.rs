@@ -61,40 +61,25 @@ use crate::STATUS_BAR;
 use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
 // Colors used all over the program for theming and stuff.
-pub const MEDIUM_DARK_GREY: &str = "#333333";            // Medium-Dark Grey. The color of the background of the Main Window.
 pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
 pub const DARK_GREY: &str = "#181818";                   // Dark Grey. The color of the background of the Main TreeView.
 pub const SLIGHTLY_DARKER_GREY: &str = "#101010";        // A Bit Darker Grey.
 pub const KINDA_WHITY_GREY: &str = "#BBBBBB";            // Light Grey. The color of the normal Text.
-pub const KINDA_MORE_WHITY_GREY: &str = "#CCCCCC";       // Lighter Grey. The color of the highlighted Text.
 pub const EVEN_MORE_WHITY_GREY: &str = "#FAFAFA";        // Even Lighter Grey.
-pub const BRIGHT_RED: &str = "#FF0000";                  // Bright Red, as our Lord.
-pub const DARK_RED: &str = "#FF0000";                    // Dark Red, as our face after facing our enemies.
-pub const LINK_BLUE: &str = "#2A82DA";                   // Blue, used for Zeldas.
 pub const ORANGE: &str = "#E67E22";                      // Orange, used for borders.
-pub const MEDIUM_GREY: &str = "#555555";
-pub const YELLOW_BRIGHT: &str = "#FFFFDD";
-pub const YELLOW_MEDIUM: &str = "#e5e546";
-pub const YELLOW_DARK: &str = "#525200";
 pub const GREEN_BRIGHT: &str = "#D0FDCC";
-pub const GREEN_MEDIUM: &str = "#87d382";
 pub const GREEN_DARK: &str = "#708F6E";
 pub const RED_BRIGHT: &str = "#FFCCCC";
 pub const RED_DARK: &str = "#8F6E6E";
-pub const BLUE_BRIGHT: &str = "#3399ff";
-pub const BLUE_DARK: &str = "#0066cc";
-pub const MAGENTA_MEDIUM: &str = "#CA1F7B";
 pub const TRANSPARENT_BRIGHT: &str = "#00000000";
 pub const ERROR_UNPRESSED_DARK: &str = "#b30000";
 pub const ERROR_UNPRESSED_LIGHT: &str = "#ffcccc";
 pub const ERROR_PRESSED_DARK: &str = "#e60000";
 pub const ERROR_PRESSED_LIGHT: &str = "#ff9999";
-pub const ERROR_FOREGROUND_LIGHT: &str = "#ff0000";
 pub const WARNING_UNPRESSED_DARK: &str = "#4d4d00";
 pub const WARNING_UNPRESSED_LIGHT: &str = "#ffffcc";
 pub const WARNING_PRESSED_DARK: &str = "#808000";
 pub const WARNING_PRESSED_LIGHT: &str = "#ffff99";
-pub const WARNING_FOREGROUND_LIGHT: &str = "#B300C0";
 pub const INFO_UNPRESSED_DARK: &str = "#0059b3";
 pub const INFO_UNPRESSED_LIGHT: &str = "#cce6ff";
 pub const INFO_PRESSED_DARK: &str = "#0073e6";
@@ -371,6 +356,8 @@ pub fn get_feature_flags() -> String {
 }
 
 /// This function creates the stylesheet used for the dark theme in windows.
+///
+/// TODO: Extract this to a file.
 pub fn create_dark_theme_stylesheet() -> String {
     format!("
         /* Normal buttons, with no rounded corners, dark background (darker when enabled), and colored borders. */
