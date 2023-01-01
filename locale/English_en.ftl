@@ -15,7 +15,6 @@ message_only_for_the_brave = <p>This version has been marked as "Only For The Br
     </ul>
     <p>Currently in this beta, you need to be aware that some parts of the UI have not been yet updated for the new backend and do not work/crash the program. Known broken stuff is:</p>
     <ul>
-        <li>Tools: they do not work yet.</li>
         <li>Dependencies Manager: it crashes.</li>
         <li>Update table: untested.</li>
         <li>Generate Loc Data: do not work yet.</li>
