@@ -122,8 +122,6 @@ impl Logger {
 
             // Get the data printed into the logs, because I'm tired of this getting "missed" when is a cross-thread crash.
             let data = Self::new(info, VERSION);
-            warn!("Crash info: {:?}", data);
-
             if data.save(&logging_path).is_err() {
                 error!("Failed to generate crash log.");
             }
